@@ -36,19 +36,22 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="kwa">use</span> rayon<span class="opt">::</span>prelude<span class="opt">::*;</span>
 <span class="kwa">use</span> std<span class="opt">::</span>arch<span class="opt">::</span>x86_64<span class="opt">::*;</span>
 
+<span class="ppc">#[cfg(target_arch =</span> <span class="pps">&quot;x86_64&quot;</span><span class="ppc">)]</span>
 <span class="ppc">#[derive(Copy, Clone)]</span>
 <span class="kwa">pub struct</span> <span class="kwd">U8x16</span><span class="opt">(</span>__m128i<span class="opt">);</span>
 
+<span class="ppc">#[cfg(all(target_arch =</span> <span class="pps">&quot;x86_64&quot;</span><span class="ppc">, target_feature =</span> <span class="pps">&quot;sse2&quot;</span><span class="ppc">,</span>
+          target_feature <span class="opt">=</span> <span class="str">&quot;ssse3&quot;</span><span class="opt">))]</span>
 <span class="kwa">impl</span> U8x16 <span class="opt">{</span>
     <span class="kwa">pub fn</span> <span class="kwd">zero</span><span class="opt">() -&gt;</span> U8x16 <span class="opt">{</span> <span class="kwd">U8x16</span><span class="opt">(</span><span class="kwa">unsafe</span> <span class="opt">{</span> <span class="kwd">_mm_setzero_si128</span><span class="opt">() }) }</span>
-    <span class="kwa">pub fn</span> <span class="kwd">from_slice_unaligned</span><span class="opt">(</span>s<span class="opt">: &amp;[</span><span class="kwb">u8</span><span class="opt">]) -&gt;</span> U8x16 <span class="opt">{</span>
+    <span class="kwa">pub fn</span> <span class="kwd">from_slice_unaligned</span><span class="opt">(</span>s<span class="opt">: &amp;[</span><span class="kwb">u8</span><span class="opt">;</span> <span class="num">16</span><span class="opt">]) -&gt;</span> U8x16 <span class="opt">{</span>
         <span class="kwd">U8x16</span><span class="opt">(</span><span class="kwa">unsafe</span> <span class="opt">{</span> <span class="kwd">_mm_loadu_si128</span><span class="opt">(</span>s<span class="opt">.</span><span class="kwd">as_ptr</span><span class="opt">()</span> <span class="kwa">as</span> <span class="opt">*</span><span class="kwa">const</span> _<span class="opt">) })</span>
     <span class="opt">}</span>
-    <span class="kwa">pub fn</span> <span class="kwd">write_to_slice_unaligned</span><span class="opt">(</span><span class="kwa">self</span><span class="opt">,</span> s<span class="opt">: &amp;</span><span class="kwa">mut</span> <span class="opt">[</span><span class="kwb">u8</span><span class="opt">]) {</span>
+    <span class="kwa">pub fn</span> <span class="kwd">write_to_slice_unaligned</span><span class="opt">(</span><span class="kwa">self</span><span class="opt">,</span> s<span class="opt">: &amp;</span><span class="kwa">mut</span> <span class="opt">[</span><span class="kwb">u8</span><span class="opt">;</span> <span class="num">16</span><span class="opt">]) {</span>
         <span class="kwa">unsafe</span> <span class="opt">{</span> <span class="kwd">_mm_storeu_si128</span><span class="opt">(</span>s<span class="opt">.</span><span class="kwd">as_mut_ptr</span><span class="opt">()</span> <span class="kwa">as</span> <span class="opt">*</span><span class="kwa">mut</span> _<span class="opt">,</span> <span class="kwa">self</span><span class="num">.0</span><span class="opt">) }</span>
     <span class="opt">}</span>
     <span class="kwa">pub fn</span> <span class="kwd">extract0</span><span class="opt">(</span><span class="kwa">self</span><span class="opt">) -&gt;</span> <span class="kwb">i32</span> <span class="opt">{</span>
-        <span class="kwa">unsafe</span> <span class="opt">{</span> <span class="kwd">_mm_extract_epi8</span><span class="opt">(</span><span class="kwa">self</span><span class="num">.0</span><span class="opt">,</span> <span class="num">0i32</span><span class="opt">) }</span>
+        <span class="kwa">unsafe</span> <span class="opt">{</span> <span class="kwd">_mm_extract_epi16</span><span class="opt">(</span><span class="kwa">self</span><span class="num">.0</span><span class="opt">,</span> <span class="num">0i32</span><span class="opt">) &amp;</span> <span class="num">0xFF</span> <span class="opt">}</span>
     <span class="opt">}</span>
     <span class="kwa">pub fn</span> <span class="kwd">permute_dyn</span><span class="opt">(</span><span class="kwa">self</span><span class="opt">,</span> indices<span class="opt">:</span> U8x16<span class="opt">) -&gt;</span> U8x16 <span class="opt">{</span>
         <span class="kwd">U8x16</span><span class="opt">(</span><span class="kwa">unsafe</span> <span class="opt">{</span> <span class="kwd">_mm_shuffle_epi8</span><span class="opt">(</span><span class="kwa">self</span><span class="num">.0</span><span class="opt">,</span> indices<span class="num">.0</span><span class="opt">) })</span>
@@ -186,20 +189,19 @@ NOTES:
 rustc 1.28.0 (9634041f0 2018-07-30)
 
 
-Sat, 08 Sep 2018 03:49:06 GMT
+Sat, 08 Sep 2018 18:11:43 GMT
 
 MAKE:
 /opt/src/rust-1.28.0/bin/rustc -C opt-level=3 -C target-cpu=core2 -C lto -C codegen-units=1 -L /opt/src/rust-libs fannkuchredux.rs -o fannkuchredux.rust-4.rust_run
 
-14.81s to complete and log all make actions
+14.90s to complete and log all make actions
 
 COMMAND LINE:
-./fannkuchredux.rust-4.rust_run 10
-
-PROGRAM FAILED 
-
+./fannkuchredux.rust-4.rust_run 12
 
 PROGRAM OUTPUT:
+3968050
+Pfannkuchen(12) = 65
     </pre>
   </section>
 </article>
