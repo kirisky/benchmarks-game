@@ -23,40 +23,16 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
     </div>
     <pre>
 <span class="slc">// The Computer Language Benchmarks Game</span>
-<span class="slc">// http://benchmarksgame.alioth.debian.org/</span>
+<span class="slc">// https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
 <span class="slc">//</span>
 <span class="slc">// contributed by the Rust Project Developers</span>
 <span class="slc">// contributed by TeXitoi</span>
-<span class="slc">// contributed by Cristi Cobzarenco (&#64;cristicbz)</span>
-<span class="slc">// contributed by Andre Bogus</span>
+<span class="slc">// contributed by Cristi Cobzarenco</span>
 
 <span class="kwa">extern crate</span> rayon<span class="opt">;</span>
 
-<span class="kwa">use</span> std<span class="opt">::</span>cmp<span class="opt">;</span>
+<span class="kwa">use</span> std<span class="opt">::{</span>cmp<span class="opt">,</span> mem<span class="opt">};</span>
 <span class="kwa">use</span> rayon<span class="opt">::</span>prelude<span class="opt">::*;</span>
-<span class="kwa">use</span> std<span class="opt">::</span>arch<span class="opt">::</span>x86_64<span class="opt">::*;</span>
-
-<span class="ppc">#[cfg(target_arch =</span> <span class="pps">&quot;x86_64&quot;</span><span class="ppc">)]</span>
-<span class="ppc">#[derive(Copy, Clone)]</span>
-<span class="kwa">pub struct</span> <span class="kwd">U8x16</span><span class="opt">(</span>__m128i<span class="opt">);</span>
-
-<span class="ppc">#[cfg(all(target_arch =</span> <span class="pps">&quot;x86_64&quot;</span><span class="ppc">, target_feature =</span> <span class="pps">&quot;sse2&quot;</span><span class="ppc">,</span>
-          target_feature <span class="opt">=</span> <span class="str">&quot;ssse3&quot;</span><span class="opt">))]</span>
-<span class="kwa">impl</span> U8x16 <span class="opt">{</span>
-    <span class="kwa">pub fn</span> <span class="kwd">zero</span><span class="opt">() -&gt;</span> U8x16 <span class="opt">{</span> <span class="kwd">U8x16</span><span class="opt">(</span><span class="kwa">unsafe</span> <span class="opt">{</span> <span class="kwd">_mm_setzero_si128</span><span class="opt">() }) }</span>
-    <span class="kwa">pub fn</span> <span class="kwd">from_slice_unaligned</span><span class="opt">(</span>s<span class="opt">: &amp;[</span><span class="kwb">u8</span><span class="opt">;</span> <span class="num">16</span><span class="opt">]) -&gt;</span> U8x16 <span class="opt">{</span>
-        <span class="kwd">U8x16</span><span class="opt">(</span><span class="kwa">unsafe</span> <span class="opt">{</span> <span class="kwd">_mm_loadu_si128</span><span class="opt">(</span>s<span class="opt">.</span><span class="kwd">as_ptr</span><span class="opt">()</span> <span class="kwa">as</span> <span class="opt">*</span><span class="kwa">const</span> _<span class="opt">) })</span>
-    <span class="opt">}</span>
-    <span class="kwa">pub fn</span> <span class="kwd">write_to_slice_unaligned</span><span class="opt">(</span><span class="kwa">self</span><span class="opt">,</span> s<span class="opt">: &amp;</span><span class="kwa">mut</span> <span class="opt">[</span><span class="kwb">u8</span><span class="opt">;</span> <span class="num">16</span><span class="opt">]) {</span>
-        <span class="kwa">unsafe</span> <span class="opt">{</span> <span class="kwd">_mm_storeu_si128</span><span class="opt">(</span>s<span class="opt">.</span><span class="kwd">as_mut_ptr</span><span class="opt">()</span> <span class="kwa">as</span> <span class="opt">*</span><span class="kwa">mut</span> _<span class="opt">,</span> <span class="kwa">self</span><span class="num">.0</span><span class="opt">) }</span>
-    <span class="opt">}</span>
-    <span class="kwa">pub fn</span> <span class="kwd">extract0</span><span class="opt">(</span><span class="kwa">self</span><span class="opt">) -&gt;</span> <span class="kwb">i32</span> <span class="opt">{</span>
-        <span class="kwa">unsafe</span> <span class="opt">{</span> <span class="kwd">_mm_extract_epi16</span><span class="opt">(</span><span class="kwa">self</span><span class="num">.0</span><span class="opt">,</span> <span class="num">0i32</span><span class="opt">) &amp;</span> <span class="num">0xFF</span> <span class="opt">}</span>
-    <span class="opt">}</span>
-    <span class="kwa">pub fn</span> <span class="kwd">permute_dyn</span><span class="opt">(</span><span class="kwa">self</span><span class="opt">,</span> indices<span class="opt">:</span> U8x16<span class="opt">) -&gt;</span> U8x16 <span class="opt">{</span>
-        <span class="kwd">U8x16</span><span class="opt">(</span><span class="kwa">unsafe</span> <span class="opt">{</span> <span class="kwd">_mm_shuffle_epi8</span><span class="opt">(</span><span class="kwa">self</span><span class="num">.0</span><span class="opt">,</span> indices<span class="num">.0</span><span class="opt">) })</span>
-    <span class="opt">}</span>
-<span class="opt">}</span>
 
 <span class="slc">// This value controls the preferred maximum number of  blocks the workload is</span>
 <span class="slc">// broken up into. The actual value may be one higher (if the number of</span>
@@ -67,7 +43,7 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="kwa">fn</span> <span class="kwd">fannkuch</span><span class="opt">(</span>n<span class="opt">:</span> <span class="kwb">i32</span><span class="opt">) -&gt; (</span><span class="kwb">i32</span><span class="opt">,</span> <span class="kwb">i32</span><span class="opt">) {</span>
     <span class="slc">// Precompute a table a factorials to reuse all over the place.</span>
     <span class="kwa">let mut</span> factorials <span class="opt">= [</span><span class="num">1</span><span class="opt">;</span> <span class="num">16</span><span class="opt">];</span>
-    <span class="kwa">for</span> i <span class="kwa">in</span> <span class="num">1</span><span class="opt">..=</span>n <span class="kwa">as</span> <span class="kwb">usize</span> <span class="opt">{</span>
+    <span class="kwa">for</span> i <span class="kwa">in</span> <span class="num">1</span><span class="opt">..</span>n <span class="kwa">as</span> <span class="kwb">usize</span> <span class="opt">+</span> <span class="num">1</span> <span class="opt">{</span>
         factorials<span class="opt">[</span>i<span class="opt">] =</span> factorials<span class="opt">[</span>i <span class="opt">-</span> <span class="num">1</span><span class="opt">] *</span> i <span class="kwa">as</span> <span class="kwb">u32</span><span class="opt">;</span>
     <span class="opt">}</span>
     <span class="kwa">let</span> perm_max <span class="opt">=</span> factorials<span class="opt">[</span>n <span class="kwa">as</span> <span class="kwb">usize</span><span class="opt">];</span>
@@ -83,30 +59,17 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
          perm_max <span class="opt">/</span> NUM_BLOCKS<span class="opt">)</span>
     <span class="opt">};</span>
 
-    <span class="slc">// precompute flips and rotations</span>
-    <span class="kwa">let mut</span> flip_masks <span class="opt">= [</span>U8x16<span class="opt">::</span><span class="kwd">zero</span><span class="opt">();</span> <span class="num">16</span><span class="opt">];</span>
-    <span class="kwa">let mut</span> rotate_masks <span class="opt">= [</span>U8x16<span class="opt">::</span><span class="kwd">zero</span><span class="opt">();</span> <span class="num">16</span><span class="opt">];</span>
-    <span class="kwa">let mut</span> mask <span class="opt">= [</span><span class="num">0u8</span><span class="opt">;</span> <span class="num">16</span><span class="opt">];</span>
-    <span class="kwa">for</span> i <span class="kwa">in</span> <span class="num">0</span><span class="opt">.</span><span class="num">.16</span> <span class="opt">{</span>
-        mask<span class="num">.i</span>ter<span class="num">_</span>m<span class="num">u</span>t<span class="opt">().</span><span class="kwd">enumerate</span><span class="opt">()</span><span class="num">.f</span>or<span class="num">_</span>each<span class="opt">(|(</span>j<span class="opt">,</span> m<span class="opt">)| *</span>m <span class="opt">=</span> j <span class="kwa">as</span> <span class="kwb">u8</span><span class="opt">);</span>
-        mask<span class="opt">[</span><span class="num">0</span><span class="opt">.</span><span class="num">.i</span> <span class="opt">+</span> <span class="num">1</span><span class="opt">].</span><span class="kwd">reverse</span><span class="opt">();</span>
-        flip_masks<span class="opt">[</span>i<span class="opt">] =</span> U8x16<span class="opt">::</span><span class="kwd">from_slice_unaligned</span><span class="opt">(&amp;</span>mask<span class="opt">);</span>
-        mask<span class="num">.i</span>ter<span class="num">_</span>m<span class="num">u</span>t<span class="opt">().</span><span class="kwd">enumerate</span><span class="opt">()</span><span class="num">.f</span>or<span class="num">_</span>each<span class="opt">(|(</span>j<span class="opt">,</span> m<span class="opt">)| *</span>m <span class="opt">=</span> j <span class="kwa">as</span> <span class="kwb">u8</span><span class="opt">);</span>
-        <span class="kwa">let</span> c <span class="opt">=</span> mask<span class="opt">[</span><span class="num">0</span><span class="opt">];</span>
-        <span class="opt">(</span><span class="num">0</span><span class="opt">.</span><span class="num">.i</span><span class="opt">)</span><span class="num">.f</span>or<span class="num">_</span>each<span class="opt">(|</span>i<span class="opt">|</span> mask<span class="opt">[</span>i<span class="opt">] =</span> mask<span class="opt">[</span>i <span class="opt">+</span> <span class="num">1</span><span class="opt">]);</span>
-        mask<span class="opt">[</span>i<span class="opt">] =</span> c<span class="opt">;</span>
-        rotate_masks<span class="opt">[</span>i<span class="opt">] =</span> U8x16<span class="opt">::</span><span class="kwd">from_slice_unaligned</span><span class="opt">(&amp;</span>mask<span class="opt">);</span>
-    <span class="opt">}</span>
-
     <span class="slc">// Compute the `checksum` and `maxflips` for each block in parallel.</span>
     <span class="opt">(</span><span class="num">0</span><span class="opt">..</span>num_blocks<span class="opt">)</span><span class="num">.i</span>nto<span class="num">_</span>par<span class="num">_i</span>ter<span class="opt">().</span><span class="kwd">map</span><span class="opt">(|</span>i_block<span class="opt">| {</span>
         <span class="kwa">let</span> initial <span class="opt">=</span> i_block <span class="opt">*</span> block_size<span class="opt">;</span>
         <span class="kwa">let mut</span> count <span class="opt">= [</span><span class="num">0i32</span><span class="opt">;</span> <span class="num">16</span><span class="opt">];</span>
-        <span class="kwa">let mut</span> temp <span class="opt">= [</span><span class="num">0u8</span><span class="opt">;</span> <span class="num">16</span><span class="opt">];</span>
-        <span class="kwa">let mut</span> current <span class="opt">= [</span><span class="num">0u8</span><span class="opt">;</span> <span class="num">16</span><span class="opt">];</span>
+        <span class="kwa">let mut</span> temp <span class="opt">= [</span><span class="num">0i32</span><span class="opt">;</span> <span class="num">16</span><span class="opt">];</span>
+        <span class="kwa">let mut</span> current <span class="opt">= [</span><span class="num">0i32</span><span class="opt">;</span> <span class="num">16</span><span class="opt">];</span>
 
         <span class="slc">// Initialise `count` and the current permutation (`current`)</span>
-        current<span class="num">.i</span>ter<span class="num">_</span>m<span class="num">u</span>t<span class="opt">().</span><span class="kwd">enumerate</span><span class="opt">()</span><span class="num">.f</span>or<span class="num">_</span>each<span class="opt">(|(</span>i<span class="opt">,</span> value<span class="opt">)| *</span>value <span class="opt">=</span> i <span class="kwa">as</span> <span class="kwb">u8</span><span class="opt">);</span>
+        <span class="kwa">for</span> <span class="opt">(</span>i<span class="opt">,</span> value<span class="opt">)</span> <span class="kwa">in</span> current<span class="num">.i</span>ter<span class="num">_</span>m<span class="num">u</span>t<span class="opt">().</span><span class="kwd">enumerate</span><span class="opt">() {</span>
+            <span class="opt">*</span>value <span class="opt">=</span> i <span class="kwa">as</span> <span class="kwb">i32</span><span class="opt">;</span>
+        <span class="opt">}</span>
 
         <span class="kwa">let mut</span> permutation_index <span class="opt">=</span> initial <span class="kwa">as</span> <span class="kwb">i32</span><span class="opt">;</span>
         <span class="kwa">for</span> i <span class="kwa">in</span> <span class="opt">(</span><span class="num">1</span><span class="opt">..</span>n <span class="kwa">as</span> <span class="kwb">usize</span><span class="opt">).</span><span class="kwd">rev</span><span class="opt">() {</span>
@@ -117,12 +80,16 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 
             temp<span class="opt">.</span><span class="kwd">copy_from_slice</span><span class="opt">(&amp;</span>current<span class="opt">);</span>
             <span class="kwa">let</span> d <span class="opt">=</span> d <span class="kwa">as</span> <span class="kwb">usize</span><span class="opt">;</span>
-            current<span class="opt">[</span><span class="num">0</span><span class="opt">..=</span>i <span class="opt">-</span> d<span class="opt">].</span><span class="kwd">copy_from_slice</span><span class="opt">(&amp;</span>temp<span class="opt">[</span>d<span class="opt">..=</span>i<span class="opt">]);</span>
-            current<span class="opt">[</span>i <span class="opt">-</span> d <span class="opt">+</span> <span class="num">1</span><span class="opt">..=</span>i<span class="opt">].</span><span class="kwd">copy_from_slice</span><span class="opt">(&amp;</span>temp<span class="opt">[</span><span class="num">0</span><span class="opt">..</span>d<span class="opt">])</span>
+            <span class="kwa">for</span> j <span class="kwa">in</span> <span class="num">0</span><span class="opt">.</span><span class="num">.i</span> <span class="opt">+</span> <span class="num">1</span> <span class="opt">{</span>
+                current<span class="opt">[</span>j<span class="opt">] =</span> <span class="kwa">if</span> j <span class="opt">+</span> d <span class="opt">&lt;=</span> i <span class="opt">{</span>
+                    temp<span class="opt">[</span>j <span class="opt">+</span> d<span class="opt">]</span>
+                <span class="opt">}</span> <span class="kwa">else</span> <span class="opt">{</span>
+                    temp<span class="opt">[</span>j <span class="opt">+</span> d <span class="opt">-</span> i <span class="opt">-</span> <span class="num">1</span><span class="opt">]</span>
+                <span class="opt">};</span>
+            <span class="opt">}</span>
         <span class="opt">}</span>
 
         <span class="slc">// Iterate over each permutation in the block.</span>
-        <span class="kwa">let mut</span> perm <span class="opt">=</span> U8x16<span class="opt">::</span><span class="kwd">from_slice_unaligned</span><span class="opt">(&amp;</span>current<span class="opt">);</span>
         <span class="kwa">let</span> last_permutation_in_block <span class="opt">=</span> cmp<span class="opt">::</span><span class="kwd">min</span><span class="opt">(</span>initial <span class="opt">+</span> block_size<span class="opt">,</span>
                                                  perm_max<span class="opt">) -</span> <span class="num">1</span><span class="opt">;</span>
         <span class="kwa">let mut</span> permutation_index <span class="opt">=</span> initial<span class="opt">;</span>
@@ -130,14 +97,27 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
         <span class="kwa">loop</span> <span class="opt">{</span>
             <span class="slc">// If the first value in the current permutation is not 1 (0) then</span>
             <span class="slc">// we will need to do at least one flip for `current`.</span>
-            <span class="kwa">if</span> perm<span class="opt">.</span><span class="kwd">extract0</span><span class="opt">() &gt;</span> <span class="num">0</span> <span class="opt">{</span>
+            <span class="kwa">if</span> current<span class="opt">[</span><span class="num">0</span><span class="opt">] &gt;</span> <span class="num">0</span> <span class="opt">{</span>
                 <span class="slc">// Copy the current permutation to work on it.</span>
-                <span class="kwa">let mut</span> flip_count <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
-                <span class="kwa">let mut</span> flip <span class="opt">=</span> perm<span class="opt">;</span>
-                <span class="kwa">loop</span> <span class="opt">{</span>
-                    <span class="kwa">let</span> flip_index <span class="opt">=</span> flip<span class="opt">.</span><span class="kwd">extract0</span><span class="opt">()</span> <span class="kwa">as</span> <span class="kwb">usize</span><span class="opt">;</span>
-                    <span class="kwa">if</span> flip_index <span class="opt">==</span> <span class="num">0</span> <span class="opt">{</span> <span class="kwa">break</span><span class="opt">; }</span>
-                    flip <span class="opt">=</span> flip<span class="opt">.</span><span class="kwd">permute_dyn</span><span class="opt">(</span>flip_masks<span class="opt">[</span>flip_index<span class="opt">]);</span>
+                temp<span class="opt">.</span><span class="kwd">copy_from_slice</span><span class="opt">(&amp;</span>current<span class="opt">);</span>
+
+                <span class="slc">// Flip `temp` (the copy of the current permutation) until its</span>
+                <span class="slc">// first element is 1 (0).</span>
+                <span class="kwa">let mut</span> flip_count <span class="opt">=</span> <span class="num">1</span><span class="opt">;</span>
+                <span class="kwa">let mut</span> first_value <span class="opt">=</span> current<span class="opt">[</span><span class="num">0</span><span class="opt">]</span> <span class="kwa">as</span> <span class="kwb">usize</span><span class="opt">;</span>
+                <span class="kwa">while</span> temp<span class="opt">[</span>first_value<span class="opt">] !=</span> <span class="num">0</span> <span class="opt">{</span>
+                    <span class="kwa">let</span> new_first_value <span class="opt">=</span> mem<span class="opt">::</span><span class="kwd">replace</span><span class="opt">(&amp;</span><span class="kwa">mut</span> temp<span class="opt">[</span>first_value<span class="opt">],</span>
+                                                       first_value <span class="kwa">as</span> <span class="kwb">i32</span><span class="opt">);</span>
+                    <span class="slc">// If the first value is greater than 3 (2), then we are</span>
+                    <span class="slc">// flipping a series of four or more values so we will need</span>
+                    <span class="slc">// to flip additional elements in the middle of `temp`.</span>
+                    <span class="kwa">if</span> first_value <span class="opt">&gt;</span> <span class="num">2</span> <span class="opt">{</span>
+                        temp<span class="opt">[</span><span class="num">1</span><span class="opt">.</span><span class="num">.fi</span>rst<span class="num">_</span>val<span class="num">u</span>e<span class="opt">].</span><span class="kwd">reverse</span><span class="opt">();</span>
+                    <span class="opt">}</span>
+
+                    <span class="slc">// Update `first_value` to the value we saved earlier and</span>
+                    <span class="slc">// record a flip in `flip_count`.</span>
+                    first_value <span class="opt">=</span> new_first_value <span class="kwa">as</span> <span class="kwb">usize</span><span class="opt">;</span>
                     flip_count <span class="opt">+=</span> <span class="num">1</span><span class="opt">;</span>
                 <span class="opt">}</span>
 
@@ -157,13 +137,21 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
                 <span class="kwa">return</span> <span class="opt">(</span>checksum<span class="opt">,</span> maxflips<span class="opt">);</span>
             <span class="opt">}</span>
             permutation_index <span class="opt">+=</span> <span class="num">1</span><span class="opt">;</span>
-            perm <span class="opt">=</span> perm<span class="opt">.</span><span class="kwd">permute_dyn</span><span class="opt">(</span>rotate_masks<span class="opt">[</span><span class="num">1</span><span class="opt">]);</span>
+
             <span class="slc">// Generate the next permutation.</span>
+            <span class="kwa">let mut</span> first_value <span class="opt">=</span> current<span class="opt">[</span><span class="num">1</span><span class="opt">];</span>
+            current<span class="opt">[</span><span class="num">1</span><span class="opt">] =</span> current<span class="opt">[</span><span class="num">0</span><span class="opt">];</span>
+            current<span class="opt">[</span><span class="num">0</span><span class="opt">] =</span> first_value<span class="opt">;</span>
             <span class="kwa">let mut</span> i <span class="opt">=</span> <span class="num">1</span><span class="opt">;</span>
             <span class="kwa">while</span> count<span class="opt">[</span>i<span class="opt">] &gt;=</span> i <span class="kwa">as</span> <span class="kwb">i32</span> <span class="opt">{</span>
                 count<span class="opt">[</span>i<span class="opt">] =</span> <span class="num">0</span><span class="opt">;</span>
                 i <span class="opt">+=</span> <span class="num">1</span><span class="opt">;</span>
-                perm <span class="opt">=</span> perm<span class="opt">.</span><span class="kwd">permute_dyn</span><span class="opt">(</span>rotate_masks<span class="opt">[</span>i<span class="opt">]);</span>
+                <span class="kwa">let</span> new_first_value <span class="opt">=</span> current<span class="opt">[</span><span class="num">1</span><span class="opt">];</span>
+                current<span class="opt">[</span><span class="num">0</span><span class="opt">] =</span> new_first_value<span class="opt">;</span>
+                <span class="kwa">for</span> j <span class="kwa">in</span> <span class="num">1</span><span class="opt">.</span><span class="num">.i</span> <span class="opt">{</span>
+                    current<span class="opt">[</span>j<span class="opt">] =</span> current<span class="opt">[</span>j <span class="opt">+</span> <span class="num">1</span><span class="opt">];</span>
+                <span class="opt">}</span>
+                current<span class="opt">[</span>i<span class="opt">] =</span> mem<span class="opt">::</span><span class="kwd">replace</span><span class="opt">(&amp;</span><span class="kwa">mut</span> first_value<span class="opt">,</span> new_first_value<span class="opt">);</span>
             <span class="opt">}</span>
             count<span class="opt">[</span>i<span class="opt">] +=</span> <span class="num">1</span><span class="opt">;</span>
         <span class="opt">}</span>
@@ -187,14 +175,15 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 NOTES:
 64-bit Ubuntu quad core
 rustc 1.28.0 (9634041f0 2018-07-30)
+LLVM version 5.0.1
 
 
-Sat, 08 Sep 2018 21:56:39 GMT
+Tue, 11 Sep 2018 21:33:59 GMT
 
 MAKE:
-/opt/src/rust-1.28.0/bin/rustc -C opt-level=3 -C target-cpu=core2 -C lto -C codegen-units=1 -L /opt/src/rust-libs fannkuchredux.rs -o fannkuchredux.rust-4.rust_run
+/opt/src/rust-1.28.0/bin/rustc -C opt-level=3 -C target-cpu=core2 -C lto -C codegen-units=1 -L /opt/src/rust-libs -C llvm-args='-unroll-threshold=500' fannkuchredux.rs -o fannkuchredux.rust-4.rust_run
 
-6.69s to complete and log all make actions
+15.48s to complete and log all make actions
 
 COMMAND LINE:
 ./fannkuchredux.rust-4.rust_run 12
