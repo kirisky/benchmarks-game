@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,follow,noarchive">
+
+<title>pidigits Haskell GHC program | Computer Language Benchmarks Game </title>
+<style><!--
+a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,header{margin:auto;width:92%}body{font:100% Droid Sans, Ubuntu, Verdana, sans-serif;margin:0;-webkit-text-size-adjust:100%}h3, h1, h2, li a{font-family:Ubuntu Mono,Consolas,Menlo,monospace}div,footer,header{max-width:31em}footer{padding:2.6em 0 0}h3{font-size:1.4em;font-weight:bold;margin:0;padding: .4em}h3, h3 a{color:white;background-color:#dd4814}h3 small{font-size:0.64em}h1,h2{margin:1.5em 0 0}h1{font-size:1.4em;font-weight:normal}h2{font-size:1.2em}li{list-style-type:none;vertical-align:top}li a{display:block;font-size:1.2em;margin: .5em .5em 0;padding: .5em .5em .3em}ul{clear:left;margin:-0.3em 0 1.5em;padding-left:0;text-align:center}p{color:#333;line-height:1.4;margin: .3em 0 0}p a, a span{border-bottom: .1em solid #333;padding-bottom: .1em}.com,.slc{color:#888}.kwa{color:#066}.kwb{color:#900}.kwc{color:#050}.kwa,.kwb,.kwc{font-weight:bold}.dstr,.str,.sym,.num{color:#930}pre{color:#222;font-size:1em;overflow-wrap:break-word;white-space:pre-wrap;word-wrap:break-word}@media only screen and (min-width: 60em){article,footer,header{font-size:1.25em}}
+--></style>
+<link rel="shortcut icon" href="./favicon.ico">
+<header>
+  <h3><a href="https://benchmarksgame-team.pages.debian.net/benchmarksgame/">The&nbsp;<small>Computer&nbsp;Language</small><br>Benchmarks&nbsp;Game</a></h3>
+</header>
+<article>
+  <div>
+    <h1>pidigits Haskell GHC program</h1>
+    <aside>
+      <p><a href="../description/pidigits.html#pidigits">description</a>
+    </aside>
+  </div>
+  <section>
+    </div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc">-- The Computer Language Benchmarks Game</span>
+<span class="slc">-- https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">-- contributed by Einar Karttunen</span>
+<span class="slc">-- adapted from the OCaml version.</span>
+
+<span class="kwd">import</span> System<span class="opt">.</span>Environment
+
+floor_ev <span class="opt">(</span>q<span class="opt">,</span> r<span class="opt">,</span> s<span class="opt">,</span> t<span class="opt">)</span> x <span class="opt">= (</span>q<span class="opt">*</span>x <span class="opt">+</span> r<span class="opt">)</span> `<span class="kwc">div</span>` <span class="opt">(</span>s<span class="opt">*</span>x <span class="opt">+</span> t<span class="opt">)</span>
+comp <span class="opt">(</span>q<span class="opt">,</span>r<span class="opt">,</span>s<span class="opt">,</span>t<span class="opt">) (</span>q<span class="opt">&apos;,</span>r<span class="opt">&apos;,</span>s<span class="opt">&apos;,</span>t<span class="opt">&apos;) = (</span>q<span class="opt">*</span>q<span class="opt">&apos; +</span> r<span class="opt">*</span>s<span class="opt">&apos;,</span> q<span class="opt">*</span>r<span class="opt">&apos; +</span> r<span class="opt">*</span>t<span class="opt">&apos;,</span> s<span class="opt">*</span>q<span class="opt">&apos; +</span> t<span class="opt">*</span>s<span class="opt">&apos;,</span> s<span class="opt">*</span>r<span class="opt">&apos; +</span> t<span class="opt">*</span>t<span class="opt">&apos;)</span>
+<span class="kwc">next</span> z <span class="opt">=</span> floor_ev z <span class="num">3</span>
+safe z n <span class="opt">=</span> n <span class="opt">==</span> floor_ev z <span class="num">4</span>
+prod z n <span class="opt">=</span> comp <span class="opt">(</span><span class="num">10</span><span class="opt">,-</span><span class="num">10</span> <span class="opt">*</span> n<span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> <span class="num">1</span><span class="opt">)</span> z
+cons z k <span class="opt">=</span> <span class="kwd">let</span> den <span class="opt">=</span> <span class="num">2</span><span class="opt">*</span>k<span class="opt">+</span><span class="num">1</span> <span class="kwd">in</span> comp z <span class="opt">(</span><span class="kwc">fromIntegral</span> k<span class="opt">,</span> <span class="kwc">fromIntegral</span> <span class="opt">(</span><span class="num">2</span><span class="opt">*</span>den<span class="opt">),</span> <span class="num">0</span><span class="opt">,</span> <span class="kwc">fromIntegral</span> den<span class="opt">)</span>
+
+digit <span class="opt">::</span> <span class="kwb">Int</span> <span class="opt">-&gt; (</span><span class="kwb">Integer</span><span class="opt">,</span><span class="kwb">Integer</span><span class="opt">,</span><span class="kwb">Integer</span><span class="opt">,</span><span class="kwb">Integer</span><span class="opt">) -&gt;</span> <span class="kwb">Int</span> <span class="opt">-&gt;</span> <span class="kwb">Int</span> <span class="opt">-&gt;</span> <span class="kwb">Int</span> <span class="opt">-&gt;</span> <span class="kwb">IO</span> <span class="opt">()</span>
+digit k z <span class="num">0</span> row col <span class="opt">=</span> <span class="kwc">putStrLn</span> <span class="opt">(</span><span class="kwc">take</span> <span class="opt">(</span><span class="num">10</span><span class="opt">-</span>col<span class="opt">)</span> <span class="str">&quot;               &quot;</span><span class="opt">++</span><span class="str">&quot;</span><span class="esc">\t</span><span class="str">:&quot;</span><span class="opt">++</span><span class="kwc">show</span> <span class="opt">(</span>row<span class="opt">+</span>col<span class="opt">))</span>
+digit k z n row col <span class="opt">=</span> 
+   <span class="kwd">if</span> safe z y 
+      <span class="kwd">then if</span> col <span class="opt">==</span> <span class="num">10</span> 
+         <span class="kwd">then do let</span> row<span class="opt">&apos; =</span> row <span class="opt">+</span> <span class="num">10</span>
+            <span class="kwc">putStr</span> <span class="opt">(</span><span class="str">&quot;</span><span class="esc">\t</span><span class="str">:&quot;</span><span class="opt">++</span><span class="kwc">show</span> row<span class="opt">&apos;++</span><span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">++</span><span class="kwc">show</span> y<span class="opt">)</span>
+               digit k <span class="opt">(</span>prod z y<span class="opt">) (</span>n<span class="opt">-</span><span class="num">1</span><span class="opt">)</span> row<span class="opt">&apos;</span> <span class="num">1</span>
+         <span class="kwd">else</span> <span class="kwc">putStr</span> <span class="opt">(</span><span class="kwc">show</span> y<span class="opt">) &gt;&gt;</span> digit k <span class="opt">(</span>prod z y<span class="opt">) (</span>n<span class="opt">-</span><span class="num">1</span><span class="opt">)</span> row <span class="opt">(</span>col<span class="opt">+</span><span class="num">1</span><span class="opt">)</span>
+      <span class="kwd">else</span> digit <span class="opt">(</span>k<span class="opt">+</span><span class="num">1</span><span class="opt">) (</span>cons z k<span class="opt">)</span> n row col
+   <span class="kwd">where</span> y <span class="opt">=</span> <span class="kwc">next</span> z
+
+main <span class="opt">=</span> <span class="kwd">do</span> <span class="opt">[</span>n<span class="opt">] &lt;-</span> <span class="kwc">getArgs</span>
+         digit <span class="num">1</span> <span class="opt">(</span><span class="num">1</span><span class="opt">,</span><span class="num">0</span><span class="opt">,</span><span class="num">0</span><span class="opt">,</span><span class="num">1</span><span class="opt">) (</span><span class="kwc">read</span> n<span class="opt">)</span> <span class="num">0 0</span>
+    </pre>
+  </section>
+  <section>
+    <h2 id="log">notes, command-line, and program output</h2>
+    <pre>
+NOTES:
+64-bit Ubuntu quad core
+The Glorious Glasgow Haskell Compilation System, version 8.4.1
+
+
+Fri, 02 Nov 2018 18:05:20 GMT
+
+MAKE:
+mv pidigits.ghc pidigits.hs
+/opt/src/ghc-8.4.1/bin/ghc --make -O2 -XBangPatterns -threaded -rtsopts  pidigits.hs -o pidigits.ghc_run
+[1 of 1] Compiling Main             ( pidigits.hs, pidigits.o )
+
+pidigits.hs:21:13: error: parse error on input ‘putStr’
+   |
+21 |             putStr (&quot;\t:&quot;++show row'++&quot;\n&quot;++show y)
+   |             ^^^^^^
+make: [/home/dunham/8000-benchmarksgame/nanobench/makefiles/u64q.programs.Makefile:340: pidigits.ghc_run] Error 1 (ignored)
+rm pidigits.hs
+
+0.15s to complete and log all make actions
+
+COMMAND LINE:
+./pidigits.ghc_run +RTS -N4 -RTS 2000
+
+MAKE ERROR 
+
+    </pre>
+  </section>
+</article>
+<footer>
+  <nav>
+    <ul>
+      <li><a href="../license.html"><span>3-Clause BSD License</span></a>
+    </ul>
+  </nav>
+</footer>
+
