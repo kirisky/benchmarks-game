@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,follow,noarchive">
+
+<title>regex-redux Substrate VM&nbsp;#4 program | Computer Language Benchmarks Game </title>
+<style><!--
+a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,header{margin:auto;width:92%}body{font:100% Droid Sans, Ubuntu, Verdana, sans-serif;margin:0;-webkit-text-size-adjust:100%}h3, h1, h2, li a{font-family:Ubuntu Mono,Consolas,Menlo,monospace}div,footer,header{max-width:31em}footer{padding:2.6em 0 0}h3{font-size:1.4em;font-weight:bold;margin:0;padding: .4em}h3, h3 a{color:white;background-color:#dd4814}h3 small{font-size:0.64em}h1,h2{margin:1.5em 0 0}h1{font-size:1.4em;font-weight:normal}h2{font-size:1.2em}li{list-style-type:none;vertical-align:top}li a{display:block;font-size:1.2em;margin: .5em .5em 0;padding: .5em .5em .3em}ul{clear:left;margin:-0.3em 0 1.5em;padding-left:0;text-align:center}p{color:#333;line-height:1.4;margin: .3em 0 0}p a, a span{border-bottom: .1em solid #333;padding-bottom: .1em}.com,.slc{color:#888}.kwa{color:#066}.kwb{color:#900}.kwc{color:#050}.kwa,.kwb,.kwc{font-weight:bold}.dstr,.str,.sym,.num{color:#930}pre{color:#222;font-size:1em;overflow-wrap:break-word;white-space:pre-wrap;word-wrap:break-word}@media only screen and (min-width: 60em){article,footer,header{font-size:1.25em}}
+--></style>
+<link rel="shortcut icon" href="./favicon.ico">
+<header>
+  <h3><a href="https://benchmarksgame-team.pages.debian.net/benchmarksgame/">The&nbsp;<small>Computer&nbsp;Language</small><br>Benchmarks&nbsp;Game</a></h3>
+</header>
+<article>
+  <div>
+    <h1>regex-redux Substrate VM&nbsp;#4 program</h1>
+    <aside>
+      <p><a href="../description/regexredux.html#regexredux">description</a>
+    </aside>
+  </div>
+  <section>
+    </div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+/*
+   The Computer Language Benchmarks Game
+   https://salsa.debian.org/benchmarksgame-team/benchmarksgame/
+
+   regex-dna program contributed by Razii, 
+      idea taken from Elliott Hughes and Roger Millington
+   converted from regex-dna program
+*/
+
+import java.io.*;
+import java.util.regex.*;
+import java.util.*;
+
+public final class regexredux {
+
+   private static final Map&lt;String, String&gt; replacements = new HashMap&lt;String, String&gt;();
+
+   static {
+
+      replacements.put(&quot;tHa[Nt]&quot;, &quot;&lt;4&gt;&quot;);
+      replacements.put(&quot;aND|caN|Ha[DS]|WaS&quot;, &quot;&lt;3&gt;&quot;);
+      replacements.put(&quot;a[NSt]|BY&quot;, &quot;&lt;2&gt;&quot;);
+      replacements.put(&quot;&lt;[^&gt;]*&gt;&quot;, &quot;|&quot;);
+      replacements.put(&quot;\\|[^|][^|]*\\|&quot;, &quot;-&quot;);
+   }
+
+   static abstract class Rewriter {
+      private Pattern pattern;
+      private Matcher matcher;
+
+      public Rewriter(String regularExpression) {
+
+         this.pattern = Pattern.compile(regularExpression);
+      }
+
+      public String group(int i) {
+         return matcher.group(i);
+      }
+
+      public abstract String replacement();
+
+      public String rewrite(CharSequence original) {
+         return rewrite(original, new StringBuffer(original.length())).toString();
+      }
+
+      public StringBuffer rewrite(CharSequence original, StringBuffer destination) {
+         this.matcher = pattern.matcher(original);
+         while (matcher.find()) {
+            matcher.appendReplacement(destination, &quot;&quot;);
+            destination.append(replacement());
+         }
+         matcher.appendTail(destination);
+         return destination;
+      }
+   }
+
+   public static void main(String[] args)
+   throws IOException {
+
+      Reader r = new InputStreamReader(System.in, &quot;ISO-8859-1&quot;);
+      StringBuilder sb = new StringBuilder(5100000);
+      char[] cbuf = new char[16384];
+      int charsRead;
+      while ((charsRead = r.read(cbuf)) != -1)
+         sb.append(cbuf, 0, charsRead);
+
+      int initialLength = sb.length();
+
+      String sequence = new Rewriter(&quot;&gt;.*\n|\n&quot;) {
+
+         public String replacement() {
+            return &quot;&quot;;
+         }
+      }.rewrite(sb);
+
+
+      int codeLength = sequence.length();
+
+      String[] variants = { &quot;agggtaaa|tttaccct&quot; ,
+                       &quot;[cgt]gggtaaa|tttaccc[acg]&quot;,
+                       &quot;a[act]ggtaaa|tttacc[agt]t&quot;,
+                       &quot;ag[act]gtaaa|tttac[agt]ct&quot;,
+                       &quot;agg[act]taaa|ttta[agt]cct&quot;,
+                       &quot;aggg[acg]aaa|ttt[cgt]ccct&quot;,
+                       &quot;agggt[cgt]aa|tt[acg]accct&quot;,
+                       &quot;agggta[cgt]a|t[acg]taccct&quot;,
+                       &quot;agggtaa[cgt]|[acg]ttaccct&quot;
+                     };
+
+      for (String variant : variants) {
+
+         int count = 0;
+         Matcher m = Pattern.compile(variant).matcher(sequence);
+         while (m.find())
+            count++;
+         System.out.println(variant + &quot; &quot; + count);
+      }
+
+      sequence = new Rewriter(&quot;[WYKMSRBDVHN]&quot;) {
+
+         public String replacement() {
+            return replacements.get(group(0));
+         }
+      }.rewrite(sequence);
+
+      System.out.println();
+      System.out.println(initialLength);
+      System.out.println(codeLength);
+      System.out.println(sequence.length());
+
+   }
+}
+    </pre>
+  </section>
+  <section>
+    <h2 id="log">notes, command-line, and program output</h2>
+    <pre>
+NOTES:
+64-bit Ubuntu quad core
+javac 1.8.0_192
+GraalVM Version 1.0.0-rc9
+
+
+Tue, 27 Nov 2018 22:11:00 GMT
+
+MAKE:
+mv regexredux.substratevm-4.substratevm regexredux.java
+/opt/src/graalvm-ce-1.0.0-rc9-linux-amd64/graalvm-ce-1.0.0-rc9/bin/javac -d .  regexredux.java
+/opt/src/graalvm-ce-1.0.0-rc9-linux-amd64/graalvm-ce-1.0.0-rc9/bin/native-image --no-server  regexredux
+[regexredux:17002]    classlist:   4,991.63 ms
+[regexredux:17002]        (cap):   5,801.51 ms
+[regexredux:17002]        setup:   8,610.16 ms
+[regexredux:17002]   (typeflow):   9,515.44 ms
+[regexredux:17002]    (objects):   4,612.63 ms
+[regexredux:17002]   (features):     156.96 ms
+[regexredux:17002]     analysis:  14,495.76 ms
+[regexredux:17002]     universe:     621.65 ms
+[regexredux:17002]      (parse):   2,430.17 ms
+[regexredux:17002]     (inline):   2,702.53 ms
+[regexredux:17002]    (compile):  15,281.60 ms
+[regexredux:17002]      compile:  21,337.84 ms
+[regexredux:17002]        image:   1,407.65 ms
+[regexredux:17002]        write:     314.74 ms
+[regexredux:17002]      [total]:  51,952.31 ms
+mv regexredux regexredux.substratevm-4.substratevm_run
+
+58.24s to complete and log all make actions
+
+COMMAND LINE:
+./regexredux.substratevm-4.substratevm_run 0 &lt; regexredux-input50000.txt
+
+UNEXPECTED OUTPUT 
+
+13c13
+&lt; 599189
+---
+&gt; 273927
+
+PROGRAM OUTPUT:
+agggtaaa|tttaccct 3
+[cgt]gggtaaa|tttaccc[acg] 12
+a[act]ggtaaa|tttacc[agt]t 43
+ag[act]gtaaa|tttac[agt]ct 27
+agg[act]taaa|ttta[agt]cct 58
+aggg[acg]aaa|ttt[cgt]ccct 16
+agggt[cgt]aa|tt[acg]accct 15
+agggta[cgt]a|t[acg]taccct 18
+agggtaa[cgt]|[acg]ttaccct 20
+
+508411
+500000
+599189
+    </pre>
+  </section>
+</article>
+<footer>
+  <nav>
+    <ul>
+      <li><a href="../license.html"><span>3-Clause BSD License</span></a>
+    </ul>
+  </nav>
+</footer>
+

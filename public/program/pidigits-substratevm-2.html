@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,follow,noarchive">
+
+<title>pidigits Substrate VM&nbsp;#2 program | Computer Language Benchmarks Game </title>
+<style><!--
+a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,header{margin:auto;width:92%}body{font:100% Droid Sans, Ubuntu, Verdana, sans-serif;margin:0;-webkit-text-size-adjust:100%}h3, h1, h2, li a{font-family:Ubuntu Mono,Consolas,Menlo,monospace}div,footer,header{max-width:31em}footer{padding:2.6em 0 0}h3{font-size:1.4em;font-weight:bold;margin:0;padding: .4em}h3, h3 a{color:white;background-color:#dd4814}h3 small{font-size:0.64em}h1,h2{margin:1.5em 0 0}h1{font-size:1.4em;font-weight:normal}h2{font-size:1.2em}li{list-style-type:none;vertical-align:top}li a{display:block;font-size:1.2em;margin: .5em .5em 0;padding: .5em .5em .3em}ul{clear:left;margin:-0.3em 0 1.5em;padding-left:0;text-align:center}p{color:#333;line-height:1.4;margin: .3em 0 0}p a, a span{border-bottom: .1em solid #333;padding-bottom: .1em}.com,.slc{color:#888}.kwa{color:#066}.kwb{color:#900}.kwc{color:#050}.kwa,.kwb,.kwc{font-weight:bold}.dstr,.str,.sym,.num{color:#930}pre{color:#222;font-size:1em;overflow-wrap:break-word;white-space:pre-wrap;word-wrap:break-word}@media only screen and (min-width: 60em){article,footer,header{font-size:1.25em}}
+--></style>
+<link rel="shortcut icon" href="./favicon.ico">
+<header>
+  <h3><a href="https://benchmarksgame-team.pages.debian.net/benchmarksgame/">The&nbsp;<small>Computer&nbsp;Language</small><br>Benchmarks&nbsp;Game</a></h3>
+</header>
+<article>
+  <div>
+    <h1>pidigits Substrate VM&nbsp;#2 program</h1>
+    <aside>
+      <p><a href="../description/pidigits.html#pidigits">description</a>
+    </aside>
+  </div>
+  <section>
+    </div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+/**
+ * The Computer Language Benchmarks Game
+ * https://salsa.debian.org/benchmarksgame-team/benchmarksgame/
+ * contributed by Mike Pall
+ * java port by Stefan Krause
+*/
+
+
+public class pidigits {
+   
+   final GmpInteger q = new GmpInteger(), r = new GmpInteger(),
+   s = new GmpInteger(), t = new GmpInteger(); 
+   final GmpInteger u = new GmpInteger(), v = new GmpInteger(),
+   w = new GmpInteger(); 
+
+   int i, k, c; 
+   int digit;
+   int d;
+   StringBuffer strBuf = new StringBuffer(20);
+   final int n;
+   
+   private pidigits(int n)
+   {
+      this.n=n;
+   }
+   
+   private void compose_r(int bq, int br, int bs, int bt)
+   {
+     u.mul(r, bs);
+     r.mul(r, bq);
+     v.mul(t, br);
+     r.add(r, v);
+     t.mul(t, bt);
+     t.add(t, u);
+     s.mul(s, bt);
+     u.mul(q, bs);
+     s.add(s, u);
+     q.mul(q, bq);
+   }
+
+   /* Compose matrix with numbers on the left. */
+   private void compose_l(int bq, int br, int bs, int bt)
+   {
+     r.mul(r, bt);
+     u.mul(q, br);
+     r.add(r, u);
+     u.mul(t, bs);
+     t.mul(t, bt);
+     v.mul(s, br);
+     t.add(t, v);
+     s.mul(s, bq);
+     s.add(s, u);
+     q.mul(q, bq);
+   }
+
+   /* Extract one digit. */
+   private int extract(int j)
+   {
+     u.mul(q, j);
+     u.add(u, r);
+     v.mul(s, j);
+     v.add(v, t);
+     w.div(u, v);
+     return w.intValue();
+   }
+
+   /* Print one digit. Returns 1 for the last digit. */
+   private boolean prdigit(int y)
+   {
+      strBuf.append(y);
+      if (++i % 10 == 0 || i == n) {
+         if (i%10!=0) for (int j=10-(i%10);j&gt;0;j--) { strBuf.append(&quot; &quot;); }
+         strBuf.append(&quot;\t:&quot;);
+         strBuf.append(i);
+         System.out.println(strBuf);
+         strBuf = new StringBuffer(20);
+      }
+      return i == n;
+   }
+
+   /* Generate successive digits of PI. */
+   void pidigits()
+   {
+     int k = 1;
+     d = 0;
+     i = 0;
+     q.set(1);
+     r.set(0);
+     s.set(0);
+     t.set(1);
+     for (;;) {
+       int y = extract(3);
+       if (y == extract(4)) {
+         if (prdigit(y)) return;
+         compose_r(10, -10*y, 0, 1);
+       } else {
+         compose_l(k, 4*k+2, 0, 2*k+1);
+         k++;
+       }
+     }
+   }
+      
+   public static void main(String[] args) {
+      pidigits m = new pidigits(Integer.parseInt(args[0]));
+      m.pidigits();
+   }
+}
+
+
+
+class GmpInteger {
+   
+   // Public methods
+   
+   public GmpInteger() {
+      mpz_init();
+   }
+
+   public GmpInteger(int value) {
+      this();
+      mpz_set_si(pointer, value);
+   }
+   
+   public void set(int value) { mpz_set_si(pointer, value); }
+
+   public void mul(GmpInteger src, int val) { mpz_mul_si(pointer, src.pointer, val); }
+   
+   public void add(GmpInteger op1, GmpInteger op2) { mpz_add(pointer, op1.pointer, op2.pointer); }
+   
+   public void div(GmpInteger op1, GmpInteger op2) { mpz_tdiv_q(pointer, op1.pointer, op2.pointer); }
+   
+   public int intValue() { return mpz_get_si(pointer); }
+   
+   public double doubleValue() { return mpz_get_d(pointer); } 
+
+   // Non public stuff
+   
+   static {
+      System.loadLibrary(&quot;jgmplib&quot;);
+   }
+   private long pointer;
+   
+   protected void finalize()  {
+      mpz_clear(pointer);
+   }
+   
+   private native void mpz_init();
+
+   private native void mpz_clear(long src);
+
+   private static native void mpz_mul_si(long dest, long src,
+         int val);
+
+   private static native void mpz_add(long dest, long src,
+         long src2);
+
+   private static native void mpz_tdiv_q(long dest, long src,
+         long src2);
+
+   private static native void mpz_set_si(long src, int value);
+
+   private static native int mpz_get_si(long src);
+
+   private static native double mpz_get_d(long src);
+}
+    </pre>
+  </section>
+  <section>
+    <h2 id="log">notes, command-line, and program output</h2>
+    <pre>
+NOTES:
+64-bit Ubuntu quad core
+javac 1.8.0_192
+GraalVM Version 1.0.0-rc9
+
+
+Tue, 27 Nov 2018 22:00:08 GMT
+
+MAKE:
+mv pidigits.substratevm-2.substratevm pidigits.java
+/opt/src/graalvm-ce-1.0.0-rc9-linux-amd64/graalvm-ce-1.0.0-rc9/bin/javac -d .  pidigits.java
+/opt/src/graalvm-ce-1.0.0-rc9-linux-amd64/graalvm-ce-1.0.0-rc9/bin/native-image --no-server -Djava.library.path=Include/java pidigits
+[pidigits:16291]    classlist:   5,066.63 ms
+[pidigits:16291]        (cap):   5,449.36 ms
+[pidigits:16291]        setup:   8,229.10 ms
+[pidigits:16291]   (typeflow):   9,482.65 ms
+[pidigits:16291]    (objects):   4,129.72 ms
+[pidigits:16291]   (features):     173.52 ms
+[pidigits:16291]     analysis:  13,996.50 ms
+[pidigits:16291]     universe:     637.99 ms
+[pidigits:16291]      (parse):   2,613.59 ms
+[pidigits:16291]     (inline):   3,153.81 ms
+[pidigits:16291]    (compile):  15,003.07 ms
+[pidigits:16291]      compile:  21,606.37 ms
+[pidigits:16291]        image:   1,301.96 ms
+[pidigits:16291]        write:     318.32 ms
+[pidigits:16291]      [total]:  51,319.84 ms
+mv pidigits pidigits.substratevm-2.substratevm_run
+
+57.60s to complete and log all make actions
+
+COMMAND LINE:
+./pidigits.substratevm-2.substratevm_run 2000
+
+PROGRAM FAILED 
+
+
+PROGRAM OUTPUT:
+
+Exception in thread &quot;main&quot; java.lang.UnsatisfiedLinkError: GmpInteger.mpz_init()V [symbol: Java_GmpInteger_mpz_1init or Java_GmpInteger_mpz_1init__]
+	at java.lang.Throwable.&lt;init&gt;(Throwable.java:265)
+	at java.lang.Error.&lt;init&gt;(Error.java:70)
+	at java.lang.LinkageError.&lt;init&gt;(LinkageError.java:55)
+	at java.lang.UnsatisfiedLinkError.&lt;init&gt;(UnsatisfiedLinkError.java:54)
+	at com.oracle.svm.jni.access.JNINativeLinkage.getOrFindEntryPoint(JNINativeLinkage.java:125)
+	at com.oracle.svm.jni.JNIGeneratedMethodSupport.nativeCallAddress(JNIGeneratedMethodSupport.java:54)
+	at GmpInteger.mpz_init(pidigits.java)
+	at GmpInteger.&lt;init&gt;(pidigits.java:116)
+	at pidigits.&lt;init&gt;(pidigits.java:11)
+	at pidigits.main(pidigits.java:104)
+	at com.oracle.svm.core.JavaMainWrapper.run(JavaMainWrapper.java:164)
+    </pre>
+  </section>
+</article>
+<footer>
+  <nav>
+    <ul>
+      <li><a href="../license.html"><span>3-Clause BSD License</span></a>
+    </ul>
+  </nav>
+</footer>
+

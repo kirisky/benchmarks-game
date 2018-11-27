@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,follow,noarchive">
+
+<title>mandelbrot Substrate VM&nbsp;#3 program | Computer Language Benchmarks Game </title>
+<style><!--
+a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,header{margin:auto;width:92%}body{font:100% Droid Sans, Ubuntu, Verdana, sans-serif;margin:0;-webkit-text-size-adjust:100%}h3, h1, h2, li a{font-family:Ubuntu Mono,Consolas,Menlo,monospace}div,footer,header{max-width:31em}footer{padding:2.6em 0 0}h3{font-size:1.4em;font-weight:bold;margin:0;padding: .4em}h3, h3 a{color:white;background-color:#dd4814}h3 small{font-size:0.64em}h1,h2{margin:1.5em 0 0}h1{font-size:1.4em;font-weight:normal}h2{font-size:1.2em}li{list-style-type:none;vertical-align:top}li a{display:block;font-size:1.2em;margin: .5em .5em 0;padding: .5em .5em .3em}ul{clear:left;margin:-0.3em 0 1.5em;padding-left:0;text-align:center}p{color:#333;line-height:1.4;margin: .3em 0 0}p a, a span{border-bottom: .1em solid #333;padding-bottom: .1em}.com,.slc{color:#888}.kwa{color:#066}.kwb{color:#900}.kwc{color:#050}.kwa,.kwb,.kwc{font-weight:bold}.dstr,.str,.sym,.num{color:#930}pre{color:#222;font-size:1em;overflow-wrap:break-word;white-space:pre-wrap;word-wrap:break-word}@media only screen and (min-width: 60em){article,footer,header{font-size:1.25em}}
+--></style>
+<link rel="shortcut icon" href="./favicon.ico">
+<header>
+  <h3><a href="https://benchmarksgame-team.pages.debian.net/benchmarksgame/">The&nbsp;<small>Computer&nbsp;Language</small><br>Benchmarks&nbsp;Game</a></h3>
+</header>
+<article>
+  <div>
+    <h1>mandelbrot Substrate VM&nbsp;#3 program</h1>
+    <aside>
+      <p><a href="../description/mandelbrot.html#mandelbrot">description</a>
+    </aside>
+  </div>
+  <section>
+    </div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+/* The Computer Language Benchmarks Game
+   https://salsa.debian.org/benchmarksgame-team/benchmarksgame/
+ 
+   contributed by Stefan Krause
+   slightly modified by Chad Whipkey
+   parallelized by Colin D Bennett 2008-10-04
+   reduce synchronization cost by The Anh Tran
+  */
+
+//package mandelbrot;
+
+import java.io.*;
+import java.io.IOException;
+import java.util.concurrent.atomic.AtomicInteger;
+
+public final class mandelbrot
+{
+    public static void main(String[] args) throws Exception
+    {
+        int size = 200;
+        if (args.length &gt;= 1)
+            size = Integer.parseInt(args[0]);
+        
+        System.out.format(&quot;P4\n%d %d\n&quot;, size, size);
+        
+        int width_bytes = size /8 +1;
+        byte[][] output_data = new byte[size][width_bytes];
+        int[] bytes_per_line = new int[size];
+        
+        Compute(size, output_data, bytes_per_line);
+        
+        BufferedOutputStream ostream = new BufferedOutputStream(System.out);
+        for (int i = 0; i &lt; size; i++)
+            ostream.write(output_data[i], 0, bytes_per_line[i]);
+        ostream.close();
+    }
+    
+    private static final void Compute(final int N, final byte[][] output, final int[] bytes_per_line)
+    {
+        final double inverse_N = 2.0 / N;
+        final AtomicInteger current_line = new AtomicInteger(0);
+        
+        final Thread[] pool = new Thread[Runtime.getRuntime().availableProcessors()];
+        for (int i = 0; i &lt; pool.length; i++)
+        {
+            pool[i] = new Thread()
+            {
+                public void run()
+                {
+                    int y;
+                    while ((y = current_line.getAndIncrement()) &lt; N)
+                    {
+                        byte[] pdata = output[y];
+                        
+                        int bit_num = 0;
+                        int byte_count = 0;
+                        int byte_accumulate = 0;
+                        
+                        double Civ = (double)y * inverse_N - 1.0;
+                        for (int x = 0; x &lt; N; x++)
+                        {
+                            double Crv = (double)x * inverse_N - 1.5;
+                            
+                            double Zrv = Crv;
+                            double Ziv = Civ;
+                            
+                            double Trv = Crv * Crv;
+                            double Tiv = Civ * Civ;
+                            
+                            int i = 49;
+                            do
+                            {
+                                Ziv = (Zrv * Ziv) + (Zrv * Ziv) + Civ;
+                                Zrv = Trv - Tiv + Crv;
+                                
+                                Trv = Zrv * Zrv;
+                                Tiv = Ziv * Ziv;
+                            } while ( ((Trv + Tiv) &lt;= 4.0) &amp;&amp; (--i &gt; 0));
+
+                            byte_accumulate &lt;&lt;= 1;
+                            if (i == 0)
+                                byte_accumulate++;
+                            
+                            if (++bit_num == 8)
+                            {
+                                pdata[ byte_count++ ] = (byte)byte_accumulate;
+                                bit_num = byte_accumulate = 0;
+                            }
+                        } // end foreach column
+                        
+                        if (bit_num != 0)
+                        {
+                            byte_accumulate &lt;&lt;= (8 - (N &amp; 7));
+                            pdata[ byte_count++ ] = (byte)byte_accumulate;
+                        }
+                        
+                        bytes_per_line[y] = byte_count;
+                    } // end while (y &lt; N)
+                } // end void run()
+            }; // end inner class definition
+            
+            pool[i].start();
+        }
+        
+        for (Thread t : pool)
+        {
+            try
+            {
+                t.join();
+            }
+            catch (InterruptedException e)
+            {
+                e.printStackTrace();
+            }
+        }
+    }
+}
+    </pre>
+  </section>
+  <section>
+    <h2 id="log">notes, command-line, and program output</h2>
+    <pre>
+NOTES:
+64-bit Ubuntu quad core
+javac 1.8.0_192
+GraalVM Version 1.0.0-rc9
+
+
+Tue, 27 Nov 2018 21:31:06 GMT
+
+MAKE:
+mv mandelbrot.substratevm-3.substratevm mandelbrot.java
+/opt/src/graalvm-ce-1.0.0-rc9-linux-amd64/graalvm-ce-1.0.0-rc9/bin/javac -d .  mandelbrot.java
+/opt/src/graalvm-ce-1.0.0-rc9-linux-amd64/graalvm-ce-1.0.0-rc9/bin/native-image --no-server  mandelbrot
+[mandelbrot:14964]    classlist:   4,793.97 ms
+[mandelbrot:14964]        (cap):   5,468.99 ms
+[mandelbrot:14964]        setup:   8,206.32 ms
+[mandelbrot:14964]   (typeflow):   9,583.89 ms
+[mandelbrot:14964]    (objects):   3,934.29 ms
+[mandelbrot:14964]   (features):     171.23 ms
+[mandelbrot:14964]     analysis:  13,894.26 ms
+[mandelbrot:14964]     universe:     517.36 ms
+[mandelbrot:14964]      (parse):   2,585.48 ms
+[mandelbrot:14964]     (inline):   2,821.11 ms
+[mandelbrot:14964]    (compile):  15,017.55 ms
+[mandelbrot:14964]      compile:  21,268.39 ms
+[mandelbrot:14964]        image:   1,357.76 ms
+[mandelbrot:14964]        write:     344.10 ms
+[mandelbrot:14964]      [total]:  50,548.60 ms
+mv mandelbrot mandelbrot.substratevm-3.substratevm_run
+
+56.94s to complete and log all make actions
+
+COMMAND LINE:
+./mandelbrot.substratevm-3.substratevm_run 16000
+
+(BINARY) PROGRAM OUTPUT NOT SHOWN
+    </pre>
+  </section>
+</article>
+<footer>
+  <nav>
+    <ul>
+      <li><a href="../license.html"><span>3-Clause BSD License</span></a>
+    </ul>
+  </nav>
+</footer>
+
