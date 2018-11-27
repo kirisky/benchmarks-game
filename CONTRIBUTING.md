@@ -5,7 +5,7 @@ Although we are usually happy to accept better programs, your best chance of hav
 - if the only ~regex-redux program for ~Lua is broken, then fix it;
 - if the programs only use one core then provide a program that uses multicore.
 
-(Also consider language implementations like: ~Dart, ~Hack, ~Smalltalk, ~TypeScript).
+(Also consider language implementations like: ~Dart, ~Smalltalk, ~TypeScript).
 
 Your best chance of having source-code accepted is to show that the algorithm is comparable to the other programs, by using code comments to explain
 
