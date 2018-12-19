@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,follow,noarchive">
+
+<title>k-nucleotide Julia&nbsp;#2 program | Computer Language Benchmarks Game </title>
+<style><!--
+a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,header{margin:auto;width:92%}body{font:100% Droid Sans, Ubuntu, Verdana, sans-serif;margin:0;-webkit-text-size-adjust:100%}h3, h1, h2, li a{font-family:Ubuntu Mono,Consolas,Menlo,monospace}div,footer,header{max-width:31em}footer{padding:2.6em 0 0}h3{font-size:1.4em;font-weight:bold;margin:0;padding: .4em}h3, h3 a{color:white;background-color:#dd4814}h3 small{font-size:0.64em}h1,h2{margin:1.5em 0 0}h1{font-size:1.4em;font-weight:normal}h2{font-size:1.2em}li{list-style-type:none;vertical-align:top}li a{display:block;font-size:1.2em;margin: .5em .5em 0;padding: .5em .5em .3em}ul{clear:left;margin:-0.3em 0 1.5em;padding-left:0;text-align:center}p{color:#333;line-height:1.4;margin: .3em 0 0}p a, a span{border-bottom: .1em solid #333;padding-bottom: .1em}.com,.slc{color:#888}.kwa{color:#066}.kwb{color:#900}.kwc{color:#050}.kwa,.kwb,.kwc{font-weight:bold}.dstr,.str,.sym,.num{color:#930}pre{color:#222;font-size:1em;overflow-wrap:break-word;white-space:pre-wrap;word-wrap:break-word}@media only screen and (min-width: 60em){article,footer,header{font-size:1.25em}}
+--></style>
+<link rel="shortcut icon" href="./favicon.ico">
+<header>
+  <h3><a href="https://benchmarksgame-team.pages.debian.net/benchmarksgame/">The&nbsp;<small>Computer&nbsp;Language</small><br>Benchmarks&nbsp;Game</a></h3>
+</header>
+<article>
+  <div>
+    <h1>k-nucleotide Julia&nbsp;#2 program</h1>
+    <aside>
+      <p><a href="../description/knucleotide.html#knucleotide">description</a>
+    </aside>
+  </div>
+  <section>
+    </div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc"># The Computer Language Benchmarks Game</span>
+<span class="slc"># https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">#</span>
+<span class="slc"># contributed by Jean-pierre Both</span>
+
+
+<span class="kwa">using</span> Printf
+
+<span class="kwa">import</span> Base<span class="opt">.</span>isless
+
+knuclength <span class="opt">= [</span><span class="num">1</span><span class="opt">,</span> <span class="num">2</span><span class="opt">,</span> <span class="num">3</span><span class="opt">,</span> <span class="num">4</span><span class="opt">,</span> <span class="num">6</span><span class="opt">,</span> <span class="num">12</span><span class="opt">,</span> <span class="num">18</span><span class="opt">]</span>
+
+
+mutable <span class="kwa">struct</span> KNuc
+    name<span class="opt">::</span>AbstractString
+    count<span class="opt">::</span>Int
+<span class="kwa">end</span>
+
+
+
+mutable <span class="kwa">struct</span> Kmer
+    val<span class="opt">::</span><span class="kwb">Int64</span>
+<span class="kwa">end</span>
+
+<span class="slc"># sort down</span>
+
+<span class="kwa">function</span> <span class="kwd">isless</span><span class="opt">(</span>x<span class="opt">::</span>KNuc<span class="opt">,</span> y<span class="opt">::</span>KNuc<span class="opt">)</span>
+    <span class="kwa">if</span> x<span class="opt">.</span>count <span class="opt">==</span> y<span class="opt">.</span>count
+        <span class="kwa">return</span> x<span class="opt">.</span>name <span class="opt">&gt;</span> y<span class="opt">.</span>name
+    <span class="kwa">end</span>
+    x<span class="opt">.</span>count <span class="opt">&gt;</span> y<span class="opt">.</span>count
+<span class="kwa">end</span>
+
+
+<span class="kwa">function</span> <span class="kwd">print_knucs</span><span class="opt">(</span>a<span class="opt">::</span>Array<span class="opt">{</span>KNuc<span class="opt">,</span> <span class="num">1</span><span class="opt">})</span>
+    sum <span class="opt">=</span> <span class="kwd">mapreduce</span><span class="opt">(</span>x <span class="opt">-&gt;</span> x<span class="opt">.</span>count<span class="opt">, +,</span> a<span class="opt">;</span> init <span class="opt">=</span> <span class="num">0</span><span class="opt">)</span> 
+    <span class="kwa">for</span> kn <span class="kwa">in</span> a
+        <span class="kwc">&#64;printf</span><span class="opt">(</span><span class="str">&quot;</span><span class="ipl">%s</span> <span class="str">%.3f</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span> kn<span class="opt">.</span>name<span class="opt">, (</span><span class="num">100.0</span><span class="opt">*</span> kn<span class="opt">.</span>count<span class="opt">)/</span>sum<span class="opt">)</span>
+    <span class="kwa">end</span>
+    <span class="kwd">println</span><span class="opt">()</span>
+<span class="kwa">end</span>
+
+
+
+<span class="kwa">function</span> <span class="kwd">dumpDict</span><span class="opt">(</span>counts<span class="opt">::</span>Dict<span class="opt">{</span>String<span class="opt">,</span> Int<span class="opt">})</span>
+    kn <span class="opt">=</span> Vector<span class="opt">{</span>KNuc<span class="opt">}(</span>undef<span class="opt">,</span> <span class="kwd">length</span><span class="opt">(</span>counts<span class="opt">))</span>
+    i <span class="opt">=</span> <span class="num">1</span>
+    <span class="kwa">for</span> elem <span class="kwa">in</span> counts
+        kn<span class="opt">[</span>i<span class="opt">] =</span> <span class="kwd">KNuc</span><span class="opt">(</span>elem<span class="opt">...)</span>
+        i <span class="opt">+=</span> <span class="num">1</span>
+    <span class="kwa">end</span>
+    <span class="kwd">sort</span><span class="opt">!(</span>kn<span class="opt">,</span> lt <span class="opt">=</span> isless<span class="opt">)</span>
+    <span class="kwd">print_knucs</span><span class="opt">(</span>kn<span class="opt">)</span>    
+<span class="kwa">end</span>
+
+
+
+
+<span class="kwa">function</span> <span class="kwd">print_knucs</span><span class="opt">(</span>a<span class="opt">::</span>Array<span class="opt">{</span>KNuc<span class="opt">,</span> <span class="num">1</span><span class="opt">})</span>
+    sum <span class="opt">=</span> <span class="kwd">mapreduce</span><span class="opt">(</span>x <span class="opt">-&gt;</span> x<span class="opt">.</span>count<span class="opt">, +,</span> a<span class="opt">;</span> init <span class="opt">=</span> <span class="num">0</span><span class="opt">)</span> 
+    <span class="kwa">for</span> kn <span class="kwa">in</span> a
+        <span class="kwc">&#64;printf</span><span class="opt">(</span><span class="str">&quot;</span><span class="esc">\n</span><span class="str"></span><span class="ipl">%s</span> <span class="str">%.3f &quot;</span><span class="opt">,</span> kn<span class="opt">.</span>name<span class="opt">,</span> <span class="num">100.0</span>kn<span class="opt">.</span>count<span class="opt">/</span>sum<span class="opt">)</span>
+    <span class="kwa">end</span>
+    <span class="kwd">println</span><span class="opt">()</span>
+<span class="kwa">end</span>
+
+
+
+
+<span class="kwa">function</span> <span class="kwd">count_knuc_by_dict</span><span class="opt">(</span>shift<span class="opt">::</span>Int<span class="opt">,</span> data<span class="opt">::</span>String<span class="opt">,</span> dict<span class="opt">::</span>Dict<span class="opt">{</span>String<span class="opt">,</span> Int<span class="opt">},</span> klength<span class="opt">)</span>
+    <span class="slc">#</span>
+    <span class="slc">#</span>
+    <span class="kwa">if</span> shift <span class="opt">==</span> <span class="num">0</span>
+        first_i <span class="opt">=</span> klength
+    <span class="kwa">else</span>
+        first_i <span class="opt">=</span> shift<span class="opt">+</span><span class="num">1</span>
+    <span class="kwa">end</span>
+    <span class="slc">#</span>
+    key <span class="opt">=</span> Vector<span class="opt">{</span>Char<span class="opt">}(</span>undef<span class="opt">,</span> klength<span class="opt">)</span>
+    <span class="kwc">&#64;simd</span> <span class="kwa">for</span> i <span class="kwa">in</span> first_i<span class="opt">:</span><span class="kwd">length</span><span class="opt">(</span>data<span class="opt">)</span>
+        <span class="slc"># beginning of buffer may contains last 17 chars of preceding batch...</span>
+        <span class="kwc">&#64;inbounds</span> key <span class="opt">=</span> data<span class="opt">[</span>i<span class="opt">-</span>klength<span class="opt">+</span><span class="num">1</span><span class="opt">:</span>i<span class="opt">]</span>
+        <span class="kwa">if</span> <span class="kwd">haskey</span><span class="opt">(</span>dict<span class="opt">,</span> key<span class="opt">)</span>
+            dict<span class="opt">[</span> key <span class="opt">] +=</span> <span class="num">1</span>
+        <span class="kwa">else</span>
+            dict<span class="opt">[</span> key <span class="opt">] =</span> <span class="num">1</span>
+        <span class="kwa">end</span>
+    <span class="kwa">end</span>
+    dict
+<span class="kwa">end</span>
+
+
+
+
+<span class="kwa">function</span> <span class="kwd">count_knuc_by_dict_blocks</span><span class="opt">(</span>shift<span class="opt">::</span>Int<span class="opt">,</span> data<span class="opt">::</span>String<span class="opt">,</span> counts<span class="opt">::</span>Vector<span class="opt">{</span>Dict<span class="opt">{</span>String<span class="opt">,</span> Int<span class="opt">}},</span> knuclength<span class="opt">)</span>
+    nbdict <span class="opt">=</span> <span class="kwd">length</span><span class="opt">(</span>knuclength<span class="opt">)</span>
+    Threads<span class="opt">.</span><span class="kwc">&#64;threads</span> <span class="kwa">for</span> j <span class="kwa">in</span> <span class="num">1</span><span class="opt">:</span>nbdict
+        counts<span class="opt">[</span>j<span class="opt">] =</span> <span class="kwd">count_knuc_by_dict</span><span class="opt">(</span>shift<span class="opt">,</span> data<span class="opt">,</span> counts<span class="opt">[</span>j<span class="opt">],</span> knuclength<span class="opt">[</span>j<span class="opt">])</span>
+    <span class="kwa">end</span>
+    <span class="kwa">return</span> counts
+<span class="kwa">end</span>
+
+
+
+
+<span class="slc"># shift used must be lenght of largest key minus 1 so 17!! in this case</span>
+
+
+<span class="kwa">function</span> <span class="kwd">perf_k_nucleotide</span><span class="opt">()</span>
+    <span class="slc">#</span>
+    threaded <span class="opt">=</span> <span class="kwa">true</span>
+    <span class="slc"># allocate counters</span>
+    nbdict <span class="opt">=</span> <span class="kwd">length</span><span class="opt">(</span>knuclength<span class="opt">)</span>    
+    <span class="kwa">global</span> counts <span class="opt">=</span> Vector<span class="opt">{</span>Dict<span class="opt">{</span>String<span class="opt">,</span> Int<span class="opt">}}()</span>
+    <span class="kwa">for</span> j <span class="kwa">in</span> <span class="num">1</span><span class="opt">:</span>nbdict
+        <span class="kwd">push</span><span class="opt">!(</span>counts<span class="opt">,</span> Dict<span class="opt">{</span>String<span class="opt">,</span> Int<span class="opt">}())</span>
+    <span class="kwa">end</span>
+    <span class="slc"># open input file</span>
+<span class="slc">#    fname = &quot;knucleotide-Fasta-input.txt&quot;</span>
+<span class="slc">#    fname = &quot;input25000000.txt&quot;</span>
+    <span class="slc">#    io = open(fname)</span>
+    io <span class="opt">=</span> stdin
+    <span class="slc">#</span>
+    three <span class="opt">=</span> <span class="str">&quot;&gt;THREE &quot;</span>
+    <span class="kwa">global</span> nbline <span class="opt">=</span> <span class="num">0</span>
+    <span class="kwa">while true</span>
+        line <span class="opt">=</span> <span class="kwd">readline</span><span class="opt">(</span>io<span class="opt">)</span>
+        nbline <span class="opt">+=</span> <span class="num">1</span>
+        <span class="kwa">if</span> <span class="kwd">length</span><span class="opt">(</span>line<span class="opt">) &gt;=</span> <span class="kwd">length</span><span class="opt">(</span>three<span class="opt">) &amp;&amp;</span> line<span class="opt">[</span><span class="num">1</span><span class="opt">:</span><span class="kwd">length</span><span class="opt">(</span>three<span class="opt">)] ==</span> three
+            <span class="kwa">break</span>
+        <span class="kwa">end</span>
+    <span class="kwa">end</span>
+    <span class="slc">#</span>
+<span class="slc">#    &#64;printf(&quot;nb line read = %d&quot;, nbline);</span>
+    <span class="slc">#</span>
+    fasta3 <span class="opt">=</span> <span class="str">&quot;&quot;</span>
+    nbline <span class="opt">=</span> <span class="num">100000</span>
+    <span class="kwa">global</span> lastLine17 <span class="opt">=</span> <span class="str">&quot;&quot;</span>
+    <span class="kwa">global</span> shift <span class="opt">=</span> <span class="num">0</span>
+    lines <span class="opt">=</span> Vector<span class="opt">{</span>String<span class="opt">}(</span>undef<span class="opt">,</span>nbline<span class="opt">)</span>
+    <span class="kwa">while</span> <span class="kwd">eof</span><span class="opt">(</span>io<span class="opt">) !=</span> <span class="kwa">true</span>
+        iline <span class="opt">=</span> <span class="num">0</span>
+        <span class="kwa">while</span> iline <span class="opt">&lt;</span> nbline <span class="opt">&amp;&amp;</span> <span class="kwd">eof</span><span class="opt">(</span>io<span class="opt">) !=</span> <span class="kwa">true</span>
+            iline <span class="opt">+=</span> <span class="num">1</span>
+            <span class="kwc">&#64;inbounds</span> lines<span class="opt">[</span>iline<span class="opt">] =</span> <span class="kwd">uppercase</span><span class="opt">(</span><span class="kwd">chomp</span><span class="opt">(</span><span class="kwd">readline</span><span class="opt">(</span>io<span class="opt">)))</span>
+        <span class="kwa">end</span>
+        fasta3 <span class="opt">=</span> lastLine17 <span class="opt">*</span> <span class="kwd">join</span><span class="opt">(</span>lines<span class="opt">[</span><span class="num">1</span><span class="opt">:</span>iline<span class="opt">],</span><span class="str">&quot;&quot;</span><span class="opt">);</span>
+        counts <span class="opt">=</span> <span class="kwd">count_knuc_by_dict_blocks</span><span class="opt">(</span>shift<span class="opt">,</span> fasta3 <span class="opt">,</span> counts<span class="opt">,</span> knuclength<span class="opt">);</span>
+        <span class="slc"># must keep last 17 chars.</span>
+        lastLine17 <span class="opt">=</span> fasta3<span class="opt">[</span><span class="kwa">end</span><span class="opt">-</span><span class="num">16</span><span class="opt">:</span><span class="kwa">end</span><span class="opt">]</span>
+        shift <span class="opt">=</span> <span class="num">17</span>
+    <span class="kwa">end</span>
+
+    <span class="kwd">dumpDict</span><span class="opt">(</span>counts<span class="opt">[</span><span class="num">1</span><span class="opt">])</span>
+    <span class="kwd">dumpDict</span><span class="opt">(</span>counts<span class="opt">[</span><span class="num">2</span><span class="opt">])</span>
+
+    <span class="kwc">&#64;printf</span><span class="opt">(</span><span class="str">&quot;</span><span class="esc">\n</span><span class="str"></span><span class="ipl">%d</span>  <span class="str">GGT &quot;</span><span class="opt">,</span>                <span class="kwd">get</span><span class="opt">(</span>counts<span class="opt">[</span><span class="num">3</span><span class="opt">],</span> <span class="str">&quot;GGT&quot;</span><span class="opt">,</span> <span class="num">0</span><span class="opt">))</span>
+    <span class="kwc">&#64;printf</span><span class="opt">(</span><span class="str">&quot;</span><span class="esc">\n</span><span class="str"></span><span class="ipl">%d</span>  <span class="str">GGTA &quot;</span><span class="opt">,</span>               <span class="kwd">get</span><span class="opt">(</span>counts<span class="opt">[</span><span class="num">4</span><span class="opt">],</span> <span class="str">&quot;GGTA&quot;</span><span class="opt">,</span> <span class="num">0</span><span class="opt">))</span>
+    <span class="kwc">&#64;printf</span><span class="opt">(</span><span class="str">&quot;</span><span class="esc">\n</span><span class="str"></span><span class="ipl">%d</span>  <span class="str">GGTATT &quot;</span><span class="opt">,</span>             <span class="kwd">get</span><span class="opt">(</span>counts<span class="opt">[</span><span class="num">5</span><span class="opt">],</span> <span class="str">&quot;GGTATT&quot;</span><span class="opt">,</span> <span class="num">0</span><span class="opt">))</span>
+    <span class="kwc">&#64;printf</span><span class="opt">(</span><span class="str">&quot;</span><span class="esc">\n</span><span class="str"></span><span class="ipl">%d</span>  <span class="str">GGTATTTTAATT &quot;</span><span class="opt">,</span>       <span class="kwd">get</span><span class="opt">(</span>counts<span class="opt">[</span><span class="num">6</span><span class="opt">],</span> <span class="str">&quot;GGTATTTTAATT&quot;</span><span class="opt">,</span> <span class="num">0</span><span class="opt">))</span>
+    <span class="kwc">&#64;printf</span><span class="opt">(</span><span class="str">&quot;</span><span class="esc">\n</span><span class="str"></span><span class="ipl">%d</span>  <span class="str">GGTATTTTAATTTATAGT &quot;</span><span class="opt">,</span> <span class="kwd">get</span><span class="opt">(</span>counts<span class="opt">[</span><span class="num">7</span><span class="opt">],</span> <span class="str">&quot;GGTATTTTAATTTATAGT&quot;</span><span class="opt">,</span> <span class="num">0</span><span class="opt">))</span>
+
+<span class="kwa">end</span>
+
+
+<span class="kwd">perf_k_nucleotide</span><span class="opt">()</span>
+    </pre>
+  </section>
+  <section>
+    <h2 id="log">notes, command-line, and program output</h2>
+    <pre>
+NOTES:
+64-bit Ubuntu quad core
+julia version 1.0.3
+
+
+Wed, 19 Dec 2018 20:02:11 GMT
+
+COMMAND LINE:
+/opt/src/julia-1.0.3/bin/julia -p 4 -- knucleotide.julia-2.julia 0 &lt; knucleotide-input250000.txt
+
+UNEXPECTED OUTPUT 
+
+0a1,4
+&gt; A 30.298
+&gt; T 30.157
+&gt; C 19.793
+&gt; G 19.752
+2,5c6,21
+&lt; A 30.298 
+&lt; T 30.157 
+&lt; C 19.793 
+&lt; G 19.752 
+---
+&gt; AA 9.177
+&gt; TA 9.137
+&gt; AT 9.136
+&gt; TT 9.094
+&gt; AC 6.000
+&gt; CA 5.999
+&gt; GA 5.986
+&gt; AG 5.985
+&gt; TC 5.970
+&gt; CT 5.970
+&gt; GT 5.957
+&gt; TG 5.956
+&gt; CC 3.915
+&gt; CG 3.910
+&gt; GC 3.908
+&gt; GG 3.902
+7,28c23,27
+&lt; AA 9.177 
+&lt; TA 9.137 
+&lt; AT 9.136 
+&lt; TT 9.094 
+&lt; AC 6.000 
+&lt; CA 5.999 
+&lt; GA 5.986 
+&lt; AG 5.985 
+&lt; TC 5.970 
+&lt; CT 5.970 
+&lt; GT 5.957 
+&lt; TG 5.956 
+&lt; CC 3.915 
+&lt; CG 3.910 
+&lt; GC 3.908 
+&lt; GG 3.902 
+&lt; 
+&lt; 14717  GGT 
+&lt; 4463  GGTA 
+&lt; 472  GGTATT 
+&lt; 9  GGTATTTTAATT 
+&lt; 9  GGTATTTTAATTTATAGT 
+\ No newline at end of file
+---
+&gt; 14717	GGT
+&gt; 4463	GGTA
+&gt; 472	GGTATT
+&gt; 9	GGTATTTTAATT
+&gt; 9	GGTATTTTAATTTATAGT
+
+PROGRAM OUTPUT:
+
+A 30.298 
+T 30.157 
+C 19.793 
+G 19.752 
+
+AA 9.177 
+TA 9.137 
+AT 9.136 
+TT 9.094 
+AC 6.000 
+CA 5.999 
+GA 5.986 
+AG 5.985 
+TC 5.970 
+CT 5.970 
+GT 5.957 
+TG 5.956 
+CC 3.915 
+CG 3.910 
+GC 3.908 
+GG 3.902 
+
+14717  GGT 
+4463  GGTA 
+472  GGTATT 
+9  GGTATTTTAATT 
+9  GGTATTTTAATTTATAGT     </pre>
+  </section>
+</article>
+<footer>
+  <nav>
+    <ul>
+      <li><a href="../license.html"><span>3-Clause BSD License</span></a>
+    </ul>
+  </nav>
+</footer>
+
