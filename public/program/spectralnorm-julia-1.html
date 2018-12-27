@@ -24,53 +24,67 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
     <pre>
 <span class="slc"># The Computer Language Benchmarks Game</span>
 <span class="slc"># https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
-
-<span class="slc"># contributed by Jarret Revels</span>
-<span class="slc"># based on the Javascript program</span>
+<span class="slc">#</span>
+<span class="slc"># Contributed by Lutfullah Tomak</span>
+<span class="slc"># based on C gcc implaemetation</span>
 
 <span class="kwa">using</span> Printf
 
-<span class="kwd">A</span><span class="opt">(</span>i<span class="opt">,</span>j<span class="opt">) =</span> <span class="num">1.0</span> <span class="opt">/ ((</span>i<span class="opt">+</span>j<span class="opt">)*(</span>i<span class="opt">+</span>j<span class="opt">+</span><span class="num">1.0</span><span class="opt">)/</span><span class="num">2.0</span><span class="opt">+</span>i<span class="opt">+</span><span class="num">1.0</span><span class="opt">)</span>
+<span class="kwc">&#64;inline</span> <span class="kwd">A</span><span class="opt">(</span>i<span class="opt">::</span><span class="kwb">Integer</span><span class="opt">,</span> j<span class="opt">::</span><span class="kwb">Integer</span><span class="opt">) =</span> <span class="num">1.0</span><span class="opt">/((</span>i<span class="opt">+</span>j<span class="opt">)*(</span>i<span class="opt">+</span>j<span class="opt">+</span><span class="num">1</span><span class="opt">)/</span><span class="num">2</span><span class="opt">+</span>i<span class="opt">+</span><span class="num">1</span><span class="opt">)</span>
 
-<span class="kwa">function</span> <span class="kwd">Au</span><span class="opt">(</span>u<span class="opt">,</span>w<span class="opt">)</span>
-    n <span class="opt">=</span> <span class="kwd">length</span><span class="opt">(</span>u<span class="opt">)</span>
-    <span class="kwa">for</span> i <span class="opt">=</span> <span class="num">1</span><span class="opt">:</span>n<span class="opt">,</span> j <span class="opt">=</span> <span class="num">1</span><span class="opt">:</span>n
-        j <span class="opt">==</span> <span class="num">1</span> <span class="opt">&amp;&amp; (</span>w<span class="opt">[</span>i<span class="opt">] =</span> <span class="num">0</span><span class="opt">)</span>
-        w<span class="opt">[</span>i<span class="opt">] +=</span> <span class="kwd">A</span><span class="opt">(</span>i<span class="opt">-</span><span class="num">1</span><span class="opt">,</span>j<span class="opt">-</span><span class="num">1</span><span class="opt">) *</span> u<span class="opt">[</span>j<span class="opt">]</span>
+<span class="kwa">function</span> <span class="kwd">A_multiply_u</span><span class="opt">!(</span>N<span class="opt">::</span><span class="kwb">Integer</span><span class="opt">,</span>
+                       u<span class="opt">::</span>Vector<span class="opt">{</span>T<span class="opt">},</span>
+                       Au<span class="opt">::</span>Vector<span class="opt">{</span>S<span class="opt">}</span>
+                      <span class="opt">)</span> <span class="kwa">where</span> <span class="opt">{</span>T<span class="opt">&lt;:</span><span class="kwb">Number</span><span class="opt">,</span>S<span class="opt">&lt;:</span><span class="kwb">Number</span><span class="opt">}</span>
+    Threads<span class="opt">.</span><span class="kwc">&#64;threads</span> <span class="kwa">for</span> i<span class="opt">=</span><span class="num">1</span><span class="opt">:</span>N
+        r <span class="opt">=</span> <span class="kwd">zero</span><span class="opt">(</span>T<span class="opt">)</span>
+        <span class="kwc">&#64;simd</span> <span class="kwa">for</span> j<span class="opt">=</span><span class="num">1</span><span class="opt">:</span>N
+            r <span class="opt">+=</span> <span class="kwd">T</span><span class="opt">(</span><span class="kwd">A</span><span class="opt">(</span>i<span class="opt">-</span><span class="num">1</span><span class="opt">,</span>j<span class="opt">-</span><span class="num">1</span><span class="opt">)*</span>u<span class="opt">[</span>j<span class="opt">])</span>
+        <span class="kwa">end</span>
+        Au<span class="opt">[</span>i<span class="opt">] =</span> <span class="kwd">S</span><span class="opt">(</span>r<span class="opt">)</span>
     <span class="kwa">end</span>
+    <span class="kwa">return</span> nothing
 <span class="kwa">end</span>
 
-<span class="kwa">function</span> <span class="kwd">Atu</span><span class="opt">(</span>w<span class="opt">,</span>v<span class="opt">)</span>
-    n <span class="opt">=</span> <span class="kwd">length</span><span class="opt">(</span>w<span class="opt">)</span>
-    <span class="kwa">for</span> i <span class="opt">=</span> <span class="num">1</span><span class="opt">:</span>n<span class="opt">,</span> j <span class="opt">=</span> <span class="num">1</span><span class="opt">:</span>n
-        j <span class="opt">==</span> <span class="num">1</span> <span class="opt">&amp;&amp; (</span>v<span class="opt">[</span>i<span class="opt">] =</span> <span class="num">0</span><span class="opt">)</span>
-        v<span class="opt">[</span>i<span class="opt">] +=</span> <span class="kwd">A</span><span class="opt">(</span>j<span class="opt">-</span><span class="num">1</span><span class="opt">,</span>i<span class="opt">-</span><span class="num">1</span><span class="opt">) *</span> w<span class="opt">[</span>j<span class="opt">]</span>
+<span class="kwa">function</span> <span class="kwd">At_multiply_u</span><span class="opt">!(</span>N<span class="opt">::</span><span class="kwb">Integer</span><span class="opt">,</span>
+                       u<span class="opt">::</span>Vector<span class="opt">{</span>T<span class="opt">},</span>
+                       Atu<span class="opt">::</span>Vector<span class="opt">{</span>S<span class="opt">}</span>
+                      <span class="opt">)</span> <span class="kwa">where</span> <span class="opt">{</span>T<span class="opt">&lt;:</span><span class="kwb">Number</span><span class="opt">,</span>S<span class="opt">&lt;:</span><span class="kwb">Number</span><span class="opt">}</span>
+    Threads<span class="opt">.</span><span class="kwc">&#64;threads</span> <span class="kwa">for</span> i<span class="opt">=</span><span class="num">1</span><span class="opt">:</span>N
+        r <span class="opt">=</span> <span class="kwd">zero</span><span class="opt">(</span>T<span class="opt">)</span>
+        <span class="kwc">&#64;simd</span> <span class="kwa">for</span> j<span class="opt">=</span><span class="num">1</span><span class="opt">:</span>N
+            r <span class="opt">+=</span> <span class="kwd">T</span><span class="opt">(</span><span class="kwd">A</span><span class="opt">(</span>j<span class="opt">-</span><span class="num">1</span><span class="opt">,</span>i<span class="opt">-</span><span class="num">1</span><span class="opt">)*</span>u<span class="opt">[</span>j<span class="opt">])</span>
+        <span class="kwa">end</span>
+        Atu<span class="opt">[</span>i<span class="opt">] =</span> <span class="kwd">S</span><span class="opt">(</span>r<span class="opt">)</span>
     <span class="kwa">end</span>
+    <span class="kwa">return</span> nothing
 <span class="kwa">end</span>
 
-<span class="kwa">function</span> <span class="kwd">perf_spectralnorm</span><span class="opt">(</span>n<span class="opt">::</span>Int<span class="opt">=</span><span class="num">100</span><span class="opt">)</span>
-    u <span class="opt">=</span> <span class="kwd">ones</span><span class="opt">(</span><span class="kwb">Float64</span><span class="opt">,</span>n<span class="opt">)</span>
-    v <span class="opt">=</span> <span class="kwd">zeros</span><span class="opt">(</span><span class="kwb">Float64</span><span class="opt">,</span>n<span class="opt">)</span>
-    w <span class="opt">=</span> <span class="kwd">zeros</span><span class="opt">(</span><span class="kwb">Float64</span><span class="opt">,</span>n<span class="opt">)</span>
-    vv <span class="opt">=</span> vBv <span class="opt">=</span> <span class="num">0</span>
-    <span class="kwa">for</span> i <span class="opt">=</span> <span class="num">1</span><span class="opt">:</span><span class="num">10</span>
-        <span class="kwd">Au</span><span class="opt">(</span>u<span class="opt">,</span>w<span class="opt">)</span>
-        <span class="kwd">Atu</span><span class="opt">(</span>w<span class="opt">,</span>v<span class="opt">)</span>
-        <span class="kwd">Au</span><span class="opt">(</span>v<span class="opt">,</span>w<span class="opt">)</span>
-        <span class="kwd">Atu</span><span class="opt">(</span>w<span class="opt">,</span>u<span class="opt">)</span>
-    <span class="kwa">end</span>
-    <span class="kwa">for</span> i <span class="opt">=</span> <span class="num">1</span><span class="opt">:</span>n
-        vBv <span class="opt">+=</span> u<span class="opt">[</span>i<span class="opt">]*</span>v<span class="opt">[</span>i<span class="opt">]</span>
-        vv <span class="opt">+=</span> v<span class="opt">[</span>i<span class="opt">]*</span>v<span class="opt">[</span>i<span class="opt">]</span>
-    <span class="kwa">end</span>
-    <span class="kwa">return</span> <span class="kwd">sqrt</span><span class="opt">(</span>vBv<span class="opt">/</span>vv<span class="opt">)</span>
+<span class="kwa">function</span> <span class="kwd">AtA_multiply_u</span><span class="opt">!(</span>N<span class="opt">::</span><span class="kwb">Integer</span><span class="opt">,</span>
+                       u<span class="opt">::</span>Vector<span class="opt">{</span>T<span class="opt">},</span>
+                       AtAu<span class="opt">::</span>Vector<span class="opt">{</span>S<span class="opt">}</span>
+                      <span class="opt">)</span> <span class="kwa">where</span> <span class="opt">{</span>T<span class="opt">&lt;:</span><span class="kwb">Number</span><span class="opt">,</span>S<span class="opt">&lt;:</span><span class="kwb">Number</span><span class="opt">}</span>
+    v <span class="opt">=</span> Vector<span class="opt">{</span>S<span class="opt">}(</span>undef<span class="opt">,</span> N<span class="opt">)</span>
+    <span class="kwd">A_multiply_u</span><span class="opt">!(</span>N<span class="opt">,</span>u<span class="opt">,</span>v<span class="opt">)</span>
+    <span class="kwd">At_multiply_u</span><span class="opt">!(</span>N<span class="opt">,</span>v<span class="opt">,</span>AtAu<span class="opt">)</span>
+    <span class="kwa">return</span> nothing
 <span class="kwa">end</span>
 
-n <span class="opt">=</span> <span class="kwd">parse</span><span class="opt">(</span>Int<span class="opt">,</span>ARGS<span class="opt">[</span><span class="num">1</span><span class="opt">])</span>
-<span class="kwc">&#64;printf</span><span class="opt">(</span><span class="str">&quot;%.9f</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span> <span class="kwd">perf_spectralnorm</span><span class="opt">(</span>n<span class="opt">))</span>
+<span class="kwa">function</span> <span class="kwd">main</span><span class="opt">(</span>N<span class="opt">::</span><span class="kwb">Integer</span><span class="opt">,</span> niter<span class="opt">=</span><span class="num">10</span><span class="opt">)</span>
+  u <span class="opt">=</span> <span class="kwd">ones</span><span class="opt">(</span>N<span class="opt">)</span>
+  v <span class="opt">=</span> <span class="kwd">zeros</span><span class="opt">(</span>N<span class="opt">)</span>
+  <span class="kwa">for</span> i <span class="opt">=</span> <span class="num">1</span><span class="opt">:</span>niter
+      <span class="kwd">AtA_multiply_u</span><span class="opt">!(</span>N<span class="opt">,</span>u<span class="opt">,</span>v<span class="opt">)</span>
+      <span class="kwd">AtA_multiply_u</span><span class="opt">!(</span>N<span class="opt">,</span>v<span class="opt">,</span>u<span class="opt">)</span>
+  <span class="kwa">end</span>
+  vBv <span class="opt">=</span> <span class="kwd">sum</span><span class="opt">(</span>u<span class="opt">.*</span>v<span class="opt">)</span>
+  vv  <span class="opt">=</span> <span class="kwd">sum</span><span class="opt">(</span>v<span class="opt">.*</span>v<span class="opt">)</span>
+  <span class="kwc">&#64;printf</span><span class="opt">(</span><span class="str">&quot;</span><span class="ipl">%0</span><span class="str">.9f</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span><span class="kwd">sqrt</span><span class="opt">(</span>vBv<span class="opt">/</span>vv<span class="opt">))</span>
+  <span class="kwa">return</span> nothing
+<span class="kwa">end</span>
 
-
-
+N <span class="opt">=</span> <span class="kwd">parse</span><span class="opt">(</span>Int<span class="opt">,</span>ARGS<span class="opt">[</span><span class="num">1</span><span class="opt">])</span>
+<span class="kwd">main</span><span class="opt">(</span>N<span class="opt">)</span>
     </pre>
   </section>
   <section>
@@ -78,13 +92,14 @@ n <span class="opt">=</span> <span class="kwd">parse</span><span class="opt">(</
     <pre>
 NOTES:
 64-bit Ubuntu quad core
-julia version 1.0.2
+julia version 1.0.3
+export JULIA_NUM_THREADS=4
 
 
-Sat, 17 Nov 2018 18:38:00 GMT
+Thu, 27 Dec 2018 03:12:12 GMT
 
 COMMAND LINE:
-/opt/src/julia-1.0.2/bin/julia -- spectralnorm.julia 5500
+/opt/src/julia-1.0.3/bin/julia -O3 -- spectralnorm.julia 5500
 
 PROGRAM OUTPUT:
 1.274224153
