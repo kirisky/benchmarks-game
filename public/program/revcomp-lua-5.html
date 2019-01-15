@@ -45,16 +45,20 @@ niubc <span class="opt">= {}</span> <span class="slc">-- numeric lookup table</s
 <span class="kwa">local</span> sbcode <span class="opt">= {}</span> <span class="slc">-- string builder of code</span>
 <span class="slc">-- to append a piece of code</span>
 <span class="kwa">local function</span> <span class="kwd">add</span><span class="opt">(</span>s<span class="opt">)</span> <span class="kwd">insert</span><span class="opt">(</span>sbcode<span class="opt">,</span> s<span class="opt">)</span> <span class="kwa">end</span>
-
+<span class="kwd">add</span><span class="opt">(</span>
 <span class="slc">-- generate code for the processing function</span>
 <span class="slc">-- &#64;param t: the string builder of dna sequence</span>
 <span class="slc">-- &#64;param n: the number of elements + 1</span>
-<span class="kwd">add</span><span class="opt">(</span><span class="str">[=[</span>
+<span class="str">[=[</span>
 <span class="str">return function(t, n)</span>
 <span class="str">  if n == 1 then return end</span>
-<span class="str">  local iubc, niubc, sub, byte, char =</span>
-<span class="str">    iubc, niubc, string.sub, string.byte, string.char</span>
+<span class="str">  local iubc, niubc, sub, byte, char, gc =</span>
+<span class="str">    iubc, niubc, string.sub, string.byte, string.char, collectgarbage</span>
 <span class="str">  local s = table.concat(t, &quot;&quot;, 1, n-1)</span>
+<span class="str">-- collect the input string builder</span>
+<span class="str">  for i = 1, n-1 do t[i]=nil end</span>
+<span class="str">  gc()</span>
+<span class="str">-- string builder of output lines</span>
 <span class="str">  local sb, sbn = {}, 1</span>
 <span class="str">  for i=#s-59,1,-60 do</span>
 <span class="str">    local ]=]</span><span class="opt">)</span>
@@ -86,12 +90,18 @@ niubc <span class="opt">= {}</span> <span class="slc">-- numeric lookup table</s
 <span class="str">    for i=r,1,-1 do sb[sbn] = iubc[sub(s, i, i)]; sbn = sbn + 1 end</span>
 <span class="str">    sb[sbn] = &quot;\n&quot;; sbn = sbn + 1</span>
 <span class="str">  end</span>
+<span class="str">  s = nil</span>
+<span class="str">  gc()</span>
 <span class="str">  io.write(table.concat(sb))</span>
+<span class="str">  sb = nil</span>
+<span class="str">  gc()</span>
 <span class="str">end</span>
 <span class="str">]=]</span><span class="opt">)</span>
 
 <span class="kwa">local</span> wcode <span class="opt">=</span> <span class="kwb">table</span><span class="opt">.</span><span class="kwd">concat</span><span class="opt">(</span>sbcode<span class="opt">)</span> <span class="slc">-- the string</span>
 <span class="kwa">local</span> writerev <span class="opt">=</span> <span class="kwb">assert</span><span class="opt">(</span><span class="kwd">load</span><span class="opt">(</span>wcode<span class="opt">)())</span> <span class="slc">-- the function</span>
+
+<span class="kwb">collectgarbage</span><span class="opt">(</span><span class="str">&quot;stop&quot;</span><span class="opt">)</span> <span class="slc">-- we do it manually</span>
 
 <span class="slc">-- main routine</span>
 <span class="kwa">local</span> t<span class="opt">,</span> n <span class="opt">= {},</span> <span class="num">1</span>
@@ -111,13 +121,10 @@ NOTES:
 Lua 5.3.5  Copyright (C) 1994-2018 Lua.org, PUC-Rio
 
 
-Mon, 14 Jan 2019 17:37:09 GMT
+Tue, 15 Jan 2019 19:12:08 GMT
 
 COMMAND LINE:
 /opt/src/lua-5.3.5/bin/lua  revcomp.lua-5.lua 0 &lt; revcomp-input100000000.txt
-
-PROGRAM FAILED 
-
 
 (TRUNCATED) PROGRAM OUTPUT:
 &gt;ONE Homo sapiens alu
@@ -288,14 +295,7 @@ GCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCGC
 GATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCAGCCTC
 CCGAGTAGCTGGGATTACAGGCGCGCGCCACCACGCCCGGCTAATTTTTGTATTTTTAGT
 AGAGACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAACTCCTGACCTCAGGTGATCC
-GCCCGCCTCGGCCTCCCAAAGTGCTGGGATT
-/opt/src/lua-5.3.5/bin/lua: [string &quot;return function(t, n)...&quot;]:19: not enough memory for buffer allocation
-stack traceback:
-	[C]: in function 'table.concat'
-	[string &quot;return function(t, n)...&quot;]:19: in local 'writerev'
-	revcomp.lua-5.lua:79: in main chunk
-	[C]: in ?
-    </pre>
+GCCCGCCTCGGCCTCCCAAAGTGCTGGGATT    </pre>
   </section>
 </article>
 <footer>

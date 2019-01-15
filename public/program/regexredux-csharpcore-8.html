@@ -24,94 +24,169 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
     <pre>
 ﻿<span class="com">/* The Computer Language Benchmarks Game</span>
 <span class="com">   https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
-<span class="com"> *</span>
-<span class="com"> * contributed by Jimmy Tang</span>
-<span class="com"> * modified by Josh Goldfoot (2016)</span>
-<span class="com"> * modified by Jan de Vaan (compile regex, small stuff)</span>
-<span class="com"> */</span>
+<span class="com"></span>
+<span class="com">   Contributed by Michael Ganss, derived from</span>
+<span class="com">   Regex-Redux by Josh Goldfoot</span>
+<span class="com">   order variants by execution time by Anthony Lloyd</span>
+<span class="com">*/</span>
+
 <span class="kwa">using</span> System<span class="opt">;</span>
-<span class="kwa">using</span> System<span class="opt">.</span>Text<span class="opt">;</span>
-<span class="kwa">using</span> System<span class="opt">.</span>Text<span class="opt">.</span>RegularExpressions<span class="opt">;</span>
 <span class="kwa">using</span> System<span class="opt">.</span>Threading<span class="opt">.</span>Tasks<span class="opt">;</span>
+<span class="kwa">using</span> System<span class="opt">.</span>IO<span class="opt">;</span>
+<span class="kwa">using</span> System<span class="opt">.</span>Linq<span class="opt">;</span>
+<span class="kwa">using</span> System<span class="opt">.</span>Runtime<span class="opt">.</span>InteropServices<span class="opt">;</span>
+<span class="kwa">using</span> System<span class="opt">.</span>Text<span class="opt">;</span>
+<span class="kwa">using</span> System<span class="opt">.</span>Collections<span class="opt">.</span>Generic<span class="opt">;</span>
 
-<span class="kwa">class</span> regexredux
+<span class="kwa">public static class</span> RegexRedux
 <span class="opt">{</span>
-    <span class="kwa">static string</span> <span class="kwd">readStdIn</span><span class="opt">(</span><span class="kwa">out int</span> seqLength<span class="opt">,</span> <span class="kwa">out int</span> inputLength<span class="opt">)</span>
+    <span class="kwa">public static void</span> <span class="kwd">Main</span><span class="opt">(</span><span class="kwa">string</span><span class="opt">[]</span> args<span class="opt">)</span>
     <span class="opt">{</span>
-        StringBuilder sb <span class="opt">=</span> <span class="kwa">new</span> <span class="kwd">StringBuilder</span><span class="opt">();</span>
-        <span class="kwa">int</span> commentLength <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
-        String line<span class="opt">;</span>
-        
-        <span class="kwa">while</span> <span class="opt">((</span>line <span class="opt">=</span> Console<span class="opt">.</span><span class="kwd">ReadLine</span><span class="opt">()) !=</span> <span class="kwa">null</span><span class="opt">)</span>
+        <span class="kwa">var</span> <span class="opt">(</span>sequences<span class="opt">,</span> seqLen<span class="opt">) =</span> <span class="kwd">Read</span><span class="opt">(</span>Console<span class="opt">.</span><span class="kwd">OpenStandardInput</span><span class="opt">());</span>
+        <span class="kwa">var</span> initialLength <span class="opt">=</span> seqLen<span class="opt">;</span>
+
+        <span class="opt">(</span>sequences<span class="opt">,</span> seqLen<span class="opt">) =</span> <span class="kwa">new</span> <span class="kwd">Pcre</span><span class="opt">(</span><span class="str">&quot;&gt;.*</span><span class="esc">\n</span><span class="str">|</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">).</span><span class="kwd">Replace</span><span class="opt">(</span>sequences<span class="opt">,</span> seqLen<span class="opt">,</span> <span class="kwa">new byte</span><span class="opt">[]</span> { }<span class="opt">);</span>
+
+        <span class="kwa">var</span> magicTask <span class="opt">=</span> Task<span class="opt">.</span><span class="kwd">Run</span><span class="opt">(() =&gt;</span>
         <span class="opt">{</span>
-            <span class="kwa">if</span> <span class="opt">(</span>line<span class="opt">[</span><span class="num">0</span><span class="opt">] ==</span> <span class="str">&apos;&gt;&apos;</span><span class="opt">)</span>
-                commentLength <span class="opt">+=</span> line<span class="opt">.</span>Length <span class="opt">+</span> <span class="num">1</span><span class="opt">;</span>
-            <span class="kwa">else</span>
+            <span class="kwa">var</span> replacements <span class="opt">=</span> <span class="kwa">new</span> <span class="opt">(</span><span class="kwa">string</span> regex<span class="opt">,</span> <span class="kwa">string</span> replacement<span class="opt">)[]</span>
             <span class="opt">{</span>
-                sb<span class="opt">.</span><span class="kwd">Append</span><span class="opt">(</span>line<span class="opt">);</span>
-                commentLength <span class="opt">+=</span> <span class="num">1</span><span class="opt">;</span>
-            <span class="opt">}</span>
-        <span class="opt">}</span>
-        seqLength <span class="opt">=</span> sb<span class="opt">.</span>Length<span class="opt">;</span>
-        inputLength <span class="opt">=</span> seqLength <span class="opt">+</span> commentLength<span class="opt">;</span> 
-        <span class="kwa">return</span> sb<span class="opt">.</span><span class="kwd">ToString</span><span class="opt">();</span>
-    <span class="opt">}</span>
-
-    <span class="kwa">static void</span> <span class="kwd">Main</span><span class="opt">()</span>
-    <span class="opt">{</span>
-
-        <span class="kwa">string</span><span class="opt">[]</span> variants <span class="opt">= {</span>
-           <span class="str">&quot;agggtaaa|tttaccct&quot;</span>
-          <span class="opt">,</span><span class="str">&quot;[cgt]gggtaaa|tttaccc[acg]&quot;</span>
-          <span class="opt">,</span><span class="str">&quot;a[act]ggtaaa|tttacc[agt]t&quot;</span>
-          <span class="opt">,</span><span class="str">&quot;ag[act]gtaaa|tttac[agt]ct&quot;</span>
-          <span class="opt">,</span><span class="str">&quot;agg[act]taaa|ttta[agt]cct&quot;</span>
-          <span class="opt">,</span><span class="str">&quot;aggg[acg]aaa|ttt[cgt]ccct&quot;</span>
-          <span class="opt">,</span><span class="str">&quot;agggt[cgt]aa|tt[acg]accct&quot;</span>
-          <span class="opt">,</span><span class="str">&quot;agggta[cgt]a|t[acg]taccct&quot;</span>
-          <span class="opt">,</span><span class="str">&quot;agggtaa[cgt]|[acg]ttaccct&quot;</span>
-        <span class="opt">};</span>
-         
-        <span class="kwa">int</span> seqLength<span class="opt">,</span> initialLength<span class="opt">;</span>
-        <span class="kwa">var</span> sequence <span class="opt">=</span> <span class="kwd">readStdIn</span><span class="opt">(</span><span class="kwa">out</span> seqLength<span class="opt">,</span> <span class="kwa">out</span> initialLength<span class="opt">);</span>
-        <span class="kwa">var</span> newSequenceLength <span class="opt">=</span> Task<span class="opt">.</span><span class="kwd">Run</span><span class="opt">(() =&gt;</span>
-            <span class="opt">{</span>
-                <span class="kwa">var</span> table <span class="opt">=</span> <span class="kwa">new int</span><span class="opt">[</span><span class="str">&apos;Z&apos;</span><span class="opt">];</span>
-                table<span class="opt">[</span><span class="str">&apos;D&apos;</span><span class="opt">] =</span> <span class="str">&quot;(a|g|t)&quot;</span><span class="opt">.</span>Length <span class="opt">-</span> <span class="num">1</span><span class="opt">;</span>
-                table<span class="opt">[</span><span class="str">&apos;H&apos;</span><span class="opt">] =</span> <span class="str">&quot;(a|c|t)&quot;</span><span class="opt">.</span>Length <span class="opt">-</span> <span class="num">1</span><span class="opt">;</span>
-                table<span class="opt">[</span><span class="str">&apos;K&apos;</span><span class="opt">] =</span> <span class="str">&quot;(g|t)&quot;</span><span class="opt">.</span>Length <span class="opt">-</span> <span class="num">1</span><span class="opt">;</span>
-                table<span class="opt">[</span><span class="str">&apos;M&apos;</span><span class="opt">] =</span> <span class="str">&quot;(a|c)&quot;</span><span class="opt">.</span>Length <span class="opt">-</span> <span class="num">1</span><span class="opt">;</span>
-                table<span class="opt">[</span><span class="str">&apos;N&apos;</span><span class="opt">] =</span> <span class="str">&quot;(a|c|g|t)&quot;</span><span class="opt">.</span>Length <span class="opt">-</span> <span class="num">1</span><span class="opt">;</span>
-                table<span class="opt">[</span><span class="str">&apos;R&apos;</span><span class="opt">] =</span> <span class="str">&quot;(a|g)&quot;</span><span class="opt">.</span>Length <span class="opt">-</span> <span class="num">1</span><span class="opt">;</span>
-                table<span class="opt">[</span><span class="str">&apos;S&apos;</span><span class="opt">] =</span> <span class="str">&quot;(c|g)&quot;</span><span class="opt">.</span>Length <span class="opt">-</span> <span class="num">1</span><span class="opt">;</span>
-                table<span class="opt">[</span><span class="str">&apos;V&apos;</span><span class="opt">] =</span> <span class="str">&quot;(a|c|g)&quot;</span><span class="opt">.</span>Length <span class="opt">-</span> <span class="num">1</span><span class="opt">;</span>
-                table<span class="opt">[</span><span class="str">&apos;W&apos;</span><span class="opt">] =</span> <span class="str">&quot;(a|t)&quot;</span><span class="opt">.</span>Length <span class="opt">-</span> <span class="num">1</span><span class="opt">;</span>
-                table<span class="opt">[</span><span class="str">&apos;Y&apos;</span><span class="opt">] =</span> <span class="str">&quot;(c|t)&quot;</span><span class="opt">.</span>Length <span class="opt">-</span> <span class="num">1</span><span class="opt">;</span>
-                table<span class="opt">[</span><span class="str">&apos;B&apos;</span><span class="opt">] =</span> <span class="str">&quot;(c|g|t)&quot;</span><span class="opt">.</span>Length <span class="opt">-</span> <span class="num">1</span><span class="opt">;</span>
-
-                <span class="kwa">var</span> r <span class="opt">=</span> <span class="kwa">new</span> <span class="kwd">Regex</span><span class="opt">(</span><span class="str">&quot;[WYKMSRBDVHN]&quot;</span><span class="opt">,</span> RegexOptions<span class="opt">.</span>Compiled<span class="opt">);</span>
-
-                <span class="kwa">int</span> length <span class="opt">=</span> sequence<span class="opt">.</span>Length<span class="opt">;</span>
-
-                <span class="kwa">for</span> <span class="opt">(</span>Match m <span class="opt">=</span> r<span class="opt">.</span><span class="kwd">Match</span><span class="opt">(</span>sequence<span class="opt">);</span> m<span class="opt">.</span>Success<span class="opt">;</span> m <span class="opt">=</span> m<span class="opt">.</span><span class="kwd">NextMatch</span><span class="opt">())</span>
-                <span class="opt">{</span>
-                    length <span class="opt">+=</span> table<span class="opt">[</span>m<span class="opt">.</span>Value<span class="opt">[</span><span class="num">0</span><span class="opt">]];</span>
-                <span class="opt">}</span>
-                
-                <span class="kwa">return</span> length<span class="opt">;</span>
-            <span class="opt">});</span>
-
-        <span class="kwa">var</span> output <span class="opt">=</span> <span class="kwa">new string</span><span class="opt">[</span>variants<span class="opt">.</span>Length<span class="opt">];</span>
-        Parallel<span class="opt">.</span><span class="kwd">For</span><span class="opt">(</span><span class="num">0</span><span class="opt">,</span> variants<span class="opt">.</span>Length<span class="opt">,</span> i <span class="opt">=&gt;</span>
-        <span class="opt">{</span>
-            Regex r <span class="opt">=</span> <span class="kwa">new</span> <span class="kwd">Regex</span><span class="opt">(</span>variants<span class="opt">[</span>i<span class="opt">],</span> RegexOptions<span class="opt">.</span>Compiled<span class="opt">);</span>            
-            output<span class="opt">[</span>i<span class="opt">] =</span> r<span class="opt">.</span><span class="kwd">ToString</span><span class="opt">() +</span> <span class="str">&quot; &quot;</span> <span class="opt">+</span> r<span class="opt">.</span><span class="kwd">Matches</span><span class="opt">(</span>sequence<span class="opt">).</span>Count<span class="opt">;</span>
+                <span class="opt">(</span><span class="str">&quot;tHa[Nt]&quot;</span><span class="opt">,</span> <span class="str">&quot;&lt;4&gt;&quot;</span><span class="opt">),</span>
+                <span class="opt">(</span><span class="str">&quot;aND|caN|Ha[DS]|WaS&quot;</span><span class="opt">,</span> <span class="str">&quot;&lt;3&gt;&quot;</span><span class="opt">),</span>
+                <span class="opt">(</span><span class="str">&quot;a[NSt]|BY&quot;</span><span class="opt">,</span> <span class="str">&quot;&lt;2&gt;&quot;</span><span class="opt">),</span>
+                <span class="opt">(</span><span class="str">&quot;&lt;[^&gt;]*&gt;&quot;</span><span class="opt">,</span> <span class="str">&quot;|&quot;</span><span class="opt">),</span>
+                <span class="opt">(</span><span class="str">&quot;</span><span class="esc">\\</span><span class="str">|[^|][^|]*</span><span class="esc">\\</span><span class="str">|&quot;</span><span class="opt">,</span> <span class="str">&quot;-&quot;</span><span class="opt">)</span>
+            <span class="opt">};</span>
+            <span class="kwa">return</span> replacements<span class="opt">.</span><span class="kwd">Aggregate</span><span class="opt">((</span>seq<span class="opt">:</span> sequences<span class="opt">,</span> len<span class="opt">:</span> seqLen<span class="opt">),</span>
+                <span class="opt">(</span>s<span class="opt">,</span> r<span class="opt">) =&gt;</span> <span class="kwa">new</span> <span class="kwd">Pcre</span><span class="opt">(</span>r<span class="opt">.</span>regex<span class="opt">).</span><span class="kwd">Replace</span><span class="opt">(</span>s<span class="opt">.</span>seq<span class="opt">,</span> s<span class="opt">.</span>len<span class="opt">,</span> Encoding<span class="opt">.</span>ASCII<span class="opt">.</span><span class="kwd">GetBytes</span><span class="opt">(</span>r<span class="opt">.</span>replacement<span class="opt">))).</span>len<span class="opt">;</span>
         <span class="opt">});</span>
 
-        <span class="kwa">foreach</span> <span class="opt">(</span><span class="kwa">var</span> s <span class="kwa">in</span> output<span class="opt">)</span>
-            Console<span class="opt">.</span><span class="kwd">WriteLine</span><span class="opt">(</span>s<span class="opt">);</span>
-        
-        Console<span class="opt">.</span><span class="kwd">WriteLine</span><span class="opt">(</span><span class="str">&quot;</span><span class="esc">\n</span><span class="str"></span><span class="ipl">{0}</span><span class="str"></span><span class="esc">\n</span><span class="str"></span><span class="ipl">{1}</span><span class="str"></span><span class="esc">\n</span><span class="str"></span><span class="ipl">{2}</span><span class="str">&quot;</span><span class="opt">,</span> initialLength<span class="opt">,</span> seqLength<span class="opt">,</span> newSequenceLength<span class="opt">.</span>Result<span class="opt">);</span>        
+        <span class="kwa">var</span> regexes <span class="opt">=</span> <span class="kwa">new</span><span class="opt">[]</span>
+        <span class="opt">{</span>
+            <span class="str">&quot;agggtaaa|tttaccct&quot;</span><span class="opt">,</span>
+            <span class="str">&quot;[cgt]gggtaaa|tttaccc[acg]&quot;</span><span class="opt">,</span>
+            <span class="str">&quot;a[act]ggtaaa|tttacc[agt]t&quot;</span><span class="opt">,</span>
+            <span class="str">&quot;ag[act]gtaaa|tttac[agt]ct&quot;</span><span class="opt">,</span>
+            <span class="str">&quot;agg[act]taaa|ttta[agt]cct&quot;</span><span class="opt">,</span>
+            <span class="str">&quot;aggg[acg]aaa|ttt[cgt]ccct&quot;</span><span class="opt">,</span>
+            <span class="str">&quot;agggt[cgt]aa|tt[acg]accct&quot;</span><span class="opt">,</span>
+            <span class="str">&quot;agggta[cgt]a|t[acg]taccct&quot;</span><span class="opt">,</span>
+            <span class="str">&quot;agggtaa[cgt]|[acg]ttaccct&quot;</span>
+        <span class="opt">};</span>
+
+        <span class="kwa">var</span> counts <span class="opt">=</span> regexes<span class="opt">.</span><span class="kwd">AsParallel</span><span class="opt">().</span><span class="kwd">AsOrdered</span><span class="opt">()</span>
+            <span class="opt">.</span><span class="kwd">Select</span><span class="opt">(</span>r <span class="opt">=&gt;</span> r <span class="opt">+</span> <span class="str">&quot; &quot;</span> <span class="opt">+</span> <span class="kwa">new</span> <span class="kwd">Pcre</span><span class="opt">(</span>r<span class="opt">).</span><span class="kwd">Matches</span><span class="opt">(</span>sequences<span class="opt">,</span> seqLen<span class="opt">).</span><span class="kwd">Count</span><span class="opt">());</span>
+
+        <span class="kwa">foreach</span> <span class="opt">(</span><span class="kwa">var</span> count <span class="kwa">in</span> counts<span class="opt">)</span>
+            Console<span class="opt">.</span>Out<span class="opt">.</span><span class="kwd">WriteLine</span><span class="opt">(</span>count<span class="opt">);</span>
+
+        Console<span class="opt">.</span>Out<span class="opt">.</span><span class="kwd">WriteLine</span><span class="opt">($</span><span class="str">&quot;</span><span class="esc">\n</span><span class="str"></span><span class="ipl">{initialLength}</span><span class="str"></span><span class="esc">\n</span><span class="str"></span><span class="ipl">{seqLen}</span><span class="str"></span><span class="esc">\n</span><span class="str"></span><span class="ipl">{magicTask.Result}</span><span class="str">&quot;</span><span class="opt">);</span>
+    <span class="opt">}</span>
+
+    <span class="kwa">static</span> <span class="opt">(</span><span class="kwa">byte</span><span class="opt">[]</span> buf<span class="opt">,</span> <span class="kwa">long</span> len<span class="opt">)</span> <span class="kwd">Read</span><span class="opt">(</span>Stream stream<span class="opt">)</span>
+    <span class="opt">{</span>
+        <span class="kwa">var</span> buf <span class="opt">=</span> <span class="kwa">new byte</span><span class="opt">[</span><span class="num">1024</span> <span class="opt">*</span> <span class="num">1024</span><span class="opt">];</span>
+        <span class="kwa">var</span> len <span class="opt">=</span> <span class="num">0L</span><span class="opt">;</span>
+        <span class="kwa">var</span> bytesRead <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+
+        <span class="kwa">while</span> <span class="opt">((</span>bytesRead <span class="opt">=</span> stream<span class="opt">.</span><span class="kwd">Read</span><span class="opt">(</span>buf<span class="opt">, (</span><span class="kwa">int</span><span class="opt">)</span>len<span class="opt">,</span> buf<span class="opt">.</span>Length <span class="opt">- (</span><span class="kwa">int</span><span class="opt">)</span>len<span class="opt">)) &gt;</span> <span class="num">0</span><span class="opt">)</span>
+            <span class="kwa">if</span> <span class="opt">((</span>len <span class="opt">+=</span> bytesRead<span class="opt">) ==</span> buf<span class="opt">.</span>Length<span class="opt">)</span>
+                Array<span class="opt">.</span><span class="kwd">Resize</span><span class="opt">(</span><span class="kwa">ref</span> buf<span class="opt">,</span> buf<span class="opt">.</span>Length <span class="opt">*</span> <span class="num">2</span><span class="opt">);</span>
+
+        <span class="kwa">return</span> <span class="opt">(</span>buf<span class="opt">,</span> len<span class="opt">);</span>
+    <span class="opt">}</span>
+
+    <span class="kwa">class</span> Pcre
+    <span class="opt">{</span>
+        <span class="kwa">readonly</span> IntPtr pcre<span class="opt">;</span>
+        <span class="kwa">readonly</span> IntPtr match_data<span class="opt">;</span>
+        <span class="kwa">readonly</span> IntPtr ovector<span class="opt">;</span>
+
+        <span class="kwa">const int</span> ErrorMsgMaxLen <span class="opt">=</span> <span class="num">1024</span><span class="opt">;</span>
+        <span class="kwa">const int</span> PCRE2_JIT_COMPLETE <span class="opt">=</span> <span class="num">0x00000001</span><span class="opt">;</span>
+        <span class="kwa">const int</span> PCRE2_SUBSTITUTE_GLOBAL <span class="opt">=</span> <span class="num">0x00000100</span><span class="opt">;</span>
+        <span class="kwa">const int</span> PCRE2_NO_UTF_CHECK <span class="opt">=</span> <span class="num">0x40000000</span><span class="opt">;</span>
+        <span class="kwa">const long</span> PCRE2_ZERO_TERMINATED <span class="opt">= (</span>~<span class="num">0L</span><span class="opt">);</span>
+
+        <span class="kwa">string</span> <span class="kwd">GetErrorMessage</span><span class="opt">(</span><span class="kwa">int</span> errorcode<span class="opt">)</span>
+        <span class="opt">{</span>
+            <span class="kwa">var</span> errmsg <span class="opt">=</span> <span class="kwa">new</span> <span class="kwd">StringBuilder</span><span class="opt">(</span>ErrorMsgMaxLen<span class="opt">);</span>
+            <span class="kwd">PcreGetErrorMessage</span><span class="opt">(</span>errorcode<span class="opt">,</span> errmsg<span class="opt">,</span> ErrorMsgMaxLen<span class="opt">);</span>
+            <span class="kwa">return</span> errmsg<span class="opt">.</span><span class="kwd">ToString</span><span class="opt">();</span>
+        <span class="opt">}</span>
+
+        <span class="kwa">public</span> <span class="kwd">Pcre</span><span class="opt">(</span><span class="kwa">string</span> pattern<span class="opt">)</span>
+        <span class="opt">{</span>
+            pcre <span class="opt">=</span> <span class="kwd">PcreCompile</span><span class="opt">(</span>pattern<span class="opt">,</span> PCRE2_ZERO_TERMINATED<span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> <span class="kwa">out int</span> errorcode<span class="opt">,</span> <span class="kwa">out long</span> erroffset<span class="opt">,</span> IntPtr<span class="opt">.</span>Zero<span class="opt">);</span>
+            <span class="kwa">if</span> <span class="opt">(</span>pcre <span class="opt">==</span> IntPtr<span class="opt">.</span>Zero<span class="opt">)</span>
+                <span class="kwa">throw new</span> <span class="kwd">ArgumentException</span><span class="opt">($&#64;</span><span class="str">&quot;Error compiling pattern &quot;</span><span class="str">&quot;</span><span class="ipl">{pattern}</span><span class="str">&quot;</span><span class="str">&quot;:</span> <span class="ipl">{GetErrorMessage(errorcode)}</span> <span class="str">at offset</span> <span class="ipl">{erroffset}</span><span class="str">&quot;</span><span class="opt">);</span>
+
+            <span class="kwa">var</span> ret <span class="opt">=</span> <span class="kwd">PcreJitCompile</span><span class="opt">(</span>pcre<span class="opt">,</span> PCRE2_JIT_COMPLETE<span class="opt">);</span>
+            <span class="kwa">if</span> <span class="opt">(</span>ret <span class="opt">&lt;</span> <span class="num">0</span><span class="opt">)</span>
+                <span class="kwa">throw new</span> <span class="kwd">ArgumentException</span><span class="opt">($&#64;</span><span class="str">&quot;Error jit compiling pattern &quot;</span><span class="str">&quot;</span><span class="ipl">{pattern}</span><span class="str">&quot;</span><span class="str">&quot;:</span> <span class="ipl">{GetErrorMessage(ret)}</span><span class="str">&quot;</span><span class="opt">);</span>
+
+            match_data <span class="opt">=</span> <span class="kwd">PcreMatchDataCreate</span><span class="opt">(</span><span class="num">16</span><span class="opt">,</span> IntPtr<span class="opt">.</span>Zero<span class="opt">);</span>
+            <span class="kwa">if</span> <span class="opt">(</span>match_data <span class="opt">==</span> IntPtr<span class="opt">.</span>Zero<span class="opt">)</span>
+                <span class="kwa">throw new</span> <span class="kwd">ArgumentException</span><span class="opt">($&#64;</span><span class="str">&quot;Match data could not be obtained for pattern &quot;</span><span class="str">&quot;</span><span class="ipl">{pattern}</span><span class="str">&quot;</span><span class="str">&quot;&quot;</span><span class="opt">);</span>
+
+            ovector <span class="opt">=</span> <span class="kwd">PcreGetOvectorPointer</span><span class="opt">(</span>match_data<span class="opt">);</span>
+        <span class="opt">}</span>
+
+        <span class="kwa">public</span> IEnumerable<span class="opt">&lt;(</span><span class="kwa">long</span> start<span class="opt">,</span> <span class="kwa">long</span> end<span class="opt">)&gt;</span> <span class="kwd">Matches</span><span class="opt">(</span><span class="kwa">byte</span><span class="opt">[]</span> subject<span class="opt">,</span> <span class="kwa">long</span> length<span class="opt">)</span>
+        <span class="opt">{</span>
+            <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">var</span> offset <span class="opt">=</span> <span class="num">0L</span><span class="opt">;</span> <span class="kwd">Exec</span><span class="opt">(</span>subject<span class="opt">,</span> length<span class="opt">,</span> offset<span class="opt">) &gt;=</span> <span class="num">0</span><span class="opt">;</span> offset <span class="opt">=</span> Marshal<span class="opt">.</span><span class="kwd">ReadInt64</span><span class="opt">(</span>ovector<span class="opt">,</span> <span class="num">8</span><span class="opt">))</span>
+                <span class="kwa">yield return</span> <span class="opt">(</span>Marshal<span class="opt">.</span><span class="kwd">ReadInt64</span><span class="opt">(</span>ovector<span class="opt">),</span> Marshal<span class="opt">.</span><span class="kwd">ReadInt64</span><span class="opt">(</span>ovector<span class="opt">,</span> <span class="num">8</span><span class="opt">));</span>
+        <span class="opt">}</span>
+
+        <span class="kwa">public</span> <span class="opt">(</span><span class="kwa">byte</span><span class="opt">[]</span> str<span class="opt">,</span> <span class="kwa">long</span> length<span class="opt">)</span> <span class="kwd">Replace</span><span class="opt">(</span><span class="kwa">byte</span><span class="opt">[]</span> subject<span class="opt">,</span> <span class="kwa">long</span> length<span class="opt">,</span> <span class="kwa">byte</span><span class="opt">[]</span> replacement<span class="opt">)</span>
+        <span class="opt">{</span>
+            <span class="kwa">var</span> outlength <span class="opt">=</span> length <span class="opt">*</span> <span class="num">2</span><span class="opt">;</span>
+            <span class="kwa">var</span> output <span class="opt">=</span> <span class="kwa">new byte</span><span class="opt">[</span>outlength<span class="opt">];</span>
+
+            <span class="kwa">unsafe</span>
+            <span class="opt">{</span>
+                <span class="kwa">fixed</span> <span class="opt">(</span><span class="kwa">byte</span><span class="opt">*</span> s <span class="opt">=</span> subject<span class="opt">,</span> r <span class="opt">=</span> replacement<span class="opt">,</span> o <span class="opt">=</span> output<span class="opt">)</span>
+                <span class="opt">{</span>
+                    <span class="kwa">var</span> ret <span class="opt">=</span> <span class="kwd">PcreSubstitute</span><span class="opt">(</span>pcre<span class="opt">,</span> s<span class="opt">,</span> length<span class="opt">,</span> <span class="num">0L</span><span class="opt">,</span> PCRE2_SUBSTITUTE_GLOBAL <span class="opt">|</span> PCRE2_NO_UTF_CHECK<span class="opt">,</span> match_data<span class="opt">,</span> IntPtr<span class="opt">.</span>Zero<span class="opt">,</span>
+                        r<span class="opt">,</span> replacement<span class="opt">.</span>Length<span class="opt">,</span> o<span class="opt">,</span> <span class="kwa">out</span> outlength<span class="opt">);</span>
+                    <span class="kwa">return</span> <span class="opt">(</span>output<span class="opt">,</span> outlength<span class="opt">);</span>
+                <span class="opt">}</span>
+            <span class="opt">}</span>
+        <span class="opt">}</span>
+
+        <span class="kwa">int</span> <span class="kwd">Exec</span><span class="opt">(</span><span class="kwa">byte</span><span class="opt">[]</span> subject<span class="opt">,</span> <span class="kwa">long</span> length<span class="opt">,</span> <span class="kwa">long</span> startoffset<span class="opt">)</span>
+        <span class="opt">{</span>
+            <span class="kwa">unsafe</span>
+            <span class="opt">{</span>
+                <span class="kwa">fixed</span> <span class="opt">(</span><span class="kwa">byte</span><span class="opt">*</span> b <span class="opt">=</span> subject<span class="opt">)</span>
+                    <span class="kwa">return</span> <span class="kwd">PcreJitMatch</span><span class="opt">(</span>pcre<span class="opt">,</span> b<span class="opt">,</span> length<span class="opt">,</span> startoffset<span class="opt">,</span> PCRE2_NO_UTF_CHECK<span class="opt">,</span> match_data<span class="opt">,</span> IntPtr<span class="opt">.</span>Zero<span class="opt">);</span>
+            <span class="opt">}</span>
+        <span class="opt">}</span>
+
+        <span class="opt">[</span><span class="kwd">DllImport</span><span class="opt">(</span><span class="str">&quot;pcre2-8&quot;</span><span class="opt">,</span> EntryPoint <span class="opt">=</span> <span class="str">&quot;pcre2_compile_8&quot;</span><span class="opt">,</span> CharSet <span class="opt">=</span> CharSet<span class="opt">.</span>Ansi<span class="opt">)]</span>
+        <span class="kwa">extern static</span> IntPtr <span class="kwd">PcreCompile</span><span class="opt">(</span><span class="kwa">string</span> pattern<span class="opt">,</span> <span class="kwa">long</span> length<span class="opt">,</span> <span class="kwa">uint</span> options<span class="opt">,</span>
+            <span class="kwa">out int</span> errorcode<span class="opt">,</span> <span class="kwa">out long</span> erroroffset<span class="opt">,</span> IntPtr ccontext<span class="opt">);</span>
+
+        <span class="opt">[</span><span class="kwd">DllImport</span><span class="opt">(</span><span class="str">&quot;pcre2-8&quot;</span><span class="opt">,</span> EntryPoint <span class="opt">=</span> <span class="str">&quot;pcre2_jit_compile_8&quot;</span><span class="opt">,</span> CharSet <span class="opt">=</span> CharSet<span class="opt">.</span>Ansi<span class="opt">)]</span>
+        <span class="kwa">extern static int</span> <span class="kwd">PcreJitCompile</span><span class="opt">(</span>IntPtr code<span class="opt">,</span> <span class="kwa">uint</span> options<span class="opt">);</span>
+
+        <span class="opt">[</span><span class="kwd">DllImport</span><span class="opt">(</span><span class="str">&quot;pcre2-8&quot;</span><span class="opt">,</span> EntryPoint <span class="opt">=</span> <span class="str">&quot;pcre2_jit_match_8&quot;</span><span class="opt">,</span> CharSet <span class="opt">=</span> CharSet<span class="opt">.</span>Ansi<span class="opt">)]</span>
+        <span class="kwa">extern unsafe static int</span> <span class="kwd">PcreJitMatch</span><span class="opt">(</span>IntPtr code<span class="opt">,</span> <span class="kwa">byte</span><span class="opt">*</span> subject<span class="opt">,</span>
+            <span class="kwa">long</span> length<span class="opt">,</span> <span class="kwa">long</span> startoffset<span class="opt">,</span> <span class="kwa">int</span> options<span class="opt">,</span> IntPtr match_data<span class="opt">,</span> IntPtr mcontext<span class="opt">);</span>
+
+        <span class="opt">[</span><span class="kwd">DllImport</span><span class="opt">(</span><span class="str">&quot;pcre2-8&quot;</span><span class="opt">,</span> EntryPoint <span class="opt">=</span> <span class="str">&quot;pcre2_match_data_create_8&quot;</span><span class="opt">,</span> CharSet <span class="opt">=</span> CharSet<span class="opt">.</span>Ansi<span class="opt">)]</span>
+        <span class="kwa">extern unsafe static</span> IntPtr <span class="kwd">PcreMatchDataCreate</span><span class="opt">(</span><span class="kwa">uint</span> ovecsize<span class="opt">,</span> IntPtr mcontext<span class="opt">);</span>
+
+        <span class="opt">[</span><span class="kwd">DllImport</span><span class="opt">(</span><span class="str">&quot;pcre2-8&quot;</span><span class="opt">,</span> EntryPoint <span class="opt">=</span> <span class="str">&quot;pcre2_get_error_message_8&quot;</span><span class="opt">,</span> CharSet <span class="opt">=</span> CharSet<span class="opt">.</span>Ansi<span class="opt">)]</span>
+        <span class="kwa">extern unsafe static int</span> <span class="kwd">PcreGetErrorMessage</span><span class="opt">(</span><span class="kwa">int</span> errorcode<span class="opt">,</span> StringBuilder buffer<span class="opt">,</span> <span class="kwa">long</span> bufflen<span class="opt">);</span>
+
+        <span class="opt">[</span><span class="kwd">DllImport</span><span class="opt">(</span><span class="str">&quot;pcre2-8&quot;</span><span class="opt">,</span> EntryPoint <span class="opt">=</span> <span class="str">&quot;pcre2_get_ovector_pointer_8&quot;</span><span class="opt">,</span> CharSet <span class="opt">=</span> CharSet<span class="opt">.</span>Ansi<span class="opt">)]</span>
+        <span class="kwa">extern unsafe static</span> IntPtr <span class="kwd">PcreGetOvectorPointer</span><span class="opt">(</span>IntPtr match_data<span class="opt">);</span>
+
+        <span class="opt">[</span><span class="kwd">DllImport</span><span class="opt">(</span><span class="str">&quot;pcre2-8&quot;</span><span class="opt">,</span> EntryPoint <span class="opt">=</span> <span class="str">&quot;pcre2_substitute_8&quot;</span><span class="opt">,</span> CharSet <span class="opt">=</span> CharSet<span class="opt">.</span>Ansi<span class="opt">)]</span>
+        <span class="kwa">extern unsafe static int</span> <span class="kwd">PcreSubstitute</span><span class="opt">(</span>IntPtr code<span class="opt">,</span> <span class="kwa">byte</span><span class="opt">*</span> subject<span class="opt">,</span>
+            <span class="kwa">long</span> length<span class="opt">,</span> <span class="kwa">long</span> startoffset<span class="opt">,</span> <span class="kwa">int</span> options<span class="opt">,</span> IntPtr match_data<span class="opt">,</span> IntPtr mcontext<span class="opt">,</span>
+            <span class="kwa">byte</span><span class="opt">*</span> replacement<span class="opt">,</span> <span class="kwa">long</span> rlength<span class="opt">,</span> <span class="kwa">byte</span><span class="opt">*</span> outputbuffer<span class="opt">,</span> <span class="kwa">out long</span> outlength<span class="opt">);</span>
     <span class="opt">}</span>
 <span class="opt">}</span>
     </pre>
@@ -128,7 +203,7 @@ Host 2.2.0
 &lt;ConcurrentGarbageCollection&gt;true
 
 
-Wed, 05 Dec 2018 21:02:41 GMT
+Tue, 15 Jan 2019 19:11:51 GMT
 
 MAKE:
 cp regexredux.csharpcore-8.csharpcore Program.cs
@@ -143,41 +218,34 @@ Copyright (C) Microsoft Corporation. All rights reserved.
 
   Restoring packages for /home/dunham/benchmarksgame_quadcore/regexredux/tmp/tmp.csproj...
   Generating MSBuild file /home/dunham/benchmarksgame_quadcore/regexredux/tmp/obj/tmp.csproj.nuget.g.props.
-  Restore completed in 1.03 sec for /home/dunham/benchmarksgame_quadcore/regexredux/tmp/tmp.csproj.
+  Restore completed in 627.52 ms for /home/dunham/benchmarksgame_quadcore/regexredux/tmp/tmp.csproj.
   tmp -&gt; /home/dunham/benchmarksgame_quadcore/regexredux/tmp/bin/Release/netcoreapp2.2/tmp.dll
 
 Build succeeded.
     0 Warning(s)
     0 Error(s)
 
-Time Elapsed 00:00:04.31
+Time Elapsed 00:00:09.58
 
-5.17s to complete and log all make actions
+12.78s to complete and log all make actions
 
 COMMAND LINE:
-/usr/bin/dotnet ./bin/Release/netcoreapp2.2/tmp.dll 0 &lt; regexredux-input50000.txt
-
-UNEXPECTED OUTPUT 
-
-13c13
-&lt; 668262
----
-&gt; 273927
+/usr/bin/dotnet ./bin/Release/netcoreapp2.2/tmp.dll 0 &lt; regexredux-input5000000.txt
 
 PROGRAM OUTPUT:
-agggtaaa|tttaccct 3
-[cgt]gggtaaa|tttaccc[acg] 12
-a[act]ggtaaa|tttacc[agt]t 43
-ag[act]gtaaa|tttac[agt]ct 27
-agg[act]taaa|ttta[agt]cct 58
-aggg[acg]aaa|ttt[cgt]ccct 16
-agggt[cgt]aa|tt[acg]accct 15
-agggta[cgt]a|t[acg]taccct 18
-agggtaa[cgt]|[acg]ttaccct 20
+agggtaaa|tttaccct 356
+[cgt]gggtaaa|tttaccc[acg] 1250
+a[act]ggtaaa|tttacc[agt]t 4252
+ag[act]gtaaa|tttac[agt]ct 2894
+agg[act]taaa|ttta[agt]cct 5435
+aggg[acg]aaa|ttt[cgt]ccct 1537
+agggt[cgt]aa|tt[acg]accct 1431
+agggta[cgt]a|t[acg]taccct 1608
+agggtaa[cgt]|[acg]ttaccct 2178
 
-508411
-500000
-668262
+50833411
+50000000
+27388361
     </pre>
   </section>
 </article>
