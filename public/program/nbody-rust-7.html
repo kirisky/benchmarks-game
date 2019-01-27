@@ -22,6 +22,285 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
       <h2>source code</h2>
     </div>
     <pre>
+<span class="slc">/// The Computer Language Benchmarks Game</span>
+<span class="slc">/// https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">///</span>
+<span class="slc">/// contributed by Mark C. Lewis</span>
+<span class="slc">/// modified slightly by Chad Whipkey</span>
+<span class="slc">/// converted from java to c++,added sse support, by Branimir Maksimovic</span>
+<span class="slc">/// converted from c++ to c, by Alexey Medvedchikov</span>
+<span class="slc">/// converted from c to Rust by Frank Rehberger</span>
+
+<span class="kwa">const</span> PI<span class="opt">:</span> <span class="kwb">f64</span> <span class="opt">=</span> <span class="num">3.141592653589793</span><span class="opt">;</span>
+<span class="kwa">const</span> SOLAR_MASS<span class="opt">:</span> <span class="kwb">f64</span> <span class="opt">=</span> <span class="num">4.0</span> <span class="opt">*</span> PI <span class="opt">*</span> PI<span class="opt">;</span>
+<span class="kwa">const</span> YEAR<span class="opt">:</span> <span class="kwb">f64</span> <span class="opt">=</span> <span class="num">365.24</span><span class="opt">;</span>
+<span class="kwa">const</span> N_BODIES<span class="opt">:</span> <span class="kwb">usize</span> <span class="opt">=</span> <span class="num">5</span><span class="opt">;</span>
+
+<span class="kwa">use</span> std<span class="opt">::</span>arch<span class="opt">::</span>x86_64<span class="opt">::*;</span>
+
+<span class="slc">///</span>
+<span class="kwa">type</span> F64x3 <span class="opt">= [</span><span class="kwb">f64</span><span class="opt">;</span> <span class="num">3</span><span class="opt">];</span>
+
+<span class="slc">///</span>
+<span class="ppc">#[repr(C)]</span>
+<span class="ppc">#[derive(Clone, Copy)]</span>
+<span class="kwa">struct</span> Planet <span class="opt">{</span>
+    x<span class="opt">:</span> F64x3<span class="opt">,</span>
+    fill<span class="opt">:</span> <span class="kwb">f64</span><span class="opt">,</span>
+    v<span class="opt">:</span> F64x3<span class="opt">,</span>
+    mass<span class="opt">:</span> <span class="kwb">f64</span><span class="opt">,</span>
+<span class="opt">}</span>
+
+<span class="kwa">static</span> BODIES<span class="opt">: [</span>Planet<span class="opt">;</span> N_BODIES<span class="opt">] = [</span>
+    <span class="slc">// Sun</span>
+    Planet <span class="opt">{</span>
+        x<span class="opt">: [</span><span class="num">0.0</span><span class="opt">,</span> <span class="num">0.0</span><span class="opt">,</span> <span class="num">0.0</span><span class="opt">],</span>
+        fill<span class="opt">:</span> <span class="num">0.0</span><span class="opt">,</span>
+        v<span class="opt">: [</span><span class="num">0.0</span><span class="opt">,</span> <span class="num">0.0</span><span class="opt">,</span> <span class="num">0.0</span><span class="opt">],</span>
+        mass<span class="opt">:</span> SOLAR_MASS<span class="opt">,</span>
+    <span class="opt">},</span>
+    <span class="slc">// Jupiter</span>
+    Planet <span class="opt">{</span>
+        x<span class="opt">: [</span><span class="num">4.84143144246472090e+00</span><span class="opt">,</span>
+            <span class="opt">-</span><span class="num">1.16032004402742839e+00</span><span class="opt">,</span>
+            <span class="opt">-</span><span class="num">1.03622044471123109e-01</span><span class="opt">],</span>
+        fill<span class="opt">:</span> <span class="num">0.0</span><span class="opt">,</span>
+        v<span class="opt">: [</span><span class="num">1.66007664274403694e-03</span> <span class="opt">*</span> YEAR<span class="opt">,</span>
+            <span class="num">7.69901118419740425e-03</span> <span class="opt">*</span> YEAR<span class="opt">,</span>
+            <span class="opt">-</span><span class="num">6.90460016972063023e-05</span> <span class="opt">*</span> YEAR<span class="opt">],</span>
+        mass<span class="opt">:</span> <span class="num">9.54791938424326609e-04</span> <span class="opt">*</span> SOLAR_MASS<span class="opt">,</span>
+    <span class="opt">},</span>
+    <span class="slc">// Saturn</span>
+    Planet <span class="opt">{</span>
+        x<span class="opt">: [</span><span class="num">8.34336671824457987e+00</span><span class="opt">,</span>
+            <span class="num">4.12479856412430479e+00</span><span class="opt">,</span>
+            <span class="opt">-</span><span class="num">4.03523417114321381e-01</span><span class="opt">],</span>
+        fill<span class="opt">:</span> <span class="num">0.0</span><span class="opt">,</span>
+        v<span class="opt">: [-</span><span class="num">2.76742510726862411e-03</span> <span class="opt">*</span> YEAR<span class="opt">,</span>
+            <span class="num">4.99852801234917238e-03</span> <span class="opt">*</span> YEAR<span class="opt">,</span>
+            <span class="num">2.30417297573763929e-05</span> <span class="opt">*</span> YEAR<span class="opt">],</span>
+        mass<span class="opt">:</span> <span class="num">2.85885980666130812e-04</span> <span class="opt">*</span> SOLAR_MASS<span class="opt">,</span>
+    <span class="opt">},</span>
+    <span class="slc">// Uranus</span>
+    Planet <span class="opt">{</span>
+        x<span class="opt">: [</span><span class="num">1.28943695621391310e+01</span><span class="opt">,</span>
+            <span class="opt">-</span><span class="num">1.51111514016986312e+01</span><span class="opt">,</span>
+            <span class="opt">-</span><span class="num">2.23307578892655734e-01</span><span class="opt">],</span>
+        fill<span class="opt">:</span> <span class="num">0.0</span><span class="opt">,</span>
+        v<span class="opt">: [</span><span class="num">2.96460137564761618e-03</span> <span class="opt">*</span> YEAR<span class="opt">,</span>
+            <span class="num">2.37847173959480950e-03</span> <span class="opt">*</span> YEAR<span class="opt">,</span>
+            <span class="opt">-</span><span class="num">2.96589568540237556e-05</span> <span class="opt">*</span> YEAR<span class="opt">],</span>
+        mass<span class="opt">:</span> <span class="num">4.36624404335156298e-05</span> <span class="opt">*</span> SOLAR_MASS<span class="opt">,</span>
+    <span class="opt">},</span>
+    <span class="slc">// Neptune</span>
+    Planet <span class="opt">{</span>
+        x<span class="opt">: [</span><span class="num">1.53796971148509165e+01</span><span class="opt">,</span>
+            <span class="opt">-</span><span class="num">2.59193146099879641e+01</span><span class="opt">,</span>
+            <span class="num">1.79258772950371181e-01</span><span class="opt">],</span>
+        fill<span class="opt">:</span> <span class="num">0.0</span><span class="opt">,</span>
+        v<span class="opt">: [</span><span class="num">2.68067772490389322e-03</span> <span class="opt">*</span> YEAR<span class="opt">,</span>
+            <span class="num">1.62824170038242295e-03</span> <span class="opt">*</span> YEAR<span class="opt">,</span>
+            <span class="opt">-</span><span class="num">9.51592254519715870e-05</span> <span class="opt">*</span> YEAR<span class="opt">],</span>
+        mass<span class="opt">:</span> <span class="num">5.15138902046611451e-05</span> <span class="opt">*</span> SOLAR_MASS<span class="opt">,</span>
+    <span class="opt">},</span>
+<span class="opt">];</span>
+
+<span class="slc">///</span>
+<span class="slc">///</span>
+<span class="kwa">fn</span> <span class="kwd">offset_momentum</span><span class="opt">(</span>bodies<span class="opt">: &amp;</span><span class="kwa">mut</span> <span class="opt">[</span>Planet<span class="opt">;</span> N_BODIES<span class="opt">]) {</span>
+    <span class="kwa">for</span> i <span class="kwa">in</span> <span class="num">0</span><span class="opt">..</span>bodies<span class="opt">.</span><span class="kwd">len</span><span class="opt">() {</span>
+        <span class="kwa">for</span> k <span class="kwa">in</span> <span class="num">0</span><span class="opt">.</span><span class="num">.3</span> <span class="opt">{</span>
+            bodies<span class="opt">[</span><span class="num">0</span><span class="opt">].</span>v<span class="opt">[</span>k<span class="opt">] -=</span> bodies<span class="opt">[</span>i<span class="opt">].</span>v<span class="opt">[</span>k<span class="opt">] *</span> bodies<span class="opt">[</span>i<span class="opt">].</span>mass <span class="opt">/</span> SOLAR_MASS<span class="opt">;</span>
+        <span class="opt">}</span>
+    <span class="opt">}</span>
+<span class="opt">}</span>
+
+
+<span class="slc">///</span>
+<span class="slc">///</span>
+<span class="kwa">fn</span> <span class="kwd">bodies_energy</span><span class="opt">(</span>bodies<span class="opt">: &amp;[</span>Planet<span class="opt">;</span> N_BODIES<span class="opt">]) -&gt;</span> <span class="kwb">f64</span> <span class="opt">{</span>
+    <span class="kwa">let mut</span> dx<span class="opt">: [</span><span class="kwb">f64</span><span class="opt">;</span> <span class="num">3</span><span class="opt">] = [</span><span class="num">0.0</span><span class="opt">;</span> <span class="num">3</span><span class="opt">];</span>
+    <span class="kwa">let mut</span> e <span class="opt">=</span> <span class="num">0.0</span><span class="opt">;</span>
+
+    <span class="kwa">for</span> i <span class="kwa">in</span> <span class="num">0</span><span class="opt">..</span>bodies<span class="opt">.</span><span class="kwd">len</span><span class="opt">() {</span>
+        e <span class="opt">+=</span> bodies<span class="opt">[</span>i<span class="opt">].</span>mass <span class="opt">* ((</span>bodies<span class="opt">[</span>i<span class="opt">].</span>v<span class="opt">[</span><span class="num">0</span><span class="opt">] *</span> bodies<span class="opt">[</span>i<span class="opt">].</span>v<span class="opt">[</span><span class="num">0</span><span class="opt">])</span>
+            <span class="opt">+ (</span>bodies<span class="opt">[</span>i<span class="opt">].</span>v<span class="opt">[</span><span class="num">1</span><span class="opt">] *</span> bodies<span class="opt">[</span>i<span class="opt">].</span>v<span class="opt">[</span><span class="num">1</span><span class="opt">])</span>
+            <span class="opt">+ (</span>bodies<span class="opt">[</span>i<span class="opt">].</span>v<span class="opt">[</span><span class="num">2</span><span class="opt">] *</span> bodies<span class="opt">[</span>i<span class="opt">].</span>v<span class="opt">[</span><span class="num">2</span><span class="opt">])) /</span> <span class="num">2.0</span><span class="opt">;</span>
+
+        <span class="kwa">for</span> j <span class="kwa">in</span> <span class="opt">(</span>i <span class="opt">+</span> <span class="num">1</span><span class="opt">)..</span>bodies<span class="opt">.</span><span class="kwd">len</span><span class="opt">() {</span>
+            <span class="kwa">for</span> k <span class="kwa">in</span> <span class="num">0</span><span class="opt">.</span><span class="num">.3</span> <span class="opt">{</span>
+                dx<span class="opt">[</span>k<span class="opt">] =</span> bodies<span class="opt">[</span>i<span class="opt">].</span>x<span class="opt">[</span>k<span class="opt">] -</span> bodies<span class="opt">[</span>j<span class="opt">].</span>x<span class="opt">[</span>k<span class="opt">];</span>
+            <span class="opt">}</span>
+            <span class="kwa">let</span> distance <span class="opt">= ((</span>dx<span class="opt">[</span><span class="num">0</span><span class="opt">] *</span> dx<span class="opt">[</span><span class="num">0</span><span class="opt">]) + (</span>dx<span class="opt">[</span><span class="num">1</span><span class="opt">] *</span> dx<span class="opt">[</span><span class="num">1</span><span class="opt">])</span>
+                <span class="opt">+ (</span>dx<span class="opt">[</span><span class="num">2</span><span class="opt">] *</span> dx<span class="opt">[</span><span class="num">2</span><span class="opt">])).</span><span class="kwd">sqrt</span><span class="opt">();</span>
+            e <span class="opt">-= (</span>bodies<span class="opt">[</span>i<span class="opt">].</span>mass <span class="opt">*</span> bodies<span class="opt">[</span>j<span class="opt">].</span>mass<span class="opt">) /</span> distance<span class="opt">;</span>
+        <span class="opt">}</span>
+    <span class="opt">}</span>
+
+    e
+<span class="opt">}</span>
+
+<span class="slc">///</span>
+<span class="slc">///</span>
+<span class="ppc">#[repr(C)]</span>
+<span class="ppc">#[derive(Clone, Copy)]</span>
+<span class="kwa">struct</span> Delta <span class="opt">{</span>
+    dx<span class="opt">:</span> F64x3<span class="opt">,</span>
+    fill<span class="opt">:</span> <span class="kwb">f64</span><span class="opt">,</span>
+<span class="opt">}</span>
+
+<span class="slc">///</span>
+<span class="slc">///</span>
+<span class="kwa">impl</span> Default <span class="kwa">for</span> Delta <span class="opt">{</span>
+    <span class="kwa">fn</span> <span class="kwd">default</span><span class="opt">() -&gt;</span> Delta <span class="opt">{</span>
+        <span class="kwa">let</span> fill <span class="opt">=</span> <span class="num">0.0</span><span class="opt">;</span>
+
+        Delta <span class="opt">{</span>
+            dx<span class="opt">: [</span>fill<span class="opt">,</span> fill<span class="opt">,</span> fill<span class="opt">],</span>
+            fill<span class="opt">:</span> fill<span class="opt">,</span>
+        <span class="opt">}</span>
+    <span class="opt">}</span>
+<span class="opt">}</span>
+
+<span class="slc">///</span>
+<span class="slc">///</span>
+<span class="ppc">#[repr(C)]</span>
+<span class="ppc">#[repr(align(16))]</span>
+<span class="ppc">#[derive(Clone, Copy)]</span>
+<span class="kwa">struct</span> <span class="kwd">F64Array</span><span class="opt">([</span><span class="kwb">f64</span><span class="opt">;</span> N_BODIES <span class="opt">*</span> N_BODIES<span class="opt">]);</span>
+
+<span class="slc">///</span>
+<span class="kwa">struct</span> NBodySim <span class="opt">{</span>
+    r<span class="opt">: [</span>Delta<span class="opt">;</span> N_BODIES <span class="opt">*</span> N_BODIES<span class="opt">],</span>
+    mag<span class="opt">:</span> F64Array<span class="opt">,</span>
+    <span class="slc">// intermediate buffer, so all variables might fit into cache together</span>
+    dx<span class="opt">: [</span>__m128d<span class="opt">;</span> <span class="num">3</span><span class="opt">],</span>
+<span class="opt">}</span>
+
+<span class="slc">///</span>
+<span class="kwa">impl</span> NBodySim <span class="opt">{</span>
+    <span class="kwa">pub fn</span> <span class="kwd">new</span><span class="opt">() -&gt;</span> NBodySim <span class="opt">{</span>
+        <span class="kwa">unsafe</span> <span class="opt">{</span>
+            NBodySim <span class="opt">{</span>
+                r<span class="opt">: [</span>Delta<span class="opt">::</span><span class="kwd">default</span><span class="opt">();</span> N_BODIES <span class="opt">*</span> N_BODIES<span class="opt">],</span>
+                mag<span class="opt">:</span> <span class="kwd">F64Array</span><span class="opt">([</span><span class="num">0.0</span><span class="opt">;</span> N_BODIES <span class="opt">*</span> N_BODIES<span class="opt">]),</span>
+                dx<span class="opt">: [</span><span class="kwd">_mm_setzero_pd</span><span class="opt">();</span> <span class="num">3</span><span class="opt">],</span>
+            <span class="opt">}</span>
+        <span class="opt">}</span>
+    <span class="opt">}</span>
+
+
+    <span class="slc">///</span>
+    <span class="slc">///</span>
+    <span class="ppc">#[inline]</span>
+    <span class="kwa">pub fn</span> <span class="kwd">bodies_advance</span><span class="opt">(&amp;</span><span class="kwa">mut self</span><span class="opt">,</span>
+                          bodies<span class="opt">: &amp;</span><span class="kwa">mut</span> <span class="opt">[</span>Planet<span class="opt">;</span> N_BODIES<span class="opt">],</span>
+                          dt<span class="opt">:</span> <span class="kwb">f64</span><span class="opt">,</span> ncycles<span class="opt">:</span> <span class="kwb">usize</span><span class="opt">) {</span>
+        <span class="kwa">let</span> nslots <span class="opt">= ((</span>bodies<span class="opt">.</span><span class="kwd">len</span><span class="opt">() -</span> <span class="num">1</span><span class="opt">) *</span> bodies<span class="opt">.</span><span class="kwd">len</span><span class="opt">()) /</span> <span class="num">2</span><span class="opt">;</span>
+
+        <span class="kwa">for</span> _ <span class="kwa">in</span> <span class="num">0</span><span class="opt">..</span>ncycles <span class="opt">{</span>
+            <span class="slc">// init</span>
+            <span class="kwa">self</span><span class="opt">.</span>dx <span class="opt">=</span> <span class="kwa">unsafe</span> <span class="opt">{ [</span><span class="kwd">_mm_setzero_pd</span><span class="opt">();</span> <span class="num">3</span><span class="opt">] };</span>
+
+            <span class="kwa">let mut</span> k <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+            <span class="kwa">for</span> i <span class="kwa">in</span> <span class="num">0</span><span class="opt">..(</span>bodies<span class="opt">.</span><span class="kwd">len</span><span class="opt">() -</span> <span class="num">1</span><span class="opt">) {</span>
+                <span class="kwa">for</span> j <span class="kwa">in</span> <span class="opt">(</span>i <span class="opt">+</span> <span class="num">1</span><span class="opt">)..</span>bodies<span class="opt">.</span><span class="kwd">len</span><span class="opt">() {</span>
+                    <span class="kwa">for</span> m <span class="kwa">in</span> <span class="num">0</span><span class="opt">.</span><span class="num">.3</span> <span class="opt">{</span>
+                        <span class="kwa">self</span><span class="opt">.</span>r<span class="opt">[</span>k<span class="opt">].</span>dx<span class="opt">[</span>m<span class="opt">] =</span> bodies<span class="opt">[</span>i<span class="opt">].</span>x<span class="opt">[</span>m<span class="opt">] -</span> bodies<span class="opt">[</span>j<span class="opt">].</span>x<span class="opt">[</span>m<span class="opt">];</span>
+                    <span class="opt">}</span>
+                    k <span class="opt">+=</span> <span class="num">1</span><span class="opt">;</span>
+                <span class="opt">}</span>
+            <span class="opt">}</span>
+
+            <span class="slc">// enumerate in +2 steps</span>
+            <span class="kwa">for</span> i_2 <span class="kwa">in</span> <span class="num">0</span><span class="opt">..(</span>nslots <span class="opt">/</span> <span class="num">2</span><span class="opt">) {</span>
+                <span class="kwa">let</span> i <span class="opt">=</span> i_2 <span class="opt">*</span> <span class="num">2</span><span class="opt">;</span>
+
+                <span class="kwa">for</span> m <span class="kwa">in</span> <span class="num">0</span><span class="opt">.</span><span class="num">.3</span> <span class="opt">{</span>
+                    <span class="kwa">self</span><span class="opt">.</span>dx<span class="opt">[</span>m<span class="opt">] =</span> <span class="kwa">unsafe</span> <span class="opt">{</span>
+                        <span class="kwd">_mm_loadl_pd</span><span class="opt">(</span><span class="kwa">self</span><span class="opt">.</span>dx<span class="opt">[</span>m<span class="opt">], &amp;</span><span class="kwa">self</span><span class="opt">.</span>r<span class="opt">[</span>i<span class="opt">].</span>dx<span class="opt">[</span>m<span class="opt">])</span>
+                    <span class="opt">};</span>
+                    <span class="kwa">self</span><span class="opt">.</span>dx<span class="opt">[</span>m<span class="opt">] =</span> <span class="kwa">unsafe</span> <span class="opt">{</span>
+                        <span class="kwd">_mm_loadh_pd</span><span class="opt">(</span><span class="kwa">self</span><span class="opt">.</span>dx<span class="opt">[</span>m<span class="opt">], &amp;</span><span class="kwa">self</span><span class="opt">.</span>r<span class="opt">[</span>i <span class="opt">+</span> <span class="num">1</span><span class="opt">].</span>dx<span class="opt">[</span>m<span class="opt">])</span>
+                    <span class="opt">};</span>
+                <span class="opt">}</span>
+
+                <span class="kwa">let</span> dsquared<span class="opt">:</span> __m128d <span class="opt">=</span> <span class="kwa">unsafe</span> <span class="opt">{</span>
+                    <span class="kwd">_mm_add_pd</span><span class="opt">(</span><span class="kwd">_mm_add_pd</span><span class="opt">(</span><span class="kwd">_mm_mul_pd</span><span class="opt">(</span><span class="kwa">self</span><span class="opt">.</span>dx<span class="opt">[</span><span class="num">0</span><span class="opt">],</span> <span class="kwa">self</span><span class="opt">.</span>dx<span class="opt">[</span><span class="num">0</span><span class="opt">]),</span>
+                                          <span class="kwd">_mm_mul_pd</span><span class="opt">(</span><span class="kwa">self</span><span class="opt">.</span>dx<span class="opt">[</span><span class="num">1</span><span class="opt">],</span> <span class="kwa">self</span><span class="opt">.</span>dx<span class="opt">[</span><span class="num">1</span><span class="opt">])),</span>
+                               <span class="kwd">_mm_mul_pd</span><span class="opt">(</span><span class="kwa">self</span><span class="opt">.</span>dx<span class="opt">[</span><span class="num">2</span><span class="opt">],</span> <span class="kwa">self</span><span class="opt">.</span>dx<span class="opt">[</span><span class="num">2</span><span class="opt">]))</span>
+                <span class="opt">};</span>
+                <span class="kwa">let mut</span> distance <span class="opt">=</span> <span class="kwa">unsafe</span> <span class="opt">{</span>
+                    <span class="kwd">_mm_cvtps_pd</span><span class="opt">(</span><span class="kwd">_mm_rsqrt_ps</span><span class="opt">(</span><span class="kwd">_mm_cvtpd_ps</span><span class="opt">(</span>dsquared<span class="opt">))) };</span>
+
+
+                <span class="slc">// repeat 2 times</span>
+                <span class="kwa">for</span> _ <span class="kwa">in</span> <span class="num">0</span><span class="opt">.</span><span class="num">.2</span> <span class="opt">{</span>
+                    <span class="kwa">let</span> sub <span class="opt">=</span> <span class="kwa">unsafe</span> <span class="opt">{</span>
+                        <span class="kwd">_mm_mul_pd</span><span class="opt">(</span>
+                            <span class="kwd">_mm_mul_pd</span><span class="opt">(</span>
+                                <span class="kwd">_mm_mul_pd</span><span class="opt">(</span><span class="kwd">_mm_set1_pd</span><span class="opt">(</span><span class="num">0.5</span><span class="opt">),</span> dsquared<span class="opt">),</span>
+                                distance<span class="opt">),</span>
+                            <span class="kwd">_mm_mul_pd</span><span class="opt">(</span>distance<span class="opt">,</span> distance<span class="opt">))</span>
+                    <span class="opt">};</span>
+
+                    distance <span class="opt">=</span> <span class="kwa">unsafe</span> <span class="opt">{</span>
+                        <span class="kwd">_mm_sub_pd</span><span class="opt">(</span>
+                            <span class="kwd">_mm_mul_pd</span><span class="opt">(</span>distance<span class="opt">,</span> <span class="kwd">_mm_set1_pd</span><span class="opt">(</span><span class="num">1.5</span><span class="opt">)),</span>
+                            sub<span class="opt">)</span>
+                    <span class="opt">};</span>
+                <span class="opt">}</span>
+
+                <span class="kwa">let</span> dmag<span class="opt">:</span> __m128d <span class="opt">=</span>
+                    <span class="kwa">unsafe</span> <span class="opt">{</span> <span class="kwd">_mm_mul_pd</span><span class="opt">(</span>
+                        <span class="kwd">_mm_div_pd</span><span class="opt">(</span><span class="kwd">_mm_set1_pd</span><span class="opt">(</span>dt<span class="opt">),</span> dsquared<span class="opt">),</span>
+                        distance<span class="opt">) };</span>
+
+                <span class="kwa">unsafe</span> <span class="opt">{</span> <span class="kwd">_mm_store_pd</span><span class="opt">(&amp;</span><span class="kwa">mut</span> <span class="opt">(</span><span class="kwa">self</span><span class="opt">.</span>mag<span class="num">.0</span><span class="opt">)[</span>i<span class="opt">],</span> dmag<span class="opt">); }</span>
+            <span class="opt">}</span>
+
+
+            <span class="kwa">let mut</span> k <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+            <span class="kwa">for</span> i <span class="kwa">in</span> <span class="num">0</span><span class="opt">..(</span>bodies<span class="opt">.</span><span class="kwd">len</span><span class="opt">() -</span> <span class="num">1</span><span class="opt">) {</span>
+                <span class="kwa">for</span> j <span class="kwa">in</span> <span class="opt">(</span>i <span class="opt">+</span> <span class="num">1</span><span class="opt">)..</span>bodies<span class="opt">.</span><span class="kwd">len</span><span class="opt">() {</span>
+                    <span class="kwa">for</span> m <span class="kwa">in</span> <span class="num">0</span><span class="opt">.</span><span class="num">.3</span> <span class="opt">{</span>
+                        bodies<span class="opt">[</span>i<span class="opt">].</span>v<span class="opt">[</span>m<span class="opt">] -= (</span><span class="kwa">self</span><span class="opt">.</span>r<span class="opt">[</span>k<span class="opt">].</span>dx<span class="opt">[</span>m<span class="opt">] *</span> bodies<span class="opt">[</span>j<span class="opt">].</span>mass<span class="opt">)</span>
+                            <span class="opt">* (</span><span class="kwa">self</span><span class="opt">.</span>mag<span class="num">.0</span><span class="opt">)[</span>k<span class="opt">];</span>
+
+                        bodies<span class="opt">[</span>j<span class="opt">].</span>v<span class="opt">[</span>m<span class="opt">] += (</span><span class="kwa">self</span><span class="opt">.</span>r<span class="opt">[</span>k<span class="opt">].</span>dx<span class="opt">[</span>m<span class="opt">] *</span> bodies<span class="opt">[</span>i<span class="opt">].</span>mass<span class="opt">)</span>
+                            <span class="opt">* (</span><span class="kwa">self</span><span class="opt">.</span>mag<span class="num">.0</span><span class="opt">)[</span>k<span class="opt">];</span>
+                    <span class="opt">}</span>
+                    k <span class="opt">+=</span> <span class="num">1</span><span class="opt">;</span>
+                <span class="opt">}</span>
+            <span class="opt">}</span>
+
+            <span class="kwa">for</span> i <span class="kwa">in</span> <span class="num">0</span><span class="opt">..</span>bodies<span class="opt">.</span><span class="kwd">len</span><span class="opt">() {</span>
+                <span class="kwa">for</span> m <span class="kwa">in</span> <span class="num">0</span><span class="opt">.</span><span class="num">.3</span> <span class="opt">{</span>
+                    bodies<span class="opt">[</span>i<span class="opt">].</span>x<span class="opt">[</span>m<span class="opt">] +=</span> dt <span class="opt">*</span> bodies<span class="opt">[</span>i<span class="opt">].</span>v<span class="opt">[</span>m<span class="opt">];</span>
+                <span class="opt">}</span>
+            <span class="opt">}</span>
+        <span class="opt">}</span>
+    <span class="opt">}</span>
+<span class="opt">}</span>
+
+
+<span class="kwa">fn</span> <span class="kwd">main</span><span class="opt">() {</span>
+    <span class="kwa">let</span> ncycles <span class="opt">=</span> std<span class="opt">::</span>env<span class="opt">::</span><span class="kwd">args_os</span><span class="opt">().</span><span class="kwd">nth</span><span class="opt">(</span><span class="num">1</span><span class="opt">)</span>
+        <span class="opt">.</span><span class="kwd">and_then</span><span class="opt">(|</span>s<span class="opt">|</span> s<span class="num">.i</span>nto<span class="num">_</span>str<span class="num">i</span>ng<span class="opt">().</span><span class="kwd">ok</span><span class="opt">())</span>
+        <span class="opt">.</span><span class="kwd">and_then</span><span class="opt">(|</span>n<span class="opt">|</span> n<span class="opt">.</span><span class="kwd">parse</span><span class="opt">().</span><span class="kwd">ok</span><span class="opt">())</span>
+        <span class="num">.u</span>nwrap<span class="num">_</span>or<span class="opt">(</span><span class="num">1000</span><span class="opt">);</span>
+
+    <span class="kwa">let mut</span> bodies <span class="opt">=</span> BODIES<span class="opt">;</span>
+    <span class="kwa">let mut</span> sim <span class="opt">=</span> NBodySim<span class="opt">::</span><span class="kwd">new</span><span class="opt">();</span>
+
+    <span class="kwd">offset_momentum</span><span class="opt">(&amp;</span><span class="kwa">mut</span> bodies<span class="opt">);</span>
+
+    println<span class="opt">!(</span><span class="str">&quot;{:.9}&quot;</span><span class="opt">,</span> <span class="kwd">bodies_energy</span><span class="opt">(&amp;</span>bodies<span class="opt">));</span>
+
+    sim<span class="opt">.</span><span class="kwd">bodies_advance</span><span class="opt">(&amp;</span><span class="kwa">mut</span> bodies<span class="opt">,</span> <span class="num">0.01</span><span class="opt">,</span> ncycles<span class="opt">);</span>
+
+    println<span class="opt">!(</span><span class="str">&quot;{:.9}&quot;</span><span class="opt">,</span> <span class="kwd">bodies_energy</span><span class="opt">(&amp;</span>bodies<span class="opt">));</span>
+<span class="opt">}</span>
     </pre>
   </section>
   <section>
@@ -32,6 +311,20 @@ NOTES:
 rustc 1.32.0 (9fda7c223 2019-01-16)
 LLVM version 8.0
 
+
+Sun, 27 Jan 2019 16:50:20 GMT
+
+MAKE:
+/opt/src/rust-1.32.0/bin/rustc -C opt-level=3 -C target-cpu=core2 -C lto -C codegen-units=1 -C target-feature=+sse2 nbody.rs -o nbody.rust-7.rust_run
+
+13.20s to complete and log all make actions
+
+COMMAND LINE:
+./nbody.rust-7.rust_run 50000000
+
+PROGRAM OUTPUT:
+-0.169075164
+-0.169059907
     </pre>
   </section>
 </article>
