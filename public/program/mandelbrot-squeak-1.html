@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,follow,noarchive">
+
+<title>mandelbrot Squeak Smalltalk program | Computer Language Benchmarks Game </title>
+<style><!--
+a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,header{margin:auto;width:92%}body{font:100% Droid Sans, Ubuntu, Verdana, sans-serif;margin:0;-webkit-text-size-adjust:100%}h3, h1, h2, li a{font-family:Ubuntu Mono,Consolas,Menlo,monospace}div,footer,header{max-width:31em}footer{padding:2.6em 0 0}h3{font-size:1.4em;font-weight:bold;margin:0;padding: .4em}h3, h3 a{color:white;background-color:#dd4814}h3 small{font-size:0.64em}h1,h2{margin:1.5em 0 0}h1{font-size:1.4em;font-weight:normal}h2{font-size:1.2em}li{list-style-type:none;vertical-align:top}li a{display:block;font-size:1.2em;margin: .5em .5em 0;padding: .5em .5em .3em}ul{clear:left;margin:-0.3em 0 1.5em;padding-left:0;text-align:center}p{color:#333;line-height:1.4;margin: .3em 0 0}p a, a span{border-bottom: .1em solid #333;padding-bottom: .1em}.com,.slc{color:#888}.kwa{color:#066}.kwb{color:#900}.kwc{color:#050}.kwa,.kwb,.kwc{font-weight:bold}.dstr,.str,.sym,.num{color:#930}pre{color:#222;font-size:1em;overflow-wrap:break-word;white-space:pre-wrap;word-wrap:break-word}@media only screen and (min-width: 60em){article,footer,header{font-size:1.25em}}
+--></style>
+<link rel="shortcut icon" href="./favicon.ico">
+<header>
+  <h3><a href="https://benchmarksgame-team.pages.debian.net/benchmarksgame/">The&nbsp;<small>Computer&nbsp;Language</small><br>Benchmarks&nbsp;Game</a></h3>
+</header>
+<article>
+  <div>
+    <h1>mandelbrot Squeak Smalltalk program</h1>
+    <aside>
+      <p><a href="../description/mandelbrot.html#mandelbrot">description</a>
+    </aside>
+  </div>
+  <section>
+    </div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+&quot;* The Computer Language Benchmarks Game
+    https://salsa.debian.org/benchmarksgame-team/benchmarksgame/
+    contributed by Paolo Bonzini 
+    reworked by Isaac Gouy *&quot;!
+
+
+Object subclass: #BenchmarksGame
+   instanceVariableNames: &apos;&apos;
+   classVariableNames: &apos;&apos;
+   poolDictionaries: &apos;&apos;
+   category: &apos;&apos;!
+
+
+!BenchmarksGame class methodsFor: &apos;private&apos;!
+
+mandelbrot: extent to: output
+   | limit2 m bits zr zi cr ci i tr stepr stepi |
+   limit2 := 4.0d0.
+   m := 50.
+
+   stepr := 2.0d0 / extent.
+   stepi := 2.0d0 / extent.
+
+   0 to: extent - 1 do: [ :y |
+      bits := 0.
+      ci := stepi * y asFloat - 1.0d0.
+      0 to: extent - 1 do: [ :x |
+         cr := stepr * x asFloat - 1.5d0.
+         zr := cr. zi := ci.
+
+         bits := bits bitShift: 1.
+         i := 1.  
+         [
+            tr := (zr*zr) - (zi*zi) + cr.
+            zi := 2.0d0 * zr * zi + ci.
+            zr := tr.
+            (zr*zr) + (zi*zi) &lt; limit2 and: [ (i := i + 1) &lt; m ]
+         ] whileTrue.
+
+         i = m ifTrue: [ bits := bits + 1 ].
+         (x bitAnd: 7) == 7 ifTrue: [
+            output nextPut: bits.
+            bits := 0.
+         ]
+      ]. 
+      (extent bitAnd: 7) == 0 ifFalse: [
+         bits := bits bitShift: 8 - (extent bitAnd: 7).
+         output nextPut: bits.
+      ]
+   ]! !
+
+!BenchmarksGame class methodsFor: &apos;initialize-release&apos;!
+
+program
+   | n |
+   n := (Smalltalk getSystemAttribute: 3) asInteger.
+   UnixProcess stdOut
+      nextPutAll: &apos;P4&apos;; nl; 
+      print: n; space; print: n; nl;
+      binary.
+
+   self mandelbrot: n to: UnixProcess stdOut.
+   ^&apos;&apos;! !
+
+!Stream methodsFor: &apos;benchmarks game&apos;!
+
+nl
+   self nextPut: Character lf! !
+    </pre>
+  </section>
+  <section>
+    <h2 id="log">notes, command-line, and program output</h2>
+    <pre>
+NOTES:
+64-bit Ubuntu quad core
+Squeak5.2-18229-64bit-201810190412-Linux
+
+
+Thu, 21 Mar 2019 04:47:52 GMT
+
+MAKE:
+cp /opt/src/Squeak5.2-18229-64bit-201810190412-Linux/shared/Squeak5.2-18229-64bit.image mandelbrot.squeak_run.image
+cp /opt/src/Squeak5.2-18229-64bit-201810190412-Linux/shared/Squeak5.2-18229-64bit.changes mandelbrot.squeak_run.changes
+cp Include/squeak/OSProcessV4-3-3.sar .
+cat Include/squeak/make.st
+| prog cur |
+
+&quot;load stdio package&quot;
+
+(SARInstaller new) 
+   directory: FileDirectory default; 
+   fileName: 'OSProcessV4-3-3.sar'; 
+   fileIn.
+
+
+&quot;load program to be measured&quot;
+
+prog := Smalltalk getSystemAttribute: 3.
+
+(prog notNil) ifTrue: [
+   FileStream fileIn: prog].
+
+
+&quot;clean up&quot;
+
+cur := Project current world.
+cur allNonFlapRelatedSubmorphs do: [:m | m delete].
+
+(SystemWindow windowsIn: cur 
+      satisfying: [:w | w model canDiscardEdits])
+   do: [:w | w delete].
+
+Smalltalk garbageCollect.
+
+SmalltalkImage current snapshot: true andQuit: true.
+
+
+/opt/src/Squeak5.2-18229-64bit-201810190412-Linux/bin/squeak -headless mandelbrot.squeak_run.image Include/squeak/make.st mandelbrot.squeak 2&gt;/dev/null
+cat Include/squeak/run.st
+BenchmarksGame program!
+SmalltalkImage current snapshot: false andQuit: true!
+
+
+
+5.13s to complete and log all make actions
+
+COMMAND LINE:
+/opt/src/Squeak5.2-18229-64bit-201810190412-Linux/bin/squeak -headless mandelbrot.squeak_run.image Include/squeak/run.st 16000
+
+TIMED OUT after 300s
+
+
+(BINARY) PROGRAM OUTPUT NOT SHOWN
+
+pthread_setschedparam failed: Operation not permitted
+This VM uses a separate heartbeat thread to update its internal clock
+and handle events.  For best operation, this thread should run at a
+higher priority, however the VM was unable to change the priority.  The
+effect is that heavily loaded systems may experience some latency
+issues.  If this occurs, please create the appropriate configuration
+file in /etc/security/limits.d/ as shown below:
+
+cat &lt;&lt;END | sudo tee /etc/security/limits.d/squeak.conf
+*      hard    rtprio  2
+*      soft    rtprio  2
+END
+
+and report to the squeak mailing list whether this improves behaviour.
+
+You will need to log out and log back in for the limits to take effect.
+For more information please see
+https://github.com/OpenSmalltalk/opensmalltalk-vm/releases/tag/r3732#linux
+    </pre>
+  </section>
+</article>
+<footer>
+  <nav>
+    <ul>
+      <li><a href="../license.html"><span>3-Clause BSD License</span></a>
+    </ul>
+  </nav>
+</footer>
+

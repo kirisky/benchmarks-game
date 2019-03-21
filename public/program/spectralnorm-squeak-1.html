@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,follow,noarchive">
+
+<title>spectral-norm Squeak Smalltalk program | Computer Language Benchmarks Game </title>
+<style><!--
+a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,header{margin:auto;width:92%}body{font:100% Droid Sans, Ubuntu, Verdana, sans-serif;margin:0;-webkit-text-size-adjust:100%}h3, h1, h2, li a{font-family:Ubuntu Mono,Consolas,Menlo,monospace}div,footer,header{max-width:31em}footer{padding:2.6em 0 0}h3{font-size:1.4em;font-weight:bold;margin:0;padding: .4em}h3, h3 a{color:white;background-color:#dd4814}h3 small{font-size:0.64em}h1,h2{margin:1.5em 0 0}h1{font-size:1.4em;font-weight:normal}h2{font-size:1.2em}li{list-style-type:none;vertical-align:top}li a{display:block;font-size:1.2em;margin: .5em .5em 0;padding: .5em .5em .3em}ul{clear:left;margin:-0.3em 0 1.5em;padding-left:0;text-align:center}p{color:#333;line-height:1.4;margin: .3em 0 0}p a, a span{border-bottom: .1em solid #333;padding-bottom: .1em}.com,.slc{color:#888}.kwa{color:#066}.kwb{color:#900}.kwc{color:#050}.kwa,.kwb,.kwc{font-weight:bold}.dstr,.str,.sym,.num{color:#930}pre{color:#222;font-size:1em;overflow-wrap:break-word;white-space:pre-wrap;word-wrap:break-word}@media only screen and (min-width: 60em){article,footer,header{font-size:1.25em}}
+--></style>
+<link rel="shortcut icon" href="./favicon.ico">
+<header>
+  <h3><a href="https://benchmarksgame-team.pages.debian.net/benchmarksgame/">The&nbsp;<small>Computer&nbsp;Language</small><br>Benchmarks&nbsp;Game</a></h3>
+</header>
+<article>
+  <div>
+    <h1>spectral-norm Squeak Smalltalk program</h1>
+    <aside>
+      <p><a href="../description/spectralnorm.html#spectralnorm">description</a>
+    </aside>
+  </div>
+  <section>
+    </div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+&quot;* The Computer Language Benchmarks Game
+    https://salsa.debian.org/benchmarksgame-team/benchmarksgame/
+    contributed by Paolo Bonzini 
+    reworked by Isaac Gouy *&quot;!
+
+Object subclass: #BenchmarksGame
+   instanceVariableNames: &apos;&apos;
+   classVariableNames: &apos;&apos;
+   poolDictionaries: &apos;&apos;
+   category: &apos;&apos;!
+
+
+!BenchmarksGame class methodsFor: &apos;private&apos;!
+
+spectralnorm: n
+   | u v vBv vv |
+   u := Array new: n withAll: 1.0d0.
+   10 timesRepeat:
+      [v := u multiplyAtAv.
+       u := v multiplyAtAv].
+   vBv := 0.0d0.
+   vv := 0.0d0.
+   1 to: n do:
+      [:i |
+       vBv := vBv + ((u at: i) * (v at: i)).
+       vv := vv + ((v at: i) * (v at: i))].
+   ^(vBv / vv) sqrt! !
+
+!BenchmarksGame class methodsFor: &apos;initialize-release&apos;!
+
+program
+   | n |
+   n := (Smalltalk getSystemAttribute: 3) asInteger.
+
+   UnixProcess stdOut
+      print: (self spectralnorm: n) digits: 9;
+      nl.
+
+   ^&apos;&apos;! !
+
+
+!SmallInteger methodsFor: &apos;benchmarks game&apos;!
+
+matrixA: anInteger
+   ^1.0d0 / ((self + anInteger - 2) * (self + anInteger - 1) /2  + self)! !
+
+
+!Array methodsFor: &apos;benchmarks game&apos;!
+
+multiplyAtv
+   | n atv sum |
+   n := self size.
+   atv := Array new: n.
+   1 to: n do: [:i|
+      sum := 0.0d0.
+      1 to: n do: [:j|
+         sum := sum + ((j matrixA: i) * (self at: j)) ].
+      atv at: i put: sum].
+   ^atv!
+
+multiplyAtAv
+   ^(self multiplyAv) multiplyAtv!
+
+multiplyAv
+   | n av sum |
+   n := self size.
+   av := Array new: n.
+   1 to: n do: [:i|
+      sum := 0.0d0.
+      1 to: n do: [:j|
+         sum := sum + ((i matrixA: j) * (self at: j)) ].
+      av at: i put: sum].
+   ^av! !
+
+
+!Stream methodsFor: &apos;benchmarks game&apos;!
+
+nl
+   self nextPut: Character lf!
+
+print: number digits: decimalPlaces
+   | precision rounded |
+   decimalPlaces &lt;= 0 ifTrue: [^ number rounded printString].
+   precision := Utilities floatPrecisionForDecimalPlaces: decimalPlaces.
+   rounded := number roundTo: precision.
+   self nextPutAll: 
+      ((rounded asScaledDecimal: decimalPlaces) printString copyUpTo: $s)! !
+
+    </pre>
+  </section>
+  <section>
+    <h2 id="log">notes, command-line, and program output</h2>
+    <pre>
+NOTES:
+64-bit Ubuntu quad core
+Squeak5.2-18229-64bit-201810190412-Linux
+
+
+Thu, 21 Mar 2019 04:18:34 GMT
+
+MAKE:
+cp /opt/src/Squeak5.2-18229-64bit-201810190412-Linux/shared/Squeak5.2-18229-64bit.image spectralnorm.squeak_run.image
+cp /opt/src/Squeak5.2-18229-64bit-201810190412-Linux/shared/Squeak5.2-18229-64bit.changes spectralnorm.squeak_run.changes
+cp Include/squeak/OSProcessV4-3-3.sar .
+cat Include/squeak/make.st
+| prog cur |
+
+&quot;load stdio package&quot;
+
+(SARInstaller new) 
+   directory: FileDirectory default; 
+   fileName: 'OSProcessV4-3-3.sar'; 
+   fileIn.
+
+
+&quot;load program to be measured&quot;
+
+prog := Smalltalk getSystemAttribute: 3.
+
+(prog notNil) ifTrue: [
+   FileStream fileIn: prog].
+
+
+&quot;clean up&quot;
+
+cur := Project current world.
+cur allNonFlapRelatedSubmorphs do: [:m | m delete].
+
+(SystemWindow windowsIn: cur 
+      satisfying: [:w | w model canDiscardEdits])
+   do: [:w | w delete].
+
+Smalltalk garbageCollect.
+
+SmalltalkImage current snapshot: true andQuit: true.
+
+
+/opt/src/Squeak5.2-18229-64bit-201810190412-Linux/bin/squeak -headless spectralnorm.squeak_run.image Include/squeak/make.st spectralnorm.squeak 2&gt;/dev/null
+cat Include/squeak/run.st
+BenchmarksGame program!
+SmalltalkImage current snapshot: false andQuit: true!
+
+
+
+7.10s to complete and log all make actions
+
+COMMAND LINE:
+/opt/src/Squeak5.2-18229-64bit-201810190412-Linux/bin/squeak -headless spectralnorm.squeak_run.image Include/squeak/run.st 5500
+
+PROGRAM OUTPUT:
+1.274224153
+
+pthread_setschedparam failed: Operation not permitted
+This VM uses a separate heartbeat thread to update its internal clock
+and handle events.  For best operation, this thread should run at a
+higher priority, however the VM was unable to change the priority.  The
+effect is that heavily loaded systems may experience some latency
+issues.  If this occurs, please create the appropriate configuration
+file in /etc/security/limits.d/ as shown below:
+
+cat &lt;&lt;END | sudo tee /etc/security/limits.d/squeak.conf
+*      hard    rtprio  2
+*      soft    rtprio  2
+END
+
+and report to the squeak mailing list whether this improves behaviour.
+
+You will need to log out and log back in for the limits to take effect.
+For more information please see
+https://github.com/OpenSmalltalk/opensmalltalk-vm/releases/tag/r3732#linux
+    </pre>
+  </section>
+</article>
+<footer>
+  <nav>
+    <ul>
+      <li><a href="../license.html"><span>3-Clause BSD License</span></a>
+    </ul>
+  </nav>
+</footer>
+
