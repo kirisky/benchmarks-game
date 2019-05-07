@@ -13,6 +13,7 @@ The program measurements are stored in plain text, comma separated value, spread
 - status — negative values indicate the program failed in some way
 - load — the proportion of `GTop cpu not-idle` to `GTop cpu total` for each core
 - elapsed(s) — the elapsed `time.time()` seconds
+- busy(s) — total `GTop cpu not-idle` elapsed seconds from all cores
 
 
 data.csv
