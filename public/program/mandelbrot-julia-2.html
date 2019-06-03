@@ -29,14 +29,15 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 
 <span class="kwa">const</span> ITER <span class="opt">=</span> <span class="num">50</span>
 <span class="kwa">const</span> CHECKFREQ <span class="opt">=</span> <span class="num">5</span>
-<span class="kwa">const</span> zerotuple8 <span class="opt">=</span> <span class="kwd">ntuple</span><span class="opt">(</span>_ <span class="opt">-&gt;</span> <span class="kwd">zero</span><span class="opt">(</span><span class="kwb">Float32</span><span class="opt">),</span> <span class="num">8</span><span class="opt">)</span>
+<span class="kwa">const</span> zerotuple8 <span class="opt">=</span> <span class="kwd">ntuple</span><span class="opt">(</span>_ <span class="opt">-&gt;</span> <span class="num">0.0</span><span class="opt">,</span> <span class="num">8</span><span class="opt">)</span>
 
 <span class="kwa">function</span> <span class="kwd">mandelbrot_floats</span><span class="opt">(</span>cr<span class="opt">::</span>NTuple<span class="opt">{</span><span class="num">8</span><span class="opt">,</span>T<span class="opt">},</span> ci<span class="opt">::</span>T<span class="opt">)</span> <span class="kwa">where</span> <span class="opt">{</span>T<span class="opt">&lt;:</span><span class="kwb">AbstractFloat</span><span class="opt">}</span>
     <span class="slc"># Use broadcasting instead of loops because tuples aren&apos;t mutable</span>
     zr <span class="opt">=</span> zi <span class="opt">=</span> zrsq <span class="opt">=</span> zisq <span class="opt">=</span> absz <span class="opt">=</span> zerotuple8
     i <span class="opt">=</span> <span class="num">0</span>
     <span class="kwa">while</span> i <span class="opt">&lt;</span> ITER
-        <span class="kwc">&#64;inbounds</span> <span class="kwa">for</span> _ <span class="kwa">in</span> <span class="num">1</span><span class="opt">:</span>CHECKFREQ
+        <span class="kwa">for</span> _ <span class="kwa">in</span> <span class="num">1</span><span class="opt">:</span>CHECKFREQ
+            <span class="slc"># Broadcasting hints compiler to use SIMD at this level</span>
             zi <span class="opt">=</span> &#64;<span class="opt">.</span> <span class="kwd">T</span><span class="opt">(</span><span class="num">2</span><span class="opt">) *</span> zr <span class="opt">*</span> zi <span class="opt">+</span> ci
             zr <span class="opt">=</span> &#64;<span class="opt">.</span> zrsq <span class="opt">-</span> zisq <span class="opt">+</span> cr
             zrsq <span class="opt">=</span> zr <span class="opt">.*</span> zr
@@ -45,7 +46,7 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
         <span class="kwa">end</span><span class="slc">#for</span>
         
         absz <span class="opt">=</span> zrsq <span class="opt">.+</span> zisq
-        <span class="kwd">all</span><span class="opt">(</span>e <span class="opt">-&gt;</span> e <span class="opt">&gt;</span> <span class="num">4</span>f0<span class="opt">,</span> absz<span class="opt">) &amp;&amp;</span> <span class="kwa">break</span>
+        <span class="kwd">all</span><span class="opt">(</span>e <span class="opt">-&gt;</span> e <span class="opt">&gt;</span> <span class="kwd">T</span><span class="opt">(</span><span class="num">4</span><span class="opt">),</span> absz<span class="opt">) &amp;&amp;</span> <span class="kwa">break</span>
     <span class="kwa">end</span><span class="slc">#while</span>
 
     absz
@@ -62,30 +63,29 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="kwa">function</span> <span class="kwd">main</span><span class="opt">(</span>io<span class="opt">::</span>IO<span class="opt">,</span> n<span class="opt">::</span><span class="kwb">Integer</span><span class="opt">)</span>
     byte_n <span class="opt">=</span> n ÷ <span class="num">8</span>
 
-    <span class="slc"># Tuples of values instead of vectors to help SIMD code generation</span>
-    a <span class="opt">=</span> Vector<span class="opt">{</span>NTuple<span class="opt">{</span><span class="num">8</span><span class="opt">,</span><span class="kwb">Float32</span><span class="opt">}}(</span>undef<span class="opt">,</span> byte_n<span class="opt">)</span>
+    <span class="slc"># Tuples of values instead of vectors to include length in type-signature</span>
+    a <span class="opt">=</span> Vector<span class="opt">{</span>NTuple<span class="opt">{</span><span class="num">8</span><span class="opt">,</span><span class="kwb">Float64</span><span class="opt">}}(</span>undef<span class="opt">,</span> byte_n<span class="opt">)</span>
     <span class="kwc">&#64;inbounds</span> <span class="kwa">for</span> j <span class="kwa">in</span> <span class="num">1</span><span class="opt">:</span>byte_n
         <span class="slc"># Mimic calculations from original Julia code to avoid float errors</span>
-        a<span class="opt">[</span>j<span class="opt">] =</span> <span class="kwd">ntuple</span><span class="opt">(</span>i <span class="opt">-&gt;</span> <span class="kwb">Float32</span><span class="opt">(</span><span class="num">2</span><span class="opt">*(</span><span class="num">8</span><span class="opt">*(</span>j <span class="opt">-</span> <span class="num">1</span><span class="opt">) +</span> i <span class="opt">-</span> <span class="num">1</span><span class="opt">) /</span> n <span class="opt">-</span> <span class="num">1.5</span><span class="opt">),</span> <span class="num">8</span><span class="opt">)</span>
+        a<span class="opt">[</span>j<span class="opt">] =</span> <span class="kwd">ntuple</span><span class="opt">(</span>i <span class="opt">-&gt;</span> <span class="num">2</span><span class="opt">*(</span><span class="num">8</span><span class="opt">*(</span>j <span class="opt">-</span> <span class="num">1</span><span class="opt">) +</span> i <span class="opt">-</span> <span class="num">1</span><span class="opt">) /</span> n <span class="opt">-</span> <span class="num">1.5</span><span class="opt">,</span> <span class="num">8</span><span class="opt">)</span>
     <span class="kwa">end</span><span class="slc">#for</span>
-    b <span class="opt">=</span> <span class="kwd">collect</span><span class="opt">(</span><span class="kwb">Float32</span><span class="opt">(</span><span class="num">2</span> <span class="opt">*</span> j <span class="opt">/</span> n <span class="opt">-</span> <span class="num">1</span><span class="opt">)</span> <span class="kwa">for</span> j <span class="kwa">in</span> <span class="num">0</span><span class="opt">:</span>n<span class="opt">-</span><span class="num">1</span><span class="opt">)</span>
+    b <span class="opt">=</span> <span class="kwd">collect</span><span class="opt">(</span><span class="num">2</span> <span class="opt">*</span> j <span class="opt">/</span> n <span class="opt">-</span> <span class="num">1</span> <span class="kwa">for</span> j <span class="kwa">in</span> <span class="num">0</span><span class="opt">:</span>n<span class="opt">-</span><span class="num">1</span><span class="opt">)</span>
     
     <span class="slc"># Can&apos;t use Julia BitVector because order is backwards within bytes</span>
     <span class="slc"># Not using Matrix since extra precompilation occurs versus Vector</span>
     out <span class="opt">=</span> Vector<span class="opt">{</span><span class="kwb">UInt8</span><span class="opt">}(</span>undef<span class="opt">,</span> byte_n<span class="opt">*</span>n<span class="opt">)</span>
     Threads<span class="opt">.</span><span class="kwc">&#64;threads</span> <span class="kwa">for</span> j <span class="kwa">in</span> <span class="num">0</span><span class="opt">:</span>n<span class="opt">-</span><span class="num">1</span>
-        <span class="kwc">&#64;inbounds</span> bval <span class="opt">=</span> b<span class="opt">[</span>j<span class="opt">+</span><span class="num">1</span><span class="opt">]</span>
-        <span class="kwc">&#64;inbounds</span> <span class="kwd">inner</span><span class="opt">(</span>out<span class="opt">,</span> a<span class="opt">,</span> bval<span class="opt">,</span> j<span class="opt">)</span>
+        <span class="kwc">&#64;inbounds</span> <span class="kwd">inner</span><span class="opt">(</span>out<span class="opt">,</span> a<span class="opt">,</span> b<span class="opt">[</span>j<span class="opt">+</span><span class="num">1</span><span class="opt">],</span> j<span class="opt">)</span>
     <span class="kwa">end</span><span class="slc">#for</span>
     <span class="kwd">write_pbm</span><span class="opt">(</span>io<span class="opt">,</span> n<span class="opt">,</span> out<span class="opt">)</span>
     out
 <span class="kwa">end</span><span class="slc">#function</span>
 
-<span class="slc"># inner exists to put a function barrier between &#64;threads and &#64;simd macros</span>
+<span class="slc"># inner exists because it compiles faster than putting this loop directly in main</span>
 Base<span class="opt">.</span><span class="kwc">&#64;propagate_inbounds</span> <span class="kwa">function</span> <span class="kwd">inner</span><span class="opt">(</span>
     out<span class="opt">::</span>AbstractVector<span class="opt">{</span><span class="kwb">UInt8</span><span class="opt">},</span> a<span class="opt">::</span>AbstractVector<span class="opt">{</span>NTuple<span class="opt">{</span><span class="num">8</span><span class="opt">,</span>T<span class="opt">}},</span> bval<span class="opt">::</span>T<span class="opt">,</span> j<span class="opt">::</span><span class="kwb">Integer</span>
 <span class="opt">)</span> <span class="kwa">where</span> T<span class="opt">&lt;:</span> <span class="kwb">AbstractFloat</span>
-    <span class="kwc">&#64;simd</span> <span class="kwa">for</span> i <span class="kwa">in</span> <span class="num">1</span><span class="opt">:</span><span class="kwd">length</span><span class="opt">(</span>a<span class="opt">)</span>
+    <span class="kwa">for</span> i <span class="kwa">in</span> <span class="num">1</span><span class="opt">:</span><span class="kwd">length</span><span class="opt">(</span>a<span class="opt">)</span>
         out<span class="opt">[</span>j <span class="opt">*</span> <span class="kwd">length</span><span class="opt">(</span>a<span class="opt">) +</span> i<span class="opt">] =</span> <span class="kwd">mandelbrot_byte</span><span class="opt">(</span><span class="kwd">mandelbrot_floats</span><span class="opt">(</span>a<span class="opt">[</span>i<span class="opt">],</span> bval<span class="opt">))</span>
     <span class="kwa">end</span><span class="slc">#for</span>
 <span class="kwa">end</span><span class="slc">#function</span>
@@ -109,14 +109,10 @@ julia version 1.1.0
 export JULIA_NUM_THREADS=4
 
 
-Sat, 01 Jun 2019 16:04:08 GMT
+Mon, 03 Jun 2019 15:29:01 GMT
 
 COMMAND LINE:
-/opt/src/julia-1.1.0/bin/julia -O3 -- mandelbrot.julia-2.julia 1000
-
-UNEXPECTED OUTPUT 
-
-_out 1000_out differ: byte 3726, line 3
+/opt/src/julia-1.1.0/bin/julia -O3  -- mandelbrot.julia-2.julia 16000
 
 (BINARY) PROGRAM OUTPUT NOT SHOWN
     </pre>
