@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,follow,noarchive">
+
+<title>reverse-complement C++ g++&nbsp;#7 program | Computer Language Benchmarks Game </title>
+<style><!--
+a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,header{margin:auto;width:92%}body{font:100% Droid Sans, Ubuntu, Verdana, sans-serif;margin:0;-webkit-text-size-adjust:100%}h3, h1, h2, li a{font-family:Ubuntu Mono,Consolas,Menlo,monospace}div,footer,header{max-width:31em}footer{padding:2.6em 0 0}h3{font-size:1.4em;font-weight:bold;margin:0;padding: .4em}h3, h3 a{color:white;background-color:#dd4814}h3 small{font-size:0.64em}h1,h2{margin:1.5em 0 0}h1{font-size:1.4em;font-weight:normal}h2{font-size:1.2em}li{list-style-type:none;vertical-align:top}li a{display:block;font-size:1.2em;margin: .5em .5em 0;padding: .5em .5em .3em}ul{clear:left;margin:-0.3em 0 1.5em;padding-left:0;text-align:center}p{color:#333;line-height:1.4;margin: .3em 0 0}p a, a span{border-bottom: .1em solid #333;padding-bottom: .1em}.com,.slc{color:#888}.kwa{color:#066}.kwb{color:#900}.kwc{color:#050}.kwa,.kwb,.kwc{font-weight:bold}.dstr,.str,.sym,.num{color:#930}pre{color:#222;font-size:1em;overflow-wrap:break-word;white-space:pre-wrap;word-wrap:break-word}@media only screen and (min-width: 60em){article,footer,header{font-size:1.25em}}
+--></style>
+<link rel="shortcut icon" href="./favicon.ico">
+<header>
+  <h3><a href="https://benchmarksgame-team.pages.debian.net/benchmarksgame/">The&nbsp;<small>Computer&nbsp;Language</small><br>Benchmarks&nbsp;Game</a></h3>
+</header>
+<article>
+  <div>
+    <h1>reverse-complement C++ g++&nbsp;#7 program</h1>
+    <aside>
+      <p><a href="../description/revcomp.html#revcomp">description</a>
+    </aside>
+  </div>
+  <section>
+    </div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc">// The Computer Language Benchmarks Game</span>
+<span class="slc">// https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">//</span>
+<span class="slc">// Contributed by Will Rurik</span>
+
+<span class="ppc">#include &lt;iostream&gt;</span>
+<span class="ppc">#include &lt;array&gt;</span>
+<span class="ppc">#include &lt;vector&gt;</span>
+<span class="ppc">#include &lt;memory&gt;</span>
+<span class="ppc">#include &lt;thread&gt;</span>
+<span class="ppc">#include &lt;functional&gt;</span>
+
+<span class="ppc">#include &lt;sys/stat.h&gt;</span>
+<span class="ppc">#include &lt;unistd.h&gt;</span>
+<span class="ppc">#include &lt;cstring&gt;</span>
+<span class="ppc">#include &lt;fcntl.h&gt;</span>
+
+<span class="slc">//look up table of upper case and lower case conversions</span>
+<span class="kwc">constexpr std</span><span class="opt">::</span>array<span class="opt">&lt;</span><span class="kwb">char</span><span class="opt">,</span> <span class="num">128</span><span class="opt">&gt;</span> <span class="kwd">make_LUT</span><span class="opt">()</span>
+<span class="opt">{</span>
+    <span class="kwb">const char</span> inputs<span class="opt">[] =</span> <span class="str">&quot;ACGTUMRWSYKVHDBN&quot;</span><span class="opt">;</span>
+    <span class="kwb">const char</span> outputs<span class="opt">[] =</span> <span class="str">&quot;TGCAAKYWSRMBDHVN&quot;</span><span class="opt">;</span>
+    <span class="kwc">std</span><span class="opt">::</span>array<span class="opt">&lt;</span><span class="kwb">char</span><span class="opt">,</span> <span class="num">128</span><span class="opt">&gt;</span> ret<span class="opt">{};</span>
+    <span class="kwc">auto</span> it <span class="opt">=</span> ret<span class="opt">.</span><span class="kwd">begin</span><span class="opt">();</span>
+    <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> <span class="num">16</span><span class="opt">; ++</span>i<span class="opt">) {</span>
+        <span class="opt">*(</span>it <span class="opt">+ (</span>inputs<span class="opt">[</span>i<span class="opt">])) =</span> outputs<span class="opt">[</span>i<span class="opt">];</span>
+        <span class="opt">*(</span>it <span class="opt">+ ((</span>inputs<span class="opt">[</span>i<span class="opt">] +</span> <span class="num">32</span><span class="opt">))) =</span> outputs<span class="opt">[</span>i<span class="opt">];</span>
+    <span class="opt">}</span>
+    <span class="kwa">return</span> ret<span class="opt">;</span>
+<span class="opt">}</span>
+
+<span class="kwc">constexpr auto</span> lut <span class="opt">=</span> <span class="kwd">make_LUT</span><span class="opt">();</span>
+<span class="kwb">static const</span> <span class="kwc">auto</span> seq_len <span class="opt">=</span> <span class="num">61</span><span class="opt">;</span>
+
+<span class="slc">// perform reverse complement for num_rows rows</span>
+<span class="slc">// skip over new line characters by traversing data in strides</span>
+<span class="kwb">void</span> <span class="kwd">process_by_row</span><span class="opt">(</span><span class="kwb">char</span><span class="opt">*</span> start<span class="opt">,</span> <span class="kwb">char</span><span class="opt">*</span> end<span class="opt">,</span> <span class="kwb">const int</span> offset<span class="opt">,</span> <span class="kwb">int</span> num_rows<span class="opt">)</span>
+<span class="opt">{</span>
+    <span class="kwb">const int</span> remaining <span class="opt">=</span> seq_len <span class="opt">-</span> offset <span class="opt">-</span> <span class="num">1</span><span class="opt">;</span>
+    <span class="kwb">int</span> rows <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+    <span class="kwa">while</span> <span class="opt">(</span>rows <span class="opt">&lt;</span> num_rows<span class="opt">) {</span>
+        <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> offset<span class="opt">; ++</span>i<span class="opt">, ++</span>start<span class="opt">, --</span>end<span class="opt">) {</span>
+            <span class="kwb">char</span> c <span class="opt">=</span> lut<span class="opt">[*</span>end<span class="opt">];</span>
+            <span class="opt">*</span>end <span class="opt">=</span> lut<span class="opt">[*</span>start<span class="opt">];</span>
+            <span class="opt">*</span>start <span class="opt">=</span> c<span class="opt">;</span>
+        <span class="opt">}</span>
+        <span class="opt">--</span>end<span class="opt">;</span>
+        <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> remaining<span class="opt">; ++</span>i<span class="opt">, ++</span>start<span class="opt">, --</span>end<span class="opt">) {</span>
+            <span class="kwb">char</span> c <span class="opt">=</span> lut<span class="opt">[*</span>end<span class="opt">];</span>
+            <span class="opt">*</span>end <span class="opt">=</span> lut<span class="opt">[*</span>start<span class="opt">];</span>
+            <span class="opt">*</span>start <span class="opt">=</span> c<span class="opt">;</span>
+        <span class="opt">}</span>
+        <span class="opt">++</span>start<span class="opt">;</span>
+        <span class="opt">++</span>rows<span class="opt">;</span>
+    <span class="opt">}</span>
+<span class="opt">}</span>
+
+<span class="slc">// perform reverse complement for remainder of sequence</span>
+<span class="slc">// skip over new line characters by traversing data in strides</span>
+<span class="kwb">void</span> <span class="kwd">process_remaining</span><span class="opt">(</span><span class="kwb">char</span><span class="opt">*</span> start<span class="opt">,</span> <span class="kwb">char</span><span class="opt">*</span> end<span class="opt">,</span> <span class="kwb">const int</span> offset<span class="opt">)</span>
+<span class="opt">{</span>
+    <span class="kwb">const int</span> remaining <span class="opt">=</span> seq_len <span class="opt">-</span> offset <span class="opt">-</span> <span class="num">1</span><span class="opt">;</span>
+    <span class="kwa">while</span> <span class="opt">(</span>start <span class="opt">&lt;</span> end<span class="opt">) {</span>
+        <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">; (</span>i <span class="opt">&lt;</span> offset<span class="opt">) &amp;&amp; (</span>start <span class="opt">&lt;</span> end<span class="opt">); ++</span>i<span class="opt">, ++</span>start<span class="opt">, --</span>end<span class="opt">) {</span>
+            <span class="kwb">char</span> c <span class="opt">=</span> lut<span class="opt">[*</span>end<span class="opt">];</span>
+            <span class="opt">*</span>end <span class="opt">=</span> lut<span class="opt">[*</span>start<span class="opt">];</span>
+            <span class="opt">*</span>start <span class="opt">=</span> c<span class="opt">;</span>
+        <span class="opt">}</span>
+        <span class="opt">--</span>end<span class="opt">;</span>
+        <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">; (</span>i <span class="opt">&lt;</span> remaining<span class="opt">) &amp;&amp; (</span>start <span class="opt">&lt;</span> end<span class="opt">); ++</span>i<span class="opt">, ++</span>start<span class="opt">, --</span>end<span class="opt">) {</span>
+            <span class="kwb">char</span> c <span class="opt">=</span> lut<span class="opt">[*</span>end<span class="opt">];</span>
+            <span class="opt">*</span>end <span class="opt">=</span> lut<span class="opt">[*</span>start<span class="opt">];</span>
+            <span class="opt">*</span>start <span class="opt">=</span> c<span class="opt">;</span>
+        <span class="opt">}</span>
+        <span class="opt">++</span>start<span class="opt">;</span>
+    <span class="opt">}</span>
+<span class="opt">}</span>
+
+<span class="slc">// perform reverse complement using multiple threads</span>
+<span class="kwb">void</span> <span class="kwd">reverse_comp</span><span class="opt">(</span><span class="kwb">char</span><span class="opt">*</span> start<span class="opt">,</span> <span class="kwb">char</span><span class="opt">*</span> end<span class="opt">)</span>
+<span class="opt">{</span>
+    <span class="kwb">static</span> <span class="kwc">auto</span> hwconcurrency <span class="opt">=</span> <span class="kwc">std</span><span class="opt">::</span><span class="kwc">thread</span><span class="opt">::</span><span class="kwd">hardware_concurrency</span><span class="opt">();</span>
+    <span class="kwb">static int</span> nthreads <span class="opt">= (</span>hwconcurrency <span class="opt">==</span> <span class="num">0</span><span class="opt">) ?</span> <span class="num">4</span> <span class="opt">:</span> hwconcurrency<span class="opt">;</span>
+    <span class="kwb">const</span> <span class="kwc">auto</span> nbytes <span class="opt">=</span> end <span class="opt">-</span> start<span class="opt">;</span>
+    <span class="kwb">const</span> <span class="kwc">auto</span> last_row <span class="opt">=</span> nbytes <span class="opt">%</span> seq_len<span class="opt">;</span>
+    <span class="kwb">const</span> <span class="kwc">auto</span> offset <span class="opt">= (</span>last_row<span class="opt">) ==</span> <span class="num">0</span> <span class="opt">?</span> seq_len <span class="opt">: (</span>last_row<span class="opt">);</span>
+    <span class="kwb">const</span> <span class="kwc">auto</span> nrows <span class="opt">=</span> nbytes <span class="opt">/</span> seq_len<span class="opt">;</span>
+    <span class="kwb">const</span> <span class="kwc">auto</span> nswaps <span class="opt">=</span> nrows <span class="opt">&gt;&gt;</span> <span class="num">1</span><span class="opt">;</span>
+    
+    <span class="kwc">auto</span> rows_per_thread <span class="opt">=</span> <span class="kwc">std</span><span class="opt">::</span>vector<span class="opt">&lt;</span><span class="kwb">unsigned int</span><span class="opt">&gt;(</span>nthreads<span class="opt">,</span> nswaps <span class="opt">/</span> nthreads<span class="opt">);</span>
+    <span class="kwc">auto</span> rem_rows <span class="opt">=</span> nswaps <span class="opt">%</span> nthreads<span class="opt">;</span>
+    <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> rem_rows <span class="opt">&gt;</span> <span class="num">0</span><span class="opt">; ++</span>i<span class="opt">, --</span>rem_rows<span class="opt">)</span>
+        <span class="opt">++</span>rows_per_thread<span class="opt">[</span>i<span class="opt">];</span>
+    end <span class="opt">-=</span> <span class="num">2</span><span class="opt">;</span>
+    <span class="kwb">unsigned int</span> strides <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+    <span class="kwc">std</span><span class="opt">::</span>vector<span class="opt">&lt;</span><span class="kwc">std</span><span class="opt">::</span>thread<span class="opt">&gt;</span> threads<span class="opt">;</span>
+    <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt; (</span>nthreads <span class="opt">-</span> <span class="num">1</span><span class="opt">); ++</span>i<span class="opt">) {</span>
+        threads<span class="opt">.</span><span class="kwd">push_back</span><span class="opt">(</span><span class="kwc">std</span><span class="opt">::</span><span class="kwd">thread</span><span class="opt">(</span>process_by_row<span class="opt">,</span> 
+                        start <span class="opt">+</span> strides<span class="opt">,</span>
+                               end <span class="opt">-</span> strides<span class="opt">,</span>
+                               offset <span class="opt">-</span> <span class="num">1</span><span class="opt">,</span>
+                               rows_per_thread<span class="opt">[</span>i<span class="opt">]));</span>
+
+        strides <span class="opt">+=</span> rows_per_thread<span class="opt">[</span>i<span class="opt">] *</span> seq_len<span class="opt">;</span>
+    <span class="opt">}</span>
+    threads<span class="opt">.</span><span class="kwd">push_back</span><span class="opt">(</span><span class="kwc">std</span><span class="opt">::</span><span class="kwd">thread</span><span class="opt">(</span>process_remaining<span class="opt">,</span>
+                    start <span class="opt">+</span> strides<span class="opt">,</span>
+                           end <span class="opt">-</span> strides<span class="opt">,</span>
+                           offset <span class="opt">-</span> <span class="num">1</span><span class="opt">));</span>
+
+    <span class="kwa">for</span> <span class="opt">(</span><span class="kwc">auto</span><span class="opt">&amp;</span> t <span class="opt">:</span> threads<span class="opt">)</span>
+        t<span class="opt">.</span><span class="kwd">join</span><span class="opt">();</span>
+<span class="opt">}</span>
+
+<span class="kwb">int</span> <span class="kwd">main</span><span class="opt">()</span>
+<span class="opt">{</span>
+    <span class="kwb">const</span> <span class="kwc">auto</span> BUF_SIZE <span class="opt">=</span> <span class="num">8</span> <span class="opt">*</span> <span class="num">1024</span> <span class="opt">*</span> <span class="num">1024</span><span class="opt">;</span>
+    <span class="kwc">auto</span> fd <span class="opt">=</span> <span class="kwd">fileno</span><span class="opt">(</span>stdin<span class="opt">);</span>
+    <span class="kwc">std</span><span class="opt">::</span><span class="kwc">ios_base</span><span class="opt">::</span><span class="kwd">sync_with_stdio</span><span class="opt">(</span><span class="kwa">false</span><span class="opt">);</span>
+    <span class="kwc">std</span><span class="opt">::</span>cout<span class="opt">.</span><span class="kwd">tie</span><span class="opt">(</span><span class="kwc">nullptr</span><span class="opt">);</span>
+    <span class="kwc">std</span><span class="opt">::</span>cin<span class="opt">.</span><span class="kwd">tie</span><span class="opt">(</span><span class="kwc">nullptr</span><span class="opt">);</span>
+    <span class="kwc">std</span><span class="opt">::</span>vector<span class="opt">&lt;</span><span class="kwb">char</span><span class="opt">*&gt;</span> breakpoints<span class="opt">;</span>
+    <span class="kwb">struct</span> stat stat_buf<span class="opt">;</span>
+
+    <span class="slc">// allocate buffer the same size as file and read from stdin</span>
+    <span class="kwd">fstat</span><span class="opt">(</span>fd<span class="opt">, &amp;</span>stat_buf<span class="opt">);</span>
+    <span class="kwb">size_t</span> len <span class="opt">=</span> stat_buf<span class="opt">.</span>st_size<span class="opt">;</span>
+    <span class="kwc">auto</span> input <span class="opt">=</span> <span class="kwc">std</span><span class="opt">::</span>unique_ptr<span class="opt">&lt;</span><span class="kwb">char</span><span class="opt">&gt;(</span><span class="kwa">new</span> <span class="kwb">char</span><span class="opt">[</span>len <span class="opt">+</span> <span class="num">1</span><span class="opt">]());</span>
+    
+    <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> <span class="kwc">std</span><span class="opt">::</span>cin<span class="opt">.</span><span class="kwd">read</span><span class="opt">(</span>input<span class="opt">.</span><span class="kwd">get</span><span class="opt">() +</span> i<span class="opt">,</span> BUF_SIZE<span class="opt">);</span> i <span class="opt">+=</span> BUF_SIZE<span class="opt">);</span>
+    
+    <span class="slc">// find locations of &gt; to denote new entry</span>
+    <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">char</span><span class="opt">*</span> arrow <span class="opt">=</span> input<span class="opt">.</span><span class="kwd">get</span><span class="opt">(), *</span>end <span class="opt">=</span> input<span class="opt">.</span><span class="kwd">get</span><span class="opt">() +</span> len <span class="opt">+</span> <span class="num">1</span><span class="opt">;</span>
+        <span class="opt">(</span>arrow <span class="opt">=</span> <span class="kwa">static_cast</span><span class="opt">&lt;</span><span class="kwb">char</span><span class="opt">*&gt;(</span><span class="kwd">memchr</span><span class="opt">(</span>arrow<span class="opt">,</span> <span class="str">&apos;&gt;&apos;</span><span class="opt">,</span> end <span class="opt">-</span> arrow<span class="opt">))) !=</span> <span class="kwc">nullptr</span><span class="opt">;</span>
+        <span class="opt">++</span>arrow<span class="opt">) {</span>
+        breakpoints<span class="opt">.</span><span class="kwd">emplace_back</span><span class="opt">(</span>arrow<span class="opt">);</span>
+    <span class="opt">}</span>
+    breakpoints<span class="opt">.</span><span class="kwd">push_back</span><span class="opt">(</span>input<span class="opt">.</span><span class="kwd">get</span><span class="opt">() +</span> len<span class="opt">);</span>
+    
+    <span class="slc">// perform reverse complement    </span>
+    <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt; (</span><span class="kwa">static_cast</span><span class="opt">&lt;</span><span class="kwb">int</span><span class="opt">&gt;(</span>breakpoints<span class="opt">.</span><span class="kwd">size</span><span class="opt">()) -</span> <span class="num">1</span><span class="opt">); ++</span>i<span class="opt">) {</span>
+        <span class="kwb">char</span><span class="opt">*</span> s <span class="opt">=</span> breakpoints<span class="opt">[</span>i<span class="opt">];</span>
+        <span class="kwa">while</span><span class="opt">(*(++</span>s<span class="opt">) !=</span> <span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span><span class="opt">);</span>
+        <span class="kwd">reverse_comp</span><span class="opt">(++</span>s<span class="opt">,</span> breakpoints<span class="opt">[</span>i<span class="opt">+</span><span class="num">1</span><span class="opt">]);</span>
+    <span class="opt">}</span>
+    
+    <span class="kwc">std</span><span class="opt">::</span>cout<span class="opt">.</span><span class="kwd">write</span><span class="opt">(</span>input<span class="opt">.</span><span class="kwd">get</span><span class="opt">(),</span> len<span class="opt">);</span>
+<span class="opt">}</span>
+    </pre>
+  </section>
+  <section>
+    <h2 id="log">notes, command-line, and program output</h2>
+    <pre>
+NOTES:
+64-bit Ubuntu quad core
+g++ (Ubuntu 8.3.0-6ubuntu1) 8.3.0
+
+
+Tue, 11 Jun 2019 16:01:32 GMT
+
+MAKE:
+/usr/bin/g++ -c -pipe -O3 -fomit-frame-pointer -march=native  -std=c++17 revcomp.gpp-7.c++ -o revcomp.gpp-7.c++.o &amp;&amp;  \
+        /usr/bin/g++ revcomp.gpp-7.c++.o -o revcomp.gpp-7.gpp_run -pthread 
+rm revcomp.gpp-7.c++
+
+5.72s to complete and log all make actions
+
+COMMAND LINE:
+./revcomp.gpp-7.gpp_run 0 &lt; revcomp-input100000000.txt
+
+(TRUNCATED) PROGRAM OUTPUT:
+&gt;ONE Homo sapiens alu
+GGGATTACAGGCGTGAGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGC
+CCAGGCTGGAGTGCAGTGGCGCGATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAA
+GCGATTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCACCACGCCC
+GGCTAATTTTTGTATTTTTAGTAGAGACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCG
+AACTCCTGACCTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTACAGGCG
+TGAGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTG
+CAGTGGCGCGATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTGC
+CTCAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCACCACGCCCGGCTAATTTTTGT
+ATTTTTAGTAGAGACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAACTCCTGACCTC
+AGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTACAGGCGTGAGCCACCGCGC
+CCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCGCGATC
+TCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCAGCCTCCCGA
+GTAGCTGGGATTACAGGCGCGCGCCACCACGCCCGGCTAATTTTTGTATTTTTAGTAGAG
+ACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAACTCCTGACCTCAGGTGATCCGCCC
+GCCTCGGCCTCCCAAAGTGCTGGGATTACAGGCGTGAGCCACCGCGCCCGGCCTTTTTGA
+GACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCGCGATCTCGGCTCACTGCA
+ACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATTA
+CAGGCGCGCGCCACCACGCCCGGCTAATTTTTGTATTTTTAGTAGAGACGGGGTTTCACC
+ATGTTGGCCAGGCTGGTCTCGAACTCCTGACCTCAGGTGATCCGCCCGCCTCGGCCTCCC
+AAAGTGCTGGGATTACAGGCGTGAGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGC
+TCTGTCGCCCAGGCTGGAGTGCAGTGGCGCGATCTCGGCTCACTGCAACCTCCGCCTCCC
+GGGTTCAAGCGATTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCA
+CCACGCCCGGCTAATTTTTGTATTTTTAGTAGAGACGGGGTTTCACCATGTTGGCCAGGC
+TGGTCTCGAACTCCTGACCTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGAT
+TACAGGCGTGAGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGG
+CTGGAGTGCAGTGGCGCGATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGAT
+TCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCACCACGCCCGGCTA
+ATTTTTGTATTTTTAGTAGAGACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAACTC
+CTGACCTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTACAGGCGTGAGC
+CACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTG
+GCGCGATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCAG
+CCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCACCACGCCCGGCTAATTTTTGTATTTT
+TAGTAGAGACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAACTCCTGACCTCAGGTG
+ATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTACAGGCGTGAGCCACCGCGCCCGGC
+CTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCGCGATCTCGGC
+TCACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCAGCCTCCCGAGTAGC
+TGGGATTACAGGCGCGCGCCACCACGCCCGGCTAATTTTTGTATTTTTAGTAGAGACGGG
+GTTTCACCATGTTGGCCAGGCTGGTCTCGAACTCCTGACCTCAGGTGATCCGCCCGCCTC
+GGCCTCCCAAAGTGCTGGGATTACAGGCGTGAGCCACCGCGCCCGGCCTTTTTGAGACGG
+AGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCGCGATCTCGGCTCACTGCAACCTC
+CGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATTACAGGC
+GCGCGCCACCACGCCCGGCTAATTTTTGTATTTTTAGTAGAGACGGGGTTTCACCATGTT
+GGCCAGGCTGGTCTCGAACTCCTGACCTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAGT
+GCTGGGATTACAGGCGTGAGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGT
+CGCCCAGGCTGGAGTGCAGTGGCGCGATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTT
+CAAGCGATTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCACCACG
+CCCGGCTAATTTTTGTATTTTTAGTAGAGACGGGGTTTCACCATGTTGGCCAGGCTGGTC
+TCGAACTCCTGACCTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTACAG
+GCGTGAGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGGA
+GTGCAGTGGCGCGATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTCTCC
+TGCCTCAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCACCACGCCCGGCTAATTTT
+TGTATTTTTAGTAGAGACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAACTCCTGAC
+CTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTACAGGCGTGAGCCACCG
+CGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCGCG
+ATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCAGCCTCC
+CGAGTAGCTGGGATTACAGGCGCGCGCCACCACGCCCGGCTAATTTTTGTATTTTTAGTA
+GAGACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAACTCCTGACCTCAGGTGATCCG
+CCCGCCTCGGCCTCCCAAAGTGCTGGGATTACAGGCGTGAGCCACCGCGCCCGGCCTTTT
+TGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCGCGATCTCGGCTCACT
+GCAACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGA
+TTACAGGCGCGCGCCACCACGCCCGGCTAATTTTTGTATTTTTAGTAGAGACGGGGTTTC
+ACCATGTTGGCCAGGCTGGTCTCGAACTCCTGACCTCAGGTGATCCGCCCGCCTCGGCCT
+CCCAAAGTGCTGGGATTACAGGCGTGAGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCT
+CGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCGCGATCTCGGCTCACTGCAACCTCCGCCT
+CCCGGGTTCAAGCGATTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCG
+CCACCACGCCCGGCTAATTTTTGTATTTTTAGTAGAGACGGGGTTTCACCATGTTGGCCA
+GGCTGGTCTCGAACTCCTGACCTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGG
+GATTACAGGCGTGAGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCC
+AGGCTGGAGTGCAGTGGCGCGATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGC
+GATTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCACCACGCCCGG
+CTAATTTTTGTATTTTTAGTAGAGACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAA
+CTCCTGACCTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTACAGGCGTG
+AGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCA
+GTGGCGCGATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTGCCT
+CAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCACCACGCCCGGCTAATTTTTGTAT
+TTTTAGTAGAGACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAACTCCTGACCTCAG
+GTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTACAGGCGTGAGCCACCGCGCCC
+GGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCGCGATCTC
+GGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCAGCCTCCCGAGT
+AGCTGGGATTACAGGCGCGCGCCACCACGCCCGGCTAATTTTTGTATTTTTAGTAGAGAC
+GGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAACTCCTGACCTCAGGTGATCCGCCCGC
+CTCGGCCTCCCAAAGTGCTGGGATTACAGGCGTGAGCCACCGCGCCCGGCCTTTTTGAGA
+CGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCGCGATCTCGGCTCACTGCAAC
+CTCCGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATTACA
+GGCGCGCGCCACCACGCCCGGCTAATTTTTGTATTTTTAGTAGAGACGGGGTTTCACCAT
+GTTGGCCAGGCTGGTCTCGAACTCCTGACCTCAGGTGATCCGCCCGCCTCGGCCTCCCAA
+AGTGCTGGGATTACAGGCGTGAGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTC
+TGTCGCCCAGGCTGGAGTGCAGTGGCGCGATCTCGGCTCACTGCAACCTCCGCCTCCCGG
+GTTCAAGCGATTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCACC
+ACGCCCGGCTAATTTTTGTATTTTTAGTAGAGACGGGGTTTCACCATGTTGGCCAGGCTG
+GTCTCGAACTCCTGACCTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTA
+CAGGCGTGAGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCT
+GGAGTGCAGTGGCGCGATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTC
+TCCTGCCTCAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCACCACGCCCGGCTAAT
+TTTTGTATTTTTAGTAGAGACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAACTCCT
+GACCTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTACAGGCGTGAGCCA
+CCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGC
+GCGATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCAGCC
+TCCCGAGTAGCTGGGATTACAGGCGCGCGCCACCACGCCCGGCTAATTTTTGTATTTTTA
+GTAGAGACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAACTCCTGACCTCAGGTGAT
+CCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTACAGGCGTGAGCCACCGCGCCCGGCCT
+TTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCGCGATCTCGGCTC
+ACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCAGCCTCCCGAGTAGCTG
+GGATTACAGGCGCGCGCCACCACGCCCGGCTAATTTTTGTATTTTTAGTAGAGACGGGGT
+TTCACCATGTTGGCCAGGCTGGTCTCGAACTCCTGACCTCAGGTGATCCGCCCGCCTCGG
+CCTCCCAAAGTGCTGGGATTACAGGCGTGAGCCACCGCGCCCGGCCTTTTTGAGACGGAG
+TCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCGCGATCTCGGCTCACTGCAACCTCCG
+CCTCCCGGGTTCAAGCGATTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATTACAGGCGC
+GCGCCACCACGCCCGGCTAATTTTTGTATTTTTAGTAGAGACGGGGTTTCACCATGTTGG
+CCAGGCTGGTCTCGAACTCCTGACCTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGC
+TGGGATTACAGGCGTGAGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCG
+CCCAGGCTGGAGTGCAGTGGCGCGATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCA
+AGCGATTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCACCACGCC
+CGGCTAATTTTTGTATTTTTAGTAGAGACGGGGTTTCACCATGTTGGCCAGGCTGGTCTC
+GAACTCCTGACCTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTACAGGC
+GTGAGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGT
+GCAGTGGCGCGATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTG
+CCTCAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCACCACGCCCGGCTAATTTTTG
+TATTTTTAGTAGAGACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAACTCCTGACCT
+CAGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTACAGGCGTGAGCCACCGCG
+CCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCGCGAT
+CTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCAGCCTCCCG
+AGTAGCTGGGATTACAGGCGCGCGCCACCACGCCCGGCTAATTTTTGTATTTTTAGTAGA
+GACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAACTCCTGACCTCAGGTGATCCGCC
+CGCCTCGGCCTCCCAAAGTGCTGGGATTACAGGCGTGAGCCACCGCGCCCGGCCTTTTTG
+AGACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCGCGATCTCGGCTCACTGC
+AACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATT
+ACAGGCGCGCGCCACCACGCCCGGCTAATTTTTGTATTTTTAGTAGAGACGGGGTTTCAC
+CATGTTGGCCAGGCTGGTCTCGAACTCCTGACCTCAGGTGATCCGCCCGCCTCGGCCTCC
+CAAAGTGCTGGGATTACAGGCGTGAGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCG
+CTCTGTCGCCCAGGCTGGAGTGCAGTGGCGCGATCTCGGCTCACTGCAACCTCCGCCTCC
+CGGGTTCAAGCGATTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCC
+ACCACGCCCGGCTAATTTTTGTATTTTTAGTAGAGACGGGGTTTCACCATGTTGGCCAGG
+CTGGTCTCGAACTCCTGACCTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGA
+TTACAGGCGTGAGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAG
+GCTGGAGTGCAGTGGCGCGATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGA
+TTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCACCACGCCCGGCT
+AATTTTTGTATTTTTAGTAGAGACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAACT
+CCTGACCTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTACAGGCGTGAG
+CCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGT
+GGCGCGATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCA
+GCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCACCACGCCCGGCTAATTTTTGTATTT
+TTAGTAGAGACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAACTCCTGACCTCAGGT
+GATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTACAGGCGTGAGCCACCGCGCCCGG
+CCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCGCGATCTCGG
+CTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCAGCCTCCCGAGTAG
+CTGGGATTACAGGCGCGCGCCACCACGCCCGGCTAATTTTTGTATTTTTAGTAGAGACGG
+GGTTTCACCATGTTGGCCAGGCTGGTCTCGAACTCCTGACCTCAGGTGATCCGCCCGCCT
+CGGCCTCCCAAAGTGCTGGGATTACAGGCGTGAGCCACCGCGCCCGGCCTTTTTGAGACG
+GAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCGCGATCTCGGCTCACTGCAACCT
+CCGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATTACAGG
+CGCGCGCCACCACGCCCGGCTAATTTTTGTATTTTTAGTAGAGACGGGGTTTCACCATGT
+TGGCCAGGCTGGTCTCGAACTCCTGACCTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAG
+TGCTGGGATTACAGGCGTGAGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTG
+TCGCCCAGGCTGGAGTGCAGTGGCGCGATCTCGGCTCACTGCAACCTCCGCCTCCCGGGT
+TCAAGCGATTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCACCAC
+GCCCGGCTAATTTTTGTATTTTTAGTAGAGACGGGGTTTCACCATGTTGGCCAGGCTGGT
+CTCGAACTCCTGACCTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTACA
+GGCGTGAGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGG
+AGTGCAGTGGCGCGATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTCTC
+CTGCCTCAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCACCACGCCCGGCTAATTT
+TTGTATTTTTAGTAGAGACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAACTCCTGA
+CCTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTACAGGCGTGAGCCACC
+GCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCGC
+GATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCAGCCTC
+CCGAGTAGCTGGGATTACAGGCGCGCGCCACCACGCCCGGCTAATTTTTGTATTTTTAGT
+AGAGACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAACTCCTGACCTCAGGTGATCC
+GCCCGCCTCGGCCTCCCAAAGTGCTGGGATT    </pre>
+  </section>
+</article>
+<footer>
+  <nav>
+    <ul>
+      <li><a href="../license.html"><span>3-Clause BSD License</span></a>
+    </ul>
+  </nav>
+</footer>
+
