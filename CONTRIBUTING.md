@@ -28,7 +28,7 @@ Use `diff` to check that whitespace characters match.
 Upload a complete tested source-code file
 -----------------------------------------
 
-Open a new [Contribute Source Code](https://salsa.debian.org/benchmarksgame-team/benchmarksgame/issues/new?issuable_template=Contribute Source Code) issue.
+Open a new [Contribute Source Code](https://salsa.debian.org/benchmarksgame-team/benchmarksgame/issues/new?issuable_template=Contribute%20Source%20Code) issue.
 
 Attach your complete tested source-code file.
 
