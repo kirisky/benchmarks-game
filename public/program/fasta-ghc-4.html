@@ -140,7 +140,7 @@ worker
   <span class="opt">::</span> <span class="kwb">Int</span>
   <span class="opt">-&gt;</span> V<span class="opt">.</span>Vector Word32
   <span class="opt">-&gt;</span> V<span class="opt">.</span>Vector Word8
-  <span class="opt">-&gt;</span> MVar Word32
+  <span class="opt">-&gt;</span> MVar <span class="opt">(</span>Word32<span class="opt">,</span> MVar <span class="opt">())</span>
   <span class="opt">-&gt;</span> IORef <span class="kwb">Int</span>
   <span class="opt">-&gt;</span> <span class="kwb">IO</span> <span class="opt">()</span>
 worker <span class="opt">!</span>bufferSize <span class="opt">!</span>p0 <span class="opt">!</span>p1 <span class="opt">!</span>mvar <span class="opt">!</span>ref <span class="opt">=</span> <span class="kwd">do</span>
@@ -156,8 +156,11 @@ worker <span class="opt">!</span>bufferSize <span class="opt">!</span>p0 <span c
           <span class="kwd">then</span> <span class="opt">(</span><span class="kwc">max</span> <span class="num">0</span> <span class="opt">(</span>x <span class="opt">-</span> bufferSize<span class="opt">),</span> <span class="kwc">min</span> x bufferSize<span class="opt">)</span>
           <span class="kwd">else</span> <span class="opt">(</span><span class="num">0</span><span class="opt">,</span> <span class="num">0</span><span class="opt">)</span>
       <span class="kwc">when</span> <span class="opt">(</span>n <span class="opt">&gt;</span> <span class="num">0</span><span class="opt">) $</span> <span class="kwd">do</span>
-        modifyMVar_ mvar <span class="opt">(</span>genSeeds <span class="opt">(</span><span class="kwc">fromIntegral</span> n<span class="opt">)</span> m<span class="opt">)</span>
-        consume n p0 p1 s v
+        <span class="kwc">next</span> <span class="opt">&lt;-</span> newEmptyMVar
+        <span class="opt">(</span>rnd<span class="opt">,</span> prev<span class="opt">) &lt;-</span> takeMVar mvar
+        rnd<span class="opt">&apos; &lt;-</span> genSeeds <span class="opt">(</span><span class="kwc">fromIntegral</span> n<span class="opt">)</span> m rnd
+        putMVar mvar <span class="opt">(</span>rnd<span class="opt">&apos;,</span> <span class="kwc">next</span><span class="opt">)</span>
+        consume n p0 p1 s v prev <span class="kwc">next</span>
         loop
   loop
 
@@ -169,12 +172,15 @@ consume
   <span class="opt">-&gt;</span> V<span class="opt">.</span>Vector Word8
   <span class="opt">-&gt;</span> S<span class="opt">.</span>IOVector Word8
   <span class="opt">-&gt;</span> V<span class="opt">.</span>Vector Word32
+  <span class="opt">-&gt;</span> MVar <span class="opt">()</span>
+  <span class="opt">-&gt;</span> MVar <span class="opt">()</span>
   <span class="opt">-&gt;</span> <span class="kwb">IO</span> <span class="opt">()</span>
-consume <span class="opt">!</span>bufferSize <span class="opt">!</span>p0 <span class="opt">!</span>p1 <span class="opt">!</span>s <span class="opt">!</span>v <span class="opt">=</span> <span class="kwd">do</span>
+consume <span class="opt">!</span>bufferSize <span class="opt">!</span>p0 <span class="opt">!</span>p1 <span class="opt">!</span>s <span class="opt">!</span>v <span class="opt">!</span>prev <span class="opt">!</span><span class="kwc">next</span> <span class="opt">=</span> <span class="kwd">do</span>
   loop lineLength <span class="num">0 0</span>
-  withMVar output <span class="opt">$ \() -&gt;</span>
-    S<span class="opt">.</span>unsafeWith s <span class="opt">$ \</span>ptr <span class="opt">-&gt;</span>
-      hPutBuf <span class="kwc">stdout</span> ptr <span class="opt">(</span>bufferSize <span class="opt">+</span> bufferSize `<span class="kwc">quot</span>` lineLength<span class="opt">)</span>
+  takeMVar prev
+  S<span class="opt">.</span>unsafeWith s <span class="opt">$ \</span>ptr <span class="opt">-&gt;</span>
+    hPutBuf <span class="kwc">stdout</span> ptr <span class="opt">(</span>bufferSize <span class="opt">+</span> bufferSize `<span class="kwc">quot</span>` lineLength<span class="opt">)</span>
+  putMVar <span class="kwc">next</span> <span class="opt">()</span>
   <span class="kwd">where</span>
     loop <span class="opt">::</span> <span class="kwb">Int</span> <span class="opt">-&gt;</span> <span class="kwb">Int</span> <span class="opt">-&gt;</span> <span class="kwb">Int</span> <span class="opt">-&gt;</span> <span class="kwb">IO</span> <span class="opt">()</span>
     loop <span class="num">0</span> <span class="opt">!</span>si <span class="opt">!</span>vi <span class="opt">=</span> S<span class="opt">.</span>unsafeWrite s si <span class="num">10</span> <span class="opt">*&gt;</span> loop lineLength <span class="opt">(</span>si <span class="opt">+</span> <span class="num">1</span><span class="opt">)</span> vi
@@ -202,11 +208,12 @@ printRandomFasta
   <span class="opt">-&gt;</span> <span class="kwb">IO</span> Word32
 printRandomFasta <span class="opt">!</span>p0 <span class="opt">!</span>p1 <span class="opt">!</span>n <span class="opt">!</span>s <span class="opt">=</span> <span class="kwd">do</span>
   ref <span class="opt">&lt;-</span> newIORef n
-  var <span class="opt">&lt;-</span> newMVar s
+  prev <span class="opt">&lt;-</span> newMVar <span class="opt">()</span>
+  var <span class="opt">&lt;-</span> newMVar <span class="opt">(</span>s<span class="opt">,</span> prev<span class="opt">)</span>
   replicateM_ workers <span class="opt">(</span>forkChild <span class="opt">(</span>worker bufferSize p0 p1 var ref<span class="opt">))</span>
   waitForChildren
   <span class="kwc">when</span> <span class="opt">(</span>n `<span class="kwc">rem</span>` lineLength <span class="opt">/=</span> <span class="num">0</span><span class="opt">) (</span><span class="kwc">putStrLn</span> <span class="str">&quot;&quot;</span><span class="opt">)</span>
-  takeMVar var
+  <span class="kwc">fst</span> <span class="opt">&lt;$&gt;</span> takeMVar var
   <span class="kwd">where</span>
     bufferSize <span class="opt">= (</span><span class="kwc">max</span> <span class="opt">(</span>n `<span class="kwc">quot</span>` <span class="opt">(</span><span class="num">100</span> <span class="opt">*</span> lineLength<span class="opt">))</span> <span class="num">100</span><span class="opt">) *</span> lineLength
 
@@ -250,7 +257,7 @@ The Glorious Glasgow Haskell Compilation System,
 version 8.6.5
 
 
-Wed, 10 Jul 2019 15:09:15 GMT
+Wed, 10 Jul 2019 18:08:09 GMT
 
 MAKE:
 mv fasta.ghc-4.ghc fasta.ghc-4.hs
@@ -259,339 +266,10 @@ mv fasta.ghc-4.ghc fasta.ghc-4.hs
 Linking fasta.ghc-4.ghc_run ...
 rm fasta.ghc-4.hs
 
-22.25s to complete and log all make actions
+21.77s to complete and log all make actions
 
 COMMAND LINE:
-./fasta.ghc-4.ghc_run +RTS -N4 -RTS 250000
-
-UNEXPECTED OUTPUT 
-
-9337,9461d9336
-&lt; YaggtcaYtattagVStaccgatgSStMattctWtattHtHaDtatgYaatattgtttta
-&lt; NggttVatcttRcgaNtHaVaStgaagactcacaaatcactgataaKBtNHtttctWWta
-&lt; ttgactacNtaWatataaaBaatBttgggtatYtttYtgttttVttgagtcVaMVgaatN
-&lt; taaNgKMaacgtaatattKWggcagtgRttgtgacactaaYacactggaaKaWYRgcatg
-&lt; cgttctBcttggtVaaWgtttHagtcaatctcggaNWtaatBNcaMVKStaNcMtgatat
-&lt; aatDYMctttcgcatgcYtHtVNgStggagcBtggMgccctgtgNtVatactgcctcHca
-&lt; taDBtaStgNcagaYttaMtcaYtgtagatDaagaHaaaRcRataattcaDtcaDgttgt
-&lt; atRaaaaYaRgtttDBgDcgaagcNttgcVttcacttaMgtMWaYaattcggaDcgaVtY
-&lt; attaBYaaaattaHVttttWaacDttaRaSWactcBgaRctacaVStBaaatRgaacMSa
-&lt; agaatagYtNctcaatagctNttaVtgctgtttgYcttaatgtgMaStactgDBagVSgg
-&lt; tSKMYttDatgtMaaSaVtccSRMgaaaactHaatWWtcatttctDgcMcggVtgtRtca
-&lt; tctttNatcaatatYaKaaaatKWtDDDaaactaagtacRHtcKttacaataggttWctt
-&lt; ataSaYctgctVtaaVggatcctaHVttgWtgHtWttaDHaNgaccctatatgcWtNtta
-&lt; cctaYtttDWtttaggHNgccatattacKggattVatatcRcggRWMtgcaVRaaHgtaa
-&lt; taattttaggtctcDccaatatgSaaaagatDtaaVtYgNaHBtcaYttaaaaacagata
-&lt; taaagttaaaDWccMHMattggtaaagtccgaKtatDKaVHaBagaBatactataVttDt
-&lt; tDaMagctctaaDSggtttgaDacacVatcttNtgatKtVaBStatgNtgDKYcaatcat
-&lt; aWtcNatYccgRtcgBHacaBaatagaVtagcttgaKagcgHtttDNtgaagMttStttt
-&lt; gDDKRWtagtaBgtgagtgBcaDtWtaHcctatHatttgttWgagcggDtgtRDRcaaat
-&lt; agcacacRtDgtgVaWtaattRacVataBWacSYWVctgYtWDaVtaKataaacttKaaa
-&lt; MVHaaaaKNtaaacttgVataaaatMaaatMaagtatcaaRtatSYRtBtaataattgtt
-&lt; tgaWtaNNtctcaatNaataaaaaaattgaaaattattgtgttaaYatccccHtaNcatt
-&lt; cacttttaMgVDtaDMtcaWSgYWcSYtSgaatHtgctagaVattaBtaaaYgatattcg
-&lt; aaBtgaaDacacatRaagcgggagggDMtatDttaatttggaKSNtactRMttactgtBg
-&lt; gcgtcatNttctattaVacgttccKtVttMacttWtctaYcacgtaVtaaRgKcttggat
-&lt; SYatattttgttacaaMgtgagagaSatattWcagDttggNtNaaYtaggaaKtYHcttg
-&lt; KattWagNgtaagHHVatYatcattaaaaaYtHgttcaaaataattatBgcaKWKtagaa
-&lt; tagtatBagaaMtattMagaMtHcWgYcacgttagtgtDNggctatNatRcYYHtaacMa
-&lt; SStattRagRcgataaaatWNNatgaaatttVtKcRtKtDtaaMcctccaDRcaHtBSWc
-&lt; YtaKttcacaaMaataaMaactccgSgtYattDtaWctagatBtaatSgatgatHKgttg
-&lt; caaaaagaScHtgaaHRDatSagatcBcggcatcatYVaatgMaatStgNgWaaaaMttg
-&lt; cYaaagttSHaYgaaatHattBgtaaMRagSaSacBaagtttttcatgttaaYcagYtgK
-&lt; tYctaStcaagcgtaVattaNatWtHgtHKNDtcNaKaVaStSacaaStttagaaataat
-&lt; gcDSatgtaKtgMMtcaaagtNattacMYgtgctNgVcaaNcDtaaaVtYggtaaaactg
-&lt; caagaWNcaaacctDSaaSgVaKtctcatataMtggBtaRttKtagRcctgttaHgWRaa
-&lt; ttgDaaatttHtaccagctcagaccKaaBctaagtatWtaVagBgtttatgaHaaggatt
-&lt; StaactWacKDVtMHccgtacaMWYctDtagatttRctaccRagtWcWgaaaaMcagttc
-&lt; tgacSctaaaactgaatcacaNcaMWtWccYgtttNaatttggttaaNtggttSattttc
-&lt; aacgYVccMtcgaactBtatcYttcYDVMttcgattaKWtatttagcaatatcagWatgc
-&lt; RVaatgRtacWaVVBttggatRtaNgRagttDYataacDVBcaaactttgtttgaccata
-&lt; gHMtRctaWcgacagtgcVcaaVgRgtaagtRaaaattSBKacBaatcagaatgtHattc
-&lt; aVRtatVSSaKatNataWRVaaagMaacataDgataWHatcNYcMtatttggaSatttcH
-&lt; cgacaYcaKaaatattacHcSaBVatHacactaMDataaaggcacaacaSacctgtaaRg
-&lt; tcccaaaatWtDtagtcaagNtttgatDacDgcagaDcWgatDaaKagctDWtttatatW
-&lt; gDcaaaWttStDtKtatSagVgaaKtaacgaccgMgaSaatRRcagYtgttNDggcHSca
-&lt; aYDWtcaacgtaHgaStKtgMtRtaatccagtDaaacHgtacaaccHtagataNaattat
-&lt; cVtgaKaaNaaaaaaaagttgMgtcRaNaacagtaKcaBgtttgaMDgDMacttattatg
-&lt; aDgagcgtcacaaRaagtYaggMtaaactagaacagVaMWataggtatHagtttaaHtca
-&lt; gtaaatgRgcatgRctgaMttBaaataagWVtcHctgtgtYaaaaVtKtaSaaBatMttt
-&lt; gttatattattcaaBYctBWtggatBtgaggDagtgcacVataRBctaBaaaataatttt
-&lt; tNggtccgtVaaaaataaattBHaatBaagaHgttaagcctaatcaaatgaYtKaatYta
-&lt; aggtMgaRggtWgggNactaacgaRaaattSttWtaataaVtHgtacttNtaagHaSacg
-&lt; WggaYggNStcctgacgDcgHggtttHggtNtMtttDatNDgtgacgtatacgatKatat
-&lt; aaacaattSaaagcagatKtttSagcaaMttttgaKtMtagtcRacctKSttBttaatMt
-&lt; gcgttacaaagaVaataattcaSaaWcBVacYKtacaNBaaKRtRtcgWtWBaRKVtYWW
-&lt; WgattgBctaaatKaattaYtMtSBMBHDtBtaggDtcNctWYagtgSaaBaVtcttNgt
-&lt; cgttHtgtMtctatKtatVggKaSaagtttattttatgtactactHtHttSMactatHca
-&lt; agaattVataaaMKNtaMccgtgatDaHcaacttRataacaNgaatcSBtatgacBcctc
-&lt; gggtaatWaaWtacacaattctRVgattctatgtgtatHagatagggacVaattttDtNa
-&lt; WKagtatatHtagacgaggtatgtcagtgagHccccaatNataKMBaHtcWgctagtgHa
-&lt; atBatSataDatatcacccaagattttcSatKgatWtgaagtcBMataaHaaMaattatg
-&lt; cttWWtttcgVKYNBattggtacttcaaMaVNcctcHatcgctVcttKatgtctctBMgg
-&lt; acatcaggacSgaKttgagtctKVYaaagtaaSgaaaHaWactgRattaaBttVaHtgga
-&lt; ttagRWtaaDaaatgatttSMBWMaDactScgRYtgaVagNctgtSBataKacStHRatc
-&lt; tVgBKaggccaRctaacttcYKtcaDcttgaaacBBataatacYMgWgctgtacttttat
-&lt; gaSaaatYcccgattattRStccaaaBagaacaaaVtttgcttatagaaacacScccSaN
-&lt; taaaaBgtaaggcDgtSttRatMYSWatcgtaacgtStBagttaVaaaScccSggaMDBS
-&lt; gcaaKaggatatacgtatgcWactccgVctNttMaYtaaatKaaatgKStaaaHaKatat
-&lt; gBtcctatgtVaBggaatBcgcaatgagtatHcYagctDgtWaaccagtatWWtaRtKag
-&lt; atagtgKatatgaaaggcaWgtNKaaagataWaatHaaaaaKMaaatttBtatHtctNac
-&lt; tKtBVVagtatcacgtMgtgttaKtaatcgaaMHtYKNcMaatgcaSaaDBaaaaagaWa
-&lt; DtWMgaacatttDcatttaBaBtDttaaSMtcagcttttRWWaataattcNctactWaat
-&lt; NaBaattaagaaacttYRHaccatatKtaKcNVgttYagttBtaaaaVtctcgVctagct
-&lt; cgSVatatagVtMcaaHRctaHStttNtcattRaatgtaRtgttaatYtaagcattgaat
-&lt; ttaKtctaKKgaaggtcgMctttcWaagcgWaKcttcYttgtgaRaagMtDatgWgYaat
-&lt; aKaatSWScatKBtYgtaagagaVcacgctHStaacaSgBtgtaNRYaaWtWcKgaccDt
-&lt; gaWtgagMaYgVVgBaRacYtcKgatcagttgtaKcgttgagNaStctggaatVtactaS
-&lt; NtaaagtaatcaattaaVaaDattHDBaHKDHctVggcaaacccKMaatVtgttacBcct
-&lt; StgBgMtScgaaHcatgctMtStaVttttcDaNagtDVaatYcggaDaYtaactaNgtcc
-&lt; aattSacaaaaRgtagaaKgtcRSNtgatBacccttMtactatKgtaaRMagataMatgV
-&lt; tVKagaRagtcagMgMaatRHNttagaagaatgggaatcHtttttSgtNgYatgtgcYta
-&lt; atgDctMaaaMccVScgcRgKNaaagtaMtacaKaMNaBatagBttttcttttYatataN
-&lt; aWcagatttgMtgaaacaBYtHaaatgtaDactatttNatttKttSattgBatSRtgKHt
-&lt; tacgattgcggtaaaaacHHtaNgMcgHaVDtgtagaagatBaaagDttaacSatttaat
-&lt; ttaccagatataattggVgaRctRtcgccVatRNtDgcagBcVaHtBaatDttatgKRKa
-&lt; gataaRgcagtaKgagttatatcaMSagttccRcttaaatgatcttataaacaaatttcc
-&lt; cttaBaWtagtagttMaacMaKaaaagHatYKactttRatgtctcgattBcSagaDKttt
-&lt; HtBaccttNttVttVVtggttacgtaaBMRgatcgtctacaaNBtaVggttYaaggattc
-&lt; caNgRgtagBtgtaBacaagtataaatBaaatKRtaMtKHgatcgYggDSgKRaSttHSt
-&lt; catgtatatWacacRacHcatYtttaacYatatgtgttNtgcSagDHgataYttNattat
-&lt; cVattcaaYttggtaRHtWtcgaBacgtttaBaccaBaatgtcgcNagaNtKtaDtgDta
-&lt; tgDaBtcKgtBgatacNaccDDatttYtKggMtYNtaactgVacattaaHgMttatcgtH
-&lt; MNtataBtKSgccaVttaBcttattcBaagtgaWtaRtcctDVRatgaattgatatgaWg
-&lt; ccacDaatKaHtttacatNttaWNWgtacaggctacttBaYaaatatacaaaatttcgNH
-&lt; gMgttHctcKYcttgMtaacBaDVtaatttacagaRttttttagcKagtKactatMRtgt
-&lt; DtaattccRcaaKSttagttttBtctatagaKaVttttgcNagtKVccttagRgWaNaKW
-&lt; ttataDgcgaatgMKatgatRcYtctgVagaccgcgVgactagaWaaHNtcRNRKaatac
-&lt; tcYaNtSDKtcVVggNgDagtttaaKRgttaDcgtNNgtcaYttggtttYtatgtaaagg
-&lt; attttagatattKMcatgYaaatcaVactcagagtRYtgtaactatagtBaDtVaWatDa
-&lt; tctataaaSgggtactaYaKKWagaaaaataaattatagRcaaaVataVagatatgtagg
-&lt; cWagacRWattctgacgcDtaBcYattgtaDggMatgagcgagaggctaaatVtctcagR
-&lt; agDtSgKNcgtVcStacatttagNtgatSNgatcYVtHattHtBgMacRaattaHBacRc
-&lt; NaaccctVaaYaattcVccatacKcttSagtctgKMNagRaNcatNgcgHattStSKYRg
-&lt; gtcagtcaccattttagtMaccctggVattHaatVagaaMaattaVacatacacaaatta
-&lt; attacgtKtagaaaMgatWgWccatYtagacKatctKatMcggYcgcatgHRtcStVtaa
-&lt; tHgSaaaVagtgaatgtgYtattaYcRagatgatcataacacSgaYaactMKttatRcga
-&lt; ataaMSatacNgaMatttcggccacgaYYMcaKattRagDtRtatMVBtaattWtMHgNa
-&lt; WDgStaaSNggStcBcVYtaYagaHtacagttccMcgtYtYttcattgSWcttagttcgt
-&lt; HtgVRYgaMacttBtatcaactaaaaVtDgataaDgtatcatYDttaStgccBacctaaB
-&lt; agttgRtaSBtaaaagWgcacBggttagcMaYatttBgtaggtRBaSagttcacgtaDaY
-&lt; aaaacDSaKattctgtSatatgtatggVBcctctgtgaaHDKgttaRttttBMHgRMgHa
-&lt; gtagMgacgaagttaatattgRtHtHttatYaaagcagatgtgattagtggcactactVa
-&lt; ttagatctctgtttatcattYttgatHcHttagStgatgactctDaaatcagtgttgttt
-&lt; ttcYaaagtatatcYcaSaacaVttcgWtatKaaaHWtRgtttaKacttctgaaNaYacc
-&lt; tNtcStatttaaagttKgtgatcctBcaBtctttaaaKagttgDtWctDtgtgctataKa
-&lt; gtaNHatctagYgatcMgtggYaagactgacacttaRaaccHgttcaYtagWtggtgBcS
-&lt; tacaMcMHataaaNagatactccaggagttaatcatRttttgaKNgSgcaggtgttRaYc
-&lt; aaataBtaDtatHgBtatacKaataKtaggaaatatgcataaHgaKttttatMaaaNgMa
-&lt; tYattgaatNtatVaggtKctttHattcatttatYtattagtataYtttagYcattagaa
-&lt; ataHtaaccttactcatYttHMRagttctDagNSVgcgVaNNattctVcaaVagaattta
-&lt; agaggttttacRagtagtaaaBaBaaMtaScKgVaRcNtctgtataagtatVgtDgHaYt
-&lt; tcHYttaagatRgtgaattctYaaaattRtcWtacDDaRatcaKtaSacaagctaNttRY
-&lt; agMSDKtWgWaYNgaaaatatNtaatatHMtMWRaRacaaaatgctgctacNKaKtagtt
-&lt; gVatDaVccatSDtgaSggcgWatccBgaaVtgtaWttagatVaBWtacgWtaYattaaa
-&lt; tMctDgDaaKatttgaaatgctWctttaHtggHaBBSRVBWtgattgagatccNcaaaHt
-9586a9462,9586
-&gt; YaggtcaYtattagVStaccgatgSStMattctWtattHtHaDtatgYaatattgtttta
-&gt; NggttVatcttRcgaNtHaVaStgaagactcacaaatcactgataaKBtNHtttctWWta
-&gt; ttgactacNtaWatataaaBaatBttgggtatYtttYtgttttVttgagtcVaMVgaatN
-&gt; taaNgKMaacgtaatattKWggcagtgRttgtgacactaaYacactggaaKaWYRgcatg
-&gt; cgttctBcttggtVaaWgtttHagtcaatctcggaNWtaatBNcaMVKStaNcMtgatat
-&gt; aatDYMctttcgcatgcYtHtVNgStggagcBtggMgccctgtgNtVatactgcctcHca
-&gt; taDBtaStgNcagaYttaMtcaYtgtagatDaagaHaaaRcRataattcaDtcaDgttgt
-&gt; atRaaaaYaRgtttDBgDcgaagcNttgcVttcacttaMgtMWaYaattcggaDcgaVtY
-&gt; attaBYaaaattaHVttttWaacDttaRaSWactcBgaRctacaVStBaaatRgaacMSa
-&gt; agaatagYtNctcaatagctNttaVtgctgtttgYcttaatgtgMaStactgDBagVSgg
-&gt; tSKMYttDatgtMaaSaVtccSRMgaaaactHaatWWtcatttctDgcMcggVtgtRtca
-&gt; tctttNatcaatatYaKaaaatKWtDDDaaactaagtacRHtcKttacaataggttWctt
-&gt; ataSaYctgctVtaaVggatcctaHVttgWtgHtWttaDHaNgaccctatatgcWtNtta
-&gt; cctaYtttDWtttaggHNgccatattacKggattVatatcRcggRWMtgcaVRaaHgtaa
-&gt; taattttaggtctcDccaatatgSaaaagatDtaaVtYgNaHBtcaYttaaaaacagata
-&gt; taaagttaaaDWccMHMattggtaaagtccgaKtatDKaVHaBagaBatactataVttDt
-&gt; tDaMagctctaaDSggtttgaDacacVatcttNtgatKtVaBStatgNtgDKYcaatcat
-&gt; aWtcNatYccgRtcgBHacaBaatagaVtagcttgaKagcgHtttDNtgaagMttStttt
-&gt; gDDKRWtagtaBgtgagtgBcaDtWtaHcctatHatttgttWgagcggDtgtRDRcaaat
-&gt; agcacacRtDgtgVaWtaattRacVataBWacSYWVctgYtWDaVtaKataaacttKaaa
-&gt; MVHaaaaKNtaaacttgVataaaatMaaatMaagtatcaaRtatSYRtBtaataattgtt
-&gt; tgaWtaNNtctcaatNaataaaaaaattgaaaattattgtgttaaYatccccHtaNcatt
-&gt; cacttttaMgVDtaDMtcaWSgYWcSYtSgaatHtgctagaVattaBtaaaYgatattcg
-&gt; aaBtgaaDacacatRaagcgggagggDMtatDttaatttggaKSNtactRMttactgtBg
-&gt; gcgtcatNttctattaVacgttccKtVttMacttWtctaYcacgtaVtaaRgKcttggat
-&gt; SYatattttgttacaaMgtgagagaSatattWcagDttggNtNaaYtaggaaKtYHcttg
-&gt; KattWagNgtaagHHVatYatcattaaaaaYtHgttcaaaataattatBgcaKWKtagaa
-&gt; tagtatBagaaMtattMagaMtHcWgYcacgttagtgtDNggctatNatRcYYHtaacMa
-&gt; SStattRagRcgataaaatWNNatgaaatttVtKcRtKtDtaaMcctccaDRcaHtBSWc
-&gt; YtaKttcacaaMaataaMaactccgSgtYattDtaWctagatBtaatSgatgatHKgttg
-&gt; caaaaagaScHtgaaHRDatSagatcBcggcatcatYVaatgMaatStgNgWaaaaMttg
-&gt; cYaaagttSHaYgaaatHattBgtaaMRagSaSacBaagtttttcatgttaaYcagYtgK
-&gt; tYctaStcaagcgtaVattaNatWtHgtHKNDtcNaKaVaStSacaaStttagaaataat
-&gt; gcDSatgtaKtgMMtcaaagtNattacMYgtgctNgVcaaNcDtaaaVtYggtaaaactg
-&gt; caagaWNcaaacctDSaaSgVaKtctcatataMtggBtaRttKtagRcctgttaHgWRaa
-&gt; ttgDaaatttHtaccagctcagaccKaaBctaagtatWtaVagBgtttatgaHaaggatt
-&gt; StaactWacKDVtMHccgtacaMWYctDtagatttRctaccRagtWcWgaaaaMcagttc
-&gt; tgacSctaaaactgaatcacaNcaMWtWccYgtttNaatttggttaaNtggttSattttc
-&gt; aacgYVccMtcgaactBtatcYttcYDVMttcgattaKWtatttagcaatatcagWatgc
-&gt; RVaatgRtacWaVVBttggatRtaNgRagttDYataacDVBcaaactttgtttgaccata
-&gt; gHMtRctaWcgacagtgcVcaaVgRgtaagtRaaaattSBKacBaatcagaatgtHattc
-&gt; aVRtatVSSaKatNataWRVaaagMaacataDgataWHatcNYcMtatttggaSatttcH
-&gt; cgacaYcaKaaatattacHcSaBVatHacactaMDataaaggcacaacaSacctgtaaRg
-&gt; tcccaaaatWtDtagtcaagNtttgatDacDgcagaDcWgatDaaKagctDWtttatatW
-&gt; gDcaaaWttStDtKtatSagVgaaKtaacgaccgMgaSaatRRcagYtgttNDggcHSca
-&gt; aYDWtcaacgtaHgaStKtgMtRtaatccagtDaaacHgtacaaccHtagataNaattat
-&gt; cVtgaKaaNaaaaaaaagttgMgtcRaNaacagtaKcaBgtttgaMDgDMacttattatg
-&gt; aDgagcgtcacaaRaagtYaggMtaaactagaacagVaMWataggtatHagtttaaHtca
-&gt; gtaaatgRgcatgRctgaMttBaaataagWVtcHctgtgtYaaaaVtKtaSaaBatMttt
-&gt; gttatattattcaaBYctBWtggatBtgaggDagtgcacVataRBctaBaaaataatttt
-&gt; tNggtccgtVaaaaataaattBHaatBaagaHgttaagcctaatcaaatgaYtKaatYta
-&gt; aggtMgaRggtWgggNactaacgaRaaattSttWtaataaVtHgtacttNtaagHaSacg
-&gt; WggaYggNStcctgacgDcgHggtttHggtNtMtttDatNDgtgacgtatacgatKatat
-&gt; aaacaattSaaagcagatKtttSagcaaMttttgaKtMtagtcRacctKSttBttaatMt
-&gt; gcgttacaaagaVaataattcaSaaWcBVacYKtacaNBaaKRtRtcgWtWBaRKVtYWW
-&gt; WgattgBctaaatKaattaYtMtSBMBHDtBtaggDtcNctWYagtgSaaBaVtcttNgt
-&gt; cgttHtgtMtctatKtatVggKaSaagtttattttatgtactactHtHttSMactatHca
-&gt; agaattVataaaMKNtaMccgtgatDaHcaacttRataacaNgaatcSBtatgacBcctc
-&gt; gggtaatWaaWtacacaattctRVgattctatgtgtatHagatagggacVaattttDtNa
-&gt; WKagtatatHtagacgaggtatgtcagtgagHccccaatNataKMBaHtcWgctagtgHa
-&gt; atBatSataDatatcacccaagattttcSatKgatWtgaagtcBMataaHaaMaattatg
-&gt; cttWWtttcgVKYNBattggtacttcaaMaVNcctcHatcgctVcttKatgtctctBMgg
-&gt; acatcaggacSgaKttgagtctKVYaaagtaaSgaaaHaWactgRattaaBttVaHtgga
-&gt; ttagRWtaaDaaatgatttSMBWMaDactScgRYtgaVagNctgtSBataKacStHRatc
-&gt; tVgBKaggccaRctaacttcYKtcaDcttgaaacBBataatacYMgWgctgtacttttat
-&gt; gaSaaatYcccgattattRStccaaaBagaacaaaVtttgcttatagaaacacScccSaN
-&gt; taaaaBgtaaggcDgtSttRatMYSWatcgtaacgtStBagttaVaaaScccSggaMDBS
-&gt; gcaaKaggatatacgtatgcWactccgVctNttMaYtaaatKaaatgKStaaaHaKatat
-&gt; gBtcctatgtVaBggaatBcgcaatgagtatHcYagctDgtWaaccagtatWWtaRtKag
-&gt; atagtgKatatgaaaggcaWgtNKaaagataWaatHaaaaaKMaaatttBtatHtctNac
-&gt; tKtBVVagtatcacgtMgtgttaKtaatcgaaMHtYKNcMaatgcaSaaDBaaaaagaWa
-&gt; DtWMgaacatttDcatttaBaBtDttaaSMtcagcttttRWWaataattcNctactWaat
-&gt; NaBaattaagaaacttYRHaccatatKtaKcNVgttYagttBtaaaaVtctcgVctagct
-&gt; cgSVatatagVtMcaaHRctaHStttNtcattRaatgtaRtgttaatYtaagcattgaat
-&gt; ttaKtctaKKgaaggtcgMctttcWaagcgWaKcttcYttgtgaRaagMtDatgWgYaat
-&gt; aKaatSWScatKBtYgtaagagaVcacgctHStaacaSgBtgtaNRYaaWtWcKgaccDt
-&gt; gaWtgagMaYgVVgBaRacYtcKgatcagttgtaKcgttgagNaStctggaatVtactaS
-&gt; NtaaagtaatcaattaaVaaDattHDBaHKDHctVggcaaacccKMaatVtgttacBcct
-&gt; StgBgMtScgaaHcatgctMtStaVttttcDaNagtDVaatYcggaDaYtaactaNgtcc
-&gt; aattSacaaaaRgtagaaKgtcRSNtgatBacccttMtactatKgtaaRMagataMatgV
-&gt; tVKagaRagtcagMgMaatRHNttagaagaatgggaatcHtttttSgtNgYatgtgcYta
-&gt; atgDctMaaaMccVScgcRgKNaaagtaMtacaKaMNaBatagBttttcttttYatataN
-&gt; aWcagatttgMtgaaacaBYtHaaatgtaDactatttNatttKttSattgBatSRtgKHt
-&gt; tacgattgcggtaaaaacHHtaNgMcgHaVDtgtagaagatBaaagDttaacSatttaat
-&gt; ttaccagatataattggVgaRctRtcgccVatRNtDgcagBcVaHtBaatDttatgKRKa
-&gt; gataaRgcagtaKgagttatatcaMSagttccRcttaaatgatcttataaacaaatttcc
-&gt; cttaBaWtagtagttMaacMaKaaaagHatYKactttRatgtctcgattBcSagaDKttt
-&gt; HtBaccttNttVttVVtggttacgtaaBMRgatcgtctacaaNBtaVggttYaaggattc
-&gt; caNgRgtagBtgtaBacaagtataaatBaaatKRtaMtKHgatcgYggDSgKRaSttHSt
-&gt; catgtatatWacacRacHcatYtttaacYatatgtgttNtgcSagDHgataYttNattat
-&gt; cVattcaaYttggtaRHtWtcgaBacgtttaBaccaBaatgtcgcNagaNtKtaDtgDta
-&gt; tgDaBtcKgtBgatacNaccDDatttYtKggMtYNtaactgVacattaaHgMttatcgtH
-&gt; MNtataBtKSgccaVttaBcttattcBaagtgaWtaRtcctDVRatgaattgatatgaWg
-&gt; ccacDaatKaHtttacatNttaWNWgtacaggctacttBaYaaatatacaaaatttcgNH
-&gt; gMgttHctcKYcttgMtaacBaDVtaatttacagaRttttttagcKagtKactatMRtgt
-&gt; DtaattccRcaaKSttagttttBtctatagaKaVttttgcNagtKVccttagRgWaNaKW
-&gt; ttataDgcgaatgMKatgatRcYtctgVagaccgcgVgactagaWaaHNtcRNRKaatac
-&gt; tcYaNtSDKtcVVggNgDagtttaaKRgttaDcgtNNgtcaYttggtttYtatgtaaagg
-&gt; attttagatattKMcatgYaaatcaVactcagagtRYtgtaactatagtBaDtVaWatDa
-&gt; tctataaaSgggtactaYaKKWagaaaaataaattatagRcaaaVataVagatatgtagg
-&gt; cWagacRWattctgacgcDtaBcYattgtaDggMatgagcgagaggctaaatVtctcagR
-&gt; agDtSgKNcgtVcStacatttagNtgatSNgatcYVtHattHtBgMacRaattaHBacRc
-&gt; NaaccctVaaYaattcVccatacKcttSagtctgKMNagRaNcatNgcgHattStSKYRg
-&gt; gtcagtcaccattttagtMaccctggVattHaatVagaaMaattaVacatacacaaatta
-&gt; attacgtKtagaaaMgatWgWccatYtagacKatctKatMcggYcgcatgHRtcStVtaa
-&gt; tHgSaaaVagtgaatgtgYtattaYcRagatgatcataacacSgaYaactMKttatRcga
-&gt; ataaMSatacNgaMatttcggccacgaYYMcaKattRagDtRtatMVBtaattWtMHgNa
-&gt; WDgStaaSNggStcBcVYtaYagaHtacagttccMcgtYtYttcattgSWcttagttcgt
-&gt; HtgVRYgaMacttBtatcaactaaaaVtDgataaDgtatcatYDttaStgccBacctaaB
-&gt; agttgRtaSBtaaaagWgcacBggttagcMaYatttBgtaggtRBaSagttcacgtaDaY
-&gt; aaaacDSaKattctgtSatatgtatggVBcctctgtgaaHDKgttaRttttBMHgRMgHa
-&gt; gtagMgacgaagttaatattgRtHtHttatYaaagcagatgtgattagtggcactactVa
-&gt; ttagatctctgtttatcattYttgatHcHttagStgatgactctDaaatcagtgttgttt
-&gt; ttcYaaagtatatcYcaSaacaVttcgWtatKaaaHWtRgtttaKacttctgaaNaYacc
-&gt; tNtcStatttaaagttKgtgatcctBcaBtctttaaaKagttgDtWctDtgtgctataKa
-&gt; gtaNHatctagYgatcMgtggYaagactgacacttaRaaccHgttcaYtagWtggtgBcS
-&gt; tacaMcMHataaaNagatactccaggagttaatcatRttttgaKNgSgcaggtgttRaYc
-&gt; aaataBtaDtatHgBtatacKaataKtaggaaatatgcataaHgaKttttatMaaaNgMa
-&gt; tYattgaatNtatVaggtKctttHattcatttatYtattagtataYtttagYcattagaa
-&gt; ataHtaaccttactcatYttHMRagttctDagNSVgcgVaNNattctVcaaVagaattta
-&gt; agaggttttacRagtagtaaaBaBaaMtaScKgVaRcNtctgtataagtatVgtDgHaYt
-&gt; tcHYttaagatRgtgaattctYaaaattRtcWtacDDaRatcaKtaSacaagctaNttRY
-&gt; agMSDKtWgWaYNgaaaatatNtaatatHMtMWRaRacaaaatgctgctacNKaKtagtt
-&gt; gVatDaVccatSDtgaSggcgWatccBgaaVtgtaWttagatVaBWtacgWtaYattaaa
-&gt; tMctDgDaaKatttgaaatgctWctttaHtggHaBBSRVBWtgattgagatccNcaaaHt
-41430,41463c41430
-&lt; tgactccaagtttcgtcaaaaacgccccctcccttctcgagcccactcacgctatgtatt
-&lt; gacgcgaacttgttcgggatcagacttttcaggagttcggtcgcgtgtccctatgtgcta
-&lt; atatataagttagatcgcattagatgctaatctgaatacttatagacgaccttcaacgag
-&lt; aacgggtaccaccttgaggctagagttaggtgtgaaacgacaggtagggacatataaaat
-&lt; ttgagtgcggctttagttaagggtttaattacctactcaaacatcacgctcgcgcccttc
-&lt; gtacgtaatcgaccatctagaggctaaggggactgtactaggtagtgattaatgatatcc
-&lt; tagacgcacgtgccttagatcttcagactctgatggtccgcgatcaccgtaattgtagtc
-&lt; ctccaactcgatcactttgttggcgtcaaagaaattacgatatctaaatacttataatac
-&lt; aataaccaaggatgagaatgactcatcgcgttggagttatattgcttgaagttctatgga
-&lt; atgaaagcacgttatctgccgtcccaatatctccagtgagctaattcattggacggtcca
-&lt; ctttgatcaatccccgaggagatgttcggacactttagtctgtaacacttagcgttgaga
-&lt; ccacgaacaattgattactcagtcttgaaggtgttttccaaagttcattttaaataagac
-&lt; tacgataggcctttcctattgatataaactacccggctctgttgttcgtgtgagtcgtac
-&lt; ttctctgtgtttttctgattatagcaagattcgattcttagtgtaaacagcgatttttat
-&lt; ttgacccgtcaatgagaagcgcataggatctaagcaaaattatcaagttgtgccacaagg
-&lt; taagatctttccagttattgcaggtaggatgtatcccacgttgatagtatgaggtctgac
-&lt; gtcaactgtctaggagagttgaccgcgtgcgggtacaccggatttgcatcgatgttgaga
-&lt; acgcagaactcccactgtcgtggcggcgttcctgatatttagcaagaggcgttgataaag
-&lt; ccctcatcatctagatctcgacctcatctgccctcttgctccatcattttctacacagac
-&lt; tactttcctatctacgttagtataattgctttctatcttagtatcatttagagcttctcc
-&lt; gtcaacaggttcgtgctattaaagttagtacgaaagggacaacttgtagcaacgcattta
-&lt; atcggttttcgactacttcgcacaaaatcagataaagaagtttgtcattctattagacat
-&lt; tgaattgcgcaattgacttgtaccacttatgatcgaacactgaatcaagactgtgattaa
-&lt; ctaaaatagacaagccactatatcaactaataaaaacgcccctggtggtcgaacatagtt
-&lt; gactacaggataattaattggactggagccattacattctctacaatcgtatcacttccc
-&lt; aagtagacaactttgaccttgtagtttcatgtacaaaaaaatgctttcgcaggagcacat
-&lt; tggtagttcaatagtttcatgggaacctcttgagccgtcttctgtgggtgtgttcggata
-&lt; gtaggtactgataaagtcgtgtcgctttcgatgagagggaattcaccggaaaacaccttg
-&lt; gttaacaggatagtctatgtaaacttcgagacatgtttaagagttaccagcttaatccac
-&lt; ggtgctctactagtatcatcagctgtcttgcctcgcctagaaatatgcattctatcgtta
-&lt; tcctatcaacggttgccgtactgagcagccttattgtggaagagtaatatataaatgtag
-&lt; tcttgtctttacgaagcagacgtaagtaataatgacttggaataccaaaactaaacatag
-&lt; tggattatcatactcaagaactctccagataaataacagtttttacgatacgtcaccaat
-&lt; gagcttaaagattaggatccaagtttgtagttcgcttctttagtccgggcgtttgggatgacaactactatacgtagagc
----
-&gt; aagtttgtagttcgcttctttagtccgggcgtttgggatgacaactactatacgtagagc
-41671c41638,41671
-&lt; 
----
-&gt; tgactccaagtttcgtcaaaaacgccccctcccttctcgagcccactcacgctatgtatt
-&gt; gacgcgaacttgttcgggatcagacttttcaggagttcggtcgcgtgtccctatgtgcta
-&gt; atatataagttagatcgcattagatgctaatctgaatacttatagacgaccttcaacgag
-&gt; aacgggtaccaccttgaggctagagttaggtgtgaaacgacaggtagggacatataaaat
-&gt; ttgagtgcggctttagttaagggtttaattacctactcaaacatcacgctcgcgcccttc
-&gt; gtacgtaatcgaccatctagaggctaaggggactgtactaggtagtgattaatgatatcc
-&gt; tagacgcacgtgccttagatcttcagactctgatggtccgcgatcaccgtaattgtagtc
-&gt; ctccaactcgatcactttgttggcgtcaaagaaattacgatatctaaatacttataatac
-&gt; aataaccaaggatgagaatgactcatcgcgttggagttatattgcttgaagttctatgga
-&gt; atgaaagcacgttatctgccgtcccaatatctccagtgagctaattcattggacggtcca
-&gt; ctttgatcaatccccgaggagatgttcggacactttagtctgtaacacttagcgttgaga
-&gt; ccacgaacaattgattactcagtcttgaaggtgttttccaaagttcattttaaataagac
-&gt; tacgataggcctttcctattgatataaactacccggctctgttgttcgtgtgagtcgtac
-&gt; ttctctgtgtttttctgattatagcaagattcgattcttagtgtaaacagcgatttttat
-&gt; ttgacccgtcaatgagaagcgcataggatctaagcaaaattatcaagttgtgccacaagg
-&gt; taagatctttccagttattgcaggtaggatgtatcccacgttgatagtatgaggtctgac
-&gt; gtcaactgtctaggagagttgaccgcgtgcgggtacaccggatttgcatcgatgttgaga
-&gt; acgcagaactcccactgtcgtggcggcgttcctgatatttagcaagaggcgttgataaag
-&gt; ccctcatcatctagatctcgacctcatctgccctcttgctccatcattttctacacagac
-&gt; tactttcctatctacgttagtataattgctttctatcttagtatcatttagagcttctcc
-&gt; gtcaacaggttcgtgctattaaagttagtacgaaagggacaacttgtagcaacgcattta
-&gt; atcggttttcgactacttcgcacaaaatcagataaagaagtttgtcattctattagacat
-&gt; tgaattgcgcaattgacttgtaccacttatgatcgaacactgaatcaagactgtgattaa
-&gt; ctaaaatagacaagccactatatcaactaataaaaacgcccctggtggtcgaacatagtt
-&gt; gactacaggataattaattggactggagccattacattctctacaatcgtatcacttccc
-&gt; aagtagacaactttgaccttgtagtttcatgtacaaaaaaatgctttcgcaggagcacat
-&gt; tggtagttcaatagtttcatgggaacctcttgagccgtcttctgtgggtgtgttcggata
-&gt; gtaggtactgataaagtcgtgtcgctttcgatgagagggaattcaccggaaaacaccttg
-&gt; gttaacaggatagtctatgtaaacttcgagacatgtttaagagttaccagcttaatccac
-&gt; ggtgctctactagtatcatcagctgtcttgcctcgcctagaaatatgcattctatcgtta
-&gt; tcctatcaacggttgccgtactgagcagccttattgtggaagagtaatatataaatgtag
-&gt; tcttgtctttacgaagcagacgtaagtaataatgacttggaataccaaaactaaacatag
-&gt; tggattatcatactcaagaactctccagataaataacagtttttacgatacgtcaccaat
-&gt; gagcttaaagattaggatcc
+./fasta.ghc-4.ghc_run +RTS -N4 -RTS 25000000
 
 (TRUNCATED) PROGRAM OUTPUT:
 &gt;ONE Homo sapiens alu
