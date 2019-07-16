@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,follow,noarchive">
+
+<title>regex-redux Haskell GHC program | Computer Language Benchmarks Game </title>
+<style><!--
+a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,header{margin:auto;width:92%}body{font:100% Droid Sans, Ubuntu, Verdana, sans-serif;margin:0;-webkit-text-size-adjust:100%}h3, h1, h2, li a{font-family:Ubuntu Mono,Consolas,Menlo,monospace}div,footer,header{max-width:31em}footer{padding:2.6em 0 0}h3{font-size:1.4em;font-weight:bold;margin:0;padding: .4em}h3, h3 a{color:white;background-color:#dd4814}h3 small{font-size:0.64em}h1,h2{margin:1.5em 0 0}h1{font-size:1.4em;font-weight:normal}h2{font-size:1.2em}li{list-style-type:none;vertical-align:top}li a{display:block;font-size:1.2em;margin: .5em .5em 0;padding: .5em .5em .3em}ul{clear:left;margin:-0.3em 0 1.5em;padding-left:0;text-align:center}p{color:#333;line-height:1.4;margin: .3em 0 0}p a, a span{border-bottom: .1em solid #333;padding-bottom: .1em}.com,.slc{color:#888}.kwa{color:#066}.kwb{color:#900}.kwc{color:#050}.kwa,.kwb,.kwc{font-weight:bold}.dstr,.str,.sym,.num{color:#930}pre{color:#222;font-size:1em;overflow-wrap:break-word;white-space:pre-wrap;word-wrap:break-word}@media only screen and (min-width: 60em){article,footer,header{font-size:1.25em}}
+--></style>
+<link rel="shortcut icon" href="./favicon.ico">
+<header>
+  <h3><a href="https://benchmarksgame-team.pages.debian.net/benchmarksgame/">The&nbsp;<small>Computer&nbsp;Language</small><br>Benchmarks&nbsp;Game</a></h3>
+</header>
+<article>
+  <div>
+    <h1>regex-redux Haskell GHC program</h1>
+    <aside>
+      <p><a href="../description/regexredux.html#regexredux">description</a>
+    </aside>
+  </div>
+  <section>
+    </div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc">-- The Computer Language Benchmarks Game</span>
+<span class="slc">-- https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">--</span>
+<span class="slc">-- based on Daniel Jones&apos; Julia implementation</span>
+<span class="slc">-- contributed by Michal Stransky</span>
+<span class="slc">-- requires: regex-pcre or regex-pcre-builtin,</span>
+<span class="slc">--           parallel</span>
+
+
+<span class="kwd">import</span> Data<span class="opt">.</span>List
+<span class="kwd">import qualified</span> Data<span class="opt">.</span>ByteString <span class="kwd">as</span> B
+<span class="kwd">import</span> Text<span class="opt">.</span>Regex<span class="opt">.</span>PCRE
+<span class="kwd">import</span> Control<span class="opt">.</span>Parallel<span class="opt">.</span>Strategies
+
+variants <span class="opt">:: [</span><span class="kwb">String</span><span class="opt">]</span>
+variants <span class="opt">=</span>
+  <span class="opt">[</span> <span class="str">&quot;agggtaaa|tttaccct&quot;</span>
+  <span class="opt">,</span> <span class="str">&quot;[cgt]gggtaaa|tttaccc[acg]&quot;</span>
+  <span class="opt">,</span> <span class="str">&quot;a[act]ggtaaa|tttacc[agt]t&quot;</span>
+  <span class="opt">,</span> <span class="str">&quot;ag[act]gtaaa|tttac[agt]ct&quot;</span>
+  <span class="opt">,</span> <span class="str">&quot;agg[act]taaa|ttta[agt]cct&quot;</span>
+  <span class="opt">,</span> <span class="str">&quot;aggg[acg]aaa|ttt[cgt]ccct&quot;</span>
+  <span class="opt">,</span> <span class="str">&quot;agggt[cgt]aa|tt[acg]accct&quot;</span>
+  <span class="opt">,</span> <span class="str">&quot;agggta[cgt]a|t[acg]taccct&quot;</span>
+  <span class="opt">,</span> <span class="str">&quot;agggtaa[cgt]|[acg]ttaccct&quot;</span><span class="opt">]</span>
+
+subs <span class="opt">:: [(</span>B<span class="opt">.</span>ByteString<span class="opt">,</span> B<span class="opt">.</span>ByteString<span class="opt">)]</span>
+subs <span class="opt">=</span>
+  <span class="opt">[ (</span><span class="str">&quot;tHa[Nt]&quot;</span><span class="opt">,</span> <span class="str">&quot;&lt;4&gt;&quot;</span><span class="opt">)</span>
+  <span class="opt">, (</span><span class="str">&quot;aND|caN|Ha[DS]|WaS&quot;</span><span class="opt">,</span> <span class="str">&quot;&lt;3&gt;&quot;</span><span class="opt">)</span>
+  <span class="opt">, (</span><span class="str">&quot;a[NSt]|BY&quot;</span><span class="opt">,</span> <span class="str">&quot;&lt;2&gt;&quot;</span><span class="opt">)</span>
+  <span class="opt">, (</span><span class="str">&quot;&lt;[^&gt;]*&gt;&quot;</span><span class="opt">,</span> <span class="str">&quot;|&quot;</span><span class="opt">)</span>
+  <span class="opt">, (</span><span class="str">&quot;</span><span class="esc">\\</span><span class="str">|[^|][^|]*</span><span class="esc">\\</span><span class="str">|&quot;</span><span class="opt">,</span> <span class="str">&quot;-&quot;</span><span class="opt">)]</span>
+
+main <span class="opt">::</span> <span class="kwb">IO</span> <span class="opt">()</span>
+main <span class="opt">=</span> <span class="kwd">do</span>
+  inseq <span class="opt">&lt;-</span> B<span class="opt">.</span><span class="kwc">getContents</span>
+  <span class="kwd">let</span> l1 <span class="opt">=</span> B<span class="opt">.</span><span class="kwa">length</span> inseq
+      sseq <span class="opt">=</span> B<span class="opt">.</span><span class="kwc">filter</span> <span class="opt">(/=</span><span class="num">10</span><span class="opt">) (</span>gsub <span class="str">&quot;&gt;.*</span><span class="esc">\n</span><span class="str">&quot;</span> inseq B<span class="opt">.</span><span class="kwa">empty</span><span class="opt">)</span>
+      l2 <span class="opt">=</span> B<span class="opt">.</span><span class="kwa">length</span> sseq
+      cv <span class="opt">=</span> parMap rdeepseq <span class="opt">(</span><span class="esc">\t</span> <span class="opt">-&gt; (</span>t<span class="opt">,</span> sseq <span class="opt">=</span>~ t <span class="opt">::</span> <span class="kwb">Int</span><span class="opt">))</span> variants
+      <span class="slc">-- low hanging fruit parallelization &apos;map =&gt; parMap rdeepseq&apos;</span>
+      resseq <span class="opt">=</span> <span class="kwc">foldl</span><span class="opt">&apos; (\</span>s <span class="opt">(</span>ri<span class="opt">,</span>ro<span class="opt">) -&gt;</span> gsub ri s ro<span class="opt">)</span> sseq subs
+  <span class="kwc">mapM_</span> <span class="opt">(\(</span>t<span class="opt">,</span>c<span class="opt">)-&gt;</span> <span class="kwc">putStrLn</span> <span class="opt">$</span> t <span class="opt">++</span> <span class="str">&quot; &quot;</span> <span class="opt">++</span> <span class="kwc">show</span> c<span class="opt">)</span> cv
+  <span class="kwc">putStrLn</span> <span class="str">&quot;&quot;</span>
+  <span class="kwc">print</span> l1
+  <span class="kwc">print</span> l2
+  <span class="kwc">print</span> <span class="opt">(</span>B<span class="opt">.</span><span class="kwa">length</span> resseq<span class="opt">)</span>
+
+<span class="slc">-- Very simple Regex substitution</span>
+<span class="slc">-- There is basically no acceptable regex substitution available for Haskell:</span>
+<span class="slc">--   Package pcre-heavy provides &apos;gsub&apos; which is hopelessly slow for this use.</span>
+<span class="slc">--   Package pcre-utils provides substitute functions which can be used, but</span>
+<span class="slc">--     they are slower than the following and have higher memory usage.</span>
+<span class="slc">--   Package lens-regex-pcre provides lens interface, but it is based</span>
+<span class="slc">--   on pcre-heavy..</span>
+<span class="slc">--   Stack Overflow provides some discussions, and examples, so I ended up</span>
+<span class="slc">--   rolling my own implementation.</span>
+gsub <span class="opt">::</span> B<span class="opt">.</span>ByteString <span class="opt">-&gt;</span> B<span class="opt">.</span>ByteString <span class="opt">-&gt;</span> B<span class="opt">.</span>ByteString <span class="opt">-&gt;</span> B<span class="opt">.</span>ByteString
+gsub pat str rep <span class="opt">=</span> B<span class="opt">.</span>intercalate rep pcs <span class="kwd">where</span>
+  slen <span class="opt">=</span> B<span class="opt">.</span><span class="kwa">length</span> str
+  <span class="opt">(</span>li<span class="opt">&apos;,</span>comp<span class="opt">&apos;) =</span> <span class="kwc">mapAccumR</span> <span class="opt">(\</span> li <span class="opt">(</span>s<span class="opt">,</span>l<span class="opt">) -&gt; (</span>s<span class="opt">,(</span>s<span class="opt">+</span>l<span class="opt">,</span>li<span class="opt">-</span>s<span class="opt">-</span>l<span class="opt">)))</span> slen
+                 <span class="opt">(</span>getAllMatches <span class="opt">(</span>str <span class="opt">=</span>~ pat<span class="opt">))</span>
+  comp <span class="opt">= (</span><span class="num">0</span><span class="opt">,</span>li<span class="opt">&apos;):</span>comp<span class="opt">&apos;</span>
+  pcs <span class="opt">=</span> <span class="kwc">map</span> <span class="opt">(\(</span>si<span class="opt">,</span>len<span class="opt">)-&gt;</span> B<span class="opt">.</span><span class="kwc">take</span> len <span class="opt">((</span>B<span class="opt">.</span><span class="kwc">drop</span> si<span class="opt">)</span> str<span class="opt">))</span> comp
+
+    </pre>
+  </section>
+  <section>
+    <h2 id="log">notes, command-line, and program output</h2>
+    <pre>
+NOTES:
+64-bit Ubuntu quad core
+The Glorious Glasgow Haskell Compilation System,
+version 8.6.5
+
+
+Tue, 16 Jul 2019 16:00:49 GMT
+
+MAKE:
+mv regexredux.ghc regexredux.hs
+/opt/src/ghc-8.6.5/bin/ghc --make -fllvm -O2 -XBangPatterns -threaded -rtsopts -XOverloadedStrings regexredux.hs -o regexredux.ghc_run
+[1 of 1] Compiling Main             ( regexredux.hs, regexredux.o )
+Linking regexredux.ghc_run ...
+rm regexredux.hs
+
+16.92s to complete and log all make actions
+
+COMMAND LINE:
+./regexredux.ghc_run +RTS -N4 -H250M -RTS 0 &lt; regexredux-input5000000.txt
+
+PROGRAM OUTPUT:
+agggtaaa|tttaccct 356
+[cgt]gggtaaa|tttaccc[acg] 1250
+a[act]ggtaaa|tttacc[agt]t 4252
+ag[act]gtaaa|tttac[agt]ct 2894
+agg[act]taaa|ttta[agt]cct 5435
+aggg[acg]aaa|ttt[cgt]ccct 1537
+agggt[cgt]aa|tt[acg]accct 1431
+agggta[cgt]a|t[acg]taccct 1608
+agggtaa[cgt]|[acg]ttaccct 2178
+
+50833411
+50000000
+27388361
+    </pre>
+  </section>
+</article>
+<footer>
+  <nav>
+    <ul>
+      <li><a href="../license.html"><span>3-Clause BSD License</span></a>
+    </ul>
+  </nav>
+</footer>
+
