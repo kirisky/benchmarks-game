@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,follow,noarchive">
+
+<title>regex-redux Dart aot&nbsp;#3 program | Computer Language Benchmarks Game </title>
+<style><!--
+a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,header{margin:auto;width:92%}body{font:100% Droid Sans, Ubuntu, Verdana, sans-serif;margin:0;-webkit-text-size-adjust:100%}h3, h1, h2, li a{font-family:Ubuntu Mono,Consolas,Menlo,monospace}div,footer,header{max-width:31em}footer{padding:2.6em 0 0}h3{font-size:1.4em;font-weight:bold;margin:0;padding: .4em}h3, h3 a{color:white;background-color:#dd4814}h3 small{font-size:0.64em}h1,h2{margin:1.5em 0 0}h1{font-size:1.4em;font-weight:normal}h2{font-size:1.2em}li{list-style-type:none;vertical-align:top}li a{display:block;font-size:1.2em;margin: .5em .5em 0;padding: .5em .5em .3em}ul{clear:left;margin:-0.3em 0 1.5em;padding-left:0;text-align:center}p{color:#333;line-height:1.4;margin: .3em 0 0}p a, a span{border-bottom: .1em solid #333;padding-bottom: .1em}.com,.slc{color:#888}.kwa{color:#066}.kwb{color:#900}.kwc{color:#050}.kwa,.kwb,.kwc{font-weight:bold}.dstr,.str,.sym,.num{color:#930}pre{color:#222;font-size:1em;overflow-wrap:break-word;white-space:pre-wrap;word-wrap:break-word}@media only screen and (min-width: 60em){article,footer,header{font-size:1.25em}}
+--></style>
+<link rel="shortcut icon" href="./favicon.ico">
+<header>
+  <h3><a href="https://benchmarksgame-team.pages.debian.net/benchmarksgame/">The&nbsp;<small>Computer&nbsp;Language</small><br>Benchmarks&nbsp;Game</a></h3>
+</header>
+<article>
+  <div>
+    <h1>regex-redux Dart aot&nbsp;#3 program</h1>
+    <aside>
+      <p><a href="../description/regexredux.html#regexredux">description</a>
+    </aside>
+  </div>
+  <section>
+    </div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+/// The Computer Language Benchmarks Game
+/// https://salsa.debian.org/benchmarksgame-team/benchmarksgame/
+///
+/// regex-dna program contributed by Jos Hirth, based on the JavaScript version
+/// which was created by Jesse Millikan, jose fco. gonzalez, and Matthew Wilson
+/// parallelism added by Dwayne Slater
+///
+/// converted from regex-dna program
+
+import &apos;dart:async&apos;;
+import &apos;dart:convert&apos;;
+import &apos;dart:io&apos;;
+import &apos;dart:isolate&apos;;
+
+// Set up an isolate for each CPU asynchronously to accept tasks
+
+final taskPorts = List&lt;Completer&lt;SendPort&gt;&gt;.generate(
+  Platform.numberOfProcessors,
+  (i) =&gt; Completer&lt;SendPort&gt;.sync(),
+);
+
+final taskRecvPorts = List&lt;RawReceivePort&gt;.generate(
+  Platform.numberOfProcessors,
+  (i) =&gt; RawReceivePort(taskPorts[i].complete),
+);
+
+final isolates = List&lt;Future&lt;Isolate&gt;&gt;.generate(
+  Platform.numberOfProcessors,
+  (i) =&gt; Isolate.spawn(taskRunner, taskRecvPorts[i].sendPort),
+);
+
+void main() {
+  // Start up the isolates while building data from stdin
+  isolates;
+
+  stdin.transform(Latin1Decoder()).join().then(regexAllTheThings);
+}
+
+// Isolate entry point, just runs given tasks
+void taskRunner(SendPort port) {
+  final recvPort = RawReceivePort((task) {
+    task[0](task[1]);
+  });
+  port.send(recvPort.sendPort);
+}
+
+String regexTaskFullText;
+
+// Task that initializes this isolate with a copy of the text from stdin
+void initStaticFullText(String fullText) {
+  regexTaskFullText = fullText;
+}
+
+// Core regex task
+// Params are: [pattern: String, index: int, replyPort: SendPort]
+void runRegexTask(List params) {
+  params[2].send([
+    params[1],
+    &quot;${params[0]} ${RegExp(params[0], caseSensitive: false).allMatches(regexTaskFullText).length}&quot;,
+  ]);
+}
+
+void regexAllTheThings(String fullText) {
+  var lengthA, lengthB, lengthC, regexp, replacements, taskResult;
+
+  regexp = [
+    &apos;agggtaaa|tttaccct&apos;,
+    &apos;[cgt]gggtaaa|tttaccc[acg]&apos;,
+    &apos;a[act]ggtaaa|tttacc[agt]t&apos;,
+    &apos;ag[act]gtaaa|tttac[agt]ct&apos;,
+    &apos;agg[act]taaa|ttta[agt]cct&apos;,
+    &apos;aggg[acg]aaa|ttt[cgt]ccct&apos;,
+    &apos;agggt[cgt]aa|tt[acg]accct&apos;,
+    &apos;agggta[cgt]a|t[acg]taccct&apos;,
+    &apos;agggtaa[cgt]|[acg]ttaccct&apos;,
+  ];
+
+  replacements = [
+    &apos;tHa[Nt]&apos;,
+    &apos;&lt;4&gt;&apos;,
+    &apos;aND|caN|Ha[DS]|WaS&apos;,
+    &apos;&lt;3&gt;&apos;,
+    &apos;a[NSt]|BY&apos;,
+    &apos;&lt;2&gt;&apos;,
+    &apos;&lt;[^&gt;]*&gt;&apos;,
+    &apos;|&apos;,
+    &apos;\\|[^|][^|]*\\|&apos;,
+    &apos;-&apos;
+  ];
+
+  lengthA = fullText.length;
+
+  // still ridiculously slow with r21658
+  fullText = fullText.replaceAll(RegExp(&apos;^&gt;.*\n|\n&apos;, multiLine: true), &apos;&apos;);
+
+  lengthB = fullText.length;
+
+  // Completes with the result of each regex task
+  taskResult = List&lt;Completer&lt;String&gt;&gt;.generate(
+    regexp.length,
+    (i) =&gt; Completer&lt;String&gt;.sync(),
+  );
+
+  // Propagates each task result to their proper destination
+  final taskRecv =
+      RawReceivePort((result) =&gt; taskResult[result[0]].complete(result[1]));
+
+  // Send a copy of the full text to each task runner
+  // fullText can get modified later on, so we take _this_ version of fullText
+  // to avoid possible &quot;race conditions&quot;
+  {
+    final sentFullText = fullText;
+    taskPorts.forEach((completer) {
+      completer.future.then((port) {
+        port.send([initStaticFullText, sentFullText]);
+      });
+    });
+  }
+
+  // Sends each task to the task isolate for processing
+  for (var i = 0; i &lt; regexp.length; ++i) {
+    final payload = [regexp[i], i, taskRecv.sendPort];
+    taskPorts[i % taskPorts.length].future.then((port) {
+      port.send([
+        runRegexTask,
+        payload,
+      ]);
+    });
+  }
+
+  for (var i = -1; i &lt; replacements.length - 1;) {
+    fullText =
+        fullText.replaceAll(RegExp(replacements[++i]), replacements[++i]);
+  }
+
+  lengthC = fullText.length;
+
+  // Waits for the result of each task to be printed, then prints the final
+  // lengths, then cleans up
+  Future.forEach(taskResult, (result) =&gt; result.future.then(print)).then((_) {
+    print(&apos;\n$lengthA\n$lengthB\n$lengthC&apos;);
+    // Clean up our receive ports so Dart can exit gracefully
+    taskRecv.close();
+    taskRecvPorts.forEach((port) =&gt; port.close());
+  });
+}
+    </pre>
+  </section>
+  <section>
+    <h2 id="log">notes, command-line, and program output</h2>
+    <pre>
+NOTES:
+64-bit Ubuntu quad core
+Dart VM version: 2.4.0 (Wed Jun 19 11:53:45 2019 +0200) on "linux_x64"
+
+
+
+Sat, 20 Jul 2019 17:58:52 GMT
+
+MAKE:
+/opt/src/dartsdk-linux-x64-release/dart-sdk/bin/dartanalyzer regexredux.dartaot-3.dartaot
+Analyzing regexredux.dartaot-3.dartaot...
+No issues found!
+/opt/src/dartsdk-linux-x64-release/dart-sdk/bin/dart2aot regexredux.dartaot-3.dartaot regexredux.dartaot-3.aot
+
+11.30s to complete and log all make actions
+
+COMMAND LINE:
+/opt/src/dartsdk-linux-x64-release/dart-sdk/bin/dartaotruntime regexredux.dartaot-3.aot 0 &lt; regexredux-input5000000.txt
+
+PROGRAM OUTPUT:
+agggtaaa|tttaccct 356
+[cgt]gggtaaa|tttaccc[acg] 1250
+a[act]ggtaaa|tttacc[agt]t 4252
+ag[act]gtaaa|tttac[agt]ct 2894
+agg[act]taaa|ttta[agt]cct 5435
+aggg[acg]aaa|ttt[cgt]ccct 1537
+agggt[cgt]aa|tt[acg]accct 1431
+agggta[cgt]a|t[acg]taccct 1608
+agggtaa[cgt]|[acg]ttaccct 2178
+
+50833411
+50000000
+27388361
+    </pre>
+  </section>
+</article>
+<footer>
+  <nav>
+    <ul>
+      <li><a href="../license.html"><span>3-Clause BSD License</span></a>
+    </ul>
+  </nav>
+</footer>
+

@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,follow,noarchive">
+
+<title>mandelbrot Dart aot&nbsp;#2 program | Computer Language Benchmarks Game </title>
+<style><!--
+a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,header{margin:auto;width:92%}body{font:100% Droid Sans, Ubuntu, Verdana, sans-serif;margin:0;-webkit-text-size-adjust:100%}h3, h1, h2, li a{font-family:Ubuntu Mono,Consolas,Menlo,monospace}div,footer,header{max-width:31em}footer{padding:2.6em 0 0}h3{font-size:1.4em;font-weight:bold;margin:0;padding: .4em}h3, h3 a{color:white;background-color:#dd4814}h3 small{font-size:0.64em}h1,h2{margin:1.5em 0 0}h1{font-size:1.4em;font-weight:normal}h2{font-size:1.2em}li{list-style-type:none;vertical-align:top}li a{display:block;font-size:1.2em;margin: .5em .5em 0;padding: .5em .5em .3em}ul{clear:left;margin:-0.3em 0 1.5em;padding-left:0;text-align:center}p{color:#333;line-height:1.4;margin: .3em 0 0}p a, a span{border-bottom: .1em solid #333;padding-bottom: .1em}.com,.slc{color:#888}.kwa{color:#066}.kwb{color:#900}.kwc{color:#050}.kwa,.kwb,.kwc{font-weight:bold}.dstr,.str,.sym,.num{color:#930}pre{color:#222;font-size:1em;overflow-wrap:break-word;white-space:pre-wrap;word-wrap:break-word}@media only screen and (min-width: 60em){article,footer,header{font-size:1.25em}}
+--></style>
+<link rel="shortcut icon" href="./favicon.ico">
+<header>
+  <h3><a href="https://benchmarksgame-team.pages.debian.net/benchmarksgame/">The&nbsp;<small>Computer&nbsp;Language</small><br>Benchmarks&nbsp;Game</a></h3>
+</header>
+<article>
+  <div>
+    <h1>mandelbrot Dart aot&nbsp;#2 program</h1>
+    <aside>
+      <p><a href="../description/mandelbrot.html#mandelbrot">description</a>
+    </aside>
+  </div>
+  <section>
+    </div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+/* The Computer Language Benchmarks Game
+   https://salsa.debian.org/benchmarksgame-team/benchmarksgame/
+
+   contributed by Alexander Fyodorov
+*/
+
+import &apos;dart:io&apos;;
+import &apos;dart:isolate&apos;;
+import &apos;dart:async&apos;;
+import &apos;dart:typed_data&apos;;
+
+void main(args) {
+  int n = args.length &gt; 0 ? int.parse(args[0]) : 2000;
+
+  var threads = Platform.numberOfProcessors;
+  var segmentFutures = new List&lt;Future&gt;(threads);
+
+  var segmentSize = new List.filled(threads, n ~/ threads);
+  segmentSize[0] += n % threads;
+
+  int from = 0;
+  for (int i = 0; i &lt; threads; i++) {
+    var len = segmentSize[i];
+    var response = new ReceivePort();
+    int localFrom = from;
+    Future&lt;Isolate&gt; remote = Isolate.spawn(calculateSegment, response.sendPort);
+    segmentFutures[i] = remote.then((_) =&gt; response.first).then((sendPort) {
+      ReceivePort response = new ReceivePort();
+      sendPort.send({
+        &apos;n&apos;: n,
+        &apos;from&apos;: localFrom,
+        &apos;len&apos;: len,
+        &apos;port&apos;: response.sendPort
+      });
+      return response.first;
+    });
+    from += len;
+  }
+
+  stdout.write(&apos;P4\n$n $n\n&apos;);
+
+  Future.wait(segmentFutures).then((segments) {
+    for (var segment in segments) {
+      for (var line in segment) {
+        stdout.add(line);
+      }
+    }
+  });
+}
+
+Uint8List calculateLine (int n, int y) {
+  int lineLen = (n - 1) ~/ 8 + 1;
+
+  var line = new Uint8List(lineLen);
+
+  int xbyte = 0, bits = 1;
+  double ci = y * 2.0 / n - 1.0;
+
+  for (int x = 0; x &lt; n; x++) {
+    double cr = x * 2.0 / n - 1.5;
+    if (bits &gt; 0xff) {
+      line[xbyte++] = bits;
+      bits = 1;
+    }
+    double zr = cr,
+        zi = ci,
+        tr = cr * cr,
+        ti = ci * ci;
+    int i = 49;
+    do {
+      zi = zr * zi + zr * zi + ci;
+      zr = tr - ti + cr;
+      tr = zr * zr;
+      ti = zi * zi;
+    } while ((tr + ti &lt;= 4.0) &amp;&amp; (--i &gt; 0));
+    bits = (bits &lt;&lt; 1) | (i == 0 ? 1 : 0);
+  } while (bits &lt; 0x100) bits = (bits &lt;&lt; 1);
+  line[xbyte] = bits;
+
+  return line;
+}
+
+void calculateSegment (SendPort initialReplyTo) {
+  var port = new ReceivePort();
+  initialReplyTo.send(port.sendPort);
+  port.listen((msg) {
+    int n = msg[&apos;n&apos;];
+    int from = msg[&apos;from&apos;];
+    int len = msg[&apos;len&apos;];
+    SendPort replyTo = msg[&apos;port&apos;];
+
+    var lines = new List&lt;Uint8List&gt;(len);
+    for (int i = 0; i &lt; len; i++) {
+      lines[i] = calculateLine(n, from + i);
+    }
+    replyTo.send(lines);
+    port.close();
+  });
+}
+    </pre>
+  </section>
+  <section>
+    <h2 id="log">notes, command-line, and program output</h2>
+    <pre>
+NOTES:
+64-bit Ubuntu quad core
+Dart VM version: 2.4.0 (Wed Jun 19 11:53:45 2019 +0200) on "linux_x64"
+
+
+
+Sat, 20 Jul 2019 17:40:00 GMT
+
+MAKE:
+/opt/src/dartsdk-linux-x64-release/dart-sdk/bin/dartanalyzer mandelbrot.dartaot-2.dartaot
+Analyzing mandelbrot.dartaot-2.dartaot...
+No issues found!
+/opt/src/dartsdk-linux-x64-release/dart-sdk/bin/dart2aot mandelbrot.dartaot-2.dartaot mandelbrot.dartaot-2.aot
+
+11.04s to complete and log all make actions
+
+COMMAND LINE:
+/opt/src/dartsdk-linux-x64-release/dart-sdk/bin/dartaotruntime mandelbrot.dartaot-2.aot 16000
+
+(BINARY) PROGRAM OUTPUT NOT SHOWN
+    </pre>
+  </section>
+</article>
+<footer>
+  <nav>
+    <ul>
+      <li><a href="../license.html"><span>3-Clause BSD License</span></a>
+    </ul>
+  </nav>
+</footer>
+
