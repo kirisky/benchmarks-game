@@ -22,189 +22,189 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
       <h2>source code</h2>
     </div>
     <pre>
-/* The Computer Language Benchmarks game
-   https://salsa.debian.org/benchmarksgame-team/benchmarksgame/
+<span class="com">/* The Computer Language Benchmarks game</span>
+<span class="com">   https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="com"></span>
+<span class="com">   Contributed by Jos Hirth, transliterated from Jarkko Miettinen&apos;s Java program</span>
+<span class="com">   Optimized and parallelized by by Dwayne Slater</span>
+<span class="com">   *reset*</span>
+<span class="com">*/</span>
 
-   Contributed by Jos Hirth, transliterated from Jarkko Miettinen&apos;s Java program
-   Optimized and parallelized by by Dwayne Slater
-   *reset*
-*/
+import <span class="str">&apos;dart:async&apos;</span><span class="opt">;</span>
+import <span class="str">&apos;dart:io&apos;</span><span class="opt">;</span>
+import <span class="str">&apos;dart:isolate&apos;</span><span class="opt">;</span>
 
-import &apos;dart:async&apos;;
-import &apos;dart:io&apos;;
-import &apos;dart:isolate&apos;;
+<span class="kwa">const</span> <span class="kwb">int</span> minDepth <span class="opt">=</span> <span class="num">4</span><span class="opt">;</span>
 
-const int minDepth = 4;
+<span class="slc">/// Number of workers to startup. A number below the number of processors on the</span>
+<span class="slc">/// current system works best.</span>
+<span class="kwa">const</span> <span class="kwb">int</span> workerCount <span class="opt">=</span> <span class="num">4</span><span class="opt">;</span>
 
-/// Number of workers to startup. A number below the number of processors on the
-/// current system works best.
-const int workerCount = 4;
+<span class="slc">/// Whether to output debug information for workers.</span>
+<span class="kwa">const</span> <span class="kwb">bool</span> workerDebug <span class="opt">=</span> <span class="kwa">false</span><span class="opt">;</span>
 
-/// Whether to output debug information for workers.
-const bool workerDebug = false;
+<span class="kwa">class</span> <span class="kwb">Worker</span> <span class="opt">{</span>
+  <span class="kwa">final</span> <span class="kwb">SendPort</span> workPort<span class="opt">;</span>
+  <span class="kwb">bool</span> ready <span class="opt">=</span> <span class="kwa">true</span><span class="opt">;</span>
+  <span class="kwb">Capability</span> workItem<span class="opt">;</span>
 
-class Worker {
-  final SendPort workPort;
-  bool ready = true;
-  Capability workItem;
+  <span class="kwb">Worker</span><span class="opt">(</span><span class="kwa">this</span><span class="opt">.</span>workPort<span class="opt">);</span>
 
-  Worker(this.workPort);
+  <span class="kwa">void</span> <span class="kwd">submitWork</span><span class="opt">(</span><span class="kwb">List</span> work<span class="opt">) {</span>
+    workPort<span class="opt">.</span><span class="kwd">send</span><span class="opt">(</span>work<span class="opt">);</span>
+    ready <span class="opt">=</span> <span class="kwa">false</span><span class="opt">;</span>
+    workItem <span class="opt">=</span> work<span class="opt">[</span><span class="num">2</span><span class="opt">];</span>
+  <span class="opt">}</span>
+<span class="opt">}</span>
 
-  void submitWork(List work) {
-    workPort.send(work);
-    ready = false;
-    workItem = work[2];
-  }
-}
+<span class="kwa">void</span> <span class="kwd">worker</span><span class="opt">(</span><span class="kwb">SendPort</span> managerPort<span class="opt">) {</span>
+  <span class="slc">// Make worker port</span>
+  <span class="kwa">final</span> worker <span class="opt">=</span> <span class="kwb">RawReceivePort</span><span class="opt">((</span>message<span class="opt">) {</span>
+    <span class="slc">// `message` is a work item</span>
+    <span class="kwa">final</span> <span class="kwb">List</span> workItem <span class="opt">=</span> message<span class="opt">;</span>
 
-void worker(SendPort managerPort) {
-  // Make worker port
-  final worker = RawReceivePort((message) {
-    // `message` is a work item
-    final List workItem = message;
+    <span class="slc">// Process the work item</span>
+    <span class="kwa">final</span> <span class="kwb">int</span> iterations <span class="opt">=</span> workItem<span class="opt">[</span><span class="num">1</span><span class="opt">];</span>
+    <span class="kwb">int</span> check <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+    <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> i <span class="opt">=</span> <span class="num">1</span><span class="opt">;</span> i <span class="opt">&lt;=</span> iterations<span class="opt">;</span> i<span class="opt">++) {</span>
+      check <span class="opt">+=</span> <span class="kwb">TreeNode</span><span class="opt">.</span><span class="kwd">itemCheck</span><span class="opt">(</span><span class="kwb">TreeNode</span><span class="opt">.</span><span class="kwd">bottomUpTree</span><span class="opt">(</span>workItem<span class="opt">[</span><span class="num">0</span><span class="opt">]));</span>
+    <span class="opt">}</span>
 
-    // Process the work item
-    final int iterations = workItem[1];
-    int check = 0;
-    for (int i = 1; i &lt;= iterations; i++) {
-      check += TreeNode.itemCheck(TreeNode.bottomUpTree(workItem[0]));
-    }
+    managerPort<span class="opt">.</span><span class="kwd">send</span><span class="opt">([</span>check<span class="opt">,</span> workItem<span class="opt">[</span><span class="num">2</span><span class="opt">]]);</span>
+  <span class="opt">});</span>
 
-    managerPort.send([check, workItem[2]]);
-  });
+  managerPort<span class="opt">.</span><span class="kwd">send</span><span class="opt">(</span>worker<span class="opt">.</span>sendPort<span class="opt">);</span>
+<span class="opt">}</span>
 
-  managerPort.send(worker.sendPort);
-}
+<span class="slc">/// Manages distributing work to available workers</span>
+<span class="kwa">class</span> <span class="kwb">Manager</span> <span class="opt">{</span>
+  <span class="kwa">final</span> <span class="kwb">RawReceivePort</span> managerPort<span class="opt">;</span>
+  <span class="kwa">final</span> <span class="kwb">List</span><span class="opt">&lt;</span><span class="kwb">Worker</span><span class="opt">&gt;</span> workers<span class="opt">;</span>
+  <span class="kwa">final</span> <span class="kwb">List</span><span class="opt">&lt;</span><span class="kwb">List</span><span class="opt">&gt;</span> queuedWork <span class="opt">= [];</span>
+  <span class="kwa">final</span> <span class="kwb">Map</span><span class="opt">&lt;</span><span class="kwb">Capability</span><span class="opt">,</span> <span class="kwb">Completer</span><span class="opt">&lt;</span><span class="kwb">int</span><span class="opt">&gt;&gt;</span> workCompleters <span class="opt">= {};</span>
 
-/// Manages distributing work to available workers
-class Manager {
-  final RawReceivePort managerPort;
-  final List&lt;Worker&gt; workers;
-  final List&lt;List&gt; queuedWork = [];
-  final Map&lt;Capability, Completer&lt;int&gt;&gt; workCompleters = {};
+  <span class="kwb">Manager</span><span class="opt">(</span><span class="kwa">this</span><span class="opt">.</span>managerPort<span class="opt">,</span> <span class="kwa">this</span><span class="opt">.</span>workers<span class="opt">) {</span>
+    managerPort<span class="opt">.</span>handler <span class="opt">= (</span>message<span class="opt">) {</span>
+      <span class="kwa">if</span> <span class="opt">(</span>message <span class="kwa">is</span> <span class="kwb">List</span><span class="opt">) {</span>
+        <span class="kwa">final</span> cap <span class="opt">=</span> message<span class="opt">[</span><span class="num">1</span><span class="opt">];</span>
+        workCompleters<span class="opt">.</span><span class="kwd">remove</span><span class="opt">(</span>cap<span class="opt">).</span><span class="kwd">complete</span><span class="opt">(</span>message<span class="opt">[</span><span class="num">0</span><span class="opt">]);</span>
+        <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> i<span class="opt">=</span><span class="num">0</span><span class="opt">;</span> i<span class="opt">&lt;</span>workers<span class="opt">.</span>length<span class="opt">;</span> i<span class="opt">++) {</span>
+          <span class="kwa">final</span> worker <span class="opt">=</span> workers<span class="opt">[</span>i<span class="opt">];</span>
+          <span class="kwa">if</span> <span class="opt">(</span>worker<span class="opt">.</span>workItem <span class="opt">==</span> cap<span class="opt">) {</span>
+            <span class="kwa">if</span> <span class="opt">(</span>queuedWork<span class="opt">.</span>isNotEmpty<span class="opt">) {</span>
+              <span class="kwa">if</span> <span class="opt">(</span>workerDebug<span class="opt">)</span> <span class="kwd">print</span><span class="opt">(</span><span class="str">&quot;Submitting more work to $i&quot;</span><span class="opt">);</span>
+              worker<span class="opt">.</span><span class="kwd">submitWork</span><span class="opt">(</span>queuedWork<span class="opt">.</span><span class="kwd">removeLast</span><span class="opt">());</span>
+            <span class="opt">}</span> <span class="kwa">else</span> <span class="opt">{</span>
+              <span class="kwa">if</span> <span class="opt">(</span>workerDebug<span class="opt">)</span> <span class="kwd">print</span><span class="opt">(</span><span class="str">&quot;Worker $i idle&quot;</span><span class="opt">);</span>
+              worker<span class="opt">.</span>ready <span class="opt">=</span> <span class="kwa">true</span><span class="opt">;</span>
+            <span class="opt">}</span>
+            <span class="kwa">break</span><span class="opt">;</span>
+          <span class="opt">}</span>
+        <span class="opt">}</span>
+      <span class="opt">}</span>
+    <span class="opt">};</span>
+  <span class="opt">}</span>
 
-  Manager(this.managerPort, this.workers) {
-    managerPort.handler = (message) {
-      if (message is List) {
-        final cap = message[1];
-        workCompleters.remove(cap).complete(message[0]);
-        for (int i=0; i&lt;workers.length; i++) {
-          final worker = workers[i];
-          if (worker.workItem == cap) {
-            if (queuedWork.isNotEmpty) {
-              if (workerDebug) print(&quot;Submitting more work to $i&quot;);
-              worker.submitWork(queuedWork.removeLast());
-            } else {
-              if (workerDebug) print(&quot;Worker $i idle&quot;);
-              worker.ready = true;
-            }
-            break;
-          }
-        }
-      }
-    };
-  }
+  <span class="kwb">Future</span><span class="opt">&lt;</span><span class="kwb">int</span><span class="opt">&gt;</span> <span class="kwd">enqueue</span><span class="opt">(</span><span class="kwb">int</span> depth<span class="opt">,</span> <span class="kwb">int</span> iterations<span class="opt">) {</span>
+    <span class="kwa">final</span> cap <span class="opt">=</span> <span class="kwb">Capability</span><span class="opt">();</span>
+    <span class="kwa">final</span> work <span class="opt">= [</span>depth<span class="opt">,</span> iterations<span class="opt">,</span> cap<span class="opt">];</span>
+    <span class="kwa">final</span> completer <span class="opt">=</span> <span class="kwb">Completer</span><span class="opt">&lt;</span><span class="kwb">int</span><span class="opt">&gt;.</span><span class="kwd">sync</span><span class="opt">();</span>
+    workCompleters<span class="opt">[</span>cap<span class="opt">] =</span> completer<span class="opt">;</span>
 
-  Future&lt;int&gt; enqueue(int depth, int iterations) {
-    final cap = Capability();
-    final work = [depth, iterations, cap];
-    final completer = Completer&lt;int&gt;.sync();
-    workCompleters[cap] = completer;
+    <span class="slc">// Try submit work item to a ready worker</span>
+    <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> i<span class="opt">=</span><span class="num">0</span><span class="opt">;</span> i<span class="opt">&lt;</span>workers<span class="opt">.</span>length<span class="opt">;</span> i<span class="opt">++) {</span>
+      <span class="kwa">final</span> worker <span class="opt">=</span> workers<span class="opt">[</span>i<span class="opt">];</span>
+      <span class="kwa">if</span> <span class="opt">(</span>worker<span class="opt">.</span>ready<span class="opt">) {</span>
+        <span class="kwa">if</span> <span class="opt">(</span>workerDebug<span class="opt">)</span> <span class="kwd">print</span><span class="opt">(</span><span class="str">&quot;Dispatched work to worker $i&quot;</span><span class="opt">);</span>
+        worker<span class="opt">.</span><span class="kwd">submitWork</span><span class="opt">(</span>work<span class="opt">);</span>
+        <span class="kwa">return</span> completer<span class="opt">.</span>future<span class="opt">;</span>
+      <span class="opt">}</span>
+    <span class="opt">}</span>
 
-    // Try submit work item to a ready worker
-    for (int i=0; i&lt;workers.length; i++) {
-      final worker = workers[i];
-      if (worker.ready) {
-        if (workerDebug) print(&quot;Dispatched work to worker $i&quot;);
-        worker.submitWork(work);
-        return completer.future;
-      }
-    }
+    <span class="slc">// Otherwise, throw into work queue for work stealing</span>
+    <span class="kwa">if</span> <span class="opt">(</span>workerDebug<span class="opt">)</span> <span class="kwd">print</span><span class="opt">(</span><span class="str">&quot;Work added to queue&quot;</span><span class="opt">);</span>
+    queuedWork<span class="opt">.</span><span class="kwd">add</span><span class="opt">(</span>work<span class="opt">);</span>
+    <span class="kwa">return</span> completer<span class="opt">.</span>future<span class="opt">;</span>
+  <span class="opt">}</span>
 
-    // Otherwise, throw into work queue for work stealing
-    if (workerDebug) print(&quot;Work added to queue&quot;);
-    queuedWork.add(work);
-    return completer.future;
-  }
+  <span class="kwa">static</span> <span class="kwb">Future</span><span class="opt">&lt;</span><span class="kwb">Manager</span><span class="opt">&gt;</span> <span class="kwd">init</span><span class="opt">(</span><span class="kwb">int</span> workerCount<span class="opt">)</span> async <span class="opt">{</span>
+    <span class="slc">// Spawn and wait for all workers to come online</span>
+    <span class="kwa">final</span> sw <span class="opt">=</span> <span class="kwb">Stopwatch</span><span class="opt">()..</span><span class="kwd">start</span><span class="opt">();</span>
+    <span class="kwa">final</span> workers <span class="opt">= &lt;</span><span class="kwb">Worker</span><span class="opt">&gt;[];</span>
+    <span class="kwa">final</span> completer <span class="opt">=</span> <span class="kwb">Completer</span><span class="opt">&lt;</span><span class="kwa">void</span><span class="opt">&gt;();</span>
+    <span class="kwa">final</span> managerPort <span class="opt">=</span> <span class="kwb">RawReceivePort</span><span class="opt">((</span>workerPort<span class="opt">) {</span>
+      <span class="kwa">if</span> <span class="opt">(</span>workerDebug<span class="opt">)</span> <span class="kwd">print</span><span class="opt">(</span><span class="str">&quot;[${sw.elapsedMilliseconds}] Worker online&quot;</span><span class="opt">);</span>
+      workers<span class="opt">.</span><span class="kwd">add</span><span class="opt">(</span><span class="kwb">Worker</span><span class="opt">(</span>workerPort<span class="opt">));</span>
+      <span class="kwa">if</span> <span class="opt">(</span>workers<span class="opt">.</span>length <span class="opt">==</span> workerCount<span class="opt">) {</span>
+        completer<span class="opt">.</span><span class="kwd">complete</span><span class="opt">();</span>
+      <span class="opt">}</span>
+    <span class="opt">});</span>
+    <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> i<span class="opt">=</span><span class="num">0</span><span class="opt">;</span> i<span class="opt">&lt;</span>workerCount<span class="opt">;</span> i<span class="opt">++) {</span>
+      <span class="kwb">Isolate</span><span class="opt">.</span><span class="kwd">spawn</span><span class="opt">(</span>worker<span class="opt">,</span> managerPort<span class="opt">.</span>sendPort<span class="opt">);</span>
+    <span class="opt">}</span>
+    await completer<span class="opt">.</span>future<span class="opt">;</span>
+    <span class="kwa">return</span> <span class="kwb">Manager</span><span class="opt">(</span>managerPort<span class="opt">,</span> workers<span class="opt">);</span>
+  <span class="opt">}</span>
+<span class="opt">}</span>
 
-  static Future&lt;Manager&gt; init(int workerCount) async {
-    // Spawn and wait for all workers to come online
-    final sw = Stopwatch()..start();
-    final workers = &lt;Worker&gt;[];
-    final completer = Completer&lt;void&gt;();
-    final managerPort = RawReceivePort((workerPort) {
-      if (workerDebug) print(&quot;[${sw.elapsedMilliseconds}] Worker online&quot;);
-      workers.add(Worker(workerPort));
-      if (workers.length == workerCount) {
-        completer.complete();
-      }
-    });
-    for (int i=0; i&lt;workerCount; i++) {
-      Isolate.spawn(worker, managerPort.sendPort);
-    }
-    await completer.future;
-    return Manager(managerPort, workers);
-  }
-}
+<span class="kwb">Future</span><span class="opt">&lt;</span><span class="kwa">void</span><span class="opt">&gt;</span> <span class="kwd">main</span><span class="opt">(</span><span class="kwb">List</span><span class="opt">&lt;</span><span class="kwb">String</span><span class="opt">&gt;</span> args<span class="opt">)</span> async <span class="opt">{</span>
+  <span class="kwb">int</span> n <span class="opt">=</span> args<span class="opt">.</span>length <span class="opt">&gt;</span> <span class="num">0</span> ? <span class="kwb">int</span><span class="opt">.</span><span class="kwd">parse</span><span class="opt">(</span>args<span class="opt">[</span><span class="num">0</span><span class="opt">]) :</span> <span class="num">0</span><span class="opt">;</span>
 
-Future&lt;void&gt; main(List&lt;String&gt; args) async {
-  int n = args.length &gt; 0 ? int.parse(args[0]) : 0;
+  <span class="kwa">final</span> sw <span class="opt">=</span> <span class="kwb">Stopwatch</span><span class="opt">()..</span><span class="kwd">start</span><span class="opt">();</span>
 
-  final sw = Stopwatch()..start();
+  <span class="slc">// Start up the workers, then dispatch work to them</span>
+  <span class="kwa">final</span> futureManager <span class="opt">=</span> <span class="kwb">Manager</span><span class="opt">.</span><span class="kwd">init</span><span class="opt">(</span>workerCount<span class="opt">);</span>
+  <span class="kwa">final</span> manager <span class="opt">=</span> await futureManager<span class="opt">;</span>
 
-  // Start up the workers, then dispatch work to them
-  final futureManager = Manager.init(workerCount);
-  final manager = await futureManager;
+  <span class="kwb">int</span> maxDepth <span class="opt">= (</span>minDepth <span class="opt">+</span> <span class="num">2</span> <span class="opt">&gt;</span> n<span class="opt">)</span> ? minDepth <span class="opt">+</span> <span class="num">2</span> <span class="opt">:</span> n<span class="opt">;</span>
 
-  int maxDepth = (minDepth + 2 &gt; n) ? minDepth + 2 : n;
+  <span class="kwb">List</span><span class="opt">&lt;</span><span class="kwb">Future</span><span class="opt">&lt;</span><span class="kwb">int</span><span class="opt">&gt;&gt;</span> workFuture <span class="opt">= [];</span>
+  <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> depth <span class="opt">=</span> minDepth<span class="opt">;</span> depth <span class="opt">&lt;=</span> maxDepth<span class="opt">;</span> depth <span class="opt">+=</span> <span class="num">2</span><span class="opt">) {</span>
+    <span class="kwb">int</span> iterations <span class="opt">=</span> <span class="num">1</span> <span class="opt">&lt;&lt; (</span>maxDepth <span class="opt">-</span> depth <span class="opt">+</span> minDepth<span class="opt">);</span>
+    workFuture<span class="opt">.</span><span class="kwd">add</span><span class="opt">(</span>manager<span class="opt">.</span><span class="kwd">enqueue</span><span class="opt">(</span>depth<span class="opt">,</span> iterations<span class="opt">));</span>
+  <span class="opt">}</span>
 
-  List&lt;Future&lt;int&gt;&gt; workFuture = [];
-  for (int depth = minDepth; depth &lt;= maxDepth; depth += 2) {
-    int iterations = 1 &lt;&lt; (maxDepth - depth + minDepth);
-    workFuture.add(manager.enqueue(depth, iterations));
-  }
+  <span class="kwb">int</span> stretchDepth <span class="opt">=</span> maxDepth <span class="opt">+</span> <span class="num">1</span><span class="opt">;</span>
 
-  int stretchDepth = maxDepth + 1;
+  <span class="kwb">int</span> check <span class="opt">=</span> <span class="kwb">TreeNode</span><span class="opt">.</span><span class="kwd">itemCheck</span><span class="opt">(</span><span class="kwb">TreeNode</span><span class="opt">.</span><span class="kwd">bottomUpTree</span><span class="opt">(</span>stretchDepth<span class="opt">));</span>
+  <span class="kwd">print</span><span class="opt">(</span><span class="str">&quot;stretch tree of depth $stretchDepth</span><span class="esc">\t</span> <span class="str">check: $check&quot;</span><span class="opt">);</span>
 
-  int check = TreeNode.itemCheck(TreeNode.bottomUpTree(stretchDepth));
-  print(&quot;stretch tree of depth $stretchDepth\t check: $check&quot;);
+  <span class="kwb">TreeNode</span> longLivedTree <span class="opt">=</span> <span class="kwb">TreeNode</span><span class="opt">.</span><span class="kwd">bottomUpTree</span><span class="opt">(</span>maxDepth<span class="opt">);</span>
 
-  TreeNode longLivedTree = TreeNode.bottomUpTree(maxDepth);
+  <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> depth <span class="opt">=</span> minDepth<span class="opt">;</span> depth <span class="opt">&lt;=</span> maxDepth<span class="opt">;</span> depth <span class="opt">+=</span> <span class="num">2</span><span class="opt">) {</span>
+    <span class="kwb">int</span> iterations <span class="opt">=</span> <span class="num">1</span> <span class="opt">&lt;&lt; (</span>maxDepth <span class="opt">-</span> depth <span class="opt">+</span> minDepth<span class="opt">);</span>
+    <span class="kwa">final</span> check <span class="opt">=</span> await workFuture<span class="opt">.</span><span class="kwd">removeAt</span><span class="opt">(</span><span class="num">0</span><span class="opt">);</span>
+    <span class="kwd">print</span><span class="opt">(</span><span class="str">&quot;${iterations}</span><span class="esc">\t</span> <span class="str">trees of depth $depth</span><span class="esc">\t</span> <span class="str">check: $check&quot;</span><span class="opt">);</span>
+  <span class="opt">}</span>
 
-  for (int depth = minDepth; depth &lt;= maxDepth; depth += 2) {
-    int iterations = 1 &lt;&lt; (maxDepth - depth + minDepth);
-    final check = await workFuture.removeAt(0);
-    print(&quot;${iterations}\t trees of depth $depth\t check: $check&quot;);
-  }
+  <span class="kwd">print</span><span class="opt">(</span>
+      <span class="str">&quot;long lived tree of depth $maxDepth</span><span class="esc">\t</span> <span class="str">check: ${TreeNode.itemCheck(longLivedTree)}&quot;</span><span class="opt">);</span>
 
-  print(
-      &quot;long lived tree of depth $maxDepth\t check: ${TreeNode.itemCheck(longLivedTree)}&quot;);
+  sw<span class="opt">.</span><span class="kwd">stop</span><span class="opt">();</span>
+  <span class="kwa">if</span> <span class="opt">(</span>workerDebug<span class="opt">)</span> <span class="kwd">print</span><span class="opt">(</span>sw<span class="opt">.</span>elapsedMilliseconds<span class="opt">);</span>
 
-  sw.stop();
-  if (workerDebug) print(sw.elapsedMilliseconds);
+  <span class="slc">// It takes time to clean up the workers, so just exit instead</span>
+  <span class="kwd">exit</span><span class="opt">(</span><span class="num">0</span><span class="opt">);</span>
+<span class="opt">}</span>
 
-  // It takes time to clean up the workers, so just exit instead
-  exit(0);
-}
+<span class="kwa">class</span> <span class="kwb">TreeNode</span> <span class="opt">{</span>
+  <span class="kwa">final</span> <span class="kwb">TreeNode</span> left<span class="opt">,</span> right<span class="opt">;</span>
 
-class TreeNode {
-  final TreeNode left, right;
+  <span class="kwa">const</span> <span class="kwb">TreeNode</span><span class="opt">([</span><span class="kwa">this</span><span class="opt">.</span>left<span class="opt">,</span> <span class="kwa">this</span><span class="opt">.</span>right<span class="opt">]);</span>
 
-  const TreeNode([this.left, this.right]);
+  <span class="kwa">static</span> <span class="kwb">TreeNode</span> <span class="kwd">bottomUpTree</span><span class="opt">(</span><span class="kwb">int</span> depth<span class="opt">) {</span>
+    <span class="kwa">return</span> depth <span class="opt">&gt;</span> <span class="num">0</span>
+        ? <span class="kwb">TreeNode</span><span class="opt">(</span><span class="kwd">bottomUpTree</span><span class="opt">(</span>depth <span class="opt">-</span> <span class="num">1</span><span class="opt">),</span> <span class="kwd">bottomUpTree</span><span class="opt">(</span>depth <span class="opt">-</span> <span class="num">1</span><span class="opt">))</span>
+        <span class="opt">:</span> <span class="kwb">TreeNode</span><span class="opt">(</span><span class="kwa">null</span><span class="opt">,</span> <span class="kwa">null</span><span class="opt">);</span>
+  <span class="opt">}</span>
 
-  static TreeNode bottomUpTree(int depth) {
-    return depth &gt; 0
-        ? TreeNode(bottomUpTree(depth - 1), bottomUpTree(depth - 1))
-        : TreeNode(null, null);
-  }
-
-  static int itemCheck(TreeNode node) {
-    if (node.left == null) {
-      return 1;
-    }
-    return 1 + itemCheck(node.left) + itemCheck(node.right);
-  }
-}
+  <span class="kwa">static</span> <span class="kwb">int</span> <span class="kwd">itemCheck</span><span class="opt">(</span><span class="kwb">TreeNode</span> node<span class="opt">) {</span>
+    <span class="kwa">if</span> <span class="opt">(</span>node<span class="opt">.</span>left <span class="opt">==</span> <span class="kwa">null</span><span class="opt">) {</span>
+      <span class="kwa">return</span> <span class="num">1</span><span class="opt">;</span>
+    <span class="opt">}</span>
+    <span class="kwa">return</span> <span class="num">1</span> <span class="opt">+</span> <span class="kwd">itemCheck</span><span class="opt">(</span>node<span class="opt">.</span>left<span class="opt">) +</span> <span class="kwd">itemCheck</span><span class="opt">(</span>node<span class="opt">.</span>right<span class="opt">);</span>
+  <span class="opt">}</span>
+<span class="opt">}</span>
     </pre>
   </section>
   <section>

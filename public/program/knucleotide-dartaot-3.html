@@ -22,174 +22,174 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
       <h2>source code</h2>
     </div>
     <pre>
-/* The Computer Language Benchmarks Game
+<span class="com">/* The Computer Language Benchmarks Game</span>
+<span class="com"></span>
+<span class="com">   https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="com"></span>
+<span class="com">   Contributed by Philip Rogers</span>
+<span class="com">   Based on a javascript implementation by Jesse Millikan and Matt Baker</span>
+<span class="com">   Optimized and parallelized by Dwayne Slater</span>
+<span class="com">*/</span>
 
-   https://salsa.debian.org/benchmarksgame-team/benchmarksgame/
+import <span class="str">&apos;dart:async&apos;</span><span class="opt">;</span>
+import <span class="str">&apos;dart:collection&apos;</span><span class="opt">;</span>
+import <span class="str">&apos;dart:convert&apos;</span><span class="opt">;</span>
+import <span class="str">&apos;dart:io&apos;</span><span class="opt">;</span>
+import <span class="str">&apos;dart:isolate&apos;</span><span class="opt">;</span>
+import <span class="str">&apos;dart:typed_data&apos;</span><span class="opt">;</span>
 
-   Contributed by Philip Rogers
-   Based on a javascript implementation by Jesse Millikan and Matt Baker
-   Optimized and parallelized by Dwayne Slater
-*/
+<span class="kwa">class</span> <span class="kwb">CodeList</span> <span class="opt">{</span>
+  <span class="kwb">Uint</span><span class="num">64L</span>ist buffer<span class="opt">;</span>
+  <span class="kwb">int</span> length<span class="opt">;</span>
+  <span class="kwb">int</span> codeBuffer <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+  <span class="kwb">int</span> codeBufferLen <span class="opt">=</span> <span class="num">32</span><span class="opt">;</span>
+  <span class="kwb">int</span> codeLen <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
 
-import &apos;dart:async&apos;;
-import &apos;dart:collection&apos;;
-import &apos;dart:convert&apos;;
-import &apos;dart:io&apos;;
-import &apos;dart:isolate&apos;;
-import &apos;dart:typed_data&apos;;
+  <span class="kwb">CodeList</span><span class="opt">(</span><span class="kwb">int</span> initialCapacity<span class="opt">)</span>
+      <span class="opt">:</span> buffer <span class="opt">=</span> <span class="kwb">Uint</span><span class="num">64L</span>ist<span class="opt">(</span>initialCapacity<span class="opt">),</span>
+        length <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
 
-class CodeList {
-  Uint64List buffer;
-  int length;
-  int codeBuffer = 0;
-  int codeBufferLen = 32;
-  int codeLen = 0;
+  <span class="kwa">void</span> <span class="kwd">appendBuffer</span><span class="opt">(</span><span class="kwb">int</span> codes<span class="opt">) {</span>
+    <span class="kwa">if</span> <span class="opt">(</span>length <span class="opt">==</span> buffer<span class="opt">.</span>length<span class="opt">) {</span>
+      <span class="kwa">final</span> newBuffer <span class="opt">=</span> <span class="kwb">Uint</span><span class="num">64L</span>ist<span class="opt">(</span>length <span class="opt">*</span> <span class="num">2</span><span class="opt">);</span>
+      newBuffer<span class="opt">.</span><span class="kwd">setRange</span><span class="opt">(</span><span class="num">0</span><span class="opt">,</span> length<span class="opt">,</span> buffer<span class="opt">);</span>
+      buffer <span class="opt">=</span> newBuffer<span class="opt">;</span>
+    <span class="opt">}</span>
+    buffer<span class="opt">[</span>length<span class="opt">++] =</span> codes<span class="opt">;</span>
+  <span class="opt">}</span>
 
-  CodeList(int initialCapacity)
-      : buffer = Uint64List(initialCapacity),
-        length = 0;
+  <span class="kwa">void</span> <span class="kwd">add</span><span class="opt">(</span><span class="kwb">int</span> n<span class="opt">) {</span>
+    codeBuffer <span class="opt">= (</span>codeBuffer <span class="opt">&lt;&lt;</span> <span class="num">2</span><span class="opt">) |</span> n<span class="opt">;</span>
+    <span class="kwa">if</span> <span class="opt">((--</span>codeBufferLen<span class="opt">) ==</span> <span class="num">0</span><span class="opt">) {</span>
+      <span class="kwd">appendBuffer</span><span class="opt">(</span>codeBuffer<span class="opt">);</span>
+      codeBuffer <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+      codeBufferLen <span class="opt">=</span> <span class="num">32</span><span class="opt">;</span>
+    <span class="opt">}</span>
+  <span class="opt">}</span>
 
-  void appendBuffer(int codes) {
-    if (length == buffer.length) {
-      final newBuffer = Uint64List(length * 2);
-      newBuffer.setRange(0, length, buffer);
-      buffer = newBuffer;
-    }
-    buffer[length++] = codes;
-  }
+  <span class="kwa">void</span> <span class="kwd">flush</span><span class="opt">() {</span>
+    codeLen <span class="opt">= (</span>length <span class="opt">*</span> <span class="num">32</span><span class="opt">) + (</span><span class="num">32</span> <span class="opt">-</span> codeBufferLen<span class="opt">);</span>
+    <span class="kwa">while</span> <span class="opt">(</span>codeBuffer <span class="opt">!=</span> <span class="num">0</span><span class="opt">)</span> <span class="kwd">add</span><span class="opt">(</span><span class="num">0</span><span class="opt">);</span>
+  <span class="opt">}</span>
+<span class="opt">}</span>
 
-  void add(int n) {
-    codeBuffer = (codeBuffer &lt;&lt; 2) | n;
-    if ((--codeBufferLen) == 0) {
-      appendBuffer(codeBuffer);
-      codeBuffer = 0;
-      codeBufferLen = 32;
-    }
-  }
+<span class="kwb">String</span> <span class="kwd">codeToString</span><span class="opt">(</span><span class="kwb">int</span> code<span class="opt">,</span> <span class="kwb">int</span> len<span class="opt">) {</span>
+  <span class="kwa">final</span> b <span class="opt">=</span> <span class="kwb">Uint</span><span class="num">8L</span>ist<span class="opt">(</span>len<span class="opt">);</span>
+  <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> i <span class="opt">=</span> len <span class="opt">-</span> <span class="num">1</span><span class="opt">;</span> i <span class="opt">&gt;=</span> <span class="num">0</span><span class="opt">;</span> i<span class="opt">--) {</span>
+    <span class="kwa">const</span> <span class="kwb">int</span> $A <span class="opt">=</span> <span class="num">0x41</span><span class="opt">;</span>
+    <span class="kwa">const</span> <span class="kwb">int</span> $T <span class="opt">=</span> <span class="num">0x54</span><span class="opt">;</span>
+    <span class="kwa">const</span> <span class="kwb">int</span> $C <span class="opt">=</span> <span class="num">0x43</span><span class="opt">;</span>
+    <span class="kwa">const</span> <span class="kwb">int</span> $G <span class="opt">=</span> <span class="num">0x47</span><span class="opt">;</span>
+    b<span class="opt">[</span>i<span class="opt">] =</span> <span class="kwa">const</span> <span class="opt">[</span>$A<span class="opt">,</span> $C<span class="opt">,</span> $T<span class="opt">,</span> $G<span class="opt">][</span>code <span class="opt">&amp;</span> <span class="num">3</span><span class="opt">];</span>
+    code <span class="opt">&gt;&gt;=</span> <span class="num">2</span><span class="opt">;</span>
+  <span class="opt">}</span>
+  <span class="kwa">return</span> <span class="kwb">String</span><span class="opt">.</span><span class="kwd">fromCharCodes</span><span class="opt">(</span>b<span class="opt">);</span>
+<span class="opt">}</span>
 
-  void flush() {
-    codeLen = (length * 32) + (32 - codeBufferLen);
-    while (codeBuffer != 0) add(0);
-  }
-}
+<span class="kwb">Future</span><span class="opt">&lt;</span><span class="kwb">String</span><span class="opt">&gt;</span> <span class="kwd">readInput</span><span class="opt">() {</span>
+  <span class="kwa">return</span> stdin
+      <span class="opt">.</span><span class="kwd">transform</span><span class="opt">(</span>ascii<span class="opt">.</span>decoder<span class="opt">)</span>
+      <span class="opt">.</span><span class="kwd">transform</span><span class="opt">(</span><span class="kwb">LineSplitter</span><span class="opt">())</span>
+      <span class="opt">.</span><span class="kwd">skipWhile</span><span class="opt">((</span>line<span class="opt">) =&gt; !</span>line<span class="opt">.</span><span class="kwd">startsWith</span><span class="opt">(</span><span class="str">&quot;&gt;THREE&quot;</span><span class="opt">))</span>
+      <span class="opt">.</span><span class="kwd">skip</span><span class="opt">(</span><span class="num">1</span><span class="opt">)</span>
+      <span class="opt">.</span><span class="kwd">takeWhile</span><span class="opt">((</span>line<span class="opt">) =&gt; !</span>line<span class="opt">.</span><span class="kwd">startsWith</span><span class="opt">(</span><span class="str">&quot;&gt;&quot;</span><span class="opt">))</span>
+      <span class="opt">.</span><span class="kwd">map</span><span class="opt">((</span>s<span class="opt">) =&gt;</span> s<span class="opt">.</span><span class="kwd">toUpperCase</span><span class="opt">())</span>
+      <span class="opt">.</span><span class="kwd">join</span><span class="opt">();</span>
+<span class="opt">}</span>
 
-String codeToString(int code, int len) {
-  final b = Uint8List(len);
-  for (int i = len - 1; i &gt;= 0; i--) {
-    const int $A = 0x41;
-    const int $T = 0x54;
-    const int $C = 0x43;
-    const int $G = 0x47;
-    b[i] = const [$A, $C, $T, $G][code &amp; 3];
-    code &gt;&gt;= 2;
-  }
-  return String.fromCharCodes(b);
-}
+<span class="kwb">Future</span><span class="opt">&lt;</span><span class="kwb">CodeList</span><span class="opt">&gt;</span> <span class="kwd">readCodes</span><span class="opt">() {</span>
+  <span class="kwa">final</span> codeList <span class="opt">=</span> <span class="kwb">CodeList</span><span class="opt">(</span><span class="num">1024</span> <span class="opt">*</span> <span class="num">1024</span> <span class="opt">*</span> <span class="num">4</span><span class="opt">);</span>
+  <span class="kwa">return</span> stdin
+      <span class="opt">.</span><span class="kwd">map</span><span class="opt">((</span>s<span class="opt">) =&gt;</span> <span class="kwb">String</span><span class="opt">.</span><span class="kwd">fromCharCodes</span><span class="opt">(</span>s<span class="opt">))</span>
+      <span class="opt">.</span><span class="kwd">transform</span><span class="opt">(</span><span class="kwb">LineSplitter</span><span class="opt">())</span>
+      <span class="opt">.</span><span class="kwd">skipWhile</span><span class="opt">((</span>line<span class="opt">) =&gt; !</span>line<span class="opt">.</span><span class="kwd">startsWith</span><span class="opt">(</span><span class="str">&quot;&gt;THREE&quot;</span><span class="opt">))</span>
+      <span class="opt">.</span><span class="kwd">skip</span><span class="opt">(</span><span class="num">1</span><span class="opt">)</span>
+      <span class="opt">.</span><span class="kwd">takeWhile</span><span class="opt">((</span>line<span class="opt">) =&gt; !</span>line<span class="opt">.</span><span class="kwd">startsWith</span><span class="opt">(</span><span class="str">&quot;&gt;&quot;</span><span class="opt">))</span>
+      <span class="opt">.</span><span class="kwd">forEach</span><span class="opt">((</span>line<span class="opt">) {</span>
+    <span class="kwa">final</span> units <span class="opt">=</span> line<span class="opt">.</span>codeUnits<span class="opt">;</span>
+    <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> units<span class="opt">.</span>length<span class="opt">;</span> i<span class="opt">++) {</span>
+      codeList<span class="opt">.</span><span class="kwd">add</span><span class="opt">((</span>units<span class="opt">[</span>i<span class="opt">] &gt;&gt;</span> <span class="num">1</span><span class="opt">) &amp;</span> <span class="num">3</span><span class="opt">);</span>
+    <span class="opt">}</span>
+  <span class="opt">}).</span><span class="kwd">then</span><span class="opt">((</span>_<span class="opt">) {</span>
+    codeList<span class="opt">.</span><span class="kwd">flush</span><span class="opt">();</span>
+    <span class="kwa">return</span> codeList<span class="opt">;</span>
+  <span class="opt">});</span>
+<span class="opt">}</span>
 
-Future&lt;String&gt; readInput() {
-  return stdin
-      .transform(ascii.decoder)
-      .transform(LineSplitter())
-      .skipWhile((line) =&gt; !line.startsWith(&quot;&gt;THREE&quot;))
-      .skip(1)
-      .takeWhile((line) =&gt; !line.startsWith(&quot;&gt;&quot;))
-      .map((s) =&gt; s.toUpperCase())
-      .join();
-}
+<span class="kwb">Map</span><span class="opt">&lt;</span><span class="kwb">String</span><span class="opt">,</span> <span class="kwb">int</span><span class="opt">&gt;</span> <span class="kwd">frequency</span><span class="opt">(</span><span class="kwb">CodeList</span> codes<span class="opt">,</span> <span class="kwb">int</span> length<span class="opt">) {</span>
+  <span class="kwa">final</span> freq <span class="opt">=</span> <span class="kwb">HashMap</span><span class="opt">&lt;</span><span class="kwb">int</span><span class="opt">,</span> <span class="kwb">int</span><span class="opt">&gt;();</span>
+  <span class="kwa">final</span> <span class="kwb">int</span> shift <span class="opt">=</span> <span class="num">64</span> <span class="opt">- (</span>length <span class="opt">*</span> <span class="num">2</span><span class="opt">);</span>
+  <span class="kwb">int</span> window <span class="opt">=</span> codes<span class="opt">.</span>buffer<span class="opt">[</span><span class="num">0</span><span class="opt">];</span>
+  <span class="kwb">int</span> next <span class="opt">=</span> codes<span class="opt">.</span>buffer<span class="opt">[</span><span class="num">1</span><span class="opt">];</span>
+  <span class="kwb">int</span> count <span class="opt">=</span> codes<span class="opt">.</span>codeLen <span class="opt">-</span> length <span class="opt">+</span> <span class="num">1</span><span class="opt">;</span>
+  <span class="kwb">int</span> cd <span class="opt">=</span> <span class="num">32</span><span class="opt">;</span>
+  <span class="kwb">int</span> i <span class="opt">=</span> <span class="num">2</span><span class="opt">;</span>
+  <span class="kwa">while</span> <span class="opt">(</span>count <span class="opt">&gt;</span> <span class="num">0</span><span class="opt">) {</span>
+    freq<span class="opt">[</span>window <span class="opt">&gt;&gt;</span> shift<span class="opt">] = (</span>freq<span class="opt">[</span>window <span class="opt">&gt;&gt;</span> shift<span class="opt">]</span> ?? <span class="num">0</span><span class="opt">) +</span> <span class="num">1</span><span class="opt">;</span>
 
-Future&lt;CodeList&gt; readCodes() {
-  final codeList = CodeList(1024 * 1024 * 4);
-  return stdin
-      .map((s) =&gt; String.fromCharCodes(s))
-      .transform(LineSplitter())
-      .skipWhile((line) =&gt; !line.startsWith(&quot;&gt;THREE&quot;))
-      .skip(1)
-      .takeWhile((line) =&gt; !line.startsWith(&quot;&gt;&quot;))
-      .forEach((line) {
-    final units = line.codeUnits;
-    for (int i = 0; i &lt; units.length; i++) {
-      codeList.add((units[i] &gt;&gt; 1) &amp; 3);
-    }
-  }).then((_) {
-    codeList.flush();
-    return codeList;
-  });
-}
+    window <span class="opt">= (</span>window <span class="opt">&lt;&lt;</span> <span class="num">2</span><span class="opt">) | ((</span>next <span class="opt">&gt;&gt;</span> <span class="num">62</span><span class="opt">) &amp;</span> <span class="num">0x3</span><span class="opt">);</span>
+    next <span class="opt">&lt;&lt;=</span> <span class="num">2</span><span class="opt">;</span>
+    count<span class="opt">--;</span>
 
-Map&lt;String, int&gt; frequency(CodeList codes, int length) {
-  final freq = HashMap&lt;int, int&gt;();
-  final int shift = 64 - (length * 2);
-  int window = codes.buffer[0];
-  int next = codes.buffer[1];
-  int count = codes.codeLen - length + 1;
-  int cd = 32;
-  int i = 2;
-  while (count &gt; 0) {
-    freq[window &gt;&gt; shift] = (freq[window &gt;&gt; shift] ?? 0) + 1;
+    <span class="kwa">if</span> <span class="opt">((--</span>cd<span class="opt">) ==</span> <span class="num">0</span><span class="opt">) {</span>
+      cd <span class="opt">=</span> <span class="num">32</span><span class="opt">;</span>
+      next <span class="opt">=</span> codes<span class="opt">.</span>buffer<span class="opt">[</span>i<span class="opt">++];</span>
+    <span class="opt">}</span>
+  <span class="opt">}</span>
 
-    window = (window &lt;&lt; 2) | ((next &gt;&gt; 62) &amp; 0x3);
-    next &lt;&lt;= 2;
-    count--;
+  <span class="kwa">return</span> <span class="kwb">Map</span><span class="opt">.</span><span class="kwd">fromEntries</span><span class="opt">(</span>freq<span class="opt">.</span>entries<span class="opt">.</span><span class="kwd">map</span><span class="opt">((</span>entry<span class="opt">) =&gt;</span> <span class="kwb">MapEntry</span><span class="opt">(</span>
+      <span class="kwd">codeToString</span><span class="opt">(</span>entry<span class="opt">.</span>key<span class="opt">.</span><span class="kwd">toUnsigned</span><span class="opt">(</span>length <span class="opt">*</span> <span class="num">2</span><span class="opt">),</span> length<span class="opt">),</span> entry<span class="opt">.</span>value<span class="opt">)));</span>
+<span class="opt">}</span>
 
-    if ((--cd) == 0) {
-      cd = 32;
-      next = codes.buffer[i++];
-    }
-  }
+<span class="kwa">void</span> <span class="kwd">sort</span><span class="opt">(</span><span class="kwb">CodeList</span> codes<span class="opt">,</span> <span class="kwb">int</span> length<span class="opt">) {</span>
+  <span class="kwa">final</span> freq <span class="opt">=</span> <span class="kwd">frequency</span><span class="opt">(</span>codes<span class="opt">,</span> length<span class="opt">);</span>
+  <span class="kwa">final</span> keys <span class="opt">=</span> freq<span class="opt">.</span>keys<span class="opt">.</span><span class="kwd">toList</span><span class="opt">();</span>
+  <span class="kwb">int</span> n <span class="opt">=</span> codes<span class="opt">.</span>codeLen <span class="opt">-</span> length <span class="opt">+</span> <span class="num">1</span><span class="opt">;</span>
+  keys<span class="opt">.</span><span class="kwd">sort</span><span class="opt">((</span>a<span class="opt">,</span> b<span class="opt">) =&gt; (</span>freq<span class="opt">[</span>b<span class="opt">] -</span> freq<span class="opt">[</span>a<span class="opt">]));</span>
+  <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">final</span> key <span class="kwa">in</span> keys<span class="opt">) {</span>
+    <span class="kwb">String</span> count <span class="opt">= (</span>freq<span class="opt">[</span>key<span class="opt">] *</span> <span class="num">100</span> <span class="opt">/</span> n<span class="opt">).</span><span class="kwd">toStringAsFixed</span><span class="opt">(</span><span class="num">3</span><span class="opt">);</span>
+    <span class="kwd">print</span><span class="opt">(</span><span class="str">&apos;$key $count&apos;</span><span class="opt">);</span>
+  <span class="opt">}</span>
+  <span class="kwd">print</span><span class="opt">(</span><span class="str">&apos;&apos;</span><span class="opt">);</span>
+<span class="opt">}</span>
 
-  return Map.fromEntries(freq.entries.map((entry) =&gt; MapEntry(
-      codeToString(entry.key.toUnsigned(length * 2), length), entry.value)));
-}
+<span class="kwb">String</span> <span class="kwd">find</span><span class="opt">(</span><span class="kwb">CodeList</span> codes<span class="opt">,</span> <span class="kwb">String</span> string<span class="opt">) {</span>
+  <span class="kwb">Map</span><span class="opt">&lt;</span><span class="kwb">String</span><span class="opt">,</span> <span class="kwb">int</span><span class="opt">&gt;</span> freq <span class="opt">=</span> <span class="kwd">frequency</span><span class="opt">(</span>codes<span class="opt">,</span> string<span class="opt">.</span>length<span class="opt">);</span>
+  <span class="kwa">return</span> <span class="str">&apos;${(freq[string])}</span><span class="esc">\t</span><span class="str">$string&apos;</span><span class="opt">;</span>
+<span class="opt">}</span>
 
-void sort(CodeList codes, int length) {
-  final freq = frequency(codes, length);
-  final keys = freq.keys.toList();
-  int n = codes.codeLen - length + 1;
-  keys.sort((a, b) =&gt; (freq[b] - freq[a]));
-  for (final key in keys) {
-    String count = (freq[key] * 100 / n).toStringAsFixed(3);
-    print(&apos;$key $count&apos;);
-  }
-  print(&apos;&apos;);
-}
+<span class="kwa">void</span> <span class="kwd">main</span><span class="opt">(</span>args<span class="opt">)</span> async <span class="opt">{</span>
+  <span class="kwa">final</span> sequence <span class="opt">=</span> await <span class="kwd">readCodes</span><span class="opt">();</span>
+  <span class="kwa">final</span> a <span class="opt">=</span> <span class="kwd">par</span><span class="opt">(</span>sequence<span class="opt">, [</span><span class="str">&apos;GGT&apos;</span><span class="opt">,</span> <span class="str">&apos;GGTA&apos;</span><span class="opt">,</span> <span class="str">&apos;GGTATT&apos;</span><span class="opt">]);</span>
+  <span class="kwa">final</span> b <span class="opt">=</span> <span class="kwd">par</span><span class="opt">(</span>sequence<span class="opt">, [</span><span class="str">&apos;GGTATTTTAATT&apos;</span><span class="opt">]);</span>
+  <span class="kwa">final</span> c <span class="opt">=</span> <span class="kwd">par</span><span class="opt">(</span>sequence<span class="opt">, [</span><span class="str">&apos;GGTATTTTAATTTATAGT&apos;</span><span class="opt">]);</span>
+  <span class="kwd">sort</span><span class="opt">(</span>sequence<span class="opt">,</span> <span class="num">1</span><span class="opt">);</span>
+  <span class="kwd">sort</span><span class="opt">(</span>sequence<span class="opt">,</span> <span class="num">2</span><span class="opt">);</span>
+  <span class="opt">(</span>await a<span class="opt">).</span><span class="kwd">forEach</span><span class="opt">(</span>print<span class="opt">);</span>
+  <span class="opt">(</span>await b<span class="opt">).</span><span class="kwd">forEach</span><span class="opt">(</span>print<span class="opt">);</span>
+  <span class="opt">(</span>await c<span class="opt">).</span><span class="kwd">forEach</span><span class="opt">(</span>print<span class="opt">);</span>
+<span class="opt">}</span>
 
-String find(CodeList codes, String string) {
-  Map&lt;String, int&gt; freq = frequency(codes, string.length);
-  return &apos;${(freq[string])}\t$string&apos;;
-}
+<span class="kwa">void</span> <span class="kwd">findMultiple</span><span class="opt">(</span><span class="kwb">List</span><span class="opt">&lt;</span>dynamic<span class="opt">&gt;</span> data<span class="opt">) {</span>
+  <span class="kwa">final</span> codes <span class="opt">=</span> data<span class="opt">[</span><span class="num">1</span><span class="opt">]</span> as <span class="kwb">CodeList</span><span class="opt">;</span>
+  <span class="kwa">final</span> l <span class="opt">= (</span>data<span class="opt">[</span><span class="num">2</span><span class="opt">]</span> as <span class="kwb">List</span><span class="opt">&lt;</span><span class="kwb">String</span><span class="opt">&gt;)</span>
+      <span class="opt">.</span><span class="kwd">map</span><span class="opt">((</span>s<span class="opt">) =&gt;</span> <span class="kwd">find</span><span class="opt">(</span>codes<span class="opt">,</span> s<span class="opt">))</span>
+      <span class="opt">.</span><span class="kwd">toList</span><span class="opt">(</span>growable<span class="opt">:</span> <span class="kwa">false</span><span class="opt">);</span>
+  <span class="opt">(</span>data<span class="opt">[</span><span class="num">0</span><span class="opt">]</span> as <span class="kwb">SendPort</span><span class="opt">).</span><span class="kwd">send</span><span class="opt">(</span>l<span class="opt">);</span>
+<span class="opt">}</span>
 
-void main(args) async {
-  final sequence = await readCodes();
-  final a = par(sequence, [&apos;GGT&apos;, &apos;GGTA&apos;, &apos;GGTATT&apos;]);
-  final b = par(sequence, [&apos;GGTATTTTAATT&apos;]);
-  final c = par(sequence, [&apos;GGTATTTTAATTTATAGT&apos;]);
-  sort(sequence, 1);
-  sort(sequence, 2);
-  (await a).forEach(print);
-  (await b).forEach(print);
-  (await c).forEach(print);
-}
+<span class="kwb">Future</span><span class="opt">&lt;</span><span class="kwb">List</span><span class="opt">&lt;</span><span class="kwb">String</span><span class="opt">&gt;&gt;</span> <span class="kwd">par</span><span class="opt">(</span><span class="kwb">CodeList</span> codes<span class="opt">,</span> <span class="kwb">List</span><span class="opt">&lt;</span><span class="kwb">String</span><span class="opt">&gt;</span> s<span class="opt">) {</span>
+  <span class="kwa">final</span> completer <span class="opt">=</span> <span class="kwb">Completer</span><span class="opt">&lt;</span><span class="kwb">List</span><span class="opt">&lt;</span><span class="kwb">String</span><span class="opt">&gt;&gt;.</span><span class="kwd">sync</span><span class="opt">();</span>
+  <span class="kwa">final</span> recv <span class="opt">=</span> <span class="kwb">RawReceivePort</span><span class="opt">((</span>data<span class="opt">) {</span>
+    completer<span class="opt">.</span><span class="kwd">complete</span><span class="opt">(</span>data<span class="opt">);</span>
+  <span class="opt">});</span>
 
-void findMultiple(List&lt;dynamic&gt; data) {
-  final codes = data[1] as CodeList;
-  final l = (data[2] as List&lt;String&gt;)
-      .map((s) =&gt; find(codes, s))
-      .toList(growable: false);
-  (data[0] as SendPort).send(l);
-}
+  <span class="kwb">Isolate</span><span class="opt">.</span><span class="kwd">spawn</span><span class="opt">(</span>findMultiple<span class="opt">, [</span>recv<span class="opt">.</span>sendPort<span class="opt">,</span> codes<span class="opt">,</span> s<span class="opt">]);</span>
 
-Future&lt;List&lt;String&gt;&gt; par(CodeList codes, List&lt;String&gt; s) {
-  final completer = Completer&lt;List&lt;String&gt;&gt;.sync();
-  final recv = RawReceivePort((data) {
-    completer.complete(data);
-  });
+  completer<span class="opt">.</span>future<span class="opt">.</span><span class="kwd">whenComplete</span><span class="opt">(() =&gt;</span> recv<span class="opt">.</span><span class="kwd">close</span><span class="opt">());</span>
 
-  Isolate.spawn(findMultiple, [recv.sendPort, codes, s]);
-
-  completer.future.whenComplete(() =&gt; recv.close());
-
-  return completer.future;
-}
+  <span class="kwa">return</span> completer<span class="opt">.</span>future<span class="opt">;</span>
+<span class="opt">}</span>
     </pre>
   </section>
   <section>
