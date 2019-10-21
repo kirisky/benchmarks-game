@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,follow,noarchive">
+
+<title>reverse-complement C++ g++&nbsp;#8 program | Computer Language Benchmarks Game </title>
+<style><!--
+a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,header{margin:auto;width:92%}body{font:100% Droid Sans, Ubuntu, Verdana, sans-serif;margin:0;-webkit-text-size-adjust:100%}h3, h1, h2, li a{font-family:Ubuntu Mono,Consolas,Menlo,monospace}div,footer,header{max-width:31em}footer{padding:2.6em 0 0}h3{font-size:1.4em;font-weight:bold;margin:0;padding: .4em}h3, h3 a{color:white;background-color:#dd4814}h3 small{font-size:0.64em}h1,h2{margin:1.5em 0 0}h1{font-size:1.4em;font-weight:normal}h2{font-size:1.2em}li{list-style-type:none;vertical-align:top}li a{display:block;font-size:1.2em;margin: .5em .5em 0;padding: .5em .5em .3em}ul{clear:left;margin:-0.3em 0 1.5em;padding-left:0;text-align:center}p{color:#333;line-height:1.4;margin: .3em 0 0}p a, a span{border-bottom: .1em solid #333;padding-bottom: .1em}.com,.slc{color:#888}.kwa{color:#066}.kwb{color:#900}.kwc{color:#050}.kwa,.kwb,.kwc{font-weight:bold}.dstr,.str,.sym,.num{color:#930}pre{color:#222;font-size:1em;overflow-wrap:break-word;white-space:pre-wrap;word-wrap:break-word}@media only screen and (min-width: 60em){article,footer,header{font-size:1.25em}}
+--></style>
+<link rel="shortcut icon" href="./favicon.ico">
+<header>
+  <h3><a href="https://benchmarksgame-team.pages.debian.net/benchmarksgame/">The&nbsp;<small>Computer&nbsp;Language</small><br>Benchmarks&nbsp;Game</a></h3>
+</header>
+<article>
+  <div>
+    <h1>reverse-complement C++ g++&nbsp;#8 program</h1>
+    <aside>
+      <p><a href="../description/revcomp.html#revcomp">description</a>
+    </aside>
+  </div>
+  <section>
+    </div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc">// The Computer Language Benchmarks Game</span>
+<span class="slc">// https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">//</span>
+<span class="slc">// Contributed by Roman TsarBlog</span>
+
+<span class="ppc">#include &lt;boost/hana.hpp&gt;</span>
+<span class="ppc">#include &lt;limits&gt;</span>
+<span class="ppc">#include &lt;array&gt;</span>
+<span class="ppc">#include &lt;sys/mman.h&gt;</span>
+<span class="ppc">#include &lt;unistd.h&gt;</span>
+<span class="ppc">#include &lt;cassert&gt;</span>
+<span class="ppc">#include &lt;filesystem&gt;</span>
+<span class="ppc">#include &lt;string_view&gt;</span>
+<span class="ppc">#include &lt;vector&gt;</span>
+
+<span class="kwa">namespace</span> hana <span class="opt">=</span> <span class="kwc">boost</span><span class="opt">::</span>hana<span class="opt">;</span>
+<span class="kwa">namespace</span> fs <span class="opt">=</span> <span class="kwc">std</span><span class="opt">::</span>filesystem<span class="opt">;</span>
+
+<span class="kwa">using namespace</span> <span class="kwc">hana</span><span class="opt">::</span>literals<span class="opt">;</span>
+
+<span class="kwa">using</span> sv <span class="opt">=</span> <span class="kwc">std</span><span class="opt">::</span>string_view<span class="opt">;</span>
+
+<span class="kwa">using</span> <span class="kwc">hana</span><span class="opt">::</span>_<span class="opt">;</span>
+
+
+<span class="kwc">constexpr</span> <span class="kwb">uint8_t</span> <span class="kwd">swmap</span><span class="opt">(</span><span class="kwb">uint8_t</span> c<span class="opt">) {</span>
+  <span class="kwa">switch</span><span class="opt">(</span>c<span class="opt">) {</span>
+    <span class="kwa">case</span> <span class="str">&apos;A&apos;</span><span class="opt">:</span> <span class="kwa">case</span> <span class="str">&apos;a&apos;</span><span class="opt">:</span> <span class="kwa">return</span> <span class="str">&apos;T&apos;</span><span class="opt">;</span><span class="slc">// &apos;A&apos; | &apos;a&apos; =&gt; &apos;T&apos;,</span>
+    <span class="kwa">case</span> <span class="str">&apos;C&apos;</span><span class="opt">:</span> <span class="kwa">case</span> <span class="str">&apos;c&apos;</span><span class="opt">:</span> <span class="kwa">return</span> <span class="str">&apos;G&apos;</span><span class="opt">;</span><span class="slc">// &apos;C&apos; | &apos;c&apos; =&gt; &apos;G&apos;,</span>
+    <span class="kwa">case</span> <span class="str">&apos;G&apos;</span><span class="opt">:</span> <span class="kwa">case</span> <span class="str">&apos;g&apos;</span><span class="opt">:</span> <span class="kwa">return</span> <span class="str">&apos;C&apos;</span><span class="opt">;</span><span class="slc">// &apos;G&apos; | &apos;g&apos; =&gt; &apos;C&apos;,</span>
+    <span class="kwa">case</span> <span class="str">&apos;T&apos;</span><span class="opt">:</span> <span class="kwa">case</span> <span class="str">&apos;t&apos;</span><span class="opt">:</span> <span class="kwa">return</span> <span class="str">&apos;A&apos;</span><span class="opt">;</span><span class="slc">// &apos;T&apos; | &apos;t&apos; =&gt; &apos;A&apos;,</span>
+    <span class="kwa">case</span> <span class="str">&apos;U&apos;</span><span class="opt">:</span> <span class="kwa">case</span> <span class="str">&apos;u&apos;</span><span class="opt">:</span> <span class="kwa">return</span> <span class="str">&apos;A&apos;</span><span class="opt">;</span><span class="slc">// &apos;U&apos; | &apos;u&apos; =&gt; &apos;A&apos;,</span>
+    <span class="kwa">case</span> <span class="str">&apos;M&apos;</span><span class="opt">:</span> <span class="kwa">case</span> <span class="str">&apos;m&apos;</span><span class="opt">:</span> <span class="kwa">return</span> <span class="str">&apos;K&apos;</span><span class="opt">;</span><span class="slc">// &apos;M&apos; | &apos;m&apos; =&gt; &apos;K&apos;,</span>
+    <span class="kwa">case</span> <span class="str">&apos;R&apos;</span><span class="opt">:</span> <span class="kwa">case</span> <span class="str">&apos;r&apos;</span><span class="opt">:</span> <span class="kwa">return</span> <span class="str">&apos;Y&apos;</span><span class="opt">;</span><span class="slc">// &apos;R&apos; | &apos;r&apos; =&gt; &apos;Y&apos;,</span>
+    <span class="kwa">case</span> <span class="str">&apos;W&apos;</span><span class="opt">:</span> <span class="kwa">case</span> <span class="str">&apos;w&apos;</span><span class="opt">:</span> <span class="kwa">return</span> <span class="str">&apos;W&apos;</span><span class="opt">;</span><span class="slc">// &apos;W&apos; | &apos;w&apos; =&gt; &apos;W&apos;,</span>
+    <span class="kwa">case</span> <span class="str">&apos;S&apos;</span><span class="opt">:</span> <span class="kwa">case</span> <span class="str">&apos;s&apos;</span><span class="opt">:</span> <span class="kwa">return</span> <span class="str">&apos;S&apos;</span><span class="opt">;</span><span class="slc">// &apos;S&apos; | &apos;s&apos; =&gt; &apos;S&apos;,</span>
+    <span class="kwa">case</span> <span class="str">&apos;Y&apos;</span><span class="opt">:</span> <span class="kwa">case</span> <span class="str">&apos;y&apos;</span><span class="opt">:</span> <span class="kwa">return</span> <span class="str">&apos;R&apos;</span><span class="opt">;</span><span class="slc">// &apos;Y&apos; | &apos;y&apos; =&gt; &apos;R&apos;,</span>
+    <span class="kwa">case</span> <span class="str">&apos;K&apos;</span><span class="opt">:</span> <span class="kwa">case</span> <span class="str">&apos;k&apos;</span><span class="opt">:</span> <span class="kwa">return</span> <span class="str">&apos;M&apos;</span><span class="opt">;</span><span class="slc">// &apos;K&apos; | &apos;k&apos; =&gt; &apos;M&apos;,</span>
+    <span class="kwa">case</span> <span class="str">&apos;V&apos;</span><span class="opt">:</span> <span class="kwa">case</span> <span class="str">&apos;v&apos;</span><span class="opt">:</span> <span class="kwa">return</span> <span class="str">&apos;B&apos;</span><span class="opt">;</span><span class="slc">// &apos;V&apos; | &apos;v&apos; =&gt; &apos;B&apos;,</span>
+    <span class="kwa">case</span> <span class="str">&apos;H&apos;</span><span class="opt">:</span> <span class="kwa">case</span> <span class="str">&apos;h&apos;</span><span class="opt">:</span> <span class="kwa">return</span> <span class="str">&apos;D&apos;</span><span class="opt">;</span><span class="slc">// &apos;H&apos; | &apos;h&apos; =&gt; &apos;D&apos;,</span>
+    <span class="kwa">case</span> <span class="str">&apos;D&apos;</span><span class="opt">:</span> <span class="kwa">case</span> <span class="str">&apos;d&apos;</span><span class="opt">:</span> <span class="kwa">return</span> <span class="str">&apos;H&apos;</span><span class="opt">;</span><span class="slc">// &apos;D&apos; | &apos;d&apos; =&gt; &apos;H&apos;,</span>
+    <span class="kwa">case</span> <span class="str">&apos;B&apos;</span><span class="opt">:</span> <span class="kwa">case</span> <span class="str">&apos;b&apos;</span><span class="opt">:</span> <span class="kwa">return</span> <span class="str">&apos;V&apos;</span><span class="opt">;</span><span class="slc">// &apos;B&apos; | &apos;b&apos; =&gt; &apos;V&apos;,</span>
+    <span class="kwa">case</span> <span class="str">&apos;N&apos;</span><span class="opt">:</span> <span class="kwa">case</span> <span class="str">&apos;n&apos;</span><span class="opt">:</span> <span class="kwa">return</span> <span class="str">&apos;N&apos;</span><span class="opt">;</span><span class="slc">// &apos;N&apos; | &apos;n&apos; =&gt; &apos;N&apos;,</span>
+    <span class="kwa">default</span><span class="opt">:</span> <span class="kwa">return</span> <span class="num">0</span><span class="opt">;</span>
+  <span class="opt">}</span>
+<span class="opt">}</span>
+
+<span class="kwc">constexpr auto</span> map <span class="opt">= ([] {</span>
+  <span class="kwc">constexpr auto</span> max <span class="opt">=</span> <span class="kwc">std</span><span class="opt">::</span>numeric_limits<span class="opt">&lt;</span><span class="kwb">uint8_t</span><span class="opt">&gt;::</span><span class="kwd">max</span><span class="opt">();</span>
+  <span class="kwc">std</span><span class="opt">::</span>array<span class="opt">&lt;</span><span class="kwb">uint16_t</span><span class="opt">,</span> max <span class="opt">*</span> max<span class="opt">&gt;</span> map<span class="opt">{};</span>
+  <span class="kwa">for</span><span class="opt">(</span><span class="kwb">size_t</span> it <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> it <span class="opt">&lt;</span> map<span class="opt">.</span><span class="kwd">size</span><span class="opt">(); ++</span>it<span class="opt">) {</span>
+    <span class="kwb">uint8_t</span> hi <span class="opt">= (</span>it <span class="opt">&gt;&gt;</span> <span class="num">8</span><span class="opt">),</span> lo <span class="opt">=</span> it<span class="opt">;</span>
+    map<span class="opt">[</span>it<span class="opt">] = (</span><span class="kwd">swmap</span><span class="opt">(</span>lo<span class="opt">) &lt;&lt;</span> <span class="num">8</span><span class="opt">) | (</span><span class="kwd">swmap</span><span class="opt">(</span>hi<span class="opt">));</span>
+  <span class="opt">}</span>
+  <span class="kwa">return</span> map<span class="opt">;</span>
+<span class="opt">})();</span>
+
+<span class="kwc">constexpr auto</span> map256 <span class="opt">= ([] {</span>
+  <span class="kwc">constexpr auto</span> max <span class="opt">=</span> <span class="kwc">std</span><span class="opt">::</span>numeric_limits<span class="opt">&lt;</span><span class="kwb">uint8_t</span><span class="opt">&gt;::</span><span class="kwd">max</span><span class="opt">();</span>
+  <span class="kwc">std</span><span class="opt">::</span>array<span class="opt">&lt;</span><span class="kwb">uint8_t</span><span class="opt">,</span> max<span class="opt">&gt;</span> map<span class="opt">{};</span>
+  <span class="kwa">for</span><span class="opt">(</span><span class="kwb">size_t</span> it <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> it <span class="opt">&lt;</span> max<span class="opt">; ++</span>it<span class="opt">)</span>
+    map<span class="opt">[</span>it<span class="opt">] =</span> <span class="kwd">swmap</span><span class="opt">(</span>it<span class="opt">);</span>
+  <span class="kwa">return</span> map<span class="opt">;</span>
+<span class="opt">})();</span>
+
+<span class="kwc">template</span><span class="opt">&lt;</span><span class="kwb">size_t</span> noffset<span class="opt">&gt;</span> <span class="kwb">void</span> <span class="kwd">replace60</span><span class="opt">(</span><span class="kwb">const char</span> <span class="opt">*</span> in<span class="opt">,</span> <span class="kwb">char</span> <span class="opt">*</span> out<span class="opt">) {</span>
+  <span class="kwc">constexpr auto</span> offset <span class="opt">=</span> <span class="kwc">hana</span><span class="opt">::</span>llong_c<span class="opt">&lt;</span>noffset<span class="opt">&gt;;</span>
+  
+  <span class="kwc">auto</span> op <span class="opt">= [&amp;] {</span>
+    <span class="opt">*(</span><span class="kwb">uint16_t</span> <span class="opt">*)</span>out <span class="opt">=</span> map<span class="opt">[*(</span><span class="kwb">const uint16_t</span> <span class="opt">*)(</span>in <span class="opt">-=</span> <span class="num">2</span><span class="opt">)];</span>
+    out <span class="opt">+=</span> <span class="num">2</span><span class="opt">;</span>
+  <span class="opt">};</span>
+  
+  <span class="kwc">auto</span> tail_size <span class="opt">= ((</span><span class="num">60</span>_c <span class="opt">-</span> offset<span class="opt">) /</span> <span class="num">2</span>_c<span class="opt">);</span>
+  tail_size<span class="opt">.</span><span class="kwd">times</span><span class="opt">(</span>op<span class="opt">);</span>
+  
+  <span class="kwa">if</span> <span class="kwc">constexpr</span><span class="opt">(</span>offset <span class="opt">%</span> <span class="num">2</span>_c<span class="opt">) {</span>
+<span class="slc">//   ...1\n  </span>
+<span class="slc">//   0...  </span>
+    <span class="opt">*</span>out<span class="opt">++ =</span> map256<span class="opt">[*(--</span>in<span class="opt">)];</span>
+    <span class="opt">--</span>in<span class="opt">;</span>
+<span class="slc">//     assert(*in == &apos;\n&apos;);</span>
+    <span class="opt">*</span>out<span class="opt">++ =</span> map256<span class="opt">[*(--</span>in<span class="opt">)];</span>
+    <span class="opt">(</span><span class="num">29</span>_c <span class="opt">-</span> tail_size<span class="opt">).</span><span class="kwd">times</span><span class="opt">(</span>op<span class="opt">);</span>
+  <span class="opt">}</span> <span class="kwa">else</span> <span class="opt">{</span><span class="slc">// even</span>
+<span class="slc">//   ...\n  </span>
+<span class="slc">//   ...  </span>
+    in <span class="opt">-=</span> <span class="num">1</span><span class="opt">;</span>
+<span class="slc">//     assert(*in == &apos;\n&apos;);</span>
+    <span class="opt">(</span><span class="num">30</span>_c <span class="opt">-</span> tail_size<span class="opt">).</span><span class="kwd">times</span><span class="opt">(</span>op<span class="opt">);</span>
+  <span class="opt">}</span>
+  <span class="opt">*(</span>out<span class="opt">++) =</span> <span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span><span class="opt">;</span>
+<span class="opt">}</span>
+
+<span class="kwc">auto</span> select_replace60 <span class="opt">= [](</span><span class="kwc">std</span><span class="opt">::</span>string_view in<span class="opt">) {</span>
+  <span class="kwc">constexpr</span> <span class="kwb">static</span> <span class="kwc">auto</span> replace60_map <span class="opt">= ([] {</span>
+    <span class="kwc">std</span><span class="opt">::</span>array<span class="opt">&lt;</span><span class="kwc">decltype</span><span class="opt">(</span>replace60<span class="opt">&lt;</span><span class="num">0</span><span class="opt">&gt;) *,</span> <span class="num">60</span><span class="opt">&gt;</span> map<span class="opt">{};</span>
+    <span class="opt">(</span><span class="num">60</span>_c<span class="opt">).</span>times<span class="opt">.</span><span class="kwd">with_index</span><span class="opt">([&amp;](</span><span class="kwc">auto</span> index<span class="opt">) {</span>
+      map<span class="opt">[</span><span class="kwd">index</span><span class="opt">()] =</span> replace60<span class="opt">&lt;</span><span class="kwd">index</span><span class="opt">()&gt;;</span>
+    <span class="opt">});</span>
+    <span class="kwa">return</span> map<span class="opt">;</span>
+  <span class="opt">})();</span>
+  
+  <span class="kwc">auto</span> first_pos <span class="opt">=</span> <span class="kwd">size</span><span class="opt">(</span>in<span class="opt">) -</span> <span class="num">1</span><span class="opt">;</span>
+  <span class="kwa">assert</span><span class="opt">(</span>in<span class="opt">.</span><span class="kwd">at</span><span class="opt">(</span>first_pos<span class="opt">) ==</span> <span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span><span class="opt">);</span>
+  
+  <span class="kwc">auto</span> diff <span class="opt">=</span> first_pos <span class="opt">-</span> in<span class="opt">.</span><span class="kwd">find_last_of</span><span class="opt">(</span><span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span><span class="opt">,</span> first_pos <span class="opt">-</span> <span class="num">1</span><span class="opt">);</span>
+  <span class="kwa">assert</span><span class="opt">(</span>in<span class="opt">.</span><span class="kwd">at</span><span class="opt">(</span><span class="kwd">size</span><span class="opt">(</span>in<span class="opt">) -</span> diff <span class="opt">-</span> <span class="num">1</span><span class="opt">) ==</span> <span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span><span class="opt">);</span>
+  
+  <span class="kwa">return</span> replace60_map<span class="opt">.</span><span class="kwd">at</span><span class="opt">(</span><span class="num">61</span> <span class="opt">-</span> diff<span class="opt">);</span>
+<span class="opt">};</span>
+
+
+<span class="kwb">void</span> <span class="kwd">replace</span><span class="opt">(</span>sv data<span class="opt">) {</span>
+  <span class="kwc">auto</span> op <span class="opt">=</span> <span class="kwd">select_replace60</span><span class="opt">(</span>data<span class="opt">);</span>
+  <span class="kwc">constexpr</span> <span class="kwb">size_t</span> line_size <span class="opt">=</span> <span class="num">61</span><span class="opt">;</span>
+  <span class="kwc">constexpr</span> <span class="kwb">size_t</span> buff_size <span class="opt">=</span> line_size <span class="opt">*</span> <span class="num">1024</span><span class="opt">;</span>
+  <span class="kwb">char</span> buff<span class="opt">[</span>buff_size<span class="opt">] = {};</span>
+  <span class="kwc">auto</span> n <span class="opt">=</span> <span class="kwd">size</span><span class="opt">(</span>data<span class="opt">) /</span> line_size<span class="opt">;</span>
+  <span class="kwc">auto</span> tail <span class="opt">=</span> <span class="kwd">size</span><span class="opt">(</span>data<span class="opt">) - (</span>n <span class="opt">*</span> line_size<span class="opt">);</span>
+  
+  <span class="kwc">auto</span> it <span class="opt">=</span> <span class="kwd">end</span><span class="opt">(</span>data<span class="opt">) -</span> <span class="num">1</span><span class="opt">;</span>
+  <span class="kwc">auto</span> buff_it <span class="opt">=</span> <span class="kwc">std</span><span class="opt">::</span><span class="kwd">begin</span><span class="opt">(</span>buff<span class="opt">);</span>
+  
+  <span class="kwa">while</span><span class="opt">(</span>n<span class="opt">--) {</span>
+    <span class="kwd">op</span><span class="opt">(</span>it<span class="opt">,</span> buff_it<span class="opt">);</span>
+    buff_it <span class="opt">+=</span> line_size<span class="opt">;</span>
+    it <span class="opt">-=</span> line_size<span class="opt">;</span>
+    <span class="kwa">if</span><span class="opt">(</span>buff_it <span class="opt">== (</span><span class="kwc">std</span><span class="opt">::</span><span class="kwd">end</span><span class="opt">(</span>buff<span class="opt">) -</span> line_size<span class="opt">)) {</span>
+      <span class="kwd">write</span><span class="opt">(</span>STDOUT_FILENO<span class="opt">,</span> buff<span class="opt">,</span> buff_size <span class="opt">-</span> line_size<span class="opt">);</span>
+      buff_it <span class="opt">=</span> buff<span class="opt">;</span>
+    <span class="opt">}</span>
+  <span class="opt">}</span>
+  <span class="kwa">if</span><span class="opt">(</span>tail<span class="opt">) {</span>
+    <span class="kwa">while</span><span class="opt">(</span>tail<span class="opt">--) {</span>
+      <span class="kwa">if</span><span class="opt">(*(--</span>it<span class="opt">) ==</span> <span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span><span class="opt">)</span> <span class="kwa">continue</span><span class="opt">;</span>
+      <span class="opt">*</span>buff_it<span class="opt">++ =</span> map256<span class="opt">[*</span>it<span class="opt">];</span>
+    <span class="opt">}</span>
+    <span class="opt">*</span>buff_it<span class="opt">++ =</span> <span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span><span class="opt">;</span>
+  <span class="opt">}</span>
+  <span class="kwd">write</span><span class="opt">(</span>STDOUT_FILENO<span class="opt">,</span> buff<span class="opt">,</span> buff_it <span class="opt">-</span> <span class="kwc">std</span><span class="opt">::</span><span class="kwd">begin</span><span class="opt">(</span>buff<span class="opt">));</span>
+<span class="opt">}</span>
+
+<span class="kwb">int</span> <span class="kwd">main</span><span class="opt">() {</span>
+  
+  <span class="kwc">fs</span><span class="opt">::</span>path path<span class="opt">{</span><span class="str">&quot;/dev/stdin&quot;</span><span class="opt">};</span>
+  <span class="kwc">auto</span> size <span class="opt">=</span> <span class="kwc">fs</span><span class="opt">::</span><span class="kwd">file_size</span><span class="opt">(</span>path<span class="opt">);</span>
+  <span class="kwc">auto</span> data <span class="opt">= (</span><span class="kwb">const char</span> <span class="opt">*)</span><span class="kwd">mmap</span><span class="opt">(</span><span class="kwc">nullptr</span><span class="opt">,</span> size <span class="opt">+</span> <span class="num">4096</span><span class="opt">,</span> PROT_READ<span class="opt">,</span> MAP_PRIVATE<span class="opt">|</span>MAP_POPULATE<span class="opt">,</span> STDIN_FILENO<span class="opt">,</span> <span class="num">0</span><span class="opt">);</span>
+  sv file<span class="opt">{</span>data<span class="opt">,</span> size<span class="opt">};</span>
+  
+  <span class="kwc">auto</span> next <span class="opt">= [=,</span> prev <span class="opt">=</span> <span class="num">0ul</span><span class="opt">]()</span> <span class="kwc">mutable</span> <span class="opt">-&gt;</span> <span class="kwc">std</span><span class="opt">::</span>pair<span class="opt">&lt;</span>sv<span class="opt">,</span> sv<span class="opt">&gt; {</span>
+    <span class="kwc">auto</span> arrow_pos <span class="opt">=</span> file<span class="opt">.</span><span class="kwd">find_first_of</span><span class="opt">(</span><span class="str">&apos;&gt;&apos;</span><span class="opt">,</span> prev<span class="opt">);</span>
+    <span class="kwc">auto</span> begin_pos <span class="opt">=</span> file<span class="opt">.</span><span class="kwd">find_first_of</span><span class="opt">(</span><span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span><span class="opt">,</span> arrow_pos<span class="opt">);</span>
+    <span class="kwa">if</span><span class="opt">(</span>begin_pos <span class="opt">==</span> <span class="kwc">sv</span><span class="opt">::</span>npos<span class="opt">)</span> <span class="kwa">return</span> <span class="opt">{};</span>
+    prev <span class="opt">=</span> file<span class="opt">.</span><span class="kwd">find_first_of</span><span class="opt">(</span><span class="str">&apos;&gt;&apos;</span><span class="opt">,</span> begin_pos<span class="opt">);</span>
+    <span class="kwa">return</span> <span class="opt">{</span>file<span class="opt">.</span><span class="kwd">substr</span><span class="opt">(</span>arrow_pos<span class="opt">,</span> begin_pos <span class="opt">-</span> arrow_pos <span class="opt">+</span> <span class="num">1</span><span class="opt">),</span> file<span class="opt">.</span><span class="kwd">substr</span><span class="opt">(</span>begin_pos <span class="opt">+</span> <span class="num">1</span><span class="opt">,</span> prev <span class="opt">-</span> begin_pos <span class="opt">-</span> <span class="num">1</span><span class="opt">)};</span>
+  <span class="opt">};</span>
+  
+  <span class="kwc">std</span><span class="opt">::</span>vector<span class="opt">&lt;</span><span class="kwc">std</span><span class="opt">::</span>pair<span class="opt">&lt;</span>sv<span class="opt">,</span> sv<span class="opt">&gt;&gt;</span> index<span class="opt">;</span>
+  <span class="kwa">for</span><span class="opt">(</span><span class="kwc">auto</span> pair <span class="opt">=</span> <span class="kwd">next</span><span class="opt">();</span> pair <span class="opt">!=</span> <span class="kwc">std</span><span class="opt">::</span>pair<span class="opt">&lt;</span>sv<span class="opt">,</span> sv<span class="opt">&gt;{};</span> pair <span class="opt">=</span> <span class="kwd">next</span><span class="opt">())</span> index<span class="opt">.</span><span class="kwd">emplace_back</span><span class="opt">(</span>pair<span class="opt">);</span>
+    
+  
+  <span class="kwa">for</span><span class="opt">(</span><span class="kwc">auto</span> <span class="opt">[</span>name<span class="opt">,</span> data<span class="opt">]:</span> index<span class="opt">) {</span>
+    <span class="kwd">write</span><span class="opt">(</span>STDOUT_FILENO<span class="opt">,</span> <span class="kwc">std</span><span class="opt">::</span><span class="kwd">data</span><span class="opt">(</span>name<span class="opt">),</span> <span class="kwc">std</span><span class="opt">::</span><span class="kwd">size</span><span class="opt">(</span>name<span class="opt">));</span>
+    <span class="kwd">replace</span><span class="opt">(</span>data<span class="opt">);</span>
+  <span class="opt">};</span>
+<span class="opt">}</span>
+ 
+    </pre>
+  </section>
+  <section>
+    <h2 id="log">notes, command-line, and program output</h2>
+    <pre>
+NOTES:
+64-bit Ubuntu quad core
+g++ (Ubuntu 8.3.0-6ubuntu1) 8.3.0
+
+
+Mon, 21 Oct 2019 00:10:34 GMT
+
+MAKE:
+/usr/bin/g++ -c -pipe -O3 -fomit-frame-pointer -march=native  std=gnu++2a revcomp.gpp-8.c++ -o revcomp.gpp-8.c++.o &amp;&amp;  \
+        /usr/bin/g++ revcomp.gpp-8.c++.o -o revcomp.gpp-8.gpp_run  
+g++: error: std=gnu++2a: No such file or directory
+make: [/home/dunham/8000-benchmarksgame/nanobench/makefiles/u64q.programs.Makefile:66: revcomp.gpp-8.gpp_run] Error 1 (ignored)
+rm revcomp.gpp-8.c++
+
+0.11s to complete and log all make actions
+
+COMMAND LINE:
+./revcomp.gpp-8.gpp_run 0 &lt; revcomp-input250000.txt
+
+MAKE ERROR 
+
+    </pre>
+  </section>
+</article>
+<footer>
+  <nav>
+    <ul>
+      <li><a href="../license.html"><span>3-Clause BSD License</span></a>
+    </ul>
+  </nav>
+</footer>
+
