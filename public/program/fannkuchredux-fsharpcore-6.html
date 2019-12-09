@@ -25,115 +25,117 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="slc">// The Computer Language Benchmarks Game</span>
 <span class="slc">// https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
 <span class="slc">//</span>
-<span class="slc">// ported from C# version adding native by Anthony Lloyd</span>
+<span class="slc">// ported from C# version by Anthony Lloyd</span>
 
 <span class="ppc">#nowarn</span> <span class="pps">&quot;9&quot;</span><span class="ppc"></span>
 
-<span class="kwa">open</span> <span class="kwd">System</span>
-<span class="kwa">open</span> <span class="kwd">System</span><span class="opt">.</span><span class="kwd">Threading</span>
 <span class="kwa">open</span> <span class="kwd">Microsoft</span><span class="opt">.</span><span class="kwd">FSharp</span><span class="opt">.</span><span class="kwd">NativeInterop</span>
 
 <span class="opt">[&lt;</span><span class="kwd">EntryPoint</span><span class="opt">&gt;]</span>
 <span class="kwa">let</span> <span class="kwc">main</span> args <span class="opt">=</span>
-    <span class="kwa">let</span> <span class="kwc">n</span> <span class="opt">=</span> <span class="kwa">if</span> args<span class="opt">.</span><span class="kwd">Length</span><span class="opt">=</span><span class="num">0</span> <span class="kwa">then</span> <span class="num">7</span> <span class="kwa">else</span> <span class="kwb">int</span> args<span class="opt">.[</span><span class="num">0</span><span class="opt">]</span>
-    <span class="kwa">let</span> <span class="kwc">fact</span> <span class="opt">=</span> <span class="kwd">Array</span><span class="opt">.</span>zeroCreate <span class="opt">(</span><span class="kwc">n</span><span class="opt">+</span><span class="num">1</span><span class="opt">)</span>
-    <span class="kwc">fact</span><span class="opt">.[</span><span class="num">0</span><span class="opt">] &lt;-</span> <span class="num">1</span>
-    <span class="kwa">let mutable</span> <span class="kwc">factn</span> <span class="opt">=</span> <span class="num">1</span>
-    <span class="kwa">for</span> i <span class="opt">=</span> <span class="num">1</span> <span class="kwa">to</span> <span class="kwc">n</span> <span class="kwa">do</span>
-        <span class="kwc">factn</span> <span class="opt">&lt;-</span> <span class="kwc">factn</span> <span class="opt">*</span> i
-        <span class="kwd">Array</span><span class="opt">.</span>set <span class="kwc">fact</span> i <span class="kwc">factn</span>
 
-    <span class="kwa">let inline</span> firstPermutation p pp count <span class="kwc">idx</span> <span class="opt">=</span>
-        <span class="kwa">for</span> i <span class="opt">=</span> <span class="num">0</span> <span class="kwa">to</span> <span class="kwc">n</span><span class="opt">-</span><span class="num">1</span> <span class="kwa">do</span> <span class="kwd">NativePtr</span><span class="opt">.</span>set <span class="kwc">p</span> i i
-        <span class="kwa">let rec</span> loop i <span class="kwc">idx</span> <span class="opt">=</span>
-            <span class="kwa">if</span> i<span class="opt">&gt;</span><span class="num">0</span> <span class="kwa">then</span>
-                <span class="kwa">let</span> <span class="kwc">d</span> <span class="opt">=</span> <span class="kwc">idx</span><span class="opt">/</span><span class="kwd">Array</span><span class="opt">.</span>get <span class="kwc">fact</span> i
+    <span class="kwa">let</span> <span class="kwc">run</span> n fact <span class="kwc">taskSize</span> taskId <span class="opt">=</span>
+
+        <span class="kwa">let inline</span> firstPermutation p pp count <span class="kwc">n</span> idx <span class="opt">=</span>
+            <span class="kwa">for</span> i <span class="opt">=</span> <span class="num">0</span> <span class="kwa">to</span> <span class="kwc">n</span><span class="opt">-</span><span class="num">1</span> <span class="kwa">do</span> <span class="kwd">NativePtr</span><span class="opt">.</span>set <span class="kwc">p</span> i <span class="opt">(</span>int16 i<span class="opt">)</span>
+            <span class="kwa">let mutable</span> <span class="kwc">idx</span> <span class="opt">=</span> <span class="kwc">idx</span>
+            <span class="kwa">for</span> i <span class="opt">=</span> <span class="kwc">n</span><span class="opt">-</span><span class="num">1</span> <span class="kwa">downto</span> <span class="num">1</span> <span class="kwa">do</span>
+                <span class="kwa">let</span> <span class="kwc">d</span> <span class="opt">=</span> <span class="kwc">idx</span><span class="opt">/</span><span class="kwd">NativePtr</span><span class="opt">.</span>get <span class="kwc">fact</span> i
                 <span class="kwd">NativePtr</span><span class="opt">.</span>set <span class="kwc">count</span> i <span class="kwc">d</span>
-                loop <span class="opt">(</span>i<span class="opt">-</span><span class="num">1</span><span class="opt">) &lt;|</span>
-                    <span class="kwa">if</span> <span class="kwc">d</span><span class="opt">=</span><span class="num">0</span> <span class="kwa">then</span> <span class="kwc">idx</span>
-                    <span class="kwa">else</span>
-                        <span class="kwa">for</span> j <span class="opt">=</span> <span class="num">0</span> <span class="kwa">to</span> i <span class="kwa">do</span>
-                            <span class="kwd">NativePtr</span><span class="opt">.</span>get <span class="kwc">p</span> j
-                            <span class="opt">|&gt;</span> <span class="kwd">NativePtr</span><span class="opt">.</span>set <span class="kwc">pp</span> j
-                        <span class="kwa">for</span> j <span class="opt">=</span> <span class="num">0</span> <span class="kwa">to</span> i <span class="kwa">do</span>
-                            <span class="kwd">NativePtr</span><span class="opt">.</span>get <span class="kwc">pp</span> <span class="opt">((</span>j<span class="opt">+</span><span class="kwc">d</span><span class="opt">) % (</span>i<span class="opt">+</span><span class="num">1</span><span class="opt">))</span>
-                            <span class="opt">|&gt;</span> <span class="kwd">NativePtr</span><span class="opt">.</span>set <span class="kwc">p</span> j
-                        <span class="kwc">idx</span> <span class="opt">%</span> <span class="kwc">fact</span><span class="opt">.[</span>i<span class="opt">]</span>
-        loop <span class="opt">(</span><span class="kwc">n</span><span class="opt">-</span><span class="num">1</span><span class="opt">)</span> <span class="kwc">idx</span>
+                <span class="kwa">if</span> <span class="kwc">d</span><span class="opt">&lt;&gt;</span><span class="num">0</span> <span class="kwa">then</span>
+                    <span class="kwa">for</span> j <span class="opt">=</span> <span class="num">0</span> <span class="kwa">to</span> i <span class="kwa">do</span>
+                        <span class="kwd">NativePtr</span><span class="opt">.</span>get <span class="kwc">p</span> j <span class="opt">|&gt;</span> <span class="kwd">NativePtr</span><span class="opt">.</span>set <span class="kwc">pp</span> j
+                    <span class="kwa">for</span> j <span class="opt">=</span> <span class="num">0</span> <span class="kwa">to</span> i <span class="kwa">do</span>
+                        <span class="kwd">NativePtr</span><span class="opt">.</span>get <span class="kwc">pp</span> <span class="opt">((</span>j<span class="opt">+</span><span class="kwc">d</span><span class="opt">) % (</span>i<span class="opt">+</span><span class="num">1</span><span class="opt">)) |&gt;</span> <span class="kwd">NativePtr</span><span class="opt">.</span>set <span class="kwc">p</span> j
+                    <span class="kwc">idx</span> <span class="opt">&lt;-</span> <span class="kwc">idx</span> <span class="opt">%</span> <span class="kwd">NativePtr</span><span class="opt">.</span>get <span class="kwc">fact</span> i
 
-    <span class="kwa">let inline</span> nextPermutation <span class="kwc">p count</span> <span class="opt">=</span>
-        <span class="kwa">let mutable</span> <span class="kwc">first</span> <span class="opt">=</span> <span class="kwd">NativePtr</span><span class="opt">.</span>get <span class="kwc">p</span> <span class="num">1</span>
-        <span class="kwd">NativePtr</span><span class="opt">.</span>get <span class="kwc">p</span> <span class="num">0</span> <span class="opt">|&gt;</span> <span class="kwd">NativePtr</span><span class="opt">.</span>set <span class="kwc">p</span> <span class="num">1</span>
-        <span class="kwd">NativePtr</span><span class="opt">.</span>set <span class="kwc">p</span> <span class="num">0</span> <span class="kwc">first</span>
-        <span class="kwa">let mutable</span> <span class="kwc">i</span> <span class="opt">=</span> <span class="num">1</span>
-        <span class="kwa">while let</span> c <span class="opt">=</span><span class="kwd">NativePtr</span><span class="opt">.</span>get <span class="kwc">count i</span><span class="opt">+</span><span class="num">1</span> <span class="kwa">in</span> <span class="kwd">NativePtr</span><span class="opt">.</span>set <span class="kwc">count i</span> c<span class="opt">;</span> c<span class="opt">&gt;</span><span class="kwc">i</span> <span class="kwa">do</span>
-            <span class="kwd">NativePtr</span><span class="opt">.</span>set <span class="kwc">count i</span> <span class="num">0</span>
-            <span class="kwc">i</span> <span class="opt">&lt;-</span> <span class="kwc">i</span><span class="opt">+</span><span class="num">1</span>
-            <span class="kwa">let</span> <span class="kwc">next</span> <span class="opt">=</span> <span class="kwd">NativePtr</span><span class="opt">.</span>get <span class="kwc">p</span> <span class="num">1</span>
-            <span class="kwd">NativePtr</span><span class="opt">.</span>set <span class="kwc">p</span> <span class="num">0</span> <span class="kwc">next</span>
-            <span class="kwa">for</span> j <span class="opt">=</span> <span class="num">1</span> <span class="kwa">to</span> <span class="kwc">i</span><span class="opt">-</span><span class="num">1</span> <span class="kwa">do</span> <span class="kwd">NativePtr</span><span class="opt">.</span>get <span class="kwc">p</span> <span class="opt">(</span>j<span class="opt">+</span><span class="num">1</span><span class="opt">) |&gt;</span> <span class="kwd">NativePtr</span><span class="opt">.</span>set <span class="kwc">p</span> j
-            <span class="kwd">NativePtr</span><span class="opt">.</span>set <span class="kwc">p i first</span>
-            <span class="kwc">first</span> <span class="opt">&lt;-</span> <span class="kwc">next</span>
-        <span class="kwc">first</span>
+        <span class="kwa">let inline</span> nextPermutation <span class="kwc">p count</span> <span class="opt">=</span>
+            <span class="kwa">let mutable</span> <span class="kwc">first</span> <span class="opt">=</span> <span class="kwd">NativePtr</span><span class="opt">.</span>get <span class="kwc">p</span> <span class="num">1</span>
+            <span class="kwd">NativePtr</span><span class="opt">.</span>read <span class="kwc">p</span> <span class="opt">|&gt;</span> <span class="kwd">NativePtr</span><span class="opt">.</span>set <span class="kwc">p</span> <span class="num">1</span>
+            <span class="kwd">NativePtr</span><span class="opt">.</span>write <span class="kwc">p first</span>
+            <span class="kwa">let mutable</span> <span class="kwc">i</span> <span class="opt">=</span> <span class="num">1</span>
+            <span class="kwa">let mutable</span> <span class="kwc">c</span> <span class="opt">=</span> <span class="kwd">NativePtr</span><span class="opt">.</span>get <span class="kwc">count i</span>
+            <span class="kwa">while</span> <span class="kwc">c</span><span class="opt">&gt;=</span><span class="kwc">i</span> <span class="kwa">do</span>
+                <span class="kwd">NativePtr</span><span class="opt">.</span>set <span class="kwc">count i</span> <span class="num">0</span>
+                <span class="kwa">let</span> <span class="kwc">next</span> <span class="opt">=</span> <span class="kwd">NativePtr</span><span class="opt">.</span>get <span class="kwc">p</span> <span class="num">1</span>
+                <span class="kwd">NativePtr</span><span class="opt">.</span>write <span class="kwc">p next</span>
+                <span class="kwa">for</span> j <span class="opt">=</span> <span class="num">1</span> <span class="kwa">to</span> <span class="kwc">i</span> <span class="kwa">do</span> <span class="kwd">NativePtr</span><span class="opt">.</span>get <span class="kwc">p</span> <span class="opt">(</span>j<span class="opt">+</span><span class="num">1</span><span class="opt">) |&gt;</span> <span class="kwd">NativePtr</span><span class="opt">.</span>set <span class="kwc">p</span> j
+                <span class="kwc">i</span> <span class="opt">&lt;-</span> <span class="kwc">i</span><span class="opt">+</span><span class="num">1</span>
+                <span class="kwd">NativePtr</span><span class="opt">.</span>set <span class="kwc">p i first</span>
+                <span class="kwc">first</span> <span class="opt">&lt;-</span> <span class="kwc">next</span>
+                <span class="kwc">c</span> <span class="opt">&lt;-</span> <span class="kwd">NativePtr</span><span class="opt">.</span>get <span class="kwc">count i</span>
+            <span class="kwd">NativePtr</span><span class="opt">.</span>set <span class="kwc">count i</span> <span class="opt">(</span><span class="kwc">c</span><span class="opt">+</span><span class="num">1</span><span class="opt">)</span>
 
-    <span class="kwa">let inline</span> countFlips <span class="kwc">first p pp</span> <span class="opt">=</span>
-        <span class="kwa">if</span> <span class="kwc">first</span><span class="opt">=</span><span class="num">0</span> <span class="kwa">then</span> <span class="num">0</span>
-        elif <span class="kwd">NativePtr</span><span class="opt">.</span>get <span class="kwc">p first</span><span class="opt">=</span><span class="num">0</span> <span class="kwa">then</span> <span class="num">1</span>
-        <span class="kwa">else</span>
-            <span class="kwa">for</span> <span class="kwc">i</span> <span class="opt">=</span> <span class="num">0</span> <span class="kwa">to</span> <span class="kwc">n</span><span class="opt">-</span><span class="num">1</span> <span class="kwa">do</span> <span class="kwd">NativePtr</span><span class="opt">.</span>get <span class="kwc">p i</span> <span class="opt">|&gt;</span> <span class="kwd">NativePtr</span><span class="opt">.</span>set <span class="kwc">pp i</span>
-            <span class="kwa">let rec</span> loop flips <span class="kwc">first</span> <span class="opt">=</span>
-                <span class="kwa">let rec</span> swap lo hi <span class="opt">=</span>
-                    <span class="kwa">if</span> lo<span class="opt">&lt;</span>hi <span class="kwa">then</span>
-                        <span class="kwa">let</span> <span class="kwc">t</span> <span class="opt">=</span> <span class="kwd">NativePtr</span><span class="opt">.</span>get <span class="kwc">pp</span> lo
-                        <span class="kwd">NativePtr</span><span class="opt">.</span>get <span class="kwc">pp</span> hi <span class="opt">|&gt;</span> <span class="kwd">NativePtr</span><span class="opt">.</span>set <span class="kwc">pp</span> lo
-                        <span class="kwd">NativePtr</span><span class="opt">.</span>set <span class="kwc">pp</span> hi <span class="kwc">t</span>
-                        swap <span class="opt">(</span>lo<span class="opt">+</span><span class="num">1</span><span class="opt">) (</span>hi<span class="opt">-</span><span class="num">1</span><span class="opt">)</span>
-                swap <span class="num">1</span> <span class="opt">(</span><span class="kwc">first</span><span class="opt">-</span><span class="num">1</span><span class="opt">)</span>
-                <span class="kwa">let</span> <span class="kwc">tp</span> <span class="opt">=</span> <span class="kwd">NativePtr</span><span class="opt">.</span>get <span class="kwc">pp first</span>
-                <span class="kwa">if</span> <span class="kwd">NativePtr</span><span class="opt">.</span>get <span class="kwc">pp tp</span><span class="opt">=</span><span class="num">0</span> <span class="kwa">then</span> flips
-                <span class="kwa">else</span>
-                    <span class="kwd">NativePtr</span><span class="opt">.</span>set <span class="kwc">pp first first</span>
-                    loop <span class="opt">(</span>flips<span class="opt">+</span><span class="num">1</span><span class="opt">)</span> <span class="kwc">tp</span>
-            loop <span class="num">2</span> <span class="kwc">first</span>
+        <span class="kwa">let inline</span> copy <span class="kwc">p pp n</span> <span class="opt">=</span>
+            <span class="kwa">let</span> <span class="kwc">startL</span> <span class="opt">=</span> <span class="kwd">NativePtr</span><span class="opt">.</span>toNativeInt <span class="kwc">p</span> <span class="opt">|&gt;</span> <span class="kwd">NativePtr</span><span class="opt">.</span>ofNativeInt<span class="opt">&lt;</span>int64<span class="opt">&gt;</span>
+            <span class="kwa">let</span> <span class="kwc">stateL</span> <span class="opt">=</span> <span class="kwd">NativePtr</span><span class="opt">.</span>toNativeInt <span class="kwc">pp</span> <span class="opt">|&gt;</span> <span class="kwd">NativePtr</span><span class="opt">.</span>ofNativeInt<span class="opt">&lt;</span>int64<span class="opt">&gt;</span>
+            <span class="kwa">let</span> <span class="kwc">lengthL</span> <span class="opt">=</span> <span class="kwc">n</span> <span class="opt">/</span> <span class="num">4</span>
+            <span class="kwa">let mutable</span> <span class="kwc">i</span> <span class="opt">=</span> <span class="num">0</span>
+            <span class="kwa">while</span> <span class="kwc">i</span> <span class="opt">&lt;</span> <span class="kwc">lengthL</span> <span class="kwa">do</span>
+                <span class="kwd">NativePtr</span><span class="opt">.</span>get <span class="kwc">startL i</span> <span class="opt">|&gt;</span> <span class="kwd">NativePtr</span><span class="opt">.</span>set <span class="kwc">stateL i</span>
+                <span class="kwc">i</span> <span class="opt">&lt;-</span> <span class="kwc">i</span> <span class="opt">+</span> <span class="num">1</span>
+            <span class="kwc">i</span> <span class="opt">&lt;-</span> <span class="kwc">lengthL</span> <span class="opt">*</span> <span class="num">4</span>
+            <span class="kwa">while</span> <span class="kwc">i</span> <span class="opt">&lt;</span> <span class="kwc">n</span> <span class="kwa">do</span>
+                <span class="kwd">NativePtr</span><span class="opt">.</span>get <span class="kwc">p i</span> <span class="opt">|&gt;</span> <span class="kwd">NativePtr</span><span class="opt">.</span>set <span class="kwc">pp i</span>
+                <span class="kwc">i</span> <span class="opt">&lt;-</span> <span class="kwc">i</span> <span class="opt">+</span> <span class="num">1</span>
 
-    <span class="kwa">let</span> <span class="kwc">chkSums</span> <span class="opt">=</span> <span class="kwd">Array</span><span class="opt">.</span>zeroCreate <span class="kwc">Environment</span><span class="opt">.</span><span class="kwd">ProcessorCount</span>
-    <span class="kwa">let</span> <span class="kwc">maxFlips</span> <span class="opt">=</span> <span class="kwd">Array</span><span class="opt">.</span>zeroCreate <span class="kwc">Environment</span><span class="opt">.</span><span class="kwd">ProcessorCount</span>
+        <span class="kwa">let inline</span> countFlips <span class="kwc">p pp n</span> <span class="opt">=</span>
+            <span class="kwa">let mutable</span> <span class="kwc">flips</span> <span class="opt">=</span> <span class="num">1</span>
+            <span class="kwa">let mutable</span> <span class="kwc">first</span> <span class="opt">=</span> <span class="kwd">NativePtr</span><span class="opt">.</span>read <span class="kwc">p</span> <span class="opt">|&gt;</span> <span class="kwb">int</span>
+            <span class="kwa">if</span> <span class="kwd">NativePtr</span><span class="opt">.</span>get <span class="kwc">p first</span> <span class="opt">&lt;&gt;</span> <span class="num">0s</span> <span class="kwa">then</span>
+                copy <span class="kwc">p pp n</span>
+                <span class="kwa">while</span> <span class="kwc">NativePtr</span><span class="opt">.</span>get <span class="kwc">pp first</span> <span class="opt">&lt;&gt;</span> <span class="num">0s</span> <span class="kwa">do</span>
+                    <span class="kwc">flips</span> <span class="opt">&lt;-</span> <span class="kwc">flips</span> <span class="opt">+</span> <span class="num">1</span>
+                    <span class="kwa">if</span> <span class="kwc">first</span> <span class="opt">&gt;</span> <span class="num">2</span> <span class="kwa">then</span>
+                        <span class="kwa">let mutable</span> <span class="kwc">lo</span> <span class="opt">=</span> <span class="num">1</span>
+                        <span class="kwa">let mutable</span> <span class="kwc">hi</span> <span class="opt">=</span> <span class="kwc">first</span><span class="opt">-</span><span class="num">1</span>
+                        <span class="kwa">while</span> <span class="kwc">lo</span><span class="opt">&lt;</span><span class="kwc">hi</span> <span class="kwa">do</span>
+                            <span class="kwa">let</span> <span class="kwc">t</span> <span class="opt">=</span> <span class="kwc">NativePtr</span><span class="opt">.</span>get <span class="kwc">pp lo</span>
+                            <span class="kwc">NativePtr</span><span class="opt">.</span>get <span class="kwc">pp hi</span> <span class="opt">|&gt;</span> <span class="kwc">NativePtr</span><span class="opt">.</span>set <span class="kwc">pp lo</span>
+                            <span class="kwc">NativePtr</span><span class="opt">.</span>set <span class="kwc">pp hi t</span>
+                            <span class="kwc">lo</span> <span class="opt">&lt;-</span> <span class="kwc">lo</span><span class="opt">+</span><span class="num">1</span>
+                            <span class="kwc">hi</span> <span class="opt">&lt;-</span> <span class="kwc">hi</span><span class="opt">-</span><span class="num">1</span>
+                    <span class="kwa">let</span> <span class="kwc">temp</span> <span class="opt">=</span> <span class="kwc">NativePtr</span><span class="opt">.</span>get <span class="kwc">pp first</span>
+                    <span class="kwc">NativePtr</span><span class="opt">.</span>set <span class="kwc">pp first</span> <span class="opt">(</span>int16 <span class="kwc">first</span><span class="opt">)</span>
+                    <span class="kwc">first</span> <span class="opt">&lt;-</span> <span class="kwb">int</span> <span class="kwc">temp</span>
+            <span class="kwc">flips</span>
 
-    <span class="kwa">let</span> <span class="kwc">run n</span> taskId taskSize <span class="opt">=</span>
-        <span class="kwa">use</span> <span class="kwc">p</span> <span class="opt">=</span> fixed <span class="opt">&amp;(</span><span class="kwd">Array</span><span class="opt">.</span>zeroCreate <span class="kwc">n</span><span class="opt">).[</span><span class="num">0</span><span class="opt">]</span>
-        <span class="kwa">use</span> <span class="kwc">pp</span> <span class="opt">=</span> fixed <span class="opt">&amp;(</span><span class="kwd">Array</span><span class="opt">.</span>zeroCreate <span class="kwc">n</span><span class="opt">).[</span><span class="num">0</span><span class="opt">]</span>
-        <span class="kwa">use</span> <span class="kwc">count</span> <span class="opt">=</span> fixed <span class="opt">&amp;(</span><span class="kwd">Array</span><span class="opt">.</span>zeroCreate <span class="kwc">n</span><span class="opt">).[</span><span class="num">0</span><span class="opt">]</span>
-        firstPermutation <span class="kwc">p pp count</span> <span class="opt">(</span>taskId<span class="opt">*</span>taskSize<span class="opt">)</span>
-        <span class="kwa">let rec</span> loop <span class="kwc">i</span> chksum maxflips <span class="opt">=</span>
-            <span class="kwa">if</span> <span class="kwc">i</span><span class="opt">=</span><span class="num">0</span> <span class="kwa">then</span> chksum<span class="opt">,</span> maxflips
-            <span class="kwa">else</span>
-                <span class="kwa">let</span> <span class="kwc">flips</span> <span class="opt">=</span> countFlips <span class="opt">(</span>nextPermutation <span class="kwc">p count</span><span class="opt">)</span> <span class="kwc">p pp</span>
-                loop <span class="opt">(</span><span class="kwc">i</span><span class="opt">-</span><span class="num">1</span><span class="opt">) (</span>chksum <span class="opt">+ (</span><span class="num">1</span><span class="opt">-(</span><span class="kwc">i</span>%2<span class="opt">)*</span><span class="num">2</span><span class="opt">) *</span> <span class="kwc">flips</span><span class="opt">) (</span>max <span class="kwc">flips maxflips</span><span class="opt">)</span>
-        <span class="kwa">let</span> <span class="kwc">flips</span> <span class="opt">=</span> countFlips <span class="opt">(</span><span class="kwd">NativePtr</span><span class="opt">.</span>get <span class="kwc">p</span> <span class="num">0</span><span class="opt">)</span> <span class="kwc">p pp</span>
-        <span class="kwa">let</span> <span class="kwc">chksum</span><span class="opt">,</span> <span class="kwc">maxflips</span> <span class="opt">=</span> loop <span class="opt">(</span>taskSize<span class="opt">-</span><span class="num">1</span><span class="opt">)</span> <span class="kwc">flips flips</span>
-        <span class="kwc">chkSums</span><span class="opt">.[</span>taskId<span class="opt">] &lt;-</span> <span class="kwc">chksum</span>
-        <span class="kwc">maxFlips</span><span class="opt">.[</span>taskId<span class="opt">] &lt;-</span> <span class="kwc">maxflips</span>
+        <span class="kwa">let</span> <span class="kwc">p</span> <span class="opt">=</span> <span class="kwc">NativePtr</span><span class="opt">.</span>stackalloc<span class="opt">&lt;</span>int16<span class="opt">&gt;</span> <span class="kwc">n</span>
+        <span class="kwa">let</span> <span class="kwc">pp</span> <span class="opt">=</span> <span class="kwc">NativePtr</span><span class="opt">.</span>stackalloc<span class="opt">&lt;</span>int16<span class="opt">&gt;</span> <span class="kwc">n</span>
+        <span class="kwa">let</span> <span class="kwc">count</span> <span class="opt">=</span> <span class="kwc">NativePtr</span><span class="opt">.</span>stackalloc <span class="kwc">n</span>
+        firstPermutation <span class="kwc">p pp count n</span> <span class="opt">(</span>taskId<span class="opt">*</span><span class="kwc">taskSize</span><span class="opt">)</span>
+        <span class="kwa">let mutable</span> <span class="kwc">chksum</span> <span class="opt">=</span>
+            <span class="kwa">if</span> <span class="kwc">NativePtr</span><span class="opt">.</span>read <span class="kwc">p</span> <span class="opt">=</span> <span class="num">0s</span> <span class="kwa">then</span> <span class="num">0</span>
+            <span class="kwa">else</span> <span class="kwc">countFlips p pp n</span>
+        <span class="kwa">let mutable</span> <span class="kwc">maxflips</span> <span class="opt">=</span> <span class="kwc">chksum</span>
+        <span class="kwa">for</span> <span class="kwc">i</span> <span class="opt">=</span> <span class="num">1</span> <span class="kwa">to</span> <span class="kwc">taskSize</span><span class="opt">-</span><span class="num">1</span> <span class="kwa">do</span>
+            nextPermutation <span class="kwc">p count</span>
+            <span class="kwa">if</span> <span class="kwc">NativePtr</span><span class="opt">.</span>read <span class="kwc">p</span> <span class="opt">&lt;&gt;</span> <span class="num">0s</span> <span class="kwa">then</span>
+                <span class="kwa">let</span> <span class="kwc">flips</span> <span class="opt">=</span>  <span class="kwc">countFlips p pp n</span>
+                <span class="kwc">chksum</span> <span class="opt">&lt;-</span> <span class="kwc">chksum</span> <span class="opt">+ (</span><span class="num">1</span><span class="opt">-(</span><span class="kwc">i</span>%2<span class="opt">)*</span><span class="num">2</span><span class="opt">) *</span> <span class="kwc">flips</span>
+                <span class="kwa">if</span> <span class="kwc">flips</span><span class="opt">&gt;</span><span class="kwc">maxflips</span> <span class="kwa">then</span> <span class="kwc">maxflips</span> <span class="opt">&lt;-</span> <span class="kwc">flips</span>
+        <span class="kwc">chksum</span><span class="opt">,</span> <span class="kwc">maxflips</span>
 
-    <span class="kwa">let</span> <span class="kwc">taskSize</span> <span class="opt">=</span> <span class="kwc">factn</span> <span class="opt">/</span> <span class="kwc">Environment</span><span class="opt">.</span><span class="kwd">ProcessorCount</span>
-    <span class="kwa">let</span> <span class="kwc">threads</span> <span class="opt">=</span> <span class="kwd">Array</span><span class="opt">.</span>zeroCreate <span class="kwc">Environment</span><span class="opt">.</span><span class="kwd">ProcessorCount</span>
+    <span class="kwa">let</span> <span class="kwc">n</span> <span class="opt">=</span> <span class="kwa">if</span> args<span class="opt">.</span><span class="kwd">Length</span><span class="opt">=</span><span class="num">0</span> <span class="kwa">then</span> <span class="num">7</span> <span class="kwa">else</span> <span class="kwb">int</span> args<span class="opt">.[</span><span class="num">0</span><span class="opt">]</span>
+    <span class="kwa">use</span> <span class="kwc">fact</span> <span class="opt">=</span> fixed <span class="opt">&amp;(</span><span class="kwd">Array</span><span class="opt">.</span>zeroCreate <span class="opt">(</span><span class="kwc">n</span><span class="opt">+</span><span class="num">1</span><span class="opt">)).[</span><span class="num">0</span><span class="opt">]</span>
+    <span class="kwc">NativePtr</span><span class="opt">.</span>write <span class="kwc">fact</span> <span class="num">1</span>
+    <span class="kwa">let mutable</span> <span class="kwc">factn</span> <span class="opt">=</span> <span class="num">1</span>
+    <span class="kwa">for</span> <span class="kwc">i</span> <span class="opt">=</span> <span class="num">1</span> <span class="kwa">to</span> <span class="kwc">n</span> <span class="kwa">do</span>
+        <span class="kwc">factn</span> <span class="opt">&lt;-</span> <span class="kwc">factn</span> <span class="opt">*</span> <span class="kwc">i</span>
+        <span class="kwc">NativePtr</span><span class="opt">.</span>set <span class="kwc">fact i factn</span>
 
-    <span class="kwa">for</span> <span class="kwc">i</span> <span class="opt">=</span> <span class="num">1</span> <span class="kwa">to</span> <span class="kwc">Environment</span><span class="opt">.</span><span class="kwd">ProcessorCount</span><span class="opt">-</span><span class="num">1</span> <span class="kwa">do</span>
-        <span class="kwa">let</span> <span class="kwc">thread</span> <span class="opt">=</span> <span class="kwd">Thread</span><span class="opt">(</span><span class="kwa">fun</span> <span class="opt">() -&gt;</span> <span class="kwc">run n i taskSize</span><span class="opt">)</span>
-        <span class="kwc">thread</span><span class="opt">.</span><span class="kwd">Start</span><span class="opt">()</span>
-        <span class="kwc">threads</span><span class="opt">.[</span><span class="kwc">i</span><span class="opt">] &lt;-</span> <span class="kwc">thread</span>
-    <span class="kwc">run n</span> <span class="num">0</span> <span class="kwc">taskSize</span>
-
-    <span class="kwa">let rec</span> loop <span class="kwc">i chksum maxflips</span> <span class="opt">=</span>
-        <span class="kwa">if</span> <span class="kwc">i</span><span class="opt">=</span><span class="kwc">threads</span><span class="opt">.</span><span class="kwd">Length</span> <span class="kwa">then</span> <span class="kwc">chksum</span><span class="opt">,</span> <span class="kwc">maxflips</span>
-        <span class="kwa">else</span>
-            <span class="kwc">threads</span><span class="opt">.[</span><span class="kwc">i</span><span class="opt">].</span><span class="kwd">Join</span><span class="opt">()</span>
-            loop <span class="opt">(</span><span class="kwc">i</span><span class="opt">+</span><span class="num">1</span><span class="opt">) (</span><span class="kwc">chksum</span><span class="opt">+</span><span class="kwc">chkSums</span><span class="opt">.[</span><span class="kwc">i</span><span class="opt">]) (</span>max <span class="kwc">maxflips maxFlips</span><span class="opt">.[</span><span class="kwc">i</span><span class="opt">])</span>
-    <span class="kwa">let</span> <span class="kwc">chksum</span><span class="opt">,</span> <span class="kwc">maxflips</span> <span class="opt">=</span> loop <span class="num">1</span> <span class="kwc">chkSums</span><span class="opt">.[</span><span class="num">0</span><span class="opt">]</span> <span class="kwc">maxFlips</span><span class="opt">.[</span><span class="num">0</span><span class="opt">]</span>
-
-    <span class="kwb">string</span> <span class="kwc">chksum</span><span class="opt">+</span><span class="str">&quot;</span><span class="esc">\n</span><span class="str">Pfannkuchen(&quot;</span><span class="opt">+</span><span class="kwb">string</span> <span class="kwc">n</span><span class="opt">+</span><span class="str">&quot;) = &quot;</span><span class="opt">+</span><span class="kwb">string</span> <span class="kwc">maxflips</span>
+    <span class="kwa">let</span> <span class="kwc">chksum</span><span class="opt">,</span> maxFlips <span class="opt">=</span>
+        <span class="kwa">let</span> <span class="kwc">taskSize</span> <span class="opt">=</span> <span class="kwc">factn</span> <span class="opt">/</span> <span class="kwd">System</span><span class="opt">.</span><span class="kwd">Environment</span><span class="opt">.</span><span class="kwd">ProcessorCount</span>
+        <span class="kwd">Array</span><span class="opt">.</span>init <span class="kwc">System</span><span class="opt">.</span><span class="kwd">Environment</span><span class="opt">.</span><span class="kwd">ProcessorCount</span>
+            <span class="opt">(</span><span class="kwa">fun</span> <span class="kwc">i</span> <span class="opt">-&gt;</span> async <span class="opt">{</span> return <span class="kwc">run n fact taskSize i</span> <span class="opt">})</span>
+        <span class="opt">|&gt;</span> <span class="kwd">Async</span><span class="opt">.</span><span class="kwd">Parallel</span>
+        <span class="opt">|&gt;</span> <span class="kwd">Async</span><span class="opt">.</span><span class="kwd">RunSynchronously</span>
+        <span class="opt">|&gt;</span> <span class="kwd">Array</span><span class="opt">.</span>reduce <span class="opt">(</span><span class="kwa">fun</span> <span class="opt">(</span>c1<span class="opt">,</span>f1<span class="opt">) (</span>c2<span class="opt">,</span>f2<span class="opt">) -&gt;</span> c1<span class="opt">+</span>c2<span class="opt">,</span>max f1 f2<span class="opt">)</span>
+           
+    <span class="kwb">string</span> <span class="kwc">chksum</span><span class="opt">+</span><span class="str">&quot;</span><span class="esc">\n</span><span class="str">Pfannkuchen(&quot;</span><span class="opt">+</span><span class="kwb">string</span> <span class="kwc">n</span><span class="opt">+</span><span class="str">&quot;) = &quot;</span><span class="opt">+</span><span class="kwb">string</span> maxFlips
     <span class="opt">|&gt;</span> stdout<span class="opt">.</span><span class="kwd">WriteLine</span>
 
-    exit <span class="kwc">0</span>
+    <span class="num">0</span>
     </pre>
   </section>
   <section>
@@ -148,7 +150,7 @@ Host Version: 3.0.0; Commit: 95a0a61858
 &lt;ConcurrentGarbageCollection&gt;true
 
 
-Tue, 24 Sep 2019 05:30:04 GMT
+Mon, 09 Dec 2019 18:25:11 GMT
 
 MAKE:
 cp fannkuchredux.fsharpcore-6.fsharpcore Program.fs
@@ -165,9 +167,9 @@ Build succeeded.
     0 Warning(s)
     0 Error(s)
 
-Time Elapsed 00:00:09.57
+Time Elapsed 00:00:09.59
 
-13.65s to complete and log all make actions
+14.11s to complete and log all make actions
 
 COMMAND LINE:
 /usr/bin/dotnet ./bin/Release/netcoreapp3.0/tmp.dll 12
