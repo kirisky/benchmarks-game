@@ -1,6 +1,9 @@
 The Benchmarks Game
 ===================
 
+"The best way to complain is to make things."
+---------------------------------------------
+
 Website
 -------
 
