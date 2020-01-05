@@ -25,77 +25,163 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="com">/* The Computer Language Benchmarks Game</span>
 <span class="com">   https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
 <span class="com"></span>
-<span class="com">   contributed by Ben Harshbarger and Brad Chamberlain</span>
-<span class="com">   derived from the GNU C version by Mr Ledrug</span>
+<span class="com">   contributed by Brad Chamberlain and Ben Harshbarger</span>
+<span class="com">   based on the Chapel #1-#3 versions that we previously submitted, but</span>
+<span class="com">   informed by the C gcc #6 version by Jeremy Zerfas in terms of the read</span>
+<span class="com">   chunk size and the recursive doubling of the input data buffer</span>
 <span class="com">*/</span>
 
-<span class="kwa">config param</span> columns <span class="opt">=</span> <span class="num">61</span><span class="opt">;</span>
+<span class="kwa">use</span> IO<span class="opt">;</span>
 
-<span class="kwa">const</span> table <span class="opt">=</span> <span class="kwc">initTable</span><span class="opt">(</span><span class="str">&quot;ATCGGCTAUAMKRYWWSSYRKMVBHDDHBVNN</span><span class="esc">\n\n</span><span class="str">&quot;</span><span class="opt">);</span>
+<span class="kwa">param</span> eol <span class="opt">=</span> <span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">.</span><span class="kwc">toByte</span><span class="opt">();</span>      <span class="slc">// end-of-line, as an integer</span>
+
+<span class="kwa">const</span> table <span class="opt">=</span> <span class="kwc">createTable</span><span class="opt">();</span>    <span class="slc">// create the table of code complements</span>
+
+<span class="kwa">config const</span> readSize <span class="opt">=</span> <span class="num">16384</span><span class="opt">;</span>  <span class="slc">// the chunk size to read at a time</span>
+
+<span class="slc">// a channel and coordination variable for writing data to stdout</span>
+<span class="kwa">var</span> stdoutBin <span class="opt">=</span> <span class="kwc">openfd</span><span class="opt">(</span><span class="num">1</span><span class="opt">).</span><span class="kwc">writer</span><span class="opt">(</span>iokind<span class="opt">.</span>native<span class="opt">,</span> locking<span class="opt">=</span><span class="kwa">false</span><span class="opt">,</span>
+                                 hints<span class="opt">=</span>QIO_CH_ALWAYS_UNBUFFERED<span class="opt">),</span>
+    seqToWrite<span class="opt">:</span> <span class="kwa">atomic</span> <span class="kwb">int</span> <span class="opt">=</span> <span class="num">1</span><span class="opt">;</span>
+
 
 <span class="kwa">proc</span> <span class="kwc">main</span><span class="opt">(</span>args<span class="opt">: []</span> <span class="kwb">string</span><span class="opt">) {</span>
-  <span class="kwa">const</span> consoleIn <span class="opt">=</span> <span class="kwc">openfd</span><span class="opt">(</span><span class="num">0</span><span class="opt">),</span>
-        stdinNoLock <span class="opt">=</span> consoleIn<span class="opt">.</span><span class="kwc">reader</span><span class="opt">(</span>locking<span class="opt">=</span><span class="kwa">false</span><span class="opt">);</span>
+  <span class="kwa">const</span> stdin <span class="opt">=</span> <span class="kwc">openfd</span><span class="opt">(</span><span class="num">0</span><span class="opt">),</span>
+        input <span class="opt">=</span> stdin<span class="opt">.</span><span class="kwc">reader</span><span class="opt">(</span>iokind<span class="opt">.</span>native<span class="opt">,</span> locking<span class="opt">=</span><span class="kwa">false</span><span class="opt">,</span>
+                             hints <span class="opt">=</span> QIO_CH_ALWAYS_UNBUFFERED<span class="opt">);</span>
 
-  <span class="kwa">var</span> data<span class="opt">: [</span><span class="num">1</span><span class="opt">..</span>consoleIn<span class="opt">.</span><span class="kwc">length</span><span class="opt">()]</span> <span class="kwb">uint</span><span class="opt">(</span><span class="num">8</span><span class="opt">),</span>
-      idx <span class="opt">=</span> <span class="num">1</span><span class="opt">,</span>
-      start <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+  <span class="kwa">var</span> curSeq <span class="opt">=</span> <span class="kwa">new</span> <span class="kwc">Seq</span><span class="opt">(</span>id<span class="opt">=</span><span class="num">1</span><span class="opt">);</span>
 
-  <span class="kwa">sync</span> <span class="opt">{</span>     <span class="slc">// wait for all process() tasks to complete before continuing</span>
-    <span class="kwa">var</span> numRead<span class="opt">:</span> <span class="kwb">int</span><span class="opt">;</span>
+  <span class="kwa">do</span> <span class="opt">{</span>
+    <span class="kwa">const</span> eof <span class="opt">=</span> curSeq<span class="opt">.</span><span class="kwc">readChunk</span><span class="opt">(</span>input<span class="opt">);</span>
 
-    <span class="kwa">while</span> stdinNoLock<span class="opt">.</span><span class="kwc">readline</span><span class="opt">(</span>data<span class="opt">,</span> numRead<span class="opt">,</span> idx<span class="opt">) {</span>
-      <span class="kwa">if</span> data<span class="opt">[</span>idx<span class="opt">] ==</span> <span class="kwc">ascii</span><span class="opt">(</span><span class="str">&quot;&gt;&quot;</span><span class="opt">) {</span>       <span class="slc">// is this the start of a section?</span>
+    <span class="slc">// look for one or more sequences in the chunk we just read</span>
+    <span class="kwa">do</span> <span class="opt">{</span>
+      <span class="kwa">const</span> <span class="opt">(</span>foundSeq<span class="opt">,</span> moreSeqs<span class="opt">) =</span> curSeq<span class="opt">.</span><span class="kwc">processChunk</span><span class="opt">();</span>
 
-        <span class="slc">// spawn a task to process the previous sequence, if there was one</span>
-        <span class="kwa">if</span> start <span class="kwa">then</span>
-          <span class="kwa">begin</span> <span class="kwc">process</span><span class="opt">(</span>data<span class="opt">,</span> start<span class="opt">,</span> idx<span class="opt">-</span><span class="num">2</span><span class="opt">);</span>     <span class="slc">// -2 == rewind past &quot;\n&gt;&quot;</span>
+      <span class="kwa">if</span> foundSeq <span class="opt">{</span>
+        <span class="slc">// if the chunk completed a sequence, save it away and copy the</span>
+        <span class="slc">// remainder into the next one</span>
+        <span class="kwa">var</span> lastSeq <span class="opt">=</span> curSeq<span class="opt">;</span>
+        curSeq <span class="opt">=</span> lastSeq<span class="opt">.</span><span class="kwc">copyTail</span><span class="opt">();</span>
 
-        <span class="slc">// capture the start of this sequence</span>
-        start <span class="opt">=</span> idx <span class="opt">+</span> numRead<span class="opt">;</span>
+        <span class="slc">// then fire off an asynchronous task to process the last sequence</span>
+        <span class="kwa">begin with</span> <span class="opt">(</span><span class="kwa">in</span> lastSeq<span class="opt">) {</span>
+          lastSeq<span class="opt">.</span><span class="kwc">revcomp</span><span class="opt">();</span>
+        <span class="opt">}</span>
       <span class="opt">}</span>
+    <span class="opt">}</span> <span class="kwa">while</span> moreSeqs<span class="opt">;</span>
+  <span class="opt">}</span> <span class="kwa">while</span> <span class="opt">!</span>eof<span class="opt">;</span>
+<span class="opt">}</span>
 
-      idx <span class="opt">+=</span> numRead<span class="opt">;</span> 
+<span class="slc">// a class representing a sequence</span>
+<span class="kwa">class</span> Seq <span class="opt">{</span>
+  <span class="kwa">const</span> id <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>              <span class="slc">// the sequence ID</span>
+  <span class="kwa">var</span> cursor <span class="opt">=</span> <span class="num">0</span><span class="opt">,</span>            <span class="slc">// a cursor for reading the next chunk</span>
+      last <span class="opt">=</span> <span class="num">0</span><span class="opt">,</span>              <span class="slc">// the index of the last byte in the chunk</span>
+      start <span class="opt">= -</span><span class="num">1</span><span class="opt">,</span>            <span class="slc">// the start of the sequence</span>
+      end <span class="opt">= -</span><span class="num">1</span><span class="opt">,</span>              <span class="slc">// the end of the sequence</span>
+      dataLen <span class="opt">=</span> readSize<span class="opt">,</span>    <span class="slc">// the size of the data buffer</span>
+      inds <span class="opt">= {</span><span class="num">0</span><span class="opt">..#</span>dataLen<span class="opt">},</span>  <span class="slc">// the domain describing the data buffer</span>
+      data<span class="opt">: [</span>inds<span class="opt">]</span> <span class="kwb">uint</span><span class="opt">(</span><span class="num">8</span><span class="opt">);</span>  <span class="slc">// the data buffer</span>
+
+  <span class="slc">// read a chunk of bytes into the data buffer from the input channel;</span>
+  <span class="slc">// returns whether we&apos;ve seen EOF (true) or not (false)</span>
+  <span class="kwa">proc</span> <span class="kwc">readChunk</span><span class="opt">(</span>input<span class="opt">) {</span>
+    last <span class="opt">=</span> cursor <span class="opt">+</span> readSize <span class="opt">-</span> <span class="num">1</span><span class="opt">;</span>
+    <span class="slc">// if we don&apos;t have enough space for the last byte, double the data buffer</span>
+    <span class="kwa">if</span> last <span class="opt">&gt;=</span> dataLen <span class="opt">{</span>
+      dataLen <span class="opt">*=</span> <span class="num">2</span><span class="opt">;</span>
+      inds <span class="opt">= {</span><span class="num">0</span><span class="opt">..#</span>dataLen<span class="opt">};</span>
     <span class="opt">}</span>
-
-    <span class="slc">// process the final sequence</span>
-    <span class="kwa">if</span> start <span class="kwa">then</span>
-      <span class="kwc">process</span><span class="opt">(</span>data<span class="opt">,</span> start<span class="opt">,</span> idx<span class="opt">-</span><span class="num">2</span><span class="opt">);</span>
+    <span class="kwa">return</span> <span class="opt">!</span>input<span class="opt">.</span><span class="kwc">read</span><span class="opt">(</span>data<span class="opt">[</span>cursor<span class="opt">..</span>last<span class="opt">]);</span>
   <span class="opt">}</span>
 
-  <span class="kwa">const</span> stdoutBin <span class="opt">=</span> <span class="kwc">openfd</span><span class="opt">(</span><span class="num">1</span><span class="opt">).</span><span class="kwc">writer</span><span class="opt">(</span>iokind<span class="opt">.</span>native<span class="opt">,</span> locking<span class="opt">=</span><span class="kwa">false</span><span class="opt">,</span> 
-                                     hints<span class="opt">=</span>QIO_CH_ALWAYS_UNBUFFERED<span class="opt">);</span>
-  stdoutBin<span class="opt">.</span><span class="kwc">write</span><span class="opt">(</span>data<span class="opt">);</span>
+  <span class="slc">// process the chunk from &apos;cursor&apos; through &apos;last&apos; looking for &apos;&gt;&apos;s or &apos;\0&apos;s;</span>
+  <span class="slc">// returns a pair of bools where the first indicates whether or not we found</span>
+  <span class="slc">// a sequence and the second indicates whether there may yet be more.</span>
+  <span class="kwa">proc</span> <span class="kwc">processChunk</span><span class="opt">() {</span>
+    <span class="kwa">for</span> i <span class="kwa">in</span> cursor<span class="opt">..</span>last <span class="opt">{</span>
+      <span class="kwa">if</span> data<span class="opt">[</span>i<span class="opt">] ==</span> <span class="str">&quot;&gt;&quot;</span><span class="opt">.</span><span class="kwc">toByte</span><span class="opt">() {</span>  <span class="slc">// if we find &apos;&gt;&apos;</span>
+        <span class="kwa">if</span> start <span class="opt">== -</span><span class="num">1</span> <span class="opt">{</span>            <span class="slc">// and haven&apos;t started a sequence yet</span>
+          start <span class="opt">=</span> i<span class="opt">;</span>                <span class="slc">// this is the start</span>
+        <span class="opt">}</span> <span class="kwa">else</span> <span class="opt">{</span>
+          end <span class="opt">=</span> i<span class="opt">-</span><span class="num">1</span><span class="opt">;</span>                <span class="slc">// otherwise, it starts the next one</span>
+          <span class="kwa">return</span> <span class="opt">(</span><span class="kwa">true</span><span class="opt">,</span> <span class="kwa">true</span><span class="opt">);</span>      <span class="slc">// we found a sequence and there&apos;s more</span>
+        <span class="opt">}</span>
+      <span class="opt">}</span> <span class="kwa">else if</span> data<span class="opt">[</span>i<span class="opt">] ==</span> <span class="num">0</span> <span class="opt">{</span>      <span class="slc">// if we find &apos;\0&apos;, the file has ended</span>
+        end <span class="opt">=</span> i<span class="opt">-</span><span class="num">1</span><span class="opt">;</span>
+        <span class="kwa">if</span> start <span class="opt">!= -</span><span class="num">1</span> <span class="kwa">then</span>
+          <span class="kwa">return</span> <span class="opt">(</span><span class="kwa">true</span><span class="opt">,</span> <span class="kwa">false</span><span class="opt">);</span>     <span class="slc">// we found a sequence and there&apos;s no more</span>
+      <span class="opt">}</span>
+    <span class="opt">}</span>
+
+    <span class="slc">// we did not find the end of a sequence, so advance the cursor to</span>
+    <span class="slc">// prepare for the next read</span>
+    cursor <span class="opt">=</span> last<span class="opt">+</span><span class="num">1</span><span class="opt">;</span>
+    <span class="kwa">return</span> <span class="opt">(</span><span class="kwa">false</span><span class="opt">,</span> <span class="kwa">false</span><span class="opt">);</span>          <span class="slc">// we didn&apos;t find a sequence</span>
+  <span class="opt">}</span>
+
+  <span class="slc">// copy the unused tail of our data buffer into a new sequence</span>
+  <span class="kwa">proc</span> <span class="kwc">copyTail</span><span class="opt">() {</span>
+    <span class="kwa">const</span> tailLen <span class="opt">=</span> last <span class="opt">-</span> end<span class="opt">;</span>
+    <span class="kwa">var</span> newSeq <span class="opt">=</span> <span class="kwa">new</span> <span class="kwc">Seq</span><span class="opt">(</span>id <span class="opt">=</span> id<span class="opt">+</span><span class="num">1</span><span class="opt">,</span> cursor <span class="opt">=</span> <span class="num">0</span><span class="opt">,</span> last <span class="opt">=</span> tailLen<span class="opt">-</span><span class="num">1</span><span class="opt">);</span>
+    newSeq<span class="opt">.</span>data<span class="opt">[</span><span class="num">0</span><span class="opt">..#</span>tailLen<span class="opt">] =</span> data<span class="opt">[</span>end<span class="opt">+</span><span class="num">1</span><span class="opt">..#</span>tailLen<span class="opt">];</span>
+
+    <span class="kwa">return</span> newSeq<span class="opt">;</span>
+  <span class="opt">}</span>
+
+  <span class="slc">// reverse and complement the sequence, then write out the result</span>
+  <span class="kwa">proc</span> <span class="kwc">revcomp</span><span class="opt">() {</span>
+    last <span class="opt">=</span> end<span class="opt">;</span>                  <span class="slc">// snapshot the end of the sequence</span>
+
+    <span class="slc">// advance &apos;start&apos; to the first end-of-line</span>
+    <span class="kwa">do</span> <span class="opt">{</span>
+      start <span class="opt">+=</span> <span class="num">1</span><span class="opt">;</span>
+    <span class="opt">}</span> <span class="kwa">while</span> data<span class="opt">[</span>start<span class="opt">] !=</span> eol<span class="opt">;</span>
+
+    <span class="kwa">while</span> start <span class="opt">&lt;</span> end <span class="opt">{</span>
+      <span class="slc">// swap the end values, replacing them with their complements</span>
+      <span class="kwa">ref</span> d1 <span class="opt">=</span> data<span class="opt">[</span>start<span class="opt">],</span>
+          d2 <span class="opt">=</span> data<span class="opt">[</span>end<span class="opt">];</span>
+
+      <span class="opt">(</span>d1<span class="opt">,</span> d2<span class="opt">) = (</span>table<span class="opt">[</span>d2<span class="opt">],</span> table<span class="opt">[</span>d1<span class="opt">]);</span>
+
+      <span class="slc">// advance the cursors, skipping over end-of-line characters</span>
+      <span class="kwc">advance</span><span class="opt">(</span>start<span class="opt">,</span> <span class="num">1</span><span class="opt">);</span>
+      <span class="kwc">advance</span><span class="opt">(</span>end<span class="opt">, -</span><span class="num">1</span><span class="opt">);</span>
+
+      <span class="kwa">proc</span> <span class="kwc">advance</span><span class="opt">(</span><span class="kwa">ref</span> idx<span class="opt">,</span> dir<span class="opt">) {</span>
+        <span class="kwa">do</span> <span class="opt">{</span>
+          idx <span class="opt">+=</span> dir<span class="opt">;</span>
+        <span class="opt">}</span> <span class="kwa">while</span> data<span class="opt">[</span>idx<span class="opt">] ==</span> eol<span class="opt">;</span>
+      <span class="opt">}</span>
+    <span class="opt">}</span>
+
+    <span class="slc">// write the sequence to stdout</span>
+    seqToWrite<span class="opt">.</span><span class="kwc">waitFor</span><span class="opt">(</span>id<span class="opt">);</span>         <span class="slc">// wait for our ID&apos;s turn to write</span>
+    stdoutBin<span class="opt">.</span><span class="kwc">write</span><span class="opt">(</span>data<span class="opt">[..</span>last<span class="opt">]);</span>  <span class="slc">// write the transformed data</span>
+    seqToWrite<span class="opt">.</span><span class="kwc">write</span><span class="opt">(</span>id<span class="opt">+</span><span class="num">1</span><span class="opt">);</span>         <span class="slc">// make it the next sequence&apos;s turn</span>
+  <span class="opt">}</span>
 <span class="opt">}</span>
 
 
-<span class="kwa">proc</span> <span class="kwc">process</span><span class="opt">(</span>data<span class="opt">,</span> start<span class="opt">,</span> end<span class="opt">) {</span>
-  <span class="kwa">const</span> extra <span class="opt">= (</span>end <span class="opt">-</span> start<span class="opt">) %</span> columns<span class="opt">,</span>
-        off <span class="opt">=</span> columns <span class="opt">-</span> extra <span class="opt">-</span> <span class="num">1</span><span class="opt">;</span>
+<span class="kwa">proc</span> <span class="kwc">createTable</span><span class="opt">() {</span>
+  <span class="slc">// `pairs` compactly represents the table we&apos;re creating, where the</span>
+  <span class="slc">// first byte of each pair (in either case) maps to the second:</span>
+  <span class="slc">//   A|a -&gt; T, C|c -&gt; G, G|g -&gt; C, T|t -&gt; A, etc.</span>
+  <span class="kwa">param</span> pairs <span class="opt">=</span> b<span class="str">&quot;ATCGGCTAUAMKRYWWSSYRKMVBHDDHBVNN&quot;</span><span class="opt">,</span>
+        upperToLower <span class="opt">=</span> <span class="str">&quot;a&quot;</span><span class="opt">.</span><span class="kwc">toByte</span><span class="opt">() -</span> <span class="str">&quot;A&quot;</span><span class="opt">.</span><span class="kwc">toByte</span><span class="opt">();</span>
 
-  <span class="slc">// shift the data</span>
-  <span class="kwa">if</span> off <span class="kwa">then</span>
-    <span class="kwa">for</span> m <span class="kwa">in</span> <span class="opt">(</span>start<span class="opt">+</span>extra<span class="opt">)..(</span>end<span class="opt">-</span><span class="num">1</span><span class="opt">)</span> <span class="kwa">by</span> columns <span class="opt">{</span>
-      <span class="kwa">for</span> i <span class="kwa">in</span> <span class="num">1</span><span class="opt">..</span>off<span class="opt">-</span><span class="num">1</span> <span class="kwa">by</span> <span class="opt">-</span><span class="num">1</span> <span class="kwa">do</span>
-        data<span class="opt">[</span>m<span class="opt">+</span>i<span class="opt">+</span><span class="num">1</span><span class="opt">] =</span> data<span class="opt">[</span>m<span class="opt">+</span>i<span class="opt">];</span>
-      data<span class="opt">[</span>m<span class="opt">+</span><span class="num">1</span><span class="opt">] =</span> <span class="kwc">ascii</span><span class="opt">(</span><span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">);</span>
-    <span class="opt">}</span>
+  <span class="kwa">var</span> table<span class="opt">: [</span><span class="num">0</span><span class="opt">.</span><span class="num">.127</span><span class="opt">]</span> <span class="kwb">uint</span><span class="opt">(</span><span class="num">8</span><span class="opt">);</span>
 
-  <span class="slc">// replace the data items with their table entries</span>
-  <span class="kwa">for</span> i <span class="kwa">in</span> <span class="num">0</span><span class="opt">..(</span>end<span class="opt">-</span>start<span class="opt">)/</span><span class="num">2</span> <span class="opt">{</span>
-    <span class="kwa">ref</span> d1 <span class="opt">=</span> data<span class="opt">[</span>start<span class="opt">+</span>i<span class="opt">],</span>
-        d2 <span class="opt">=</span> data<span class="opt">[</span>end<span class="opt">-</span>i<span class="opt">];</span>
-    <span class="opt">(</span>d1<span class="opt">,</span> d2<span class="opt">) = (</span>table<span class="opt">[</span>d2<span class="opt">],</span> table<span class="opt">[</span>d1<span class="opt">]);</span>
-  <span class="opt">}</span>
-<span class="opt">}</span>
+  table<span class="opt">[</span>eol<span class="opt">] =</span> eol<span class="opt">;</span>
+  <span class="kwa">for</span> i <span class="kwa">in</span> <span class="num">1</span><span class="opt">..</span>pairs<span class="opt">.</span>size <span class="kwa">by</span> <span class="num">2</span> <span class="opt">{</span>
+    <span class="kwa">const</span> src <span class="opt">=</span> pairs<span class="opt">.</span>byte<span class="opt">[</span>i<span class="opt">],</span>
+          dst <span class="opt">=</span> pairs<span class="opt">.</span>byte<span class="opt">[</span>i<span class="opt">+</span><span class="num">1</span><span class="opt">];</span>
 
-<span class="kwa">proc</span> <span class="kwc">initTable</span><span class="opt">(</span>pairs<span class="opt">) {</span>
-  <span class="kwa">var</span> table<span class="opt">: [</span><span class="num">1</span><span class="opt">.</span><span class="num">.128</span><span class="opt">]</span> <span class="kwb">uint</span><span class="opt">(</span><span class="num">8</span><span class="opt">);</span>
-
-  <span class="kwa">for</span> i <span class="kwa">in</span> <span class="num">1</span><span class="opt">..</span>pairs<span class="opt">.</span>length <span class="kwa">by</span> <span class="num">2</span> <span class="opt">{</span>
-    table<span class="opt">[</span><span class="kwc">ascii</span><span class="opt">(</span>pairs<span class="opt">[</span>i<span class="opt">])] =</span> <span class="kwc">ascii</span><span class="opt">(</span>pairs<span class="opt">[</span>i<span class="opt">+</span><span class="num">1</span><span class="opt">]):</span><span class="kwb">uint</span><span class="opt">(</span><span class="num">8</span><span class="opt">);</span>
-    <span class="kwa">if</span> pairs<span class="opt">[</span>i<span class="opt">] !=</span> <span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span> <span class="kwa">then</span>
-      table<span class="opt">[</span><span class="kwc">ascii</span><span class="opt">(</span>pairs<span class="opt">[</span>i<span class="opt">].</span><span class="kwc">toLower</span><span class="opt">())] =</span> <span class="kwc">ascii</span><span class="opt">(</span>pairs<span class="opt">[</span>i<span class="opt">+</span><span class="num">1</span><span class="opt">]):</span><span class="kwb">uint</span><span class="opt">(</span><span class="num">8</span><span class="opt">);</span>
+    table<span class="opt">[</span>src<span class="opt">] =</span> dst<span class="opt">;</span>
+    table<span class="opt">[</span>src<span class="opt">+</span>upperToLower<span class="opt">] =</span> dst<span class="opt">;</span>
   <span class="opt">}</span>
 
   <span class="kwa">return</span> table<span class="opt">;</span>
@@ -111,26 +197,14 @@ chpl version 1.20.0
 Copyright (c) 2004-2019, Cray Inc.
 
 
-Fri, 25 Oct 2019 17:54:15 GMT
+Sun, 05 Jan 2020 17:43:58 GMT
 
 MAKE:
 mv revcomp.chapel revcomp.chpl
 /opt/src/chapel-1.20.0/bin/chpl --fast revcomp.chpl -o revcomp.chapel_run
-revcomp.chpl:68: In function 'initTable':
-revcomp.chpl:72: warning: ascii is deprecated - please use string.toByte or string.byte
-revcomp.chpl:72: warning: ascii is deprecated - please use string.toByte or string.byte
-revcomp.chpl:74: warning: ascii is deprecated - please use string.toByte or string.byte
-revcomp.chpl:74: warning: ascii is deprecated - please use string.toByte or string.byte
-revcomp.chpl:10: Function 'initTable' instantiated as: initTable(pairs: string)
-revcomp.chpl:12: In function 'main':
-revcomp.chpl:24: warning: ascii is deprecated - please use string.toByte or string.byte
-revcomp.chpl:12: Function 'main' instantiated as: main(args: [domain(1,int(64),false)] string)
-revcomp.chpl:48: In function 'process':
-revcomp.chpl:57: warning: ascii is deprecated - please use string.toByte or string.byte
-revcomp.chpl:28: Function 'process' instantiated as: process(data: [domain(1,int(64),false)] uint(8), start: int(64), end: int(64))
 rm revcomp.chpl
 
-22.79s to complete and log all make actions
+24.26s to complete and log all make actions
 
 COMMAND LINE:
 ./revcomp.chapel_run --n=0 &lt; revcomp-input100000000.txt
