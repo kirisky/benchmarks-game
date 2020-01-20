@@ -25,236 +25,194 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="slc">/// The Computer Language Benchmarks Game</span>
 <span class="slc">/// https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
 <span class="slc">///</span>
-<span class="slc">/// contributed by Mark C. Lewis</span>
-<span class="slc">/// modified slightly by Chad Whipkey</span>
-<span class="slc">/// converted from java to c++,added sse support, by Branimir Maksimovic</span>
-<span class="slc">/// converted from c++ to c, by Alexey Medvedchikov</span>
-<span class="slc">/// converted from c to Rust by Frank Rehberger</span>
-<span class="slc">/// converted from Rust to Swift by T Roughton</span>
+<span class="slc">/// contributed by Thomas Roughton</span>
 <span class="slc">///</span>
-<span class="slc">/// As the code of `gcc #4` this code requires hardware supporting</span>
-<span class="slc">/// the CPU feature SSE2, implementing SIMD operations.</span>
+<span class="slc">/// Derived mainly from Stuart Carnie&apos;s Swift version,</span>
+<span class="slc">/// which in turn from numerous versions, including Swift and Go</span>
 <span class="slc">///</span>
-<span class="slc">///</span>
+<span class="slc">/// This code requires hardware supporting</span>
+<span class="slc">/// CPU feature AVX2, using SIMD4 types.</span>
 
 <span class="kwa">import</span> Foundation
 
-<span class="kwa">fileprivate extension</span> Double <span class="opt">{</span>
-    <span class="kwa">static let</span> <span class="kwc">solarMass</span> <span class="opt">=</span> <span class="num">4.0</span> <span class="opt">* .</span>pi <span class="opt">* .</span>pi
-    <span class="kwa">static let</span> <span class="kwc">daysPerYear</span> <span class="opt">=</span> <span class="num">365.24</span>
+<span class="kwa">let</span> <span class="kwc">SOLAR_MASS</span> <span class="opt">=</span> <span class="num">4</span> <span class="opt">*</span> Double<span class="opt">.</span>pi <span class="opt">*</span> Double<span class="opt">.</span>pi
+<span class="kwa">let</span> <span class="kwc">DAYS_PER_YEAR</span> <span class="opt">=</span> <span class="num">365.24</span>
+
+<span class="kwa">public typealias</span> Vec4 <span class="opt">=</span> SIMD4<span class="opt">&lt;</span>Double<span class="opt">&gt;</span>
+
+<span class="kwa">func</span> dot<span class="opt">&lt;</span>V <span class="opt">:</span> SIMD<span class="opt">&gt;(</span>_ a<span class="opt">:</span> V<span class="opt">,</span> _ b<span class="opt">:</span> V<span class="opt">) -&gt;</span> V<span class="opt">.</span>Scalar <span class="kwa">where</span> V<span class="opt">.</span>Scalar <span class="opt">:</span> FloatingPoint <span class="opt">{</span>
+    <span class="kwa">var</span> <span class="kwc">total</span> <span class="opt">=</span> V<span class="opt">.</span><span class="kwd">Scalar</span><span class="opt">(</span><span class="num">0</span><span class="opt">)</span>
+    <span class="kwa">for</span> i <span class="kwa">in</span> a<span class="opt">.</span>indices <span class="opt">{</span>
+        <span class="kwc">total</span> <span class="opt">=</span> <span class="kwc">total</span><span class="opt">.</span><span class="kwd">addingProduct</span><span class="opt">(</span>a<span class="opt">[</span>i<span class="opt">],</span> b<span class="opt">[</span>i<span class="opt">])</span>
+    <span class="opt">}</span>
+    <span class="kwa">return</span> <span class="kwc">total</span>
 <span class="opt">}</span>
 
 <span class="kwa">struct</span> Body <span class="opt">{</span>
-    <span class="kwa">var</span> <span class="kwc">x</span> <span class="opt">:</span> SIMD3<span class="opt">&lt;</span>Double<span class="opt">&gt;</span>
-    <span class="kwa">var</span> <span class="kwc">velocityAndMass</span> <span class="opt">:</span> SIMD4<span class="opt">&lt;</span>Double<span class="opt">&gt;</span>
+    <span class="kwa">public var</span> <span class="kwc">pos</span><span class="opt">:</span> Vec4
+    <span class="kwa">public var</span> <span class="kwc">vel</span><span class="opt">:</span> Vec4
+    <span class="kwa">public let</span> <span class="kwc">mass</span><span class="opt">:</span> Double
     
-    <span class="kwa">var</span> <span class="kwc">v</span> <span class="opt">:</span> SIMD3<span class="opt">&lt;</span>Double<span class="opt">&gt; {</span>
-        get <span class="opt">{</span>
-            <span class="kwa">return</span> <span class="kwd">SIMD3</span><span class="opt">(</span><span class="kwb">self</span><span class="opt">.</span><span class="kwc">velocityAndMass</span><span class="opt">.</span><span class="kwc">x</span><span class="opt">,</span> <span class="kwb">self</span><span class="opt">.</span><span class="kwc">velocityAndMass</span><span class="opt">.</span>y<span class="opt">,</span> <span class="kwb">self</span><span class="opt">.</span><span class="kwc">velocityAndMass</span><span class="opt">.</span>z<span class="opt">)</span>
-        <span class="opt">}</span>
-        set <span class="opt">{</span>
-            <span class="kwb">self</span><span class="opt">.</span><span class="kwc">velocityAndMass</span><span class="opt">.</span><span class="kwc">x</span> <span class="opt">=</span> newValue<span class="opt">.</span><span class="kwc">x</span>
-            <span class="kwb">self</span><span class="opt">.</span><span class="kwc">velocityAndMass</span><span class="opt">.</span>y <span class="opt">=</span> newValue<span class="opt">.</span>y
-            <span class="kwb">self</span><span class="opt">.</span><span class="kwc">velocityAndMass</span><span class="opt">.</span>z <span class="opt">=</span> newValue<span class="opt">.</span>z
-        <span class="opt">}</span>
+    <span class="kwa">init</span><span class="opt">() {</span>
+        <span class="kwa">let</span> <span class="kwc">zero</span> <span class="opt">=</span> <span class="kwd">Vec4</span><span class="opt">(</span><span class="num">0</span><span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> <span class="num">0</span><span class="opt">)</span>
+        <span class="kwb">self</span><span class="opt">.</span><span class="kwa">init</span><span class="opt">(</span><span class="kwc">pos</span><span class="opt">:</span> <span class="kwc">zero</span><span class="opt">,</span> <span class="kwc">vel</span><span class="opt">:</span> <span class="kwc">zero</span><span class="opt">,</span> <span class="kwc">mass</span><span class="opt">:</span> <span class="num">0</span><span class="opt">)</span>
     <span class="opt">}</span>
     
-    <span class="kwa">var</span> <span class="kwc">mass</span> <span class="opt">:</span> Double <span class="opt">{</span>
-        get <span class="opt">{</span>
-            <span class="kwa">return</span> <span class="kwb">self</span><span class="opt">.</span><span class="kwc">velocityAndMass</span><span class="opt">.</span>w
-        <span class="opt">}</span>
-        set <span class="opt">{</span>
-            <span class="kwb">self</span><span class="opt">.</span><span class="kwc">velocityAndMass</span><span class="opt">.</span>w <span class="opt">=</span> newValue
-        <span class="opt">}</span>
-    <span class="opt">}</span>
-    
-    <span class="kwa">init</span><span class="opt">(</span><span class="kwc">x</span><span class="opt">:</span> SIMD3<span class="opt">&lt;</span>Double<span class="opt">&gt;,</span> <span class="kwc">v</span> velocity<span class="opt">:</span> SIMD3<span class="opt">&lt;</span>Double<span class="opt">&gt;,</span> <span class="kwc">mass</span><span class="opt">:</span> Double<span class="opt">) {</span>
-        <span class="kwb">self</span><span class="opt">.</span><span class="kwc">x</span> <span class="opt">=</span> <span class="kwc">x</span>
-        <span class="kwb">self</span><span class="opt">.</span><span class="kwc">velocityAndMass</span> <span class="opt">=</span> <span class="kwd">SIMD4</span><span class="opt">(</span>velocity<span class="opt">.</span><span class="kwc">x</span><span class="opt">,</span> velocity<span class="opt">.</span>y<span class="opt">,</span> velocity<span class="opt">.</span>z<span class="opt">,</span> <span class="kwc">mass</span><span class="opt">)</span>
+    <span class="kwa">init</span><span class="opt">(</span><span class="kwc">pos</span><span class="opt">:</span> Vec4<span class="opt">,</span> <span class="kwc">vel</span><span class="opt">:</span> Vec4<span class="opt">,</span> <span class="kwc">mass</span><span class="opt">:</span> Double<span class="opt">) {</span>
+        <span class="kwb">self</span><span class="opt">.</span><span class="kwc">pos</span> <span class="opt">=</span> <span class="kwc">pos</span>
+        <span class="kwb">self</span><span class="opt">.</span><span class="kwc">vel</span> <span class="opt">=</span> <span class="kwc">vel</span>
+        <span class="kwb">self</span><span class="opt">.</span><span class="kwc">mass</span> <span class="opt">=</span> <span class="kwc">mass</span>
     <span class="opt">}</span>
 <span class="opt">}</span>
 
-<span class="kwa">struct</span> Delta <span class="opt">{</span>
-    <span class="kwa">var</span> <span class="kwc">dx</span> <span class="opt">:</span> SIMD3<span class="opt">&lt;</span>Double<span class="opt">&gt; =</span> <span class="kwd">SIMD3</span><span class="opt">(</span>repeating<span class="opt">:</span> <span class="num">0</span><span class="opt">)</span>
-<span class="opt">}</span>
-<span class="slc">/// Calculating the offset momentum</span>
-<span class="kwa">func</span> <span class="kwd">offsetMomentum</span><span class="opt">(</span>bodies<span class="opt">:</span> inout <span class="opt">[</span>Body<span class="opt">]) {</span>
-    <span class="kwa">for</span> i <span class="kwa">in</span> bodies<span class="opt">.</span>indices <span class="opt">{</span>
-        bodies<span class="opt">[</span><span class="num">0</span><span class="opt">].</span><span class="kwc">v</span> <span class="opt">-=</span> bodies<span class="opt">[</span>i<span class="opt">].</span><span class="kwc">v</span> <span class="opt">*</span> bodies<span class="opt">[</span>i<span class="opt">].</span><span class="kwc">mass</span> <span class="opt">/ .</span><span class="kwc">solarMass</span><span class="opt">;</span>
-    <span class="opt">}</span>
-<span class="opt">}</span>
-
-<span class="slc">/// Calculating the energy of the N body system</span>
-<span class="kwa">func</span> <span class="kwd">bodiesEnergy</span><span class="opt">(</span>bodies<span class="opt">: [</span>Body<span class="opt">]) -&gt;</span> Double <span class="opt">{</span>
-    <span class="kwa">var</span> <span class="kwc">dx</span> <span class="opt">=</span> <span class="kwd">SIMD3</span><span class="opt">(</span>repeating<span class="opt">:</span> <span class="num">0.0</span><span class="opt">)</span>
-    <span class="kwa">var</span> <span class="kwc">e</span> <span class="opt">=</span> <span class="num">0.0</span><span class="opt">;</span>
+<span class="slc">// ensures loops are static so they can be unrolled explicitly at compile-time</span>
+<span class="kwa">let</span> <span class="kwc">planetsCount</span> <span class="opt">=</span> <span class="num">5</span>
+<span class="kwa">struct</span> System <span class="opt">{</span>
+    <span class="kwa">var</span> <span class="kwc">bodies</span><span class="opt">: [</span>Body<span class="opt">]</span>
     
-    <span class="kwa">for</span> i <span class="kwa">in</span> bodies<span class="opt">.</span>indices <span class="opt">{</span>
-        <span class="kwc">e</span> <span class="opt">+=</span> bodies<span class="opt">[</span>i<span class="opt">].</span><span class="kwc">mass</span>
-            <span class="opt">* ((</span>bodies<span class="opt">[</span>i<span class="opt">].</span><span class="kwc">v</span><span class="opt">[</span><span class="num">0</span><span class="opt">] *</span> bodies<span class="opt">[</span>i<span class="opt">].</span><span class="kwc">v</span><span class="opt">[</span><span class="num">0</span><span class="opt">])</span>
-                <span class="opt">+ (</span>bodies<span class="opt">[</span>i<span class="opt">].</span><span class="kwc">v</span><span class="opt">[</span><span class="num">1</span><span class="opt">] *</span> bodies<span class="opt">[</span>i<span class="opt">].</span><span class="kwc">v</span><span class="opt">[</span><span class="num">1</span><span class="opt">])</span>
-                <span class="opt">+ (</span>bodies<span class="opt">[</span>i<span class="opt">].</span><span class="kwc">v</span><span class="opt">[</span><span class="num">2</span><span class="opt">] *</span> bodies<span class="opt">[</span>i<span class="opt">].</span><span class="kwc">v</span><span class="opt">[</span><span class="num">2</span><span class="opt">]))</span>
-            <span class="opt">/</span> <span class="num">2.0</span><span class="opt">;</span>
-        
-        <span class="kwa">for</span> j <span class="kwa">in</span> <span class="opt">(</span>i <span class="opt">+</span> <span class="num">1</span><span class="opt">)..&lt;</span>bodies<span class="opt">.</span>count <span class="opt">{</span>
-            <span class="kwc">dx</span> <span class="opt">=</span> bodies<span class="opt">[</span>i<span class="opt">].</span><span class="kwc">x</span> <span class="opt">-</span> bodies<span class="opt">[</span>j<span class="opt">].</span><span class="kwc">x</span><span class="opt">;</span>
-            <span class="kwa">let</span> <span class="kwc">distance</span> <span class="opt">= ((</span><span class="kwc">dx</span><span class="opt">[</span><span class="num">0</span><span class="opt">] *</span> <span class="kwc">dx</span><span class="opt">[</span><span class="num">0</span><span class="opt">]) + (</span><span class="kwc">dx</span><span class="opt">[</span><span class="num">1</span><span class="opt">] *</span> <span class="kwc">dx</span><span class="opt">[</span><span class="num">1</span><span class="opt">]) + (</span><span class="kwc">dx</span><span class="opt">[</span><span class="num">2</span><span class="opt">] *</span> <span class="kwc">dx</span><span class="opt">[</span><span class="num">2</span><span class="opt">])).</span><span class="kwd">squareRoot</span><span class="opt">()</span>
-            <span class="kwc">e</span> <span class="opt">-= (</span>bodies<span class="opt">[</span>i<span class="opt">].</span><span class="kwc">mass</span> <span class="opt">*</span> bodies<span class="opt">[</span>j<span class="opt">].</span><span class="kwc">mass</span><span class="opt">) /</span> <span class="kwc">distance</span><span class="opt">;</span>
-        <span class="opt">}</span>
+    <span class="kwa">init</span><span class="opt">(</span>_ <span class="kwc">bodies</span><span class="opt">: [</span>Body<span class="opt">]) {</span>
+        <span class="kwb">self</span><span class="opt">.</span><span class="kwc">bodies</span> <span class="opt">=</span> <span class="kwc">bodies</span>
+        <span class="kwd">start</span><span class="opt">()</span>
     <span class="opt">}</span>
     
-    <span class="kwa">return</span> <span class="kwc">e</span>
-<span class="opt">}</span>
-
-<span class="kwa">struct</span> BodiesAdvance <span class="opt">{</span>
-    <span class="kwa">var</span> <span class="kwc">r</span> <span class="opt">= [</span>Delta<span class="opt">](</span>repeating<span class="opt">:</span> <span class="kwd">Delta</span><span class="opt">(),</span> count<span class="opt">:</span> <span class="num">1000</span><span class="opt">)</span>
-    <span class="kwa">var</span> <span class="kwc">mag</span> <span class="opt">= [</span>Double<span class="opt">](</span>repeating<span class="opt">:</span> <span class="num">0.0</span><span class="opt">,</span> count<span class="opt">:</span> <span class="num">1000</span><span class="opt">)</span>
-    
-    <span class="slc">/// Calculating advance of bodies within time dt, using the buffers `r` and `mag`</span>
-    mutating <span class="kwa">func</span> <span class="kwd">bodiesAdvance</span><span class="opt">(</span>bodies<span class="opt">:</span> inout <span class="opt">[</span>Body<span class="opt">],</span> dt<span class="opt">:</span> Double<span class="opt">) {</span>
-        <span class="kwa">let</span> <span class="kwc">N</span> <span class="opt">= ((</span>bodies<span class="opt">.</span>count <span class="opt">-</span> <span class="num">1</span><span class="opt">) *</span> bodies<span class="opt">.</span>count<span class="opt">) /</span> <span class="num">2</span>
-        
-        <span class="slc">// Use a tuple since an array isn&apos;t currently stack-allocated</span>
-        <span class="kwa">var</span> <span class="kwc">dx</span> <span class="opt">= (</span><span class="kwd">SIMD2</span><span class="opt">(</span>repeating<span class="opt">:</span> <span class="num">0.0</span><span class="opt">),</span> <span class="kwd">SIMD2</span><span class="opt">(</span>repeating<span class="opt">:</span> <span class="num">0.0</span><span class="opt">),</span> <span class="kwd">SIMD2</span><span class="opt">(</span>repeating<span class="opt">:</span> <span class="num">0.0</span><span class="opt">))</span>
-        
-        <span class="kwa">var</span> <span class="kwc">k</span> <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
-        <span class="kwa">for</span> i <span class="kwa">in</span> <span class="num">0</span><span class="opt">..&lt;(</span>bodies<span class="opt">.</span>count <span class="opt">-</span> <span class="num">1</span><span class="opt">) {</span>
-            <span class="kwa">for</span> j <span class="kwa">in</span> <span class="opt">(</span>i <span class="opt">+</span> <span class="num">1</span><span class="opt">)..&lt;</span>bodies<span class="opt">.</span>count <span class="opt">{</span>
-                <span class="kwb">self</span><span class="opt">.</span><span class="kwc">r</span><span class="opt">[</span><span class="kwc">k</span><span class="opt">].</span><span class="kwc">dx</span> <span class="opt">=</span> bodies<span class="opt">[</span>i<span class="opt">].</span><span class="kwc">x</span> <span class="opt">-</span> bodies<span class="opt">[</span>j<span class="opt">].</span><span class="kwc">x</span><span class="opt">;</span>
-                <span class="kwc">k</span> <span class="opt">+=</span> <span class="num">1</span><span class="opt">;</span>
+    <span class="kwa">func</span> <span class="kwd">energy</span><span class="opt">() -&gt;</span> Double <span class="opt">{</span>
+        <span class="kwa">var</span> <span class="kwc">energy</span> <span class="opt">=</span> <span class="num">0.0</span>
+        <span class="kwa">for</span> i <span class="kwa">in</span> <span class="num">0</span><span class="opt">..&lt;</span><span class="kwc">planetsCount</span> <span class="opt">{</span>
+            <span class="kwa">let</span> <span class="kwc">bodyi</span> <span class="opt">=</span> <span class="kwc">bodies</span><span class="opt">[</span>i<span class="opt">]</span>
+            <span class="kwa">let</span> <span class="kwc">posi</span> <span class="opt">=</span> <span class="kwc">bodyi</span><span class="opt">.</span><span class="kwc">pos</span>
+            <span class="kwa">let</span> <span class="kwc">veli</span> <span class="opt">=</span> <span class="kwc">bodyi</span><span class="opt">.</span><span class="kwc">vel</span>
+            
+            <span class="kwc">energy</span> <span class="opt">+=</span> <span class="num">0.5</span> <span class="opt">*</span> <span class="kwc">bodyi</span><span class="opt">.</span><span class="kwc">mass</span> <span class="opt">*</span> <span class="kwd">dot</span><span class="opt">(</span><span class="kwc">veli</span><span class="opt">,</span> <span class="kwc">veli</span><span class="opt">)</span>
+            
+            <span class="kwa">for</span> j <span class="kwa">in</span> i<span class="opt">+</span><span class="num">1</span><span class="opt">..&lt;</span><span class="kwc">planetsCount</span> <span class="opt">{</span>
+                <span class="kwa">let</span> <span class="kwc">bodyj</span> <span class="opt">=</span> <span class="kwc">bodies</span><span class="opt">[</span>j<span class="opt">]</span>
+                <span class="kwa">let</span> <span class="kwc">posj</span> <span class="opt">=</span> <span class="kwc">bodyj</span><span class="opt">.</span><span class="kwc">pos</span>
+                <span class="kwa">let</span> <span class="kwc">d</span>  <span class="opt">=</span> <span class="kwc">posi</span> <span class="opt">-</span> <span class="kwc">posj</span>
+                <span class="kwa">let</span> <span class="kwc">distance</span> <span class="opt">=</span> <span class="kwd">sqrt</span><span class="opt">(</span><span class="kwd">dot</span><span class="opt">(</span><span class="kwc">d</span><span class="opt">,</span> <span class="kwc">d</span><span class="opt">))</span>
+                <span class="kwc">energy</span> <span class="opt">-= (</span><span class="kwc">bodyi</span><span class="opt">.</span><span class="kwc">mass</span> <span class="opt">*</span> <span class="kwc">bodyj</span><span class="opt">.</span><span class="kwc">mass</span><span class="opt">) /</span> <span class="kwc">distance</span>
             <span class="opt">}</span>
         <span class="opt">}</span>
         
-        <span class="slc">// enumerate in +2 steps</span>
-        <span class="kwa">for</span> i_2 <span class="kwa">in</span> <span class="num">0</span><span class="opt">..&lt;(</span><span class="kwc">N</span> <span class="opt">/</span> <span class="num">2</span><span class="opt">) {</span>
-            <span class="kwa">let</span> <span class="kwc">i</span> <span class="opt">=</span> i_2 <span class="opt">*</span> <span class="num">2</span><span class="opt">;</span>
-            
-            <span class="kwa">do</span> <span class="opt">{</span>
-                <span class="kwc">dx</span><span class="num">.0</span><span class="opt">.</span><span class="kwc">x</span> <span class="opt">=</span> <span class="kwb">self</span><span class="opt">.</span><span class="kwc">r</span><span class="opt">[</span><span class="kwc">i</span><span class="opt">].</span><span class="kwc">dx</span><span class="opt">[</span><span class="num">0</span><span class="opt">]</span>
-                <span class="kwc">dx</span><span class="num">.0</span><span class="opt">.</span>y <span class="opt">=</span> <span class="kwb">self</span><span class="opt">.</span><span class="kwc">r</span><span class="opt">[</span><span class="kwc">i</span> <span class="opt">+</span> <span class="num">1</span><span class="opt">].</span><span class="kwc">dx</span><span class="opt">[</span><span class="num">0</span><span class="opt">]</span>
+        <span class="kwa">return</span> <span class="kwc">energy</span>
+    <span class="opt">}</span>
+    
+    mutating <span class="kwa">func</span> <span class="kwd">step</span><span class="opt">(</span>dt<span class="opt">:</span> Double<span class="opt">) {</span>
+        <span class="kwa">for</span> i <span class="kwa">in</span> <span class="num">0</span><span class="opt">..&lt;</span><span class="kwc">planetsCount</span> <span class="opt">{</span>
+            <span class="kwa">let</span> <span class="kwc">bodyi</span> <span class="opt">=</span> <span class="kwc">bodies</span><span class="opt">[</span>i<span class="opt">]</span>
+            <span class="kwa">for</span> j <span class="kwa">in</span> i<span class="opt">+</span><span class="num">1</span><span class="opt">..&lt;</span><span class="kwc">planetsCount</span> <span class="opt">{</span>
+                <span class="kwa">let</span> <span class="kwc">bodyj</span> <span class="opt">=</span> <span class="kwc">bodies</span><span class="opt">[</span>j<span class="opt">]</span>
                 
-                <span class="kwc">dx</span><span class="num">.1</span><span class="opt">.</span><span class="kwc">x</span> <span class="opt">=</span> <span class="kwb">self</span><span class="opt">.</span><span class="kwc">r</span><span class="opt">[</span><span class="kwc">i</span><span class="opt">].</span><span class="kwc">dx</span><span class="opt">[</span><span class="num">1</span><span class="opt">]</span>
-                <span class="kwc">dx</span><span class="num">.1</span><span class="opt">.</span>y <span class="opt">=</span> <span class="kwb">self</span><span class="opt">.</span><span class="kwc">r</span><span class="opt">[</span><span class="kwc">i</span> <span class="opt">+</span> <span class="num">1</span><span class="opt">].</span><span class="kwc">dx</span><span class="opt">[</span><span class="num">1</span><span class="opt">]</span>
+                <span class="kwa">let</span> <span class="kwc">d</span> <span class="opt">=</span> <span class="kwc">bodyi</span><span class="opt">.</span><span class="kwc">pos</span> <span class="opt">-</span> <span class="kwc">bodyj</span><span class="opt">.</span><span class="kwc">pos</span>
+                <span class="kwa">let</span> <span class="kwc">dSquared</span> <span class="opt">=</span> <span class="kwd">dot</span><span class="opt">(</span><span class="kwc">d</span><span class="opt">,</span> <span class="kwc">d</span><span class="opt">)</span>
+                <span class="kwa">let</span> <span class="kwc">distance</span> <span class="opt">=</span> <span class="kwd">sqrt</span><span class="opt">(</span><span class="kwc">dSquared</span><span class="opt">)</span>
+                <span class="kwa">let</span> <span class="kwc">mag</span> <span class="opt">=</span> dt <span class="opt">/ (</span><span class="kwc">dSquared</span> <span class="opt">*</span> <span class="kwc">distance</span><span class="opt">)</span>
                 
-                <span class="kwc">dx</span><span class="num">.2</span><span class="opt">.</span><span class="kwc">x</span> <span class="opt">=</span> <span class="kwb">self</span><span class="opt">.</span><span class="kwc">r</span><span class="opt">[</span><span class="kwc">i</span><span class="opt">].</span><span class="kwc">dx</span><span class="opt">[</span><span class="num">2</span><span class="opt">]</span>
-                <span class="kwc">dx</span><span class="num">.2</span><span class="opt">.</span>y <span class="opt">=</span> <span class="kwb">self</span><span class="opt">.</span><span class="kwc">r</span><span class="opt">[</span><span class="kwc">i</span> <span class="opt">+</span> <span class="num">1</span><span class="opt">].</span><span class="kwc">dx</span><span class="opt">[</span><span class="num">2</span><span class="opt">]</span>
-            <span class="opt">}</span>
-            
-            <span class="kwa">let</span> <span class="kwc">dSquared</span> <span class="opt">=</span> <span class="kwc">dx</span><span class="num">.0</span> <span class="opt">*</span> <span class="kwc">dx</span><span class="num">.0</span> <span class="opt">+</span> <span class="kwc">dx</span><span class="num">.1</span> <span class="opt">*</span> <span class="kwc">dx</span><span class="num">.1</span> <span class="opt">+</span> <span class="kwc">dx</span><span class="num">.2</span> <span class="opt">*</span> <span class="kwc">dx</span><span class="num">.2</span>
-            <span class="kwa">var</span> <span class="kwc">distance</span> <span class="opt">=</span> <span class="kwd">SIMD2</span><span class="opt">(</span>repeating<span class="opt">:</span> <span class="num">1.0</span><span class="opt">) /</span> <span class="kwc">dSquared</span><span class="opt">.</span><span class="kwd">squareRoot</span><span class="opt">()</span> <span class="slc">// _mm_cvtps_pd(_mm_rsqrt_ps(_mm_cvtpd_ps(dSquared)))</span>
-            
-            <span class="slc">// repeat 2 times</span>
-            <span class="kwa">for</span> _ <span class="kwa">in</span> <span class="num">0</span><span class="opt">..&lt;</span><span class="num">2</span> <span class="opt">{</span>
-                <span class="kwc">distance</span> <span class="opt">=</span> <span class="kwc">distance</span> <span class="opt">*</span> <span class="kwd">SIMD2</span><span class="opt">(</span>repeating<span class="opt">:</span> <span class="num">1.5</span><span class="opt">)</span>
-                    <span class="opt">- ((</span><span class="kwd">SIMD2</span><span class="opt">(</span>repeating<span class="opt">:</span> <span class="num">0.5</span><span class="opt">) *</span> <span class="kwc">dSquared</span><span class="opt">) *</span> <span class="kwc">distance</span><span class="opt">)</span>
-                    <span class="opt">* (</span><span class="kwc">distance</span> <span class="opt">*</span> <span class="kwc">distance</span><span class="opt">)</span>
-            <span class="opt">}</span>
-            
-            <span class="kwa">let</span> <span class="kwc">dMag</span> <span class="opt">=</span> <span class="kwd">SIMD2</span><span class="opt">(</span>repeating<span class="opt">:</span> dt<span class="opt">) / (</span><span class="kwc">dSquared</span><span class="opt">) *</span> <span class="kwc">distance</span>
-            
-            <span class="kwb">self</span><span class="opt">.</span><span class="kwc">mag</span><span class="opt">[</span><span class="kwc">i</span><span class="opt">] =</span> <span class="kwc">dMag</span><span class="opt">.</span><span class="kwc">x</span>
-            <span class="kwb">self</span><span class="opt">.</span><span class="kwc">mag</span><span class="opt">[</span><span class="kwc">i</span> <span class="opt">+</span> <span class="num">1</span><span class="opt">] =</span> <span class="kwc">dMag</span><span class="opt">.</span>y
-        <span class="opt">}</span>
-        
-        <span class="kwc">k</span> <span class="opt">=</span> <span class="num">0</span>
-        <span class="kwa">for</span> <span class="kwc">i</span> <span class="kwa">in</span> <span class="num">0</span><span class="opt">..&lt;(</span>bodies<span class="opt">.</span>count <span class="opt">-</span> <span class="num">1</span><span class="opt">) {</span>
-            <span class="kwa">for</span> j <span class="kwa">in</span> <span class="opt">(</span><span class="kwc">i</span> <span class="opt">+</span> <span class="num">1</span><span class="opt">)..&lt;</span>bodies<span class="opt">.</span>count <span class="opt">{</span>
-                bodies<span class="opt">[</span><span class="kwc">i</span><span class="opt">].</span><span class="kwc">v</span> <span class="opt">-= (</span><span class="kwb">self</span><span class="opt">.</span><span class="kwc">r</span><span class="opt">[</span><span class="kwc">k</span><span class="opt">].</span><span class="kwc">dx</span> <span class="opt">*</span> bodies<span class="opt">[</span>j<span class="opt">].</span><span class="kwc">mass</span><span class="opt">) *</span> <span class="kwb">self</span><span class="opt">.</span><span class="kwc">mag</span><span class="opt">[</span><span class="kwc">k</span><span class="opt">];</span>
-                    
-                bodies<span class="opt">[</span>j<span class="opt">].</span><span class="kwc">v</span> <span class="opt">+= (</span><span class="kwb">self</span><span class="opt">.</span><span class="kwc">r</span><span class="opt">[</span><span class="kwc">k</span><span class="opt">].</span><span class="kwc">dx</span> <span class="opt">*</span> bodies<span class="opt">[</span><span class="kwc">i</span><span class="opt">].</span><span class="kwc">mass</span><span class="opt">) *</span> <span class="kwb">self</span><span class="opt">.</span><span class="kwc">mag</span><span class="opt">[</span><span class="kwc">k</span><span class="opt">];</span>
-                <span class="kwc">k</span> <span class="opt">+=</span> <span class="num">1</span><span class="opt">;</span>
+                <span class="kwa">let</span> <span class="kwc">nveli</span> <span class="opt">=</span> <span class="kwc">bodies</span><span class="opt">[</span>i<span class="opt">].</span><span class="kwc">vel</span> <span class="opt">-</span> <span class="kwc">d</span> <span class="opt">*</span>
+                    <span class="kwd">SIMD4</span><span class="opt">(</span>repeating<span class="opt">:</span> <span class="kwc">bodyj</span><span class="opt">.</span><span class="kwc">mass</span><span class="opt">) *</span> <span class="kwc">mag</span>
+                <span class="kwc">bodies</span><span class="opt">[</span>i<span class="opt">].</span><span class="kwc">vel</span> <span class="opt">=</span> <span class="kwd">SIMD4</span><span class="opt">(</span><span class="kwc">nveli</span><span class="opt">.</span>x<span class="opt">,</span> <span class="kwc">nveli</span><span class="opt">.</span>y<span class="opt">,</span> <span class="kwc">nveli</span><span class="opt">.</span>z<span class="opt">,</span> <span class="kwc">nveli</span><span class="opt">.</span>w<span class="opt">)</span>
+                
+                <span class="kwa">let</span> <span class="kwc">nvelj</span> <span class="opt">=</span> <span class="kwc">bodies</span><span class="opt">[</span>j<span class="opt">].</span><span class="kwc">vel</span> <span class="opt">+</span> <span class="kwc">d</span> <span class="opt">*</span>
+                    <span class="kwd">SIMD4</span><span class="opt">(</span>repeating<span class="opt">:</span> <span class="kwc">bodyi</span><span class="opt">.</span><span class="kwc">mass</span><span class="opt">) *</span> <span class="kwc">mag</span>
+                <span class="kwc">bodies</span><span class="opt">[</span>j<span class="opt">].</span><span class="kwc">vel</span> <span class="opt">=</span> <span class="kwd">SIMD4</span><span class="opt">(</span><span class="kwc">nvelj</span><span class="opt">.</span>x<span class="opt">,</span> <span class="kwc">nvelj</span><span class="opt">.</span>y<span class="opt">,</span> <span class="kwc">nvelj</span><span class="opt">.</span>z<span class="opt">,</span> <span class="kwc">nvelj</span><span class="opt">.</span>w<span class="opt">)</span>
             <span class="opt">}</span>
         <span class="opt">}</span>
         
-        <span class="kwa">for</span> <span class="kwc">i</span> <span class="kwa">in</span> bodies<span class="opt">.</span>indices <span class="opt">{</span>
-            bodies<span class="opt">[</span><span class="kwc">i</span><span class="opt">].</span><span class="kwc">x</span> <span class="opt">+=</span> dt <span class="opt">*</span> bodies<span class="opt">[</span><span class="kwc">i</span><span class="opt">].</span><span class="kwc">v</span><span class="opt">;</span>
+        <span class="kwa">for</span> i <span class="kwa">in</span> <span class="num">0</span><span class="opt">..&lt;</span><span class="kwc">planetsCount</span> <span class="opt">{</span>
+            <span class="kwa">let</span> <span class="kwc">body</span> <span class="opt">=</span> <span class="kwc">bodies</span><span class="opt">[</span>i<span class="opt">]</span>
+            <span class="kwa">var</span> <span class="kwc">pos</span>  <span class="opt">=</span> <span class="kwc">body</span><span class="opt">.</span><span class="kwc">pos</span>
+            <span class="kwc">pos</span> <span class="opt">+=</span> dt <span class="opt">*</span> <span class="kwc">body</span><span class="opt">.</span><span class="kwc">vel</span>
+            <span class="kwc">bodies</span><span class="opt">[</span>i<span class="opt">].</span><span class="kwc">pos</span> <span class="opt">=</span> <span class="kwd">SIMD4</span><span class="opt">(</span><span class="kwc">pos</span><span class="opt">.</span>x<span class="opt">,</span> <span class="kwc">pos</span><span class="opt">.</span>y<span class="opt">,</span> <span class="kwc">pos</span><span class="opt">.</span>z<span class="opt">,</span> <span class="kwc">pos</span><span class="opt">.</span>w<span class="opt">)</span>
         <span class="opt">}</span>
     <span class="opt">}</span>
     
-<span class="opt">}</span>
-
-<span class="kwa">func</span> <span class="kwd">main</span><span class="opt">() {</span>
-    <span class="kwa">let</span> <span class="kwc">nCycles</span> <span class="opt">=</span> CommandLine<span class="opt">.</span>arguments<span class="opt">.</span><span class="kwd">dropFirst</span><span class="opt">()</span>
-                    <span class="opt">.</span>first<span class="opt">.</span>flatMap <span class="opt">{</span> <span class="kwd">Int</span><span class="opt">(</span>$<span class="num">0</span><span class="opt">) }</span> ?? <span class="num">1000</span>
-    
-    <span class="kwa">var</span> <span class="kwc">bodies</span> <span class="opt">: [</span>Body<span class="opt">] = [</span>
-        <span class="slc">// Sun</span>
-        <span class="kwd">Body</span><span class="opt">(</span>
-            <span class="kwc">x</span><span class="opt">: [</span><span class="num">0.0</span><span class="opt">,</span> <span class="num">0.0</span><span class="opt">,</span> <span class="num">0.0</span><span class="opt">],</span>
-            <span class="kwc">v</span><span class="opt">: [</span><span class="num">0.0</span><span class="opt">,</span> <span class="num">0.0</span><span class="opt">,</span> <span class="num">0.0</span><span class="opt">],</span>
-            <span class="kwc">mass</span><span class="opt">: .</span><span class="kwc">solarMass</span>
-        <span class="opt">),</span>
-        <span class="slc">// Jupiter</span>
-        <span class="kwd">Body</span><span class="opt">(</span>
-            <span class="kwc">x</span><span class="opt">: [</span>
-                <span class="num">4.84143144246472090e+00</span><span class="opt">,</span>
-                <span class="opt">-</span><span class="num">1.16032004402742839e+00</span><span class="opt">,</span>
-                <span class="opt">-</span><span class="num">1.03622044471123109e-01</span><span class="opt">,</span>
-            <span class="opt">],</span>
-            <span class="kwc">v</span><span class="opt">: [</span>
-                <span class="num">1.66007664274403694e-03</span> <span class="opt">* .</span><span class="kwc">daysPerYear</span><span class="opt">,</span>
-                <span class="num">7.69901118419740425e-03</span> <span class="opt">* .</span><span class="kwc">daysPerYear</span><span class="opt">,</span>
-                <span class="opt">-</span><span class="num">6.90460016972063023e-05</span> <span class="opt">* .</span><span class="kwc">daysPerYear</span><span class="opt">,</span>
-            <span class="opt">],</span>
-            <span class="kwc">mass</span><span class="opt">:</span> <span class="num">9.54791938424326609e-04</span> <span class="opt">* .</span><span class="kwc">solarMass</span>
-        <span class="opt">),</span>
-        <span class="slc">// Saturn</span>
-        <span class="kwd">Body</span><span class="opt">(</span>
-            <span class="kwc">x</span><span class="opt">: [</span>
-                <span class="num">8.34336671824457987e+00</span><span class="opt">,</span>
-                <span class="num">4.12479856412430479e+00</span><span class="opt">,</span>
-                <span class="opt">-</span><span class="num">4.03523417114321381e-01</span><span class="opt">,</span>
-            <span class="opt">],</span>
-            <span class="kwc">v</span><span class="opt">: [</span>
-                <span class="opt">-</span><span class="num">2.76742510726862411e-03</span> <span class="opt">* .</span><span class="kwc">daysPerYear</span><span class="opt">,</span>
-                <span class="num">4.99852801234917238e-03</span> <span class="opt">* .</span><span class="kwc">daysPerYear</span><span class="opt">,</span>
-                <span class="num">2.30417297573763929e-05</span> <span class="opt">* .</span><span class="kwc">daysPerYear</span><span class="opt">,</span>
-            <span class="opt">],</span>
-            <span class="kwc">mass</span><span class="opt">:</span> <span class="num">2.85885980666130812e-04</span> <span class="opt">* .</span><span class="kwc">solarMass</span>
-        <span class="opt">),</span>
-        <span class="slc">// Uranus</span>
-        <span class="kwd">Body</span><span class="opt">(</span>
-            <span class="kwc">x</span><span class="opt">: [</span>
-                <span class="num">1.28943695621391310e+01</span><span class="opt">,</span>
-                <span class="opt">-</span><span class="num">1.51111514016986312e+01</span><span class="opt">,</span>
-                <span class="opt">-</span><span class="num">2.23307578892655734e-01</span><span class="opt">,</span>
-            <span class="opt">],</span>
-            <span class="kwc">v</span><span class="opt">: [</span>
-                <span class="num">2.96460137564761618e-03</span> <span class="opt">* .</span><span class="kwc">daysPerYear</span><span class="opt">,</span>
-                <span class="num">2.37847173959480950e-03</span> <span class="opt">* .</span><span class="kwc">daysPerYear</span><span class="opt">,</span>
-                <span class="opt">-</span><span class="num">2.96589568540237556e-05</span> <span class="opt">* .</span><span class="kwc">daysPerYear</span><span class="opt">,</span>
-            <span class="opt">],</span>
-            <span class="kwc">mass</span><span class="opt">:</span> <span class="num">4.36624404335156298e-05</span> <span class="opt">* .</span><span class="kwc">solarMass</span>
-        <span class="opt">),</span>
-        <span class="slc">// Neptune</span>
-        <span class="kwd">Body</span><span class="opt">(</span>
-            <span class="kwc">x</span><span class="opt">: [</span>
-                <span class="num">1.53796971148509165e+01</span><span class="opt">,</span>
-                <span class="opt">-</span><span class="num">2.59193146099879641e+01</span><span class="opt">,</span>
-                <span class="num">1.79258772950371181e-01</span><span class="opt">,</span>
-            <span class="opt">],</span>
-            <span class="kwc">v</span><span class="opt">: [</span>
-                <span class="num">2.68067772490389322e-03</span> <span class="opt">* .</span><span class="kwc">daysPerYear</span><span class="opt">,</span>
-                <span class="num">1.62824170038242295e-03</span> <span class="opt">* .</span><span class="kwc">daysPerYear</span><span class="opt">,</span>
-                <span class="opt">-</span><span class="num">9.51592254519715870e-05</span> <span class="opt">* .</span><span class="kwc">daysPerYear</span><span class="opt">,</span>
-            <span class="opt">],</span>
-            <span class="kwc">mass</span><span class="opt">:</span> <span class="num">5.15138902046611451e-05</span> <span class="opt">* .</span><span class="kwc">solarMass</span>
-        <span class="opt">),</span>
-    <span class="opt">];</span>
-    <span class="kwa">var</span> <span class="kwc">sim</span> <span class="opt">=</span> <span class="kwd">BodiesAdvance</span><span class="opt">();</span>
-    
-    <span class="kwd">offsetMomentum</span><span class="opt">(</span><span class="kwc">bodies</span><span class="opt">: &amp;</span><span class="kwc">bodies</span><span class="opt">);</span>
-    
-    <span class="kwd">print</span><span class="opt">(</span><span class="kwd">String</span><span class="opt">(</span>format<span class="opt">:</span> <span class="str">&quot;%.9f&quot;</span><span class="opt">,</span> <span class="kwd">bodiesEnergy</span><span class="opt">(</span><span class="kwc">bodies</span><span class="opt">:</span> <span class="kwc">bodies</span><span class="opt">)));</span>
-    
-    <span class="kwa">for</span> _ <span class="kwa">in</span> <span class="num">0</span><span class="opt">..&lt;</span><span class="kwc">nCycles</span> <span class="opt">{</span>
-        <span class="kwc">sim</span><span class="opt">.</span><span class="kwd">bodiesAdvance</span><span class="opt">(</span><span class="kwc">bodies</span><span class="opt">: &amp;</span><span class="kwc">bodies</span><span class="opt">,</span> dt<span class="opt">:</span> <span class="num">0.01</span><span class="opt">);</span>
+    <span class="slc">// Adjusts momentum of the sun</span>
+    <span class="kwa">private</span> mutating <span class="kwa">func</span> <span class="kwd">start</span><span class="opt">() {</span>
+        <span class="kwa">var</span> <span class="kwc">p</span> <span class="opt">=</span> SIMD4<span class="opt">&lt;</span>Double<span class="opt">&gt;()</span>
+        <span class="kwa">for</span> i <span class="kwa">in</span> <span class="num">0</span><span class="opt">..&lt;</span><span class="kwc">planetsCount</span> <span class="opt">{</span>
+            <span class="kwa">let</span> <span class="kwc">body</span> <span class="opt">=</span> <span class="kwc">bodies</span><span class="opt">[</span>i<span class="opt">]</span>
+            <span class="kwa">let</span> <span class="kwc">mass</span> <span class="opt">=</span> <span class="kwd">SIMD4</span><span class="opt">(</span>repeating<span class="opt">:</span> <span class="kwc">body</span><span class="opt">.</span><span class="kwc">mass</span><span class="opt">)</span>
+            <span class="kwa">let</span> <span class="kwc">vel</span>  <span class="opt">=</span> <span class="kwc">body</span><span class="opt">.</span><span class="kwc">vel</span>
+            <span class="kwc">p</span> <span class="opt">+=</span> <span class="kwc">vel</span> <span class="opt">*</span> <span class="kwc">mass</span>
+        <span class="opt">}</span>
+        <span class="kwa">let</span> <span class="kwc">solarMass</span> <span class="opt">=</span> <span class="kwd">SIMD4</span><span class="opt">(</span>repeating<span class="opt">:</span> <span class="kwc">SOLAR_MASS</span><span class="opt">)</span>
+        <span class="kwa">let</span> <span class="kwc">vel</span> <span class="opt">= -</span><span class="kwc">p</span> <span class="opt">/</span> <span class="kwc">solarMass</span>
+        <span class="kwc">bodies</span><span class="opt">[</span><span class="num">0</span><span class="opt">].</span><span class="kwc">vel</span> <span class="opt">=</span> <span class="kwd">SIMD4</span><span class="opt">(</span><span class="kwc">vel</span><span class="opt">.</span>x<span class="opt">,</span> <span class="kwc">vel</span><span class="opt">.</span>y<span class="opt">,</span> <span class="kwc">vel</span><span class="opt">.</span>z<span class="opt">,</span> <span class="kwc">vel</span><span class="opt">.</span>w<span class="opt">)</span>
     <span class="opt">}</span>
-    
-    <span class="kwd">print</span><span class="opt">(</span><span class="kwd">String</span><span class="opt">(</span>format<span class="opt">:</span> <span class="str">&quot;%.9f&quot;</span><span class="opt">,</span> <span class="kwd">bodiesEnergy</span><span class="opt">(</span><span class="kwc">bodies</span><span class="opt">:</span> <span class="kwc">bodies</span><span class="opt">)))</span>
 <span class="opt">}</span>
 
-<span class="kwd">main</span><span class="opt">()</span>
+<span class="kwa">var</span> <span class="kwc">sun</span> <span class="opt">=</span> <span class="kwd">Body</span><span class="opt">(</span>
+    <span class="kwc">pos</span><span class="opt">:</span> <span class="kwd">SIMD4</span><span class="opt">(</span>x<span class="opt">:</span> <span class="num">0.0</span><span class="opt">,</span> y<span class="opt">:</span> <span class="num">0.0</span><span class="opt">,</span> z<span class="opt">:</span> <span class="num">0.0</span><span class="opt">,</span> w<span class="opt">:</span> <span class="num">0</span><span class="opt">),</span>
+    <span class="kwc">vel</span><span class="opt">:</span> <span class="kwd">SIMD4</span><span class="opt">(</span>x<span class="opt">:</span> <span class="num">0.0</span><span class="opt">,</span> y<span class="opt">:</span> <span class="num">0.0</span><span class="opt">,</span> z<span class="opt">:</span> <span class="num">0.0</span><span class="opt">,</span> w<span class="opt">:</span> <span class="num">0</span><span class="opt">),</span>
+    <span class="kwc">mass</span><span class="opt">:</span> <span class="kwc">SOLAR_MASS</span><span class="opt">)</span>
+
+<span class="kwa">var</span> <span class="kwc">jupiter</span> <span class="opt">=</span> <span class="kwd">Body</span><span class="opt">(</span>
+    <span class="kwc">pos</span><span class="opt">:</span> <span class="kwd">SIMD4</span><span class="opt">(</span>
+        x<span class="opt">:</span> <span class="num">4.8414314424647209</span><span class="opt">,</span>
+        y<span class="opt">: -</span><span class="num">1.16032004402742839</span><span class="opt">,</span>
+        z<span class="opt">: -</span><span class="num">0.103622044471123109</span><span class="opt">,</span>
+        w<span class="opt">:</span> <span class="num">0</span><span class="opt">),</span>
+    <span class="kwc">vel</span><span class="opt">:</span> <span class="kwd">SIMD4</span><span class="opt">(</span>
+        x<span class="opt">:</span> <span class="num">1.66007664274403694e-03</span> <span class="opt">*</span> <span class="kwc">DAYS_PER_YEAR</span><span class="opt">,</span>
+        y<span class="opt">:</span> <span class="num">7.69901118419740425e-03</span> <span class="opt">*</span> <span class="kwc">DAYS_PER_YEAR</span><span class="opt">,</span>
+        z<span class="opt">: -</span><span class="num">6.90460016972063023e-05</span> <span class="opt">*</span> <span class="kwc">DAYS_PER_YEAR</span><span class="opt">,</span>
+        w<span class="opt">:</span> <span class="num">0</span><span class="opt">),</span>
+    <span class="kwc">mass</span><span class="opt">:</span> <span class="num">9.54791938424326609e-04</span> <span class="opt">*</span> <span class="kwc">SOLAR_MASS</span><span class="opt">)</span>
+
+<span class="kwa">var</span> <span class="kwc">saturn</span> <span class="opt">=</span> <span class="kwd">Body</span><span class="opt">(</span>
+    <span class="kwc">pos</span><span class="opt">:</span> <span class="kwd">SIMD4</span><span class="opt">(</span>
+        x<span class="opt">:</span> <span class="num">8.34336671824457987</span><span class="opt">,</span>
+        y<span class="opt">:</span> <span class="num">4.12479856412430479</span><span class="opt">,</span>
+        z<span class="opt">: -</span><span class="num">4.03523417114321381e-01</span><span class="opt">,</span>
+        w<span class="opt">:</span> <span class="num">0</span><span class="opt">),</span>
+    <span class="kwc">vel</span><span class="opt">:</span> <span class="kwd">SIMD4</span><span class="opt">(</span>
+        x<span class="opt">: -</span><span class="num">2.76742510726862411e-03</span> <span class="opt">*</span> <span class="kwc">DAYS_PER_YEAR</span><span class="opt">,</span>
+        y<span class="opt">:</span> <span class="num">4.99852801234917238e-03</span> <span class="opt">*</span> <span class="kwc">DAYS_PER_YEAR</span><span class="opt">,</span>
+        z<span class="opt">:</span> <span class="num">2.30417297573763929e-05</span> <span class="opt">*</span> <span class="kwc">DAYS_PER_YEAR</span><span class="opt">,</span>
+        w<span class="opt">:</span> <span class="num">0</span><span class="opt">),</span>
+    <span class="kwc">mass</span><span class="opt">:</span> <span class="num">2.85885980666130812e-04</span> <span class="opt">*</span> <span class="kwc">SOLAR_MASS</span> <span class="opt">)</span>
+
+<span class="kwa">var</span> <span class="kwc">uranus</span> <span class="opt">=</span> <span class="kwd">Body</span><span class="opt">(</span>
+    <span class="kwc">pos</span><span class="opt">:</span> <span class="kwd">SIMD4</span><span class="opt">(</span>
+        x<span class="opt">:</span> <span class="num">1.28943695621391310e+01</span><span class="opt">,</span>
+        y<span class="opt">: -</span><span class="num">1.51111514016986312e+01</span><span class="opt">,</span>
+        z<span class="opt">: -</span><span class="num">2.23307578892655734e-01</span><span class="opt">,</span>
+        w<span class="opt">:</span> <span class="num">0</span><span class="opt">),</span>
+    <span class="kwc">vel</span><span class="opt">:</span> <span class="kwd">SIMD4</span><span class="opt">(</span>
+        x<span class="opt">:</span> <span class="num">2.96460137564761618e-03</span> <span class="opt">*</span> <span class="kwc">DAYS_PER_YEAR</span><span class="opt">,</span>
+        y<span class="opt">:</span> <span class="num">2.37847173959480950e-03</span> <span class="opt">*</span> <span class="kwc">DAYS_PER_YEAR</span><span class="opt">,</span>
+        z<span class="opt">: -</span><span class="num">2.96589568540237556e-05</span> <span class="opt">*</span> <span class="kwc">DAYS_PER_YEAR</span><span class="opt">,</span>
+        w<span class="opt">:</span> <span class="num">0</span><span class="opt">),</span>
+    <span class="kwc">mass</span><span class="opt">:</span> <span class="num">4.36624404335156298e-05</span> <span class="opt">*</span> <span class="kwc">SOLAR_MASS</span> <span class="opt">)</span>
+
+<span class="kwa">var</span> <span class="kwc">neptune</span> <span class="opt">=</span> <span class="kwd">Body</span><span class="opt">(</span>
+    <span class="kwc">pos</span><span class="opt">:</span> <span class="kwd">SIMD4</span><span class="opt">(</span>
+        x<span class="opt">:</span> <span class="num">1.53796971148509165e+01</span><span class="opt">,</span>
+        y<span class="opt">: -</span><span class="num">2.59193146099879641e+01</span><span class="opt">,</span>
+        z<span class="opt">:</span> <span class="num">1.79258772950371181e-01</span><span class="opt">,</span>
+        w<span class="opt">:</span> <span class="num">0</span><span class="opt">),</span>
+    <span class="kwc">vel</span><span class="opt">:</span> <span class="kwd">SIMD4</span><span class="opt">(</span>
+        x<span class="opt">:</span> <span class="num">2.68067772490389322e-03</span> <span class="opt">*</span> <span class="kwc">DAYS_PER_YEAR</span><span class="opt">,</span>
+        y<span class="opt">:</span> <span class="num">1.62824170038242295e-03</span> <span class="opt">*</span> <span class="kwc">DAYS_PER_YEAR</span><span class="opt">,</span>
+        z<span class="opt">: -</span><span class="num">9.51592254519715870e-05</span> <span class="opt">*</span> <span class="kwc">DAYS_PER_YEAR</span><span class="opt">,</span>
+        w<span class="opt">:</span> <span class="num">0</span><span class="opt">),</span>
+    <span class="kwc">mass</span><span class="opt">:</span> <span class="num">5.15138902046611451e-05</span> <span class="opt">*</span> <span class="kwc">SOLAR_MASS</span> <span class="opt">)</span>
+
+<span class="kwa">var</span> <span class="kwc">system</span> <span class="opt">=</span> <span class="kwd">System</span><span class="opt">([</span><span class="kwc">sun</span><span class="opt">,</span> <span class="kwc">jupiter</span><span class="opt">,</span> <span class="kwc">saturn</span><span class="opt">,</span> <span class="kwc">uranus</span><span class="opt">,</span> <span class="kwc">neptune</span><span class="opt">])</span>
+
+<span class="kwa">let</span> <span class="kwc">n</span><span class="opt">:</span> Int
+<span class="kwa">if</span> CommandLine<span class="opt">.</span>argc <span class="opt">&gt;</span> <span class="num">1</span> <span class="opt">{</span>
+    <span class="kwc">n</span> <span class="opt">=</span> <span class="kwd">Int</span><span class="opt">(</span>CommandLine<span class="opt">.</span>arguments<span class="opt">[</span><span class="num">1</span><span class="opt">])</span> ?? <span class="num">1000</span>
+<span class="opt">}</span> <span class="kwa">else</span> <span class="opt">{</span>
+    <span class="kwc">n</span> <span class="opt">=</span> <span class="num">1000</span>
+<span class="opt">}</span>
+
+<span class="kwd">print</span><span class="opt">(</span><span class="kwd">String</span><span class="opt">(</span>format<span class="opt">:</span> <span class="str">&quot;%.9f&quot;</span><span class="opt">,</span> <span class="kwc">system</span><span class="opt">.</span><span class="kwc">energy</span><span class="opt">()))</span>
+
+<span class="kwa">for</span> _ <span class="kwa">in</span> <span class="num">0</span><span class="opt">..&lt;</span><span class="kwc">n</span> <span class="opt">{</span>
+    <span class="kwc">system</span><span class="opt">.</span><span class="kwd">step</span><span class="opt">(</span>dt<span class="opt">:</span> <span class="num">0.01</span><span class="opt">)</span>
+<span class="opt">}</span>
+<span class="kwd">print</span><span class="opt">(</span><span class="kwd">String</span><span class="opt">(</span>format<span class="opt">:</span> <span class="str">&quot;%.9f&quot;</span><span class="opt">,</span> <span class="kwc">system</span><span class="opt">.</span><span class="kwc">energy</span><span class="opt">()))</span>
+
     </pre>
   </section>
   <section>
@@ -267,12 +225,12 @@ Target: x86_64-unknown-linux-gnu
 
 
 
-Tue, 31 Dec 2019 18:13:45 GMT
+Mon, 20 Jan 2020 05:02:49 GMT
 
 MAKE:
-/opt/src/swift-5.1.3-RELEASE-ubuntu18.04/usr/bin/swiftc nbody.swift-9.swift -Ounchecked -Xllvm -unroll-count=5 -Xllvm -unroll-threshold=500 -o nbody.swift-9.swift_run
+/opt/src/swift-5.1.3-RELEASE-ubuntu18.04/usr/bin/swiftc nbody.swift-9.swift -Ounchecked -wmo -Xllvm -unroll-count=5 -Xllvm -unroll-threshold=500 -Xcc -msse2 -o nbody.swift-9.swift_run
 
-58.98s to complete and log all make actions
+14.19s to complete and log all make actions
 
 COMMAND LINE:
 ./nbody.swift-9.swift_run 50000000
