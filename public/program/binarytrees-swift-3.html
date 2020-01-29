@@ -26,48 +26,50 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="slc">// http://benchmarksgame.alioth.debian.org/</span>
 <span class="slc">//</span>
 <span class="slc">// Swift adaptation of binary-trees Go #8,</span>
-<span class="slc">// that in turn is based on Rust #4</span>
+<span class="slc">// that in turn is based on Rust #4.</span>
+<span class="slc">// Used DispatchQueue.concurrentPerform() to launch the</span>
+<span class="slc">// worker threads.</span>
 <span class="slc">//</span>
 <span class="slc">// contributed by Marcel Ibes</span>
-<span class="slc">// modified by Isaac Gouy</span>
-<span class="slc">// require Tree.Node at leaf depth &amp; do stretch tree and longLivedTree earlier</span>
 
 <span class="kwa">import</span> Dispatch
 <span class="kwa">import</span> Foundation
 
 indirect <span class="kwa">enum</span> Tree <span class="opt">{</span>
-  <span class="kwa">case</span> Empty
-  <span class="kwa">case</span> <span class="kwd">Node</span><span class="opt">(</span>left<span class="opt">:</span> Tree<span class="opt">,</span> right<span class="opt">:</span> Tree<span class="opt">)</span>
+    <span class="kwa">case</span> Empty
+    <span class="kwa">case</span> <span class="kwd">Node</span><span class="opt">(</span>left<span class="opt">:</span> Tree<span class="opt">,</span> right<span class="opt">:</span> Tree<span class="opt">)</span>
 <span class="opt">}</span>
 
 <span class="kwa">func</span> <span class="kwd">itemCheck</span><span class="opt">(</span>_ tree<span class="opt">:</span> Tree<span class="opt">) -&gt;</span> UInt32 <span class="opt">{</span>
     <span class="kwa">switch</span> tree <span class="opt">{</span>
-    <span class="kwa">case</span> <span class="opt">.</span>Empty<span class="opt">:</span>
-<span class="slc">//      Require Tree.Node at leaf depth</span>
-        <span class="kwa">return</span> <span class="num">0</span>
     <span class="kwa">case</span> <span class="opt">.</span><span class="kwd">Node</span><span class="opt">(</span><span class="kwa">let</span> <span class="kwc">left</span><span class="opt">,</span> <span class="kwa">let</span> <span class="kwc">right</span><span class="opt">):</span>
-        <span class="kwa">return</span> <span class="num">1</span> <span class="opt">+</span> <span class="kwd">itemCheck</span><span class="opt">(</span><span class="kwc">left</span><span class="opt">) +</span> <span class="kwd">itemCheck</span><span class="opt">(</span><span class="kwc">right</span><span class="opt">)</span>
+        <span class="kwa">switch</span> <span class="opt">(</span><span class="kwc">left</span><span class="opt">,</span> <span class="kwc">right</span><span class="opt">) {</span>
+        <span class="kwa">case</span> <span class="opt">(.</span>Empty<span class="opt">, .</span>Empty<span class="opt">):</span>
+            <span class="kwa">return</span> <span class="num">1</span>
+        <span class="kwa">default</span><span class="opt">:</span>
+            <span class="kwa">return</span> <span class="num">1</span> <span class="opt">+</span> <span class="kwd">itemCheck</span><span class="opt">(</span><span class="kwc">left</span><span class="opt">) +</span> <span class="kwd">itemCheck</span><span class="opt">(</span><span class="kwc">right</span><span class="opt">)</span>
+        <span class="opt">}</span>
+    <span class="kwa">case</span> <span class="opt">.</span>Empty<span class="opt">:</span>
+        <span class="kwa">return</span> <span class="num">1</span>
     <span class="opt">}</span>
 <span class="opt">}</span>
 
 <span class="kwa">func</span> <span class="kwd">bottomUpTree</span><span class="opt">(</span>_ depth<span class="opt">:</span> UInt32<span class="opt">) -&gt;</span> Tree <span class="opt">{</span>
     <span class="kwa">if</span> depth <span class="opt">&gt;</span> <span class="num">0</span> <span class="opt">{</span>
-        <span class="kwa">let</span> <span class="kwc">node</span> <span class="opt">=</span> Tree<span class="opt">.</span><span class="kwd">Node</span><span class="opt">(</span><span class="kwc">left</span><span class="opt">:</span> <span class="kwd">bottomUpTree</span><span class="opt">(</span>depth<span class="opt">-</span><span class="num">1</span><span class="opt">),</span>
-                            <span class="kwc">right</span><span class="opt">:</span> <span class="kwd">bottomUpTree</span><span class="opt">(</span>depth<span class="opt">-</span><span class="num">1</span><span class="opt">))</span>
-        <span class="kwa">return</span> <span class="kwc">node</span>
+        <span class="kwa">return</span> <span class="opt">.</span><span class="kwd">Node</span><span class="opt">(</span><span class="kwc">left</span><span class="opt">:</span> <span class="kwd">bottomUpTree</span><span class="opt">(</span>depth <span class="opt">-</span> <span class="num">1</span><span class="opt">),</span>
+                     <span class="kwc">right</span><span class="opt">:</span> <span class="kwd">bottomUpTree</span><span class="opt">(</span>depth <span class="opt">-</span> <span class="num">1</span><span class="opt">))</span>
     <span class="opt">}</span>
-    
-    <span class="kwa">return</span> Tree<span class="opt">.</span>Empty
+
+    <span class="kwa">return</span> <span class="opt">.</span><span class="kwd">Node</span><span class="opt">(</span><span class="kwc">left</span><span class="opt">: .</span>Empty<span class="opt">,</span> <span class="kwc">right</span><span class="opt">: .</span>Empty<span class="opt">)</span>
 <span class="opt">}</span>
 
 <span class="kwa">func</span> <span class="kwd">inner</span><span class="opt">(</span>depth<span class="opt">:</span> UInt32<span class="opt">,</span> iterations<span class="opt">:</span> UInt32<span class="opt">) -&gt;</span> String <span class="opt">{</span>
     <span class="kwa">var</span> <span class="kwc">chk</span> <span class="opt">=</span> <span class="kwd">UInt32</span><span class="opt">(</span><span class="num">0</span><span class="opt">)</span>
     <span class="kwa">for</span> _ <span class="kwa">in</span> <span class="num">0</span><span class="opt">..&lt;</span>iterations <span class="opt">{</span>
-<span class="slc">//                           depth+1 allocate Tree.Node at leaf depth</span>
-        <span class="kwa">let</span> <span class="kwc">a</span> <span class="opt">=</span> <span class="kwd">bottomUpTree</span><span class="opt">(</span>depth<span class="opt">+</span><span class="num">1</span><span class="opt">)</span>
+        <span class="kwa">let</span> <span class="kwc">a</span> <span class="opt">=</span> <span class="kwd">bottomUpTree</span><span class="opt">(</span>depth<span class="opt">)</span>
         <span class="kwc">chk</span> <span class="opt">+=</span> <span class="kwd">itemCheck</span><span class="opt">(</span><span class="kwc">a</span><span class="opt">)</span>
     <span class="opt">}</span>
-    
+
     <span class="kwa">return</span> <span class="str">&quot;</span><span class="ipl">\(iterations)</span><span class="str"></span><span class="esc">\t</span> <span class="str">trees of depth</span> <span class="ipl">\(depth)</span><span class="str"></span><span class="esc">\t</span> <span class="str">check:</span> <span class="ipl">\(chk)</span><span class="str">&quot;</span>
 <span class="opt">}</span>
 
@@ -81,19 +83,18 @@ indirect <span class="kwa">enum</span> Tree <span class="opt">{</span>
 
 <span class="kwa">let</span> <span class="kwc">minDepth</span> <span class="opt">=</span> <span class="kwd">UInt32</span><span class="opt">(</span><span class="num">4</span><span class="opt">)</span>
 <span class="kwa">let</span> <span class="kwc">maxDepth</span> <span class="opt">= (</span><span class="kwc">n</span> <span class="opt">&gt;</span> <span class="kwc">minDepth</span> <span class="opt">+</span> <span class="num">2</span><span class="opt">)</span> ? <span class="kwc">n</span> <span class="opt">:</span> <span class="kwc">minDepth</span> <span class="opt">+</span> <span class="num">2</span>
-<span class="kwa">var</span> <span class="kwc">messages</span><span class="opt">: [</span>UInt32<span class="opt">:</span>String<span class="opt">] = [:]</span>
-<span class="kwa">let</span> <span class="kwc">depth</span> <span class="opt">=</span> <span class="kwc">maxDepth</span><span class="opt">+</span><span class="num">1</span>
+<span class="kwa">var</span> <span class="kwc">messages</span><span class="opt">: [</span>UInt32<span class="opt">:</span> String<span class="opt">] = [:]</span>
+<span class="kwa">let</span> <span class="kwc">depth</span> <span class="opt">=</span> <span class="kwc">maxDepth</span> <span class="opt">+</span> <span class="num">1</span>
 
 <span class="kwa">let</span> <span class="kwc">group</span> <span class="opt">=</span> <span class="kwd">DispatchGroup</span><span class="opt">()</span>
 
-<span class="kwa">let</span> <span class="kwc">workerQueue</span> <span class="opt">=</span> DispatchQueue<span class="opt">.</span><span class="kwa">init</span><span class="opt">(</span>label<span class="opt">:</span> <span class="str">&quot;workerQueue&quot;</span><span class="opt">,</span> qos<span class="opt">: .</span>userInitiated<span class="opt">,</span> attributes<span class="opt">: .</span>concurrent<span class="opt">)</span>
-<span class="kwa">let</span> <span class="kwc">messageQueue</span> <span class="opt">=</span> DispatchQueue<span class="opt">.</span><span class="kwa">init</span><span class="opt">(</span>label<span class="opt">:</span> <span class="str">&quot;messageQueue&quot;</span><span class="opt">,</span> qos<span class="opt">: .</span>userInitiated<span class="opt">)</span>
+<span class="kwa">let</span> <span class="kwc">workerQueue</span> <span class="opt">=</span> <span class="kwd">DispatchQueue</span><span class="opt">(</span>label<span class="opt">:</span> <span class="str">&quot;workerQueue&quot;</span><span class="opt">,</span> qos<span class="opt">: .</span>userInteractive<span class="opt">,</span> attributes<span class="opt">: .</span>concurrent<span class="opt">)</span>
+<span class="kwa">let</span> <span class="kwc">messageQueue</span> <span class="opt">=</span> <span class="kwd">DispatchQueue</span><span class="opt">(</span>label<span class="opt">:</span> <span class="str">&quot;messageQueue&quot;</span><span class="opt">,</span> qos<span class="opt">: .</span>background<span class="opt">)</span>
 
 <span class="kwc">group</span><span class="opt">.</span><span class="kwd">enter</span><span class="opt">()</span>
 <span class="kwc">workerQueue</span><span class="opt">.</span>async <span class="opt">{</span>
-<span class="slc">//                          depth+1 allocate Tree.Node at leaf depth</span>
-    <span class="kwa">let</span> <span class="kwc">tree</span> <span class="opt">=</span> <span class="kwd">bottomUpTree</span><span class="opt">(</span><span class="kwc">depth</span><span class="opt">+</span><span class="num">1</span><span class="opt">)</span>
-    
+    <span class="kwa">let</span> <span class="kwc">tree</span> <span class="opt">=</span> <span class="kwd">bottomUpTree</span><span class="opt">(</span><span class="kwc">depth</span><span class="opt">)</span>
+
     <span class="kwc">messageQueue</span><span class="opt">.</span>async <span class="opt">{</span>
         <span class="kwc">messages</span><span class="opt">[</span><span class="num">0</span><span class="opt">] =</span> <span class="str">&quot;stretch tree of depth</span> <span class="ipl">\(depth)</span><span class="str"></span><span class="esc">\t</span> <span class="str">check:</span> <span class="ipl">\(itemCheck(tree))</span><span class="str">&quot;</span>
         <span class="kwc">group</span><span class="opt">.</span><span class="kwd">leave</span><span class="opt">()</span>
@@ -102,36 +103,33 @@ indirect <span class="kwa">enum</span> Tree <span class="opt">{</span>
 
 <span class="kwc">group</span><span class="opt">.</span><span class="kwd">enter</span><span class="opt">()</span>
 <span class="kwc">workerQueue</span><span class="opt">.</span>async <span class="opt">{</span>
-<span class="slc">//                                   maxDepth+1 allocate Tree.Node at leaf depth</span>
-    <span class="kwa">let</span> <span class="kwc">longLivedTree</span> <span class="opt">=</span> <span class="kwd">bottomUpTree</span><span class="opt">(</span><span class="kwc">maxDepth</span><span class="opt">+</span><span class="num">1</span><span class="opt">)</span>
-    
+    <span class="kwa">let</span> <span class="kwc">longLivedTree</span> <span class="opt">=</span> <span class="kwd">bottomUpTree</span><span class="opt">(</span><span class="kwc">maxDepth</span><span class="opt">)</span>
+
     <span class="kwc">messageQueue</span><span class="opt">.</span>async <span class="opt">{</span>
         <span class="kwc">messages</span><span class="opt">[</span>UINT32_MAX<span class="opt">] =</span> <span class="str">&quot;long lived tree of depth</span> <span class="ipl">\(maxDepth)</span><span class="str"></span><span class="esc">\t</span> <span class="str">check:</span> <span class="ipl">\(itemCheck(longLivedTree))</span><span class="str">&quot;</span>
         <span class="kwc">group</span><span class="opt">.</span><span class="kwd">leave</span><span class="opt">()</span>
     <span class="opt">}</span>
 <span class="opt">}</span>
 
-<span class="kwc">group</span><span class="opt">.</span><span class="kwd">enter</span><span class="opt">()</span>
-<span class="kwc">workerQueue</span><span class="opt">.</span>async <span class="opt">{</span>
-    <span class="kwa">for</span> halfDepth <span class="kwa">in</span> <span class="opt">(</span><span class="kwc">minDepth</span> <span class="opt">/</span> <span class="num">2</span><span class="opt">)..&lt;(</span><span class="kwc">maxDepth</span><span class="opt">/</span><span class="num">2</span><span class="opt">+</span><span class="num">1</span><span class="opt">) {</span>
-        <span class="kwa">let</span> <span class="kwc">depth</span> <span class="opt">=</span> halfDepth <span class="opt">*</span> <span class="num">2</span>
-        <span class="kwa">let</span> <span class="kwc">iterations</span> <span class="opt">=</span> <span class="kwd">UInt32</span><span class="opt">(</span><span class="num">1</span> <span class="opt">&lt;&lt; (</span><span class="kwc">maxDepth</span> <span class="opt">-</span> <span class="kwc">depth</span> <span class="opt">+</span> <span class="kwc">minDepth</span><span class="opt">))</span>
+<span class="kwa">let</span> <span class="kwc">halfDepth</span> <span class="opt">= (</span><span class="kwc">minDepth</span> <span class="opt">/</span> <span class="num">2</span><span class="opt">)</span>
+<span class="kwa">let</span> <span class="kwc">halfMaxDepth</span> <span class="opt">= (</span><span class="kwc">maxDepth</span> <span class="opt">/</span> <span class="num">2</span> <span class="opt">+</span> <span class="num">1</span><span class="opt">)</span>
+<span class="kwa">let</span> <span class="kwc">itt</span> <span class="opt">=</span> <span class="kwd">Int</span><span class="opt">(</span><span class="kwc">halfMaxDepth</span> <span class="opt">-</span> <span class="kwc">halfDepth</span><span class="opt">)</span>
 
-        <span class="kwc">group</span><span class="opt">.</span><span class="kwd">enter</span><span class="opt">()</span>
-        <span class="kwc">workerQueue</span><span class="opt">.</span>async <span class="opt">{</span>
-            <span class="kwa">let</span> <span class="kwc">msg</span> <span class="opt">=</span> <span class="kwd">inner</span><span class="opt">(</span><span class="kwc">depth</span><span class="opt">:</span> <span class="kwc">depth</span><span class="opt">,</span> <span class="kwc">iterations</span><span class="opt">:</span> <span class="kwc">iterations</span><span class="opt">)</span>
-            <span class="kwc">messageQueue</span><span class="opt">.</span>async <span class="opt">{</span>
-                <span class="kwc">messages</span><span class="opt">[</span><span class="kwc">depth</span><span class="opt">] =</span> <span class="kwc">msg</span>
-                <span class="kwc">group</span><span class="opt">.</span><span class="kwd">leave</span><span class="opt">()</span>
-            <span class="opt">}</span>
+DispatchQueue<span class="opt">.</span><span class="kwd">concurrentPerform</span><span class="opt">(</span>iterations<span class="opt">:</span> <span class="kwc">itt</span><span class="opt">,</span> execute<span class="opt">: {</span> idx <span class="kwa">in</span>
+    <span class="kwa">let</span> <span class="kwc">depth</span> <span class="opt">= (</span><span class="kwc">halfDepth</span> <span class="opt">+</span> <span class="kwd">UInt32</span><span class="opt">(</span>idx<span class="opt">)) *</span> <span class="num">2</span>
+    <span class="kwa">let</span> <span class="kwc">iterations</span> <span class="opt">=</span> <span class="kwd">UInt32</span><span class="opt">(</span><span class="num">1</span> <span class="opt">&lt;&lt; (</span><span class="kwc">maxDepth</span> <span class="opt">-</span> <span class="kwc">depth</span> <span class="opt">+</span> <span class="kwc">minDepth</span><span class="opt">))</span>
+
+    <span class="kwc">group</span><span class="opt">.</span><span class="kwd">enter</span><span class="opt">()</span>
+    <span class="kwc">workerQueue</span><span class="opt">.</span>async <span class="opt">{</span>
+        <span class="kwa">let</span> <span class="kwc">msg</span> <span class="opt">=</span> <span class="kwd">inner</span><span class="opt">(</span><span class="kwc">depth</span><span class="opt">:</span> <span class="kwc">depth</span><span class="opt">,</span> <span class="kwc">iterations</span><span class="opt">:</span> <span class="kwc">iterations</span><span class="opt">)</span>
+        <span class="kwc">messageQueue</span><span class="opt">.</span>async <span class="opt">{</span>
+            <span class="kwc">messages</span><span class="opt">[</span><span class="kwc">depth</span><span class="opt">] =</span> <span class="kwc">msg</span>
+            <span class="kwc">group</span><span class="opt">.</span><span class="kwd">leave</span><span class="opt">()</span>
         <span class="opt">}</span>
     <span class="opt">}</span>
-    
-    <span class="kwc">messageQueue</span><span class="opt">.</span>async <span class="opt">{</span>
-        <span class="kwc">group</span><span class="opt">.</span><span class="kwd">leave</span><span class="opt">()</span>
-    <span class="opt">}</span>
-<span class="opt">}</span>
+<span class="opt">})</span>
 
+<span class="slc">// Wait for all the operations to finish</span>
 <span class="kwc">group</span><span class="opt">.</span><span class="kwd">wait</span><span class="opt">()</span>
 
 <span class="kwa">for</span> <span class="kwc">msg</span> <span class="kwa">in</span> <span class="kwc">messages</span><span class="opt">.</span><span class="kwd">sorted</span><span class="opt">(</span>by<span class="opt">: {</span> $<span class="num">0.0</span> <span class="opt">&lt;</span> $<span class="num">1.0</span> <span class="opt">}) {</span>
@@ -149,12 +147,12 @@ Target: x86_64-unknown-linux-gnu
 
 
 
-Wed, 22 Jan 2020 21:21:20 GMT
+Wed, 29 Jan 2020 17:18:09 GMT
 
 MAKE:
-/opt/src/swift-5.1.3-RELEASE-ubuntu18.04/usr/bin/swiftc binarytrees.swift-3.swift -Ounchecked -I Include/swift/apr -o binarytrees.swift-3.swift_run
+/opt/src/swift-5.1.3-RELEASE-ubuntu18.04/usr/bin/swiftc binarytrees.swift-3.swift -Ounchecked -Xcc -march=core2  -o binarytrees.swift-3.swift_run
 
-15.28s to complete and log all make actions
+14.82s to complete and log all make actions
 
 COMMAND LINE:
 ./binarytrees.swift-3.swift_run 21
@@ -177,6 +175,7 @@ long lived tree of depth 21	 check: 4194303
 <footer>
   <nav>
     <ul>
+      <li><a href="https://salsa.debian.org/benchmarksgame-team/benchmarksgame/blob/master/README.md"><span>Contribute your own program</span></a>
       <li><a href="../license.html"><span>3-Clause BSD License</span></a>
     </ul>
   </nav>
