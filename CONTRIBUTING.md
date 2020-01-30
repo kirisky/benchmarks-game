@@ -20,7 +20,7 @@ Write narrow 80 column programs — plenty of people try to read these programs 
 
 You will probably come across people saying that the programs are not idiomatic ("enough"). So read the [description](https://benchmarksgame-team.pages.debian.net/benchmarksgame/description/summary.html) and write your own idiomatic program, without programming tricks. 
 
-Please use code comments to demonstrate that the algorithm is comparable to programs that are currenly shown, and matches the provided description.
+Please use code comments to demonstrate that the algorithm is comparable to programs that are currently shown, and matches the provided description.
 
 
 Test your program!
