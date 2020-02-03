@@ -25,166 +25,160 @@ Programs age. Language implementations add new features. New programs are needed
 
 
 <p>
-  <details style="font:100% Droid Sans, Ubuntu, Verdana, sans-serif">
-      <summary><strong>fannkuchredux</strong></summary>
-      <table style="color:#333;text-align:right;width:80%">
-      <tbody>
+  <details>
+    <summary><strong>fannkuchredux</strong></summary>
+    <table>
+      <tr>
+        <th>program
+        <th>secs
+        <th>mem
+        <th>gz
+        <th>cpu
+      </tr>
         <tr>
-          <th style="text-align:left;padding-left:0">program
-          <th>secs
-          <th>mem
-          <th>gz
-          <th>cpu
-        </tr>
-        <tr>
-          <td style="text-align:left;padding-left:0">java&nbsp;#&nbsp;3
+          <td>java&nbsp;#&nbsp;3
           <td>4.48
           <td>34,632
           <td>1257
           <td>4.58
         </tr>
         <tr>
-          <td style="text-align:left;padding-left:0">java&nbsp;#&nbsp;1
+          <td>java&nbsp;#&nbsp;1
           <td>1.32
           <td>34,868
           <td>1282
           <td>4.97
         </tr>
         <tr>
-          <td style="text-align:left;padding-left:0">java&nbsp;#&nbsp;2
+          <td>java&nbsp;#&nbsp;2
           <td>5.85
           <td>35,364
           <td>514
           <td>5.94
         </tr>
         <tr>
-          <td style="text-align:left;padding-left:0">python&nbsp;#&nbsp;4
+          <td>python&nbsp;#&nbsp;4
           <td>40.56
           <td>48,080
           <td>1080
           <td>159.05
         </tr>
         <tr>
-          <td style="text-align:left;padding-left:0">python&nbsp;#&nbsp;6
+          <td>python&nbsp;#&nbsp;6
           <td>161.63
           <td>8,380
           <td>559
           <td>161.58
         </tr>
 
-      </tbody>
-      </table>
+    </table>
   </details>
 </p>
 <p>
-  <details style="font:100% Droid Sans, Ubuntu, Verdana, sans-serif">
-      <summary><strong>nbody</strong></summary>
-      <table style="color:#333;text-align:right;width:80%">
-      <tbody>
+  <details>
+    <summary><strong>nbody</strong></summary>
+    <table>
+      <tr>
+        <th>program
+        <th>secs
+        <th>mem
+        <th>gz
+        <th>cpu
+      </tr>
         <tr>
-          <th style="text-align:left;padding-left:0">program
-          <th>secs
-          <th>mem
-          <th>gz
-          <th>cpu
-        </tr>
-        <tr>
-          <td style="text-align:left;padding-left:0">java&nbsp;#&nbsp;5
+          <td>java&nbsp;#&nbsp;5
           <td>0.12
           <td>0
           <td>1429
           <td>0.16
         </tr>
         <tr>
-          <td style="text-align:left;padding-left:0">java&nbsp;#&nbsp;3
+          <td>java&nbsp;#&nbsp;3
           <td>0.12
           <td>0
           <td>1430
           <td>0.16
         </tr>
         <tr>
-          <td style="text-align:left;padding-left:0">java&nbsp;#&nbsp;4
+          <td>java&nbsp;#&nbsp;4
           <td>0.12
           <td>0
           <td>1489
           <td>0.16
         </tr>
         <tr>
-          <td style="text-align:left;padding-left:0">java&nbsp;#&nbsp;2
+          <td>java&nbsp;#&nbsp;2
           <td>0.12
           <td>0
           <td>1424
           <td>0.17
         </tr>
         <tr>
-          <td style="text-align:left;padding-left:0">java&nbsp;#&nbsp;1
+          <td>java&nbsp;#&nbsp;1
           <td>0.14
           <td>0
           <td>1430
           <td>0.20
         </tr>
         <tr>
-          <td style="text-align:left;padding-left:0">python&nbsp;#&nbsp;2
+          <td>python&nbsp;#&nbsp;2
           <td>0.89
           <td>8,608
           <td>1413
           <td>0.89
         </tr>
 
-      </tbody>
-      </table>
+    </table>
   </details>
 </p>
 <p>
-  <details style="font:100% Droid Sans, Ubuntu, Verdana, sans-serif">
-      <summary><strong>spectralnorm</strong></summary>
-      <table style="color:#333;text-align:right;width:80%">
-      <tbody>
+  <details>
+    <summary><strong>spectralnorm</strong></summary>
+    <table>
+      <tr>
+        <th>program
+        <th>secs
+        <th>mem
+        <th>gz
+        <th>cpu
+      </tr>
         <tr>
-          <th style="text-align:left;padding-left:0">program
-          <th>secs
-          <th>mem
-          <th>gz
-          <th>cpu
-        </tr>
-        <tr>
-          <td style="text-align:left;padding-left:0">java&nbsp;#&nbsp;1
+          <td>java&nbsp;#&nbsp;1
           <td>5.03
           <td>36,964
           <td>514
           <td>5.14
         </tr>
         <tr>
-          <td style="text-align:left;padding-left:0">java&nbsp;#&nbsp;3
+          <td>java&nbsp;#&nbsp;3
           <td>1.44
           <td>37,820
           <td>756
           <td>5.28
         </tr>
         <tr>
-          <td style="text-align:left;padding-left:0">java&nbsp;#&nbsp;2
+          <td>java&nbsp;#&nbsp;2
           <td>1.44
           <td>36,880
           <td>950
           <td>5.29
         </tr>
         <tr>
-          <td style="text-align:left;padding-left:0">python&nbsp;#&nbsp;6
+          <td>python&nbsp;#&nbsp;6
           <td>193.53
           <td>9,116
           <td>504
           <td>193.46
         </tr>
         <tr>
-          <td style="text-align:left;padding-left:0">python&nbsp;#&nbsp;7
+          <td>python&nbsp;#&nbsp;7
           <td>52.17
           <td>50,092
           <td>619
           <td>205.93
         </tr>
 
-      </tbody>
-      </table>
+    </table>
   </details>
 </p>
 
