@@ -23,6 +23,17 @@ Please follow these instructions — [CONTRIBUTING.md](/CONTRIBUTING.md).
 
 Programs age. Language implementations add new features. New programs are needed to show the modern language. So we are usually happy to accept programs that match the provided description.
 
+
+
+| program | secs | mem | gz | cpu | 
+| :------ | ---: | ---: | ---: | ---: | 
+| java&nbsp;#&nbsp;3 | 4.48 | 34,632 | 1257 | 4.58 |
+| java&nbsp;#&nbsp;1 | 1.32 | 34,868 | 1282 | 4.97 |
+| java&nbsp;#&nbsp;2 | 5.85 | 35,364 | 514 | 5.94 |
+| python&nbsp;#&nbsp;4 | 40.56 | 48,080 | 1080 | 159.05 |
+| python&nbsp;#&nbsp;6 | 161.63 | 8,380 | 559 | 161.58 |
+
+
 <details>
     <summary><strong>fannkuchredux</strong></summary>
 | program | secs | mem | gz | cpu | 
@@ -33,6 +44,8 @@ Programs age. Language implementations add new features. New programs are needed
 | python&nbsp;#&nbsp;4 | 40.56 | 48,080 | 1080 | 159.05 |
 | python&nbsp;#&nbsp;6 | 161.63 | 8,380 | 559 | 161.58 |
 </details>
+
+
 <details>
     <summary><strong>nbody</strong></summary>
 | program | secs | mem | gz | cpu | 
