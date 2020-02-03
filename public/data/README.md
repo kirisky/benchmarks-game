@@ -16,7 +16,7 @@ The program measurements are stored in plain text, comma separated value, spread
 - busy(s) — total `GTop cpu not-idle` elapsed seconds from all cores
 
 
-There are example Python conversion scripts for [GFM](https://salsa.debian.org/benchmarksgame-team/benchmarksgame/blob/master/public/data/makemd.py) and [HTML](https://salsa.debian.org/benchmarksgame-team/benchmarksgame/blob/master/public/data/makehtml.py).
+There are example Python conversion scripts for [GFM](/public/data/makemd.py) and [HTML](/public/data/makehtml.py).
 
 | spectralnorm | secs | mem | gz | cpu | 
 | :------ | -----: | -----: | -----: | -----: |  
