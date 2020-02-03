@@ -6,7 +6,7 @@ Where can I get the program source code?
 
 Where can I get the measurement scripts? 
  — [zip'd Python measurement scripts](/public/download/benchmarksgame-script.zip)
- — with example Python conversion scripts for GFM and HTML
+ — with example conversion scripts for GFM and HTML
 
 | spectralnorm | secs | mem | gz | cpu | 
 | :------ | -----: | -----: | -----: | -----: |  
