@@ -16,7 +16,7 @@ The program measurements are stored in plain text, comma separated value, spread
 - busy(s) — total `GTop cpu not-idle` elapsed seconds from all cores
 
 
-There are example Python conversion scripts for GFM and HTML: makemd.py and makehtml.py.
+There are example Python conversion scripts for GFM and HTML: [makemd.py](data/makemd.py) and [makehtml.py](data/makehtml.py).
 
 | spectralnorm | secs | mem | gz | cpu | 
 | :------ | -----: | -----: | -----: | -----: |  
