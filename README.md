@@ -70,8 +70,6 @@ Programs age. Language implementations add new features. New programs are needed
           <td>559
           <td>161.58
         </tr>
-
-    </table>
   </details>
 </p>
 <p>
@@ -127,8 +125,6 @@ Programs age. Language implementations add new features. New programs are needed
           <td>1413
           <td>0.89
         </tr>
-
-    </table>
   </details>
 </p>
 <p>
@@ -177,10 +173,9 @@ Programs age. Language implementations add new features. New programs are needed
           <td>619
           <td>205.93
         </tr>
-
-    </table>
   </details>
 </p>
+
 
 
 Suggestions?
