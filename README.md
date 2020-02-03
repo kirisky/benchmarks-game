@@ -17,7 +17,7 @@ Where can I get the measurement scripts?
 | python&nbsp;#&nbsp;7 | 52.17 | 50,092 | 619 | 205.93 |
 
 Where can I get the program measurements? 
- — [.csv data files](/public/data)
+ — [.csv data files](/public/data/README.md)
 
 Where can I get the old archived program source code? 
  — [Alioth program source code](https://salsa.debian.org/benchmarksgame-team/archive-alioth-benchmarksgame)
