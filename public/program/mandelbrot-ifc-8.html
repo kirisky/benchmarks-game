@@ -33,7 +33,6 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="slc">!          -fopenmp mandelbrot.f90 -o mandelbrot</span>
 <span class="slc">! ifort -O3 -march=core2 -qopenmp mandelbrot.f90 -o mandelbrot</span>
 <span class="kwa">program</span> mandelbrot
-
   <span class="kwa">use</span> iso_fortran_env<span class="opt">,</span> dp <span class="opt">=&gt;</span> real64
 
   <span class="kwa">implicit none</span>
@@ -50,7 +49,7 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
   <span class="kwa">real</span><span class="opt">(</span>dp<span class="opt">),</span> allocatable         <span class="opt">::</span> <span class="kwd">cr_values</span><span class="opt">(:),</span> <span class="kwd">ci_values</span><span class="opt">(:)</span>
   <span class="kwa">character</span><span class="opt">(</span>len<span class="opt">=</span><span class="num">64</span><span class="opt">)             ::</span> argv<span class="opt">,</span> header
   <span class="kwa">character</span><span class="opt">(</span>len<span class="opt">=:),</span> allocatable <span class="opt">::</span> char_output
-  <span class="kwa">logical</span><span class="opt">,</span> <span class="kwa">parameter</span>            <span class="opt">::</span> write_char_output <span class="opt">= .</span>true<span class="opt">.</span>
+  <span class="kwa">character</span><span class="opt">(</span>len<span class="opt">=*),</span> <span class="kwa">parameter</span>   <span class="opt">::</span> output_style <span class="opt">=</span> <span class="str">&quot;multiple_strings&quot;</span>
 
   <span class="slc">! Get bitmap size from command line argument</span>
   <span class="kwa">call</span> <span class="kwd">get_command_argument</span><span class="opt">(</span><span class="num">1</span><span class="opt">,</span> argv<span class="opt">)</span>
@@ -129,13 +128,22 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
   <span class="slc">! Fortran allows to write binary output (stream access) to files, but not to</span>
   <span class="slc">! stdout. Some tricks are therefore required.</span>
 
-  <span class="kwa">if</span> <span class="opt">(</span>write_char_output<span class="opt">)</span> <span class="kwa">then</span>
-     <span class="slc">! Convert binary data to characters and write output</span>
+  select <span class="kwd">case</span> <span class="opt">(</span>output_style<span class="opt">)</span>
+  <span class="kwd">case</span> <span class="opt">(</span><span class="str">&quot;one_big_string&quot;</span><span class="opt">)</span>
+     <span class="slc">! Convert binary data to one big string</span>
      <span class="kwd">allocate</span><span class="opt">(</span><span class="kwa">character</span><span class="opt">(</span>len<span class="opt">=</span>i<span class="opt">*</span>width<span class="opt">) ::</span> char_output<span class="opt">)</span>
      char_output <span class="opt">=</span> <span class="kwd">transfer</span><span class="opt">(</span><span class="kwd">buffer</span><span class="opt">(</span><span class="num">1</span><span class="opt">:</span>i<span class="opt">, :),</span> char_output<span class="opt">)</span>
      <span class="kwa">write</span><span class="opt">(*,</span> <span class="str">&apos;(a)&apos;</span><span class="opt">,</span> advance<span class="opt">=</span><span class="str">&apos;no&apos;</span><span class="opt">)</span> <span class="kwd">trim</span><span class="opt">(</span>header<span class="opt">)</span>
      <span class="kwa">write</span><span class="opt">(*,</span> <span class="str">&apos;(a)&apos;</span><span class="opt">,</span> advance<span class="opt">=</span><span class="str">&apos;no&apos;</span><span class="opt">)</span> char_output
-  <span class="kwa">else</span>
+  <span class="kwd">case</span> <span class="opt">(</span><span class="str">&quot;multiple_strings&quot;</span><span class="opt">)</span>
+     <span class="slc">! This avoids problems with ifort for larger output sizes</span>
+     <span class="kwd">allocate</span><span class="opt">(</span><span class="kwa">character</span><span class="opt">(</span>len<span class="opt">=</span>i<span class="opt">) ::</span> char_output<span class="opt">)</span>
+     <span class="kwa">write</span><span class="opt">(*,</span> <span class="str">&apos;(a)&apos;</span><span class="opt">,</span> advance<span class="opt">=</span><span class="str">&apos;no&apos;</span><span class="opt">)</span> <span class="kwd">trim</span><span class="opt">(</span>header<span class="opt">)</span>
+     <span class="kwa">do</span> j <span class="opt">=</span> <span class="num">1</span><span class="opt">,</span> width
+        char_output <span class="opt">=</span> <span class="kwd">transfer</span><span class="opt">(</span><span class="kwd">buffer</span><span class="opt">(</span><span class="num">1</span><span class="opt">:</span>i<span class="opt">,</span> j<span class="opt">),</span> char_output<span class="opt">)</span>
+        <span class="kwa">write</span><span class="opt">(*,</span> <span class="str">&apos;(a)&apos;</span><span class="opt">,</span> advance<span class="opt">=</span><span class="str">&apos;no&apos;</span><span class="opt">)</span> char_output
+     <span class="kwa">end do</span>
+  case default
      <span class="slc">! Write unformatted data to stdout, by opening it as a file</span>
      <span class="kwa">open</span><span class="opt">(</span>newunit<span class="opt">=</span>my_unit<span class="opt">,</span> file<span class="opt">=</span><span class="str">&quot;/dev/stdout&quot;</span><span class="opt">,</span> access<span class="opt">=</span><span class="str">&apos;stream&apos;</span><span class="opt">, &amp;</span>
           form<span class="opt">=</span><span class="str">&apos;unformatted&apos;</span><span class="opt">,</span> action<span class="opt">=</span><span class="str">&apos;write&apos;</span><span class="opt">)</span>
@@ -143,7 +151,7 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
      <span class="kwa">write</span><span class="opt">(</span>my_unit<span class="opt">)</span> <span class="kwd">buffer</span><span class="opt">(</span><span class="num">1</span><span class="opt">:</span>i<span class="opt">, :)</span>
      <span class="kwd">flush</span><span class="opt">(</span>my_unit<span class="opt">)</span>
      <span class="kwa">close</span><span class="opt">(</span>my_unit<span class="opt">)</span>
-  <span class="kwa">end if</span>
+  <span class="kwa">end</span> select
 
 <span class="kwa">end program</span> mandelbrot
     </pre>
@@ -160,30 +168,18 @@ Copyright (C) 1985-2019 Intel Corporation.  All rights reserved.
 FOR NON-COMMERCIAL USE ONLY
 
 
-Mon, 03 Feb 2020 20:37:04 GMT
+Mon, 03 Feb 2020 23:44:09 GMT
 
 MAKE:
 /opt/src/intel/bin/ifort -O3 -march=core2 -qopenmp mandelbrot.ifc-8.f90 -o mandelbrot.ifc-8.ifc_run
 rm mandelbrot.ifc-8.f90
 
-5.28s to complete and log all make actions
+4.17s to complete and log all make actions
 
 COMMAND LINE:
 ./mandelbrot.ifc-8.ifc_run 16000
 
-PROGRAM FAILED 
-
-
 (BINARY) PROGRAM OUTPUT NOT SHOWN
-
-forrtl: severe (174): SIGSEGV, segmentation fault occurred
-Image              PC                Routine            Line        Source             
-mandelbrot.ifc-8.  000000000040BB2A  Unknown               Unknown  Unknown
-libpthread-2.30.s  00007F3F458C5540  Unknown               Unknown  Unknown
-mandelbrot.ifc-8.  00000000004044F3  Unknown               Unknown  Unknown
-mandelbrot.ifc-8.  00000000004038A2  Unknown               Unknown  Unknown
-libc-2.30.so       00007F3F456E61E3  __libc_start_main     Unknown  Unknown
-mandelbrot.ifc-8.  00000000004037AE  Unknown               Unknown  Unknown
     </pre>
   </section>
 </article>
