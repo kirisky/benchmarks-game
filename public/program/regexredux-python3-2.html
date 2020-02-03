@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,follow,noarchive">
+
+<title>regex-redux Python 3&nbsp;#2 program | Computer Language Benchmarks Game </title>
+<style><!--
+a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,header{margin:auto;width:92%}body{font:100% Droid Sans, Ubuntu, Verdana, sans-serif;margin:0;-webkit-text-size-adjust:100%}h3, h1, h2, li a{font-family:Ubuntu Mono,Consolas,Menlo,monospace}div,footer,header{max-width:31em}footer{padding:2.6em 0 0}h3{font-size:1.4em;font-weight:bold;margin:0;padding: .4em}h3, h3 a{color:white;background-color:#dd4814}h3 small{font-size:0.64em}h1,h2{margin:1.5em 0 0}h1{font-size:1.4em;font-weight:normal}h2{font-size:1.2em}li{list-style-type:none;vertical-align:top}li a{display:block;font-size:1.2em;margin: .5em .5em 0;padding: .5em .5em .3em}ul{clear:left;margin:-0.3em 0 1.5em;padding-left:0;text-align:center}p{color:#333;line-height:1.4;margin: .3em 0 0}p a, a span{border-bottom: .1em solid #333;padding-bottom: .1em}.com,.slc{color:#888}.kwa{color:#066}.kwb{color:#900}.kwc{color:#050}.kwa,.kwb,.kwc{font-weight:bold}.dstr,.str,.sym,.num{color:#930}pre{color:#222;font-size:1em;overflow-wrap:break-word;white-space:pre-wrap;word-wrap:break-word}@media only screen and (min-width: 60em){article,footer,header{font-size:1.25em}}
+--></style>
+<link rel="shortcut icon" href="./favicon.ico">
+<header>
+  <h3><a href="https://benchmarksgame-team.pages.debian.net/benchmarksgame/">The&nbsp;<small>Computer&nbsp;Language</small><br>Benchmarks&nbsp;Game</a></h3>
+</header>
+<article>
+  <div>
+    <h1>regex-redux Python 3&nbsp;#2 program</h1>
+    <aside>
+      <p><a href="../description/regexredux.html#regexredux">description</a>
+    </aside>
+  </div>
+  <section>
+    </div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc"># The Computer Language Benchmarks Game</span>
+<span class="slc"># https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">#</span>
+<span class="slc"># Contributed by Jeremy Zerfas</span>
+<span class="slc">#</span>
+<span class="slc"># WARNING: I normally do my programming in other languages. This may not be an</span>
+<span class="slc"># optimal Python program. Please contribute a better program if you can make a</span>
+<span class="slc"># better program.</span>
+
+<span class="kwa">from</span> ctypes <span class="kwa">import</span> c_char<span class="opt">,</span> c_char_p<span class="opt">,</span> c_int<span class="opt">,</span> c_size_t<span class="opt">,</span> c_uint32<span class="opt">,</span> \
+                   byref<span class="opt">,</span> CDLL<span class="opt">,</span> create_string_buffer<span class="opt">,</span> POINTER
+<span class="kwa">from</span> ctypes<span class="opt">.</span>util <span class="kwa">import</span> find_library
+<span class="kwa">from</span> multiprocessing <span class="kwa">import</span> Pipe<span class="opt">,</span> Process
+<span class="kwa">from</span> multiprocessing<span class="opt">.</span>connection <span class="kwa">import</span> wait
+<span class="kwa">from</span> multiprocessing<span class="opt">.</span>sharedctypes <span class="kwa">import</span> RawArray
+<span class="kwa">from</span> os <span class="kwa">import</span> cpu_count
+<span class="kwa">from</span> sys <span class="kwa">import</span> stdin
+
+
+<span class="slc"># We&apos;ll be using PCRE2 for our regular expression needs instead of using</span>
+<span class="slc"># Python&apos;s built in regular expression engine because it is significantly</span>
+<span class="slc"># faster.</span>
+PCRE2<span class="opt">=</span><span class="kwd">CDLL</span><span class="opt">(</span><span class="kwd">find_library</span><span class="opt">(</span><span class="str">&quot;pcre2-8&quot;</span><span class="opt">))</span>
+
+<span class="slc"># By default, Python assumes that C functions will return int&apos;s but that is not</span>
+<span class="slc"># correct for the following functions which return pointers instead so we tell</span>
+<span class="slc"># it the correct types here.</span>
+PCRE2<span class="opt">.</span>pcre2_compile_8<span class="opt">.</span>restype<span class="opt">=</span><span class="kwd">POINTER</span><span class="opt">(</span>c_char<span class="opt">)</span>
+PCRE2<span class="opt">.</span>pcre2_match_data_create_8<span class="opt">.</span>restype<span class="opt">=</span><span class="kwd">POINTER</span><span class="opt">(</span>c_char<span class="opt">)</span>
+PCRE2<span class="opt">.</span>pcre2_get_ovector_pointer_8<span class="opt">.</span>restype<span class="opt">=</span><span class="kwd">POINTER</span><span class="opt">(</span>c_size_t<span class="opt">*</span><span class="num">2</span><span class="opt">)</span>
+
+
+<span class="slc"># Function for searching a src_String for a pattern, replacing it with some</span>
+<span class="slc"># specified replacement, and storing the result in dst_String which is also</span>
+<span class="slc"># returned along with the updated dst_String_Length.</span>
+<span class="kwa">def</span> <span class="kwd">replace</span><span class="opt">(</span>pattern<span class="opt">,</span> replacement<span class="opt">,</span> src_String<span class="opt">,</span> src_String_Length<span class="opt">,</span>
+  dst_String<span class="opt">,</span> dst_String_Length<span class="opt">):</span>
+
+	<span class="slc"># Compile the pattern and also enable JIT compilation to make matching</span>
+	<span class="slc"># faster.</span>
+	regex<span class="opt">=</span>PCRE2<span class="opt">.</span><span class="kwd">pcre2_compile_8</span><span class="opt">(</span>pattern<span class="opt">,</span> <span class="kwd">c_size_t</span><span class="opt">(</span><span class="kwb">len</span><span class="opt">(</span>pattern<span class="opt">)),</span> <span class="kwd">c_uint32</span><span class="opt">(</span><span class="num">0</span><span class="opt">),</span>
+	  <span class="kwd">byref</span><span class="opt">(</span><span class="kwd">c_int</span><span class="opt">()),</span> <span class="kwd">byref</span><span class="opt">(</span><span class="kwd">c_size_t</span><span class="opt">()),</span> <span class="kwa">None</span><span class="opt">)</span>
+	PCRE2<span class="opt">.</span><span class="kwd">pcre2_jit_compile_8</span><span class="opt">(</span>regex<span class="opt">,</span> <span class="kwd">c_uint32</span><span class="opt">(</span><span class="num">0x1</span><span class="opt">))</span>
+
+	<span class="slc"># Convert dst_String_Length from an int to c_size_t so that the</span>
+	<span class="slc"># pcre2_substitute_8() function will be able to access it properly.</span>
+	dst_String_Length<span class="opt">=</span><span class="kwd">c_size_t</span><span class="opt">(</span>dst_String_Length<span class="opt">)</span>
+
+	<span class="slc"># Have PCRE2 do most of the replacement work.</span>
+	PCRE2<span class="opt">.</span><span class="kwd">pcre2_substitute_8</span><span class="opt">(</span>regex<span class="opt">,</span> src_String<span class="opt">,</span> <span class="kwd">c_size_t</span><span class="opt">(</span>src_String_Length<span class="opt">),</span>
+	  <span class="kwd">c_size_t</span><span class="opt">(</span><span class="num">0</span><span class="opt">),</span> <span class="kwd">c_uint32</span><span class="opt">(</span><span class="num">0x100</span><span class="opt">),</span> <span class="kwa">None</span><span class="opt">,</span> <span class="kwa">None</span><span class="opt">,</span>
+	  replacement<span class="opt">,</span> <span class="kwd">c_size_t</span><span class="opt">(</span><span class="kwb">len</span><span class="opt">(</span>replacement<span class="opt">)),</span>
+	  dst_String<span class="opt">,</span> <span class="kwd">byref</span><span class="opt">(</span>dst_String_Length<span class="opt">))</span>
+
+	PCRE2<span class="opt">.</span><span class="kwd">pcre2_code_free_8</span><span class="opt">(</span>regex<span class="opt">)</span>
+
+	<span class="kwa">return</span> dst_String<span class="opt">,</span> dst_String_Length<span class="opt">.</span>value
+
+
+<span class="slc"># This function is used as the main function for the worker subprocesses. The</span>
+<span class="slc"># worker subprocesses communicate with the manager process via worker_Pipe. The</span>
+<span class="slc"># worker subprocesses receive tasks from the manager process, complete the</span>
+<span class="slc"># appropriate task, and then send back a result to the manager process (except</span>
+<span class="slc"># when the manager process tells the worker subprocess to exit). Tasks are</span>
+<span class="slc"># performed on the sequences string which is shared between all the processes</span>
+<span class="slc"># using shared memory.</span>
+<span class="kwa">def</span> <span class="kwd">process_Task</span><span class="opt">(</span>worker_Pipe<span class="opt">,</span> sequences<span class="opt">,</span> sequences_Length<span class="opt">):</span>
+
+	<span class="slc"># When a worker subprocess first starts up, it sends None to the manager</span>
+	<span class="slc"># process as an indicator that the worker subprocess is ready to process</span>
+	<span class="slc"># tasks.</span>
+	worker_Pipe<span class="opt">.</span><span class="kwd">send</span><span class="opt">(</span><span class="kwa">None</span><span class="opt">)</span>
+
+	<span class="slc"># Start an infinte loop to process received tasks accordingly until a</span>
+	<span class="slc"># request to exit is received.</span>
+	<span class="kwa">while True</span><span class="opt">:</span>
+
+		<span class="slc"># Wait for a request.</span>
+		task<span class="opt">=</span>worker_Pipe<span class="opt">.</span><span class="kwd">recv</span><span class="opt">()</span>
+
+		<span class="slc"># If there is no task to do, then just exit the loop and let this</span>
+		<span class="slc"># subprocess exit.</span>
+		<span class="kwa">if</span> task <span class="kwa">is None</span><span class="opt">:</span>
+			<span class="kwa">break</span>
+
+		<span class="slc"># If the task contains a tuple and the first element is an int, then</span>
+		<span class="slc"># this is a task requesting that a match_Count be performed for</span>
+		<span class="slc"># pattern_To_Count and that this is for the element located at</span>
+		<span class="slc"># index_For_Pattern_To_Count in count_Info[].</span>
+		<span class="kwa">elif</span> <span class="kwb">type</span><span class="opt">(</span>task<span class="opt">[</span><span class="num">0</span><span class="opt">])</span> <span class="kwa">is</span> <span class="kwb">int</span><span class="opt">:</span>
+			index_For_Pattern_To_Count<span class="opt">,</span> pattern_To_Count<span class="opt">=</span>task
+
+			match_Data<span class="opt">=</span>PCRE2<span class="opt">.</span><span class="kwd">pcre2_match_data_create_8</span><span class="opt">(</span><span class="kwd">c_uint32</span><span class="opt">(</span><span class="num">1</span><span class="opt">),</span> <span class="kwa">None</span><span class="opt">)</span>
+			match<span class="opt">=</span>PCRE2<span class="opt">.</span><span class="kwd">pcre2_get_ovector_pointer_8</span><span class="opt">(</span>match_Data<span class="opt">)</span>
+
+			match<span class="opt">.</span>contents<span class="opt">[</span><span class="num">1</span><span class="opt">]=</span><span class="num">0</span>
+			match_Count<span class="opt">=</span><span class="num">0</span>
+
+			<span class="slc"># Compile the pattern and also enable JIT compilation to make</span>
+			<span class="slc"># matching faster.</span>
+			regex<span class="opt">=</span>PCRE2<span class="opt">.</span><span class="kwd">pcre2_compile_8</span><span class="opt">(</span>pattern_To_Count<span class="opt">,</span>
+			  <span class="kwd">c_size_t</span><span class="opt">(</span><span class="kwb">len</span><span class="opt">(</span>pattern_To_Count<span class="opt">)),</span> <span class="kwd">c_uint32</span><span class="opt">(</span><span class="num">0</span><span class="opt">),</span> <span class="kwd">byref</span><span class="opt">(</span><span class="kwd">c_int</span><span class="opt">()),</span>
+			  <span class="kwd">byref</span><span class="opt">(</span><span class="kwd">c_size_t</span><span class="opt">()),</span> <span class="kwa">None</span><span class="opt">)</span>
+			PCRE2<span class="opt">.</span><span class="kwd">pcre2_jit_compile_8</span><span class="opt">(</span>regex<span class="opt">,</span> <span class="kwd">c_uint32</span><span class="opt">(</span><span class="num">0x1</span><span class="opt">))</span>
+
+			<span class="slc"># Count how many matches there are for pattern in sequences.</span>
+			<span class="kwa">while</span> PCRE2<span class="opt">.</span><span class="kwd">pcre2_jit_match_8</span><span class="opt">(</span>regex<span class="opt">,</span>
+			  sequences<span class="opt">,</span> <span class="kwd">c_size_t</span><span class="opt">(</span>sequences_Length<span class="opt">),</span>
+			  <span class="kwd">c_size_t</span><span class="opt">(</span>match<span class="opt">.</span>contents<span class="opt">[</span><span class="num">1</span><span class="opt">]),</span> <span class="kwd">c_uint32</span><span class="opt">(</span><span class="num">0</span><span class="opt">),</span> match_Data<span class="opt">,</span> <span class="kwa">None</span><span class="opt">)&gt;=</span><span class="num">0</span><span class="opt">:</span>
+				match_Count<span class="opt">+=</span><span class="num">1</span>
+
+			PCRE2<span class="opt">.</span><span class="kwd">pcre2_match_data_free_8</span><span class="opt">(</span>match_Data<span class="opt">)</span>
+			PCRE2<span class="opt">.</span><span class="kwd">pcre2_code_free_8</span><span class="opt">(</span>regex<span class="opt">)</span>
+
+			<span class="slc"># Send the result back to the manager process.</span>
+			worker_Pipe<span class="opt">.</span><span class="kwd">send</span><span class="opt">((</span>index_For_Pattern_To_Count<span class="opt">,</span> match_Count<span class="opt">))</span>
+
+		<span class="slc"># If we got here, then this is a task requesting that replacements be</span>
+		<span class="slc"># made to the sequences string using all the (pattern, replacement)</span>
+		<span class="slc"># tuples in the task.</span>
+		<span class="kwa">else</span><span class="opt">:</span>
+
+			<span class="slc"># We&apos;ll use two strings when doing all the replacements, searching</span>
+			<span class="slc"># for patterns in prereplace_String and using postreplace_String to</span>
+			<span class="slc"># store the string after the replacements have been made. After</span>
+			<span class="slc"># each iteration these two then get swapped. Make both strings 10%</span>
+			<span class="slc"># larger than the sequences string in order to accomodate some of</span>
+			<span class="slc"># the replacements causing sequences to grow and also copy the</span>
+			<span class="slc"># sequences string into prereplace_String for the initial iteration.</span>
+			string_Capacities<span class="opt">=</span><span class="kwb">int</span><span class="opt">(</span>sequences_Length<span class="opt">*</span><span class="num">1.1</span><span class="opt">)</span>
+			prereplace_String<span class="opt">=</span><span class="kwd">create_string_buffer</span><span class="opt">(</span>sequences<span class="opt">.</span>raw<span class="opt">,</span>
+			  string_Capacities<span class="opt">)</span>
+			prereplace_String_Length<span class="opt">=</span>sequences_Length
+			postreplace_String<span class="opt">=</span><span class="kwd">create_string_buffer</span><span class="opt">(</span>string_Capacities<span class="opt">)</span>
+			postreplace_String_Length<span class="opt">=</span>string_Capacities
+
+			<span class="slc"># Iterate through all the (pattern, replacement) tuples in the task.</span>
+			<span class="kwa">for</span> pattern<span class="opt">,</span> replacement <span class="kwa">in</span> task<span class="opt">:</span>
+				postreplace_String<span class="opt">,</span> postreplace_String_Length<span class="opt">=</span><span class="kwd">replace</span><span class="opt">(</span>
+				  pattern<span class="opt">,</span> replacement<span class="opt">,</span>
+				  prereplace_String<span class="opt">,</span> prereplace_String_Length<span class="opt">,</span>
+				  postreplace_String<span class="opt">,</span> postreplace_String_Length<span class="opt">)</span>
+
+				<span class="slc"># Swap prereplace_String and postreplace_String in preparation</span>
+				<span class="slc"># for the next iteration.</span>
+				prereplace_String<span class="opt">,</span> postreplace_String<span class="opt">=</span> \
+				  postreplace_String<span class="opt">,</span> prereplace_String
+				prereplace_String_Length<span class="opt">=</span>postreplace_String_Length
+				postreplace_String_Length<span class="opt">=</span>string_Capacities
+
+			<span class="slc"># If any replacements were made, they&apos;ll be in prereplace_String</span>
+			<span class="slc"># instead of postreplace_String because of the swap done after each</span>
+			<span class="slc"># iteration. Send its length back to the manager process.</span>
+			worker_Pipe<span class="opt">.</span><span class="kwd">send</span><span class="opt">(</span>prereplace_String_Length<span class="opt">)</span>
+
+
+<span class="kwa">if</span> __name__ <span class="opt">==</span> <span class="str">&apos;__main__&apos;</span><span class="opt">:</span>
+	<span class="slc"># Read in input from stdin and also get the input_Length.</span>
+	<span class="kwb">input</span><span class="opt">=</span>stdin<span class="opt">.</span><span class="kwb">buffer</span><span class="opt">.</span><span class="kwd">read</span><span class="opt">()</span>
+	input_Length<span class="opt">=</span><span class="kwb">len</span><span class="opt">(</span><span class="kwb">input</span><span class="opt">)</span>
+
+
+	<span class="slc"># Set up some shared memory for the sequences string so that it can be</span>
+	<span class="slc"># shared between all the processes and make it the same length as the</span>
+	<span class="slc"># input_Length.</span>
+	sequences<span class="opt">=</span><span class="kwd">RawArray</span><span class="opt">(</span>c_char<span class="opt">,</span> input_Length<span class="opt">)</span>
+	sequences_Length<span class="opt">=</span>input_Length
+
+	<span class="slc"># Find all sequence descriptions and new lines in input, replace them</span>
+	<span class="slc"># with empty strings, and store the result in the sequences string.</span>
+	sequences<span class="opt">,</span> sequences_Length<span class="opt">=</span><span class="kwd">replace</span><span class="opt">(</span>b<span class="str">&quot;&gt;.*</span><span class="esc">\\</span><span class="str">n|</span><span class="esc">\\</span><span class="str">n&quot;</span><span class="opt">,</span> b<span class="str">&quot;&quot;</span><span class="opt">,</span> <span class="kwb">input</span><span class="opt">,</span> input_Length<span class="opt">,</span>
+	  sequences<span class="opt">,</span> sequences_Length<span class="opt">)</span>
+
+	<span class="slc"># We&apos;ll be using the sequences string instead of the input string from now</span>
+	<span class="slc"># on so delete our reference to it since this can often free up the memory</span>
+	<span class="slc"># that was used by it.</span>
+	<span class="kwa">del</span> <span class="kwb">input</span>
+
+
+	<span class="slc"># Start a worker subprocess on each processor that is available to us and</span>
+	<span class="slc"># send each worker subprocess the sequences string &amp; a worker_Pipe to use</span>
+	<span class="slc"># for communicating with the manager process.</span>
+	manager_Pipes<span class="opt">=[]</span>
+	<span class="kwa">for</span> i <span class="kwa">in</span> <span class="kwb">range</span><span class="opt">(</span><span class="kwd">cpu_count</span><span class="opt">()</span> <span class="kwa">or</span> <span class="num">1</span><span class="opt">):</span>
+		manager_Pipe<span class="opt">,</span> worker_Pipe<span class="opt">=</span><span class="kwd">Pipe</span><span class="opt">()</span>
+		manager_Pipes<span class="opt">.</span><span class="kwd">append</span><span class="opt">(</span>manager_Pipe<span class="opt">)</span>
+		<span class="kwd">Process</span><span class="opt">(</span>target<span class="opt">=</span>process_Task<span class="opt">,</span>
+		  args<span class="opt">=(</span>worker_Pipe<span class="opt">,</span> sequences<span class="opt">,</span> sequences_Length<span class="opt">)).</span><span class="kwd">start</span><span class="opt">()</span>
+
+
+	<span class="slc"># Wait for the first worker subproces to send us a None object that</span>
+	<span class="slc"># indicates it&apos;s ready to start processing tasks and then have it start</span>
+	<span class="slc"># working on performing all the replacements serially.</span>
+	manager_Pipes<span class="opt">[</span><span class="num">0</span><span class="opt">].</span><span class="kwd">recv</span><span class="opt">()</span>
+	manager_Pipes<span class="opt">[</span><span class="num">0</span><span class="opt">].</span><span class="kwd">send</span><span class="opt">((</span>
+	    <span class="opt">(</span>b<span class="str">&quot;tHa[Nt]&quot;</span><span class="opt">,</span> b<span class="str">&quot;&lt;4&gt;&quot;</span><span class="opt">),</span>
+	    <span class="opt">(</span>b<span class="str">&quot;aND|caN|Ha[DS]|WaS&quot;</span><span class="opt">,</span> b<span class="str">&quot;&lt;3&gt;&quot;</span><span class="opt">),</span>
+	    <span class="opt">(</span>b<span class="str">&quot;a[NSt]|BY&quot;</span><span class="opt">,</span> b<span class="str">&quot;&lt;2&gt;&quot;</span><span class="opt">),</span>
+	    <span class="opt">(</span>b<span class="str">&quot;&lt;[^&gt;]*&gt;&quot;</span><span class="opt">,</span> b<span class="str">&quot;|&quot;</span><span class="opt">),</span>
+	    <span class="opt">(</span>b<span class="str">&quot;</span><span class="esc">\\</span><span class="str">|[^|][^|]*</span><span class="esc">\\</span><span class="str">|&quot;</span><span class="opt">,</span> b<span class="str">&quot;-&quot;</span><span class="opt">)</span>
+	  <span class="opt">))</span>
+
+
+	count_Info<span class="opt">=[</span>
+	    b<span class="str">&quot;agggtaaa|tttaccct&quot;</span><span class="opt">,</span>
+	    b<span class="str">&quot;[cgt]gggtaaa|tttaccc[acg]&quot;</span><span class="opt">,</span>
+	    b<span class="str">&quot;a[act]ggtaaa|tttacc[agt]t&quot;</span><span class="opt">,</span>
+	    b<span class="str">&quot;ag[act]gtaaa|tttac[agt]ct&quot;</span><span class="opt">,</span>
+	    b<span class="str">&quot;agg[act]taaa|ttta[agt]cct&quot;</span><span class="opt">,</span>
+	    b<span class="str">&quot;aggg[acg]aaa|ttt[cgt]ccct&quot;</span><span class="opt">,</span>
+	    b<span class="str">&quot;agggt[cgt]aa|tt[acg]accct&quot;</span><span class="opt">,</span>
+	    b<span class="str">&quot;agggta[cgt]a|t[acg]taccct&quot;</span><span class="opt">,</span>
+	    b<span class="str">&quot;agggtaa[cgt]|[acg]ttaccct&quot;</span>
+	  <span class="opt">]</span>
+
+	<span class="slc"># Now the manger process needs to start managing all the worker subprocesses</span>
+	<span class="slc"># by waiting for them to become ready to process tasks, handling any results</span>
+	<span class="slc"># that they send back, sending them any remaining counting tasks, and then</span>
+	<span class="slc"># finally telling them when it&apos;s OK for them to exit (when there are no more</span>
+	<span class="slc"># tasks to process).</span>
+	index_For_Next_Count<span class="opt">=</span><span class="num">0</span>
+	<span class="kwa">while</span> manager_Pipes<span class="opt">:</span>
+
+		<span class="slc"># Wait for any one of the manager_Pipes to receive something.</span>
+		<span class="kwa">for</span> manager_Pipe <span class="kwa">in</span> <span class="kwd">wait</span><span class="opt">(</span>manager_Pipes<span class="opt">):</span>
+			result<span class="opt">=</span>manager_Pipe<span class="opt">.</span><span class="kwd">recv</span><span class="opt">()</span>
+
+			<span class="slc"># If the result is an int, then it&apos;s the postreplace_Length that</span>
+			<span class="slc"># resulted after applying all the replacments that were specified</span>
+			<span class="slc"># above.</span>
+			<span class="kwa">if</span> <span class="kwb">type</span><span class="opt">(</span>result<span class="opt">)</span> <span class="kwa">is</span> <span class="kwb">int</span><span class="opt">:</span>
+				postreplace_Length<span class="opt">=</span>result
+
+			<span class="slc"># If the result is a tuple, then it&apos;s the results from one of the</span>
+			<span class="slc"># counting tasks for the patterns in count_Info[]. The first element</span>
+			<span class="slc"># is the index of the pattern that the result is for and the second</span>
+			<span class="slc"># element is the number of matches for it. Add the number of matches</span>
+			<span class="slc"># to count_Info[].</span>
+			<span class="kwa">elif</span> <span class="kwb">type</span><span class="opt">(</span>result<span class="opt">)</span> <span class="kwa">is</span> <span class="kwb">tuple</span><span class="opt">:</span>
+				count_Info<span class="opt">[</span>result<span class="opt">[</span><span class="num">0</span><span class="opt">]]=[</span>count_Info<span class="opt">[</span>result<span class="opt">[</span><span class="num">0</span><span class="opt">]],</span> result<span class="opt">[</span><span class="num">1</span><span class="opt">]]</span>
+
+
+			<span class="slc"># Send the worker subprocess the index_For_Next_Count and pattern to</span>
+			<span class="slc"># work on if we haven&apos;t reached the end of count_Info[] yet.</span>
+			<span class="kwa">if</span> index_For_Next_Count<span class="opt">&lt;</span><span class="kwb">len</span><span class="opt">(</span>count_Info<span class="opt">):</span>
+				manager_Pipe<span class="opt">.</span><span class="kwd">send</span><span class="opt">((</span>index_For_Next_Count<span class="opt">,</span>
+				  count_Info<span class="opt">[</span>index_For_Next_Count<span class="opt">]))</span>
+				index_For_Next_Count<span class="opt">+=</span><span class="num">1</span>
+
+			<span class="slc"># If we have reached the end of count_Info[] then there are no more</span>
+			<span class="slc"># tasks to start working on so just send the worker subprocess None</span>
+			<span class="slc"># to indicate it can exit and also stop keeping track of the</span>
+			<span class="slc"># manger_Pipe for it.</span>
+			<span class="kwa">else</span><span class="opt">:</span>
+				manager_Pipe<span class="opt">.</span><span class="kwd">send</span><span class="opt">(</span><span class="kwa">None</span><span class="opt">)</span>
+				manager_Pipes<span class="opt">.</span><span class="kwd">remove</span><span class="opt">(</span>manager_Pipe<span class="opt">)</span>
+
+
+	<span class="slc"># Print the match_Count for each pattern in count_Info[].</span>
+	<span class="kwa">for</span> pattern<span class="opt">,</span> match_Count <span class="kwa">in</span> count_Info<span class="opt">:</span>
+		<span class="kwa">print</span><span class="opt">(</span>pattern<span class="opt">.</span><span class="kwd">decode</span><span class="opt">(),</span> match_Count<span class="opt">)</span>
+
+	<span class="slc"># Print the size of the original input, the size of the input without the</span>
+	<span class="slc"># sequence descriptions &amp; new lines, and the size after having made all the</span>
+	<span class="slc"># replacements.</span>
+	<span class="kwa">print</span><span class="opt">()</span>
+	<span class="kwa">print</span><span class="opt">(</span>input_Length<span class="opt">)</span>
+	<span class="kwa">print</span><span class="opt">(</span>sequences_Length<span class="opt">)</span>
+	<span class="kwa">print</span><span class="opt">(</span>postreplace_Length<span class="opt">)</span>
+    </pre>
+  </section>
+  <section>
+    <h2 id="log">notes, command-line, and program output</h2>
+    <pre>
+NOTES:
+64-bit Ubuntu quad core
+Python 3.8.0
+
+
+Mon, 03 Feb 2020 20:03:19 GMT
+
+MAKE:
+mv regexredux.python3-2.python3 regexredux.python3-2.py
+mypy .
+There are no .py[i] files in directory '.'
+make: [/home/dunham/8000-benchmarksgame/nanobench/makefiles/u64q.programs.Makefile:327: regexredux.python3-2.python3_run] Error 2 (ignored)
+
+4.40s to complete and log all make actions
+
+COMMAND LINE:
+/opt/src/Python-3.8.0/bin/python3 -OO regexredux.python3-2.py 0 &lt; regexredux-input5000000.txt
+
+PROGRAM OUTPUT:
+agggtaaa|tttaccct 356
+[cgt]gggtaaa|tttaccc[acg] 1250
+a[act]ggtaaa|tttacc[agt]t 4252
+ag[act]gtaaa|tttac[agt]ct 2894
+agg[act]taaa|ttta[agt]cct 5435
+aggg[acg]aaa|ttt[cgt]ccct 1537
+agggt[cgt]aa|tt[acg]accct 1431
+agggta[cgt]a|t[acg]taccct 1608
+agggtaa[cgt]|[acg]ttaccct 2178
+
+50833411
+50000000
+27388361
+    </pre>
+  </section>
+</article>
+<footer>
+  <nav>
+    <ul>
+      <li><a href="https://salsa.debian.org/benchmarksgame-team/benchmarksgame/blob/master/README.md"><span>Contribute your own program</span></a>
+      <li><a href="../license.html"><span>3-Clause BSD License</span></a>
+    </ul>
+  </nav>
+</footer>
+
