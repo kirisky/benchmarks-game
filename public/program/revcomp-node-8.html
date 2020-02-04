@@ -18,7 +18,7 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
     </aside>
   </div>
   <section>
-    </div>
+    <div>
       <h2>source code</h2>
     </div>
     <pre>
@@ -54,7 +54,8 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="opt">}</span>
 
 async <span class="kwa">function</span> <span class="kwd">mainThread</span><span class="opt">() {</span>
-    <span class="kwa">const</span> titleBuf <span class="opt">=</span> Buffer<span class="opt">.</span><span class="kwd">allocUnsafe</span><span class="opt">(</span>lineLen<span class="opt">);</span>
+    <span class="kwa">let</span> worker <span class="opt">=</span> <span class="kwa">null</span><span class="opt">;</span>
+    <span class="kwa">let</span> titleBuf <span class="opt">=</span> Buffer<span class="opt">.</span><span class="kwd">allocUnsafe</span><span class="opt">(</span>lineLen<span class="opt">);</span>
     <span class="kwa">let</span> titleBufPos <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
     <span class="kwa">let</span> titleBufPartial <span class="opt">=</span> <span class="kwa">false</span><span class="opt">;</span>
 
@@ -67,6 +68,7 @@ async <span class="kwa">function</span> <span class="kwd">mainThread</span><span
     <span class="opt">}</span>
 
     await <span class="kwd">onSection</span><span class="opt">();</span>
+    await worker<span class="opt">;</span>
 
     async <span class="kwa">function</span> <span class="kwd">onChunk</span><span class="opt">(</span>chunk<span class="opt">) {</span>
         <span class="kwa">const</span> len <span class="opt">=</span> chunk<span class="opt">.</span>length<span class="opt">;</span>
@@ -107,7 +109,7 @@ async <span class="kwa">function</span> <span class="kwd">mainThread</span><span
         <span class="opt">}</span>
 
         <span class="kwa">const</span> len <span class="opt">=</span> to <span class="opt">-</span> <span class="kwa">from</span><span class="opt">;</span>
-        <span class="kwa">if</span> <span class="opt">(</span>dataBufPos <span class="opt">+</span> len <span class="opt">&gt;</span> dataBuf<span class="opt">.</span>length<span class="opt">) {</span>
+        <span class="kwa">while</span> <span class="opt">(</span>dataBufPos <span class="opt">+</span> len <span class="opt">&gt;</span> dataBuf<span class="opt">.</span>length<span class="opt">) {</span>
             <span class="kwa">const</span> newArr <span class="opt">=</span> <span class="kwa">new</span> <span class="kwd">SharedArrayBuffer</span><span class="opt">(</span>dataBuf<span class="opt">.</span>length <span class="opt">*</span> <span class="num">2</span><span class="opt">);</span>
             <span class="kwa">const</span> newBuf <span class="opt">=</span> Buffer<span class="opt">.</span><span class="kwa">from</span><span class="opt">(</span>newArr<span class="opt">);</span>
             dataBuf<span class="opt">.</span><span class="kwd">copy</span><span class="opt">(</span>newBuf<span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> dataBufPos<span class="opt">);</span>
@@ -123,44 +125,45 @@ async <span class="kwa">function</span> <span class="kwd">mainThread</span><span
             <span class="kwa">return</span><span class="opt">;</span>
         <span class="opt">}</span>
 
-        <span class="kwa">const</span> outputArray <span class="opt">=</span> <span class="kwa">new</span> <span class="kwd">SharedArrayBuffer</span><span class="opt">(</span>dataBufPos<span class="opt">);</span>
+        await worker<span class="opt">;</span>
 
-        await <span class="kwd">processData</span><span class="opt">(</span>outputArray<span class="opt">);</span>
+        worker <span class="opt">=</span> <span class="kwd">processData</span><span class="opt">(</span>titleBuf<span class="opt">,</span> titleBufPos<span class="opt">,</span> dataBuf<span class="opt">,</span> dataBufPos<span class="opt">);</span>
 
-        process<span class="opt">.</span>stdout<span class="opt">.</span><span class="kwd">write</span><span class="opt">(</span>titleBuf<span class="opt">.</span><span class="kwd">subarray</span><span class="opt">(</span><span class="num">0</span><span class="opt">,</span> titleBufPos<span class="opt">));</span>
-        process<span class="opt">.</span>stdout<span class="opt">.</span><span class="kwd">write</span><span class="opt">(</span><span class="kwa">new</span> <span class="kwd">Uint8Array</span><span class="opt">(</span>outputArray<span class="opt">));</span>
+        titleBuf <span class="opt">=</span> Buffer<span class="opt">.</span><span class="kwd">allocUnsafe</span><span class="opt">(</span>lineLen<span class="opt">);</span>
         titleBufPos <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+        titleBufPartial <span class="opt">=</span> <span class="kwa">false</span><span class="opt">;</span>
+
+        dataArray <span class="opt">=</span> <span class="kwa">new</span> <span class="kwd">SharedArrayBuffer</span><span class="opt">(</span>dataBuf<span class="opt">.</span>length<span class="opt">);</span>
+        dataBuf <span class="opt">=</span> Buffer<span class="opt">.</span><span class="kwa">from</span><span class="opt">(</span>dataArray<span class="opt">);</span>
         dataBufPos <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
     <span class="opt">}</span>
 
-    <span class="kwa">function</span> <span class="kwd">processData</span><span class="opt">(</span>outputArray<span class="opt">) {</span>
+    <span class="kwa">function</span> <span class="kwd">processData</span><span class="opt">(</span>titleBuf<span class="opt">,</span> titleBufLen<span class="opt">,</span> dataBuf<span class="opt">,</span> dataBufLen<span class="opt">) {</span>
         <span class="kwa">return new</span> <span class="kwd">Promise</span><span class="opt">(</span>resolve <span class="opt">=&gt; {</span>
-            <span class="kwa">const</span> cpus <span class="opt">=</span> os<span class="opt">.</span><span class="kwd">cpus</span><span class="opt">().</span>length<span class="opt">;</span>
-            <span class="kwa">const</span> remainder <span class="opt">=</span> dataBufPos <span class="opt">% (</span>cpus <span class="opt">*</span> fullLineLen<span class="opt">);</span>
-            <span class="kwa">const</span> chunk <span class="opt">= (</span>dataBufPos <span class="opt">-</span> remainder<span class="opt">) /</span> cpus<span class="opt">;</span>
-            <span class="kwa">const</span> isShift <span class="opt">=</span> dataBufPos <span class="opt">%</span> fullLineLen <span class="opt">!==</span> <span class="num">0</span><span class="opt">;</span>
-            <span class="kwa">let from</span> <span class="opt">=</span> dataBufPos<span class="opt">;</span>
-            <span class="kwa">let</span> to <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+            <span class="kwa">const</span> threads <span class="opt">=</span> Math<span class="opt">.</span><span class="kwd">max</span><span class="opt">(</span><span class="num">1</span><span class="opt">,</span> os<span class="opt">.</span><span class="kwd">cpus</span><span class="opt">().</span>length <span class="opt">-</span> <span class="num">2</span><span class="opt">);</span>
+            <span class="kwa">const</span> lines <span class="opt">=</span> Math<span class="opt">.</span><span class="kwd">ceil</span><span class="opt">(</span>dataBufLen <span class="opt">/</span> fullLineLen<span class="opt">);</span>
+            <span class="kwa">const</span> dataLen <span class="opt">=</span> dataBufLen <span class="opt">-</span> lines<span class="opt">;</span>
+            <span class="kwa">const</span> chunkLen <span class="opt">=</span> Math<span class="opt">.</span><span class="kwd">floor</span><span class="opt">(</span>dataLen <span class="opt">/ (</span><span class="num">2</span> <span class="opt">*</span> threads<span class="opt">));</span>
 
             <span class="kwa">let</span> wait <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
-            <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">let</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> cpus<span class="opt">;</span> i<span class="opt">++) {</span>
-                <span class="kwa">let</span> inputSize <span class="opt">=</span> chunk<span class="opt">;</span>
-                <span class="kwa">let</span> outputSize <span class="opt">=</span> chunk<span class="opt">;</span>
-                <span class="kwa">if</span> <span class="opt">(</span>isShift<span class="opt">) {</span>
-                    <span class="kwa">if</span> <span class="opt">(</span>i <span class="opt">===</span> <span class="num">0</span><span class="opt">) {</span>
-                        inputSize <span class="opt">+=</span> <span class="num">1</span><span class="opt">;</span>
-                    <span class="opt">}</span>
-                    <span class="kwa">if</span> <span class="opt">(</span>i <span class="opt">===</span> cpus <span class="opt">-</span> <span class="num">1</span><span class="opt">) {</span>
-                        inputSize <span class="opt">-=</span> <span class="num">1</span><span class="opt">;</span>
-                    <span class="opt">}</span>
-                <span class="opt">}</span>
-                <span class="kwa">if</span> <span class="opt">(</span>i <span class="opt">===</span> cpus <span class="opt">-</span> <span class="num">1</span><span class="opt">) {</span>
-                    inputSize <span class="opt">+=</span> remainder<span class="opt">;</span>
-                    outputSize <span class="opt">+=</span> remainder<span class="opt">;</span>
-                <span class="opt">}</span>
+            <span class="kwa">let</span> bottomStart <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+            <span class="kwa">let</span> bottomRealStart <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+            <span class="kwa">let</span> topStart <span class="opt">=</span> dataLen<span class="opt">;</span>
+            <span class="kwa">let</span> topRealStart <span class="opt">=</span> topStart <span class="opt">+</span> Math<span class="opt">.</span><span class="kwd">floor</span><span class="opt">(</span>topStart <span class="opt">/</span> lineLen<span class="opt">);</span>
+            <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">let</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> threads<span class="opt">;</span> i<span class="opt">++) {</span>
+                <span class="kwa">const</span> bottomFinish <span class="opt">=</span> i <span class="opt">&lt;</span> threads <span class="opt">-</span> <span class="num">1</span> <span class="opt">?</span> bottomStart <span class="opt">+</span> chunkLen <span class="opt">:</span> dataLen <span class="opt">&gt;&gt;</span> <span class="num">1</span><span class="opt">;</span>
+                <span class="kwa">const</span> topFinish <span class="opt">=</span> i <span class="opt">&lt;</span> threads <span class="opt">-</span> <span class="num">1</span> <span class="opt">?</span> topStart <span class="opt">-</span> chunkLen <span class="opt">:</span> dataLen <span class="opt">&gt;&gt;</span> <span class="num">1</span><span class="opt">;</span>
+                <span class="kwa">const</span> bottomRealFinish <span class="opt">=</span> bottomFinish <span class="opt">+</span> Math<span class="opt">.</span><span class="kwd">floor</span><span class="opt">(</span>bottomFinish <span class="opt">/</span> lineLen<span class="opt">);</span>
+                <span class="kwa">const</span> topRealFinish <span class="opt">=</span> topFinish <span class="opt">+</span> Math<span class="opt">.</span><span class="kwd">floor</span><span class="opt">(</span>topFinish <span class="opt">/</span> lineLen<span class="opt">);</span>
 
                 <span class="kwa">const</span> worker <span class="opt">=</span> <span class="kwa">new</span> <span class="kwd">Worker</span><span class="opt">(</span>__filename<span class="opt">);</span>
-                worker<span class="opt">.</span><span class="kwd">postMessage</span><span class="opt">({</span>data<span class="opt">: {</span>dataArray<span class="opt">,</span> outputArray<span class="opt">,</span> <span class="kwa">from</span><span class="opt">,</span> to<span class="opt">,</span> inputSize<span class="opt">,</span> outputSize<span class="opt">}});</span>
+                worker<span class="opt">.</span><span class="kwd">postMessage</span><span class="opt">({</span>data<span class="opt">: {</span>
+                    dataArray<span class="opt">:</span> dataBuf<span class="opt">.</span>buffer<span class="opt">,</span>
+                    topFrom<span class="opt">:</span> topRealFinish<span class="opt">,</span>
+                    bottomFrom<span class="opt">:</span> bottomRealStart<span class="opt">,</span>
+                    topSize<span class="opt">:</span> topRealStart <span class="opt">-</span> topRealFinish<span class="opt">,</span>
+                    bottomSize<span class="opt">:</span> bottomRealFinish <span class="opt">-</span> bottomRealStart
+                <span class="opt">}});</span>
                 worker<span class="opt">.</span><span class="kwd">on</span><span class="opt">(</span><span class="str">&apos;exit&apos;</span><span class="opt">, () =&gt; {</span>
                     wait<span class="opt">--;</span>
                     <span class="kwa">if</span> <span class="opt">(</span>wait <span class="opt">===</span> <span class="num">0</span><span class="opt">) {</span>
@@ -169,10 +172,16 @@ async <span class="kwa">function</span> <span class="kwd">mainThread</span><span
                 <span class="opt">});</span>
                 wait<span class="opt">++;</span>
 
-                <span class="kwa">from</span> <span class="opt">-=</span> inputSize<span class="opt">;</span>
-                to <span class="opt">+=</span> outputSize<span class="opt">;</span>
+                bottomStart <span class="opt">=</span> bottomFinish<span class="opt">;</span>
+                bottomRealStart <span class="opt">=</span> bottomRealFinish<span class="opt">;</span>
+                topStart <span class="opt">=</span> topFinish<span class="opt">;</span>
+                topRealStart <span class="opt">=</span> topRealFinish<span class="opt">;</span>
             <span class="opt">}</span>
-        <span class="opt">});</span>
+        <span class="opt">})</span>
+            <span class="opt">.</span><span class="kwd">then</span><span class="opt">(() =&gt; {</span>
+                process<span class="opt">.</span>stdout<span class="opt">.</span><span class="kwd">write</span><span class="opt">(</span>titleBuf<span class="opt">.</span><span class="kwd">subarray</span><span class="opt">(</span><span class="num">0</span><span class="opt">,</span> titleBufLen<span class="opt">));</span>
+                process<span class="opt">.</span>stdout<span class="opt">.</span><span class="kwd">write</span><span class="opt">(</span>dataBuf<span class="opt">.</span><span class="kwd">subarray</span><span class="opt">(</span><span class="num">0</span><span class="opt">,</span> dataBufLen<span class="opt">));</span>
+            <span class="opt">});</span>
     <span class="opt">}</span>
 <span class="opt">}</span>
 
@@ -182,44 +191,44 @@ async <span class="kwa">function</span> <span class="kwd">mainThread</span><span
         process<span class="opt">.</span><span class="kwd">exit</span><span class="opt">();</span>
     <span class="opt">});</span>
 
-    <span class="kwa">function</span> <span class="kwd">writeBuf</span><span class="opt">({</span>dataArray<span class="opt">,</span> outputArray<span class="opt">,</span> <span class="kwa">from</span><span class="opt">,</span> to<span class="opt">,</span> inputSize<span class="opt">,</span> outputSize<span class="opt">}) {</span>
-        <span class="kwa">const</span> input <span class="opt">=</span> <span class="kwa">new</span> <span class="kwd">Uint8Array</span><span class="opt">(</span>dataArray<span class="opt">,</span> <span class="kwa">from</span> <span class="opt">-</span> inputSize<span class="opt">,</span> inputSize<span class="opt">);</span>
-        <span class="kwa">const</span> output <span class="opt">=</span> <span class="kwa">new</span> <span class="kwd">Uint8Array</span><span class="opt">(</span>outputArray<span class="opt">,</span> to<span class="opt">,</span> outputSize<span class="opt">);</span>
+    <span class="kwa">function</span> <span class="kwd">writeBuf</span><span class="opt">({</span>dataArray<span class="opt">,</span> topFrom<span class="opt">,</span> bottomFrom<span class="opt">,</span> topSize<span class="opt">,</span> bottomSize<span class="opt">}) {</span>
+        <span class="kwa">const</span> input <span class="opt">=</span> <span class="kwa">new</span> <span class="kwd">Uint8Array</span><span class="opt">(</span>dataArray<span class="opt">,</span> topFrom<span class="opt">,</span> topSize<span class="opt">);</span>
+        <span class="kwa">const</span> output <span class="opt">=</span> <span class="kwa">new</span> <span class="kwd">Uint8Array</span><span class="opt">(</span>dataArray<span class="opt">,</span> bottomFrom<span class="opt">,</span> bottomSize<span class="opt">);</span>
 
-        <span class="kwa">let</span> i <span class="opt">=</span> inputSize <span class="opt">-</span> <span class="num">1</span><span class="opt">;</span>
+        <span class="kwa">let</span> i <span class="opt">=</span> topSize <span class="opt">-</span> <span class="num">1</span><span class="opt">;</span>
         <span class="kwa">let</span> o <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
-        <span class="kwa">let</span> n <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
         <span class="kwa">while</span> <span class="opt">(</span>i <span class="opt">&gt;=</span> <span class="num">0</span><span class="opt">) {</span>
-            <span class="kwa">let</span> <span class="kwb">char</span> <span class="opt">=</span> input<span class="opt">[</span>i<span class="opt">--];</span>
-            <span class="kwa">if</span> <span class="opt">(</span><span class="kwb">char</span> <span class="opt">===</span> endLine<span class="opt">) {</span>
-                <span class="kwb">char</span> <span class="opt">=</span> input<span class="opt">[</span>i<span class="opt">--];</span>
+            <span class="kwa">let</span> char1 <span class="opt">=</span> input<span class="opt">[</span>i<span class="opt">--];</span>
+            <span class="kwa">if</span> <span class="opt">(</span>char1 <span class="opt">===</span> endLine<span class="opt">) {</span>
+                char1 <span class="opt">=</span> input<span class="opt">[</span>i<span class="opt">--];</span>
             <span class="opt">}</span>
-            output<span class="opt">[</span>o<span class="opt">++] =</span> smap<span class="opt">[</span><span class="kwb">char</span><span class="opt">];</span>
-            n<span class="opt">++;</span>
-            <span class="kwa">if</span> <span class="opt">(</span>n <span class="opt">===</span> <span class="num">60</span><span class="opt">) {</span>
-                output<span class="opt">[</span>o<span class="opt">++] =</span> endLine<span class="opt">;</span>
-                n <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+            <span class="kwa">let</span> char2 <span class="opt">=</span> output<span class="opt">[</span>o<span class="opt">++];</span>
+            <span class="kwa">if</span> <span class="opt">(</span>char2 <span class="opt">===</span> endLine<span class="opt">) {</span>
+                char2 <span class="opt">=</span> output<span class="opt">[</span>o<span class="opt">++];</span>
             <span class="opt">}</span>
+            output<span class="opt">[</span>o <span class="opt">-</span> <span class="num">1</span><span class="opt">] =</span> smap<span class="opt">[</span>char1<span class="opt">];</span>
+            input<span class="opt">[</span>i <span class="opt">+</span> <span class="num">1</span><span class="opt">] =</span> smap<span class="opt">[</span>char2<span class="opt">];</span>
         <span class="opt">}</span>
-        output<span class="opt">[</span>outputSize <span class="opt">-</span> <span class="num">1</span><span class="opt">] =</span> endLine<span class="opt">;</span>
     <span class="opt">}</span>
 <span class="opt">}</span>
     </pre>
   </section>
   <section>
-    <h2 id="log">notes, command-line, and program output</h2>
+    <div>
+      <h2 id="log">notes, command-line, and program output</h2>
+    </div>
     <pre>
 NOTES:
 64-bit Ubuntu quad core
 v13.7.0
 
 
-Fri, 24 Jan 2020 00:11:04 GMT
+Tue, 04 Feb 2020 23:11:18 GMT
 
 MAKE:
 cp -L revcomp.node-8.node revcomp.node-8.js
 
-0.26s to complete and log all make actions
+0.38s to complete and log all make actions
 
 COMMAND LINE:
 /opt/src/node-v13.7.0-linux-x64/bin/node revcomp.node-8.js 0 &lt; revcomp-input100000000.txt
