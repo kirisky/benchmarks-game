@@ -5,7 +5,10 @@ Where can I get the program source code?
  — [zip'd program source code](/public/download/benchmarksgame-sourcecode.zip)
 
 Where can I get the measurement scripts? 
- — [bencher Python measurement scripts](/bencher) — with example conversion scripts for GFM and HTML
+ — [bencher Python measurement scripts](/bencher)
+
+Where can I get the program measurements? 
+ — [.csv data files](/public/data/README.md) — with example conversion scripts for GFM and HTML
 
 | spectralnorm | secs | mem | gz | cpu | 
 | :------ | -----: | -----: | -----: | -----: |  
@@ -14,9 +17,6 @@ Where can I get the measurement scripts?
 | java&nbsp;#&nbsp;2 | 1.44 | 36,880 | 950 | 5.29 |
 | python&nbsp;#&nbsp;6 | 193.53 | 9,116 | 504 | 193.46 |
 | python&nbsp;#&nbsp;7 | 52.17 | 50,092 | 619 | 205.93 |
-
-Where can I get the program measurements? 
- — [.csv data files](/public/data/README.md)
 
 Where can I get the old archived program source code? 
  — [Alioth program source code](https://salsa.debian.org/benchmarksgame-team/archive-alioth-benchmarksgame)
