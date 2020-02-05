@@ -6,7 +6,7 @@ Where can I get the program source code?
 
 Where can I get the measurement scripts? 
  — [bencher Python measurement scripts](/bencher)
-(/bencher/bencher-screenshot.png)
+![](/bencher/screenshot.png)
 
 Where can I get the program measurements? 
  — [.csv data files](/public/data/README.md) — with example conversion scripts for GFM and HTML
