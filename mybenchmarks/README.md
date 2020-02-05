@@ -21,7 +21,7 @@ Background
 
 Example
 -------
-`
+```
  $ cd ~/mybenchmarks/websites
  $ ??? php-7.4.0/bin/php -S localhost:8000
 
@@ -34,9 +34,9 @@ Example
  $T = 'all'; $L = 'java'; $metaRobots = '';
  require_once(LIB_PATH.'compare.php');
  ?>
-`
+```
 
-* Define paths and some variables for the linux webpages. Specify test `T` and language implementation `L`. Filter the data and set template variables for [~/mybenchmarks/lib/compare.php](lib/compare.php) and [compare.tpl.php](lib/compare.php).
+* Define paths and some variables for the linux webpages. Specify test `T` and language implementation `L`. Filter the data and set template variables for [~/mybenchmarks/lib/compare.php](lib/compare.php) and [compare.tpl.php](lib/compare.tpl.php).
 
 * compare.php mostly data; compare.tpl.php mostly presentation. (See Brian E. Lozier's [~/mybenchmarks/lib/lib.php](lib/lib.php))
 
@@ -58,8 +58,6 @@ Usage
 1. Replace the example data with your data. Delete the contents of [websites/linux/code](websites/linux/code), [linux/data](websites/linux/data), and [version](websites/linux/version); and replace with your data and version files. Delete the contents of [macbook/code](websites/macbook/code), [data](websites/macbook/data), and [version](websites/macbook/version); and replace with your data and version files.
 
 1. Change `SITE_NAME` and `PLATFORM_NAME` in [linux/config.php](websites/linux/config.php) and [macbook/config.php](websites/macbook/config.php) to names appropriate for your measurement sets.
-
-1. Change [linux/include.csv]() and [macbook/include.csv]() and [desc/test.csv](desc/test.csv) and [desc/lang.csv](desc/lang.csv) to match the new `SITE_NAME`.
 
 1. Change the [mybenchmarks/websites/linux](websites/linux) and [macbook](websites/macbook) folder names to match the new `SITE_NAME`.
 
