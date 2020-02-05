@@ -5,9 +5,9 @@ Overview
 --------
 * mybenchmarks is an example of how to use the current benchmarks game PHP website scripts to show program measurements made with the Python bencher scripts.
 
-* Different sets of measurements are separated into different folders: for example, ``mybenchmarks/websites/linux`` and ``websites/macbook``.
+* Different sets of measurements are separated into different folders, for example: [mybenchmarks/websites/linux](/websites/linux) and [websites/macbook](websites/macbook).
 
-* ``websites/index.html`` can link to those different measurements
+* [websites/index.html](/websites/index.html) can link to those different measurements
    
 Background
 ----------
@@ -17,11 +17,11 @@ Background
 
 * These scripts (originally written for PHP 4) are now run with PHP 7.4 (but have not been converted to PHP 7).
 
-* Most of the configurability never was used (for example ``mybenchmarks/websites/linux/config.php``) 
+* Most of the configurability never was used (for example mybenchmarks/websites/linux/config.php) 
 
 Example
 -------
-```
+`
  $ cd ~/mybenchmarks/websites
  $ ??? php-7.4.0/bin/php -S localhost:8000
 
@@ -34,34 +34,34 @@ Example
  $T = 'all'; $L = 'java'; $metaRobots = '';
  require_once(LIB_PATH.'compare.php');
  ?>
-```
+`
 
-* Define paths and some variables for the linux webpages. Specify test `T` and language implementation `L`. Filter the data and set template variables for ``~/mybenchmarks/lib/compare.php`` and ``compare.tpl.php``.
+* Define paths and some variables for the linux webpages. Specify test `T` and language implementation `L`. Filter the data and set template variables for ~/mybenchmarks/lib/compare.php and compare.tpl.php.
 
-* ``compare.php`` mostly data; ``compare.tpl.php`` mostly presentation. (See Brian E. Lozier's ``~/mybenchmarks/lib/lib.php``)
+* compare.php mostly data; compare.tpl.php mostly presentation. (See Brian E. Lozier's ~/mybenchmarks/lib/lib.php)
 
 
 Gotchas
 -------
-* Data will be ignored if the test and language implementation are not listed in: ``linux/include.csv`` and / or ``macbook/include.csv`` and ``~/mybenchmarks/desc/test.csv`` and ``~/mybenchmarks/desc/lang.csv``
+* Data will be ignored if the test and language implementation are not listed in: linux/include.csv and / or macbook/include.csv and ~/mybenchmarks/desc/test.csv and ~/mybenchmarks/desc/lang.csv
        
-* Data will be ignored if the test and / or language implementation are listed in: ``~/mybenchmarks/desc/exclude.csv``
+* Data will be ignored if the test and / or language implementation are listed in: ~/mybenchmarks/desc/exclude.csv
 
-* Various kinds-of presentation label are defined in ``desc/test.csv`` and ``desc/lang.csv``
+* Various kinds-of presentation label are defined in desc/test.csv and desc/lang.csv
 
-* The 6th and 7th fields in ``desc/lang.csv`` define a default comparison (there should always be a default comparison) and a default  language implementation (empty if not the default implementation)
+* The 6th and 7th fields in desc/lang.csv define a default comparison (there should always be a default comparison) and a default  language implementation (empty if not the default implementation)
 
-* inline CSS, sorry. To change the CSS background color used in headings, find `#macbook` and / or `#linux` in the page $style and edit the background color. In ``lib/compare.php``, ``lib/measurements.php``, ``lib/performance.php`` and ``lib/program.php``.
+* inline CSS, sorry. To change the CSS background color used in headings, find `#macbook` and / or `#linux` in the page $style and edit the background color. In lib/compare.php, lib/measurements.php, lib/performance.php and lib/program.php.
 
 Usage
 -----
-1. Replace the example data with your data. Delete the contents of ``websites/linux/code``, ``linux/data``, and ``version``; and replace with your data and version files. Delete the contents of ``macbook/code``, ``data``, and ``version``; and replace with your data and version files.
+1. Replace the example data with your data. Delete the contents of websites/linux/code, linux/data, and version; and replace with your data and version files. Delete the contents of macbook/code, data, and version; and replace with your data and version files.
 
-1. Change `SITE_NAME` and `PLATFORM_NAME` in ``linux/config.php`` and ``macbook/config.php`` to names appropriate for your measurement sets.
+1. Change `SITE_NAME` and `PLATFORM_NAME` in linux/config.php and macbook/config.php to names appropriate for your measurement sets.
 
-1. Change ``linux/include.csv`` and ``macbook/include.csv`` and ``desc/test.csv`` and ``desc/lang.csv`` to match the new `SITE_NAME`.
+1. Change linux/include.csv and macbook/include.csv and desc/test.csv and desc/lang.csv to match the new `SITE_NAME`.
 
-1. Change the ``mybenchmarks/websites/linux`` and ``macbook`` folder names to match the new `SITE_NAME`.
+1. Change the mybenchmarks/websites/linux and macbook folder names to match the new `SITE_NAME`.
 
 1. Change the inline CSS to match the new `SITE_NAME`.
 
