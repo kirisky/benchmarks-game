@@ -28,8 +28,8 @@ What else?
 | java&nbsp;#&nbsp;2 | 1.44 | 36,880 | 950 | 5.29 |
 | python&nbsp;#&nbsp;6 | 193.53 | 9,116 | 504 | 193.46 |
 | python&nbsp;#&nbsp;7 | 52.17 | 50,092 | 619 | 205.93 |
-  
-  
+&nbsp;  
+&nbsp;  
 * Where can I get the public website scripts? 
  — [mybenchmarks PHP website scripts](/mybenchmarks)
   
