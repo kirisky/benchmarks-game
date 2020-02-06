@@ -3,7 +3,7 @@ The Benchmarks Game — mybenchmarks
 
 Overview
 --------
-* mybenchmarks is an example of how to use the current benchmarks game PHP website scripts to show program measurements made with the Python bencher scripts.
+* mybenchmarks is an example of how to use the current benchmarks game PHP website scripts to show program measurements made with the [Python bencher scripts](../bencher).
 
 * Different sets of measurements are separated into different folders, for example: [mybenchmarks/websites/linux](websites/linux) and [websites/macbook](websites/macbook).
 
@@ -36,9 +36,9 @@ Example
  ?>
 ```
 
-* Define paths and some variables for the linux webpages. Specify test `T` and language implementation `L`. Filter the data and set template variables for [~/mybenchmarks/lib/compare.php](lib/compare.php) and [compare.tpl.php](lib/compare.tpl.php).
+* Define paths and some variables for the linux webpages. Specify test `$T` and language implementation `$L`. Filter the data and set template variables for [~/mybenchmarks/lib/compare.php](lib/compare.php) and [compare.tpl.php](lib/compare.tpl.php).
 
-* compare.php mostly data; compare.tpl.php mostly presentation. (See Brian E. Lozier's [~/mybenchmarks/lib/lib.php](lib/lib.php))
+* [compare.php](lib/compare.php) mostly **data**; [compare.tpl.php](lib/compare.tpl.php) mostly **presentation**. (See Brian E. Lozier's [~/mybenchmarks/lib/lib.php](lib/lib.php))
 
 
 Gotchas

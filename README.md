@@ -11,14 +11,14 @@ Programs age. Language implementations add new features. New programs are needed
 What else?
 ----------
 
-Where can I get the program source code? 
+* Where can I get the program source code? 
  — [zip'd program source code](/public/download/benchmarksgame-sourcecode.zip)
 
-Where can I get the measurement scripts? 
+* Where can I get the measurement scripts? 
  — [bencher Python measurement scripts](/bencher)
 ![](/bencher/screenshot.png)
 
-Where can I get the program measurements? 
+* Where can I get the program measurements? 
  — [.csv data files](/public/data/README.md) — with example conversion scripts for GFM and HTML
 
 | spectralnorm | secs | mem | gz | cpu | 
@@ -30,18 +30,18 @@ Where can I get the program measurements?
 | python&nbsp;#&nbsp;7 | 52.17 | 50,092 | 619 | 205.93 |
   
   
-
-Where can I get the public website scripts? 
+* Where can I get the public website scripts? 
  — [mybenchmarks PHP website scripts](/mybenchmarks)
+  
 ![](/mybenchmarks/performance.png)
 ![](/mybenchmarks/compare.png)
 ![](/mybenchmarks/measurements.png)
 ![](/mybenchmarks/program.png)
 
-Where can I get the old archived program source code? 
+* Where can I get the old archived program source code? 
  — [Alioth program source code](https://salsa.debian.org/benchmarksgame-team/archive-alioth-benchmarksgame)
 
-If you have other questions then please open a new [Question](https://salsa.debian.org/benchmarksgame-team/benchmarksgame/issues/new?issuable_template=Question) issue.
+* If you have other questions then please open a new [Question](https://salsa.debian.org/benchmarksgame-team/benchmarksgame/issues/new?issuable_template=Question) issue.
 
 Suggestions?
 ------------
