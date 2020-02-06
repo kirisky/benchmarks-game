@@ -55,7 +55,9 @@ Gotchas
 
 Usage
 -----
-1. Replace the example data with your data. Delete the contents of [websites/linux/code](websites/linux/code), [linux/data](websites/linux/data), and [version](websites/linux/version); and replace with your data and version files. Delete the contents of [macbook/code](websites/macbook/code), [data](websites/macbook/data), and [version](websites/macbook/version); and replace with your data and version files.
+1. Try a localhost website using the example data. 
+
+1. Once you have that working, replace the example data with your data. Delete the contents of [websites/linux/code](websites/linux/code), [linux/data](websites/linux/data), and [version](websites/linux/version); and replace with your data and version files. Delete the contents of [macbook/code](websites/macbook/code), [data](websites/macbook/data), and [version](websites/macbook/version); and replace with your data and version files.
 
 1. Change `SITE_NAME` and `PLATFORM_NAME` in [linux/config.php](websites/linux/config.php) and [macbook/config.php](websites/macbook/config.php) to names appropriate for your measurement sets.
 

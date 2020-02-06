@@ -30,7 +30,6 @@ What else?
 | python&nbsp;#&nbsp;7 | 52.17 | 50,092 | 619 | 205.93 |
 
 &nbsp;  
-&nbsp;  
 * Where can I get the public website scripts? 
  — [mybenchmarks PHP website scripts](/mybenchmarks)
   
