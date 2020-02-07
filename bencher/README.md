@@ -13,7 +13,7 @@ Background
 
 * These Python scripts were originally written because there didn't seem to be a way to set processor affinity with the previous Perl scripts (which was a problem for single core measurements on a quad-core machine).
 
-* These scripts are designed to make content for the benchmarks game website — marked-up program source code files, program log files, multi-second run times, results checking, two-dozen language implementations, a thousand programs — that might not be what you need! 
+* These scripts are designed to make content for the benchmarks game website — marked-up program source code files, program log files, multi-second run times, results checking, two-dozen language implementations, a thousand programs — that might not be what you need! (Perhaps something like [hyperfine](https://github.com/sharkdp/hyperfine) would match your needs?)
 
 
 Example
