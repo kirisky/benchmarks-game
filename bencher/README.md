@@ -1,5 +1,5 @@
 The Benchmarks Game — bencher
-==================================
+=============================
 
 Overview
 --------
@@ -7,14 +7,14 @@ Overview
 
 * Different [.ini files](makefiles) allow different sets of measurements to be separated into different folders.
 
+* These scripts are designed to make content for the benchmarks game website — marked-up program source code files, program log files, multi-second run times, results checking, two-dozen language implementations, a thousand programs — that might not be what you need! (Perhaps something like [hyperfine](https://github.com/sharkdp/hyperfine) would match your needs?)
+
+* OTOH perhaps making something like the benchmarks game website is exactly what you would like to do, for example — [https://pybenchmarks.org/](https://pybenchmarks.org/)
    
 Background
 ----------
 
 * These Python scripts were originally written because there didn't seem to be a way to set processor affinity with the previous Perl scripts (which was a problem for single core measurements on a quad-core machine).
-
-* These scripts are designed to make content for the benchmarks game website — marked-up program source code files, program log files, multi-second run times, results checking, two-dozen language implementations, a thousand programs — that might not be what you need! (Perhaps something like [hyperfine](https://github.com/sharkdp/hyperfine) would match your needs?)
-
 
 Example
 -------
