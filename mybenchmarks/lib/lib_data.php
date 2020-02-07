@@ -1,5 +1,5 @@
 <?
-// Copyright (c) Isaac Gouy 2010-2019
+// Copyright (c) Isaac Gouy 2010-2020
 
 // DATA LAYOUT ///////////////////////////////////////////////////
 
@@ -15,14 +15,16 @@ define('DATA_LOAD',8);
 define('DATA_ELAPSED',9);
 define('DATA_BUSY',10);
 
-// With quad-core we changed from CPU Time to Elapsed Time
-// but we still want to show the old stuff
+
 define('DATA_TIME',DATA_ELAPSED);
 
 define('PROGRAM_TIMEOUT',-1);
 
 
 // MENU ///////////////////////////////////////////////////
+
+// No longer used. 
+// For old usage see lib/switch.php & websites/linux/benchmark.php
 
 function MkMenuForm($Tests,$SelectedTest,$Langs,$SelectedLang,$Id=NULL){
    echo '<form method="get" action="benchmark.php" id="menus">', "\n";
@@ -60,10 +62,9 @@ function MkMenuForm($Tests,$SelectedTest,$Langs,$SelectedLang,$Id=NULL){
    }
 
    $datasets = array(
-      array('u32','x86 one core'),
-      array('u64q','x64 quad-core'),
-      array('u32q','x86 quad-core'),
-      array('u64','x64 one core') );
+      array('linux','linux'),
+      array('macbook','macbook')
+      );
 
    echo '<select name="data" id="data">', "\n";
    foreach($datasets as $Row){
