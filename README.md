@@ -34,6 +34,7 @@ What else?
  — [mybenchmarks PHP website scripts](/mybenchmarks)
   
 ![](/mybenchmarks/performance.png)
+![](/mybenchmarks/boxplotcpu.png)
 ![](/mybenchmarks/compare.png)
 ![](/mybenchmarks/measurements.png)
 ![](/mybenchmarks/program.png)
