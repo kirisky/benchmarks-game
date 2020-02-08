@@ -109,7 +109,7 @@ function IdName($id){
 
 
 function MarkTime($PathRoot=''){
-   $mtime = filemtime($PathRoot.DATA_PATH.'data.csv');
+   $mtime = filemtime($PathRoot.DATA_PATH.'filtered_measurements.csv');
    $Mark = gmdate("d M Y", $mtime);
    return $Mark;
 }

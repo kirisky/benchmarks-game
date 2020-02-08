@@ -72,6 +72,7 @@ Usage
 2020
 ----
 ![](performance.png)
+![](boxplotcpu.png)
 ![](compare.png)
 ![](measurements.png)
 ![](program.png)
