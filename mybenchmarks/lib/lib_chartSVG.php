@@ -80,7 +80,7 @@ class Chart {
       $x = $this->w;
       echo '<g style="text-anchor: end; font-family: Ubuntu,Verdana,sans-serif; font-size: 0.9em;" >', "\n"; 
       echo '<text x="', $x, '" y="', $this->h - 6, '" >', $label, "</text>\n"; 
-      echo '<text x="', $this->xo, '" y="', $this->h - 6, '" style="text-anchor: start;" >', "benchmarks game", "</text>\n"; 
+      echo '<text x="', $this->xo, '" y="', $this->h - 6, '" style="text-anchor: start;" >', "my benchmarks", "</text>\n"; 
       echo "</g>\n";
       return $x;
    }
