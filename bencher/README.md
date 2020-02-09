@@ -25,7 +25,7 @@ Example
 Gotchas
 -------
 
-* Even if javac and java and python are on the path — you are expected to use the `.ini file` to explicitly define which tools should be used to build and run, your java and python source code files.
+* Even if javac and java and python are on the path — you are expected to use the [.ini file](makefiles/my.linux.ini) to explicitly define which tools should be used to build and run, your java and python source code files.
 
 
 Usage
@@ -35,7 +35,7 @@ Usage
 
 1. Once you have that working, replace the example data with your data. Delete the contents of [programs](programs), [run_logs](run_logs), [run_markup](run_markup), [summary](summary), [tmp](tmp); and replace with your program folders and programs.
 
-1. Copy one of the [.ini files](makefiles) and copy the matching [.Makefile](makefiles) and edit as required (see the [original detailed instructions](README)).
+1. Copy one of the [.ini files](makefiles/my.linux.ini) and copy the matching [.Makefile](makefiles/my.linux.Makefile) and edit as required (see the [original detailed instructions](README)).
 
 
 
