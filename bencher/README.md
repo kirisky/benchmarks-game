@@ -25,6 +25,7 @@ Example
 Gotchas
 -------
 
+* Even if javac and java and python are on the path; the .ini file is expected to define which tools should be used to build and run, java or python source code files.
 
 
 Usage
