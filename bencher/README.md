@@ -25,7 +25,8 @@ Example
 Gotchas
 -------
 
-* Even if javac and java and python are on the path — you are expected to use the [.ini file](makefiles/my.linux.ini) to explicitly define which tools should be used to build and run, your java and python source code files.
+* Even if javac and java and python are on the path — you must say that in the ini file! 
+  You are expected to copy/edit the [ini file](makefiles/my.linux.ini) and corresponding [Makefile](makefiles/my.linux.Makefile), and make explicit everything: from - use PATH to find CPython - to how often a test is run.
 
 
 Usage
