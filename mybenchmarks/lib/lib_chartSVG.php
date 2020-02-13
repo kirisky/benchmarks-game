@@ -80,7 +80,7 @@ class Chart {
       $x = $this->w;
       echo '<g style="text-anchor: end; font-family: Ubuntu,Verdana,sans-serif; font-size: 0.9em;" >', "\n"; 
       echo '<text x="', $x, '" y="', $this->h - 6, '" >', $label, "</text>\n"; 
-      echo '<text x="', $this->xo, '" y="', $this->h - 6, '" style="text-anchor: start;" >', "my benchmarks", "</text>\n"; 
+      echo '<text x="', $this->xo, '" y="', $this->h - 6, '" style="text-anchor: start;" >', "benchmarks game", "</text>\n"; 
       echo "</g>\n";
       return $x;
    }
@@ -286,7 +286,7 @@ class BoxChart extends Chart {
       foreach($a as $s){
          // ad-hoc string-sizing to fit chart height
          // because IE9 shows unclipped text below chart
-         $repeat = ceil(30 / strlen($s)) +1;
+         $repeat = ceil(30 / (1+strlen($s)));
          $s = str_repeat("   ".$s, $repeat);
          $n = (strlen($s) > 60) ? -60 : 0;
          $s = substr($s,$n);
