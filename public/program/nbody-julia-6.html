@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,follow,noarchive">
+
+<title>n-body Julia&nbsp;#6 program | Computer Language Benchmarks Game </title>
+<style><!--
+a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,header{margin:auto;width:92%}body{font:100% Droid Sans, Ubuntu, Verdana, sans-serif;margin:0;-webkit-text-size-adjust:100%}h3, h1, h2, li a{font-family:Ubuntu Mono,Consolas,Menlo,monospace}div,footer,header{max-width:31em}footer{padding:2.6em 0 0}h3{font-size:1.4em;font-weight:bold;margin:0;padding: .4em}h3, h3 a{color:white;background-color:#dd4814}h3 small{font-size:0.64em}h1,h2{margin:1.5em 0 0}h1{font-size:1.4em;font-weight:normal}h2{font-size:1.2em}li{list-style-type:none;vertical-align:top}li a{display:block;font-size:1.2em;margin: .5em .5em 0;padding: .5em .5em .3em}ul{clear:left;margin:-0.3em 0 1.5em;padding-left:0;text-align:center}p{color:#333;line-height:1.4;margin: .3em 0 0}p a, a span{border-bottom: .1em solid #333;padding-bottom: .1em}.com,.slc{color:#888}.kwa{color:#066}.kwb{color:#900}.kwc{color:#050}.kwa,.kwb,.kwc{font-weight:bold}.dstr,.str,.sym,.num{color:#930}pre{color:#222;font-size:1em;overflow-wrap:break-word;white-space:pre-wrap;word-wrap:break-word}@media only screen and (min-width: 60em){article,footer,header{font-size:1.25em}}
+--></style>
+<link rel="shortcut icon" href="./favicon.ico">
+<header>
+  <h3><a href="https://benchmarksgame-team.pages.debian.net/benchmarksgame/">The&nbsp;<small>Computer&nbsp;Language</small><br>Benchmarks&nbsp;Game</a></h3>
+</header>
+<article>
+  <div>
+    <h1>n-body Julia&nbsp;#6 program</h1>
+    <aside>
+      <p><a href="../description/nbody.html#nbody">description</a>
+    </aside>
+  </div>
+  <section>
+    <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc"># The Computer Language Benchmarks Game</span>
+<span class="slc"># https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">#</span>
+<span class="slc"># Contributed by Andrei Fomiga, Stefan Karpinski, Viral B. Shah, Jeff</span>
+<span class="slc"># Bezanson, smallnamespaces, and Adam Beckmeyer.</span>
+<span class="slc">#</span>
+<span class="slc"># This implementation was specifically written so that for-loops (and</span>
+<span class="slc"># calls to ntuple) have integer-literal ranges as their iterable. This</span>
+<span class="slc"># makes the number of loop iterations available as a compile-time</span>
+<span class="slc"># constant, so llvm can unroll them. To convince llvm to do so, this</span>
+<span class="slc"># script should be run with the evironment variable:</span>
+<span class="slc"># JULIA_LLVM_ARGS=&apos;-unroll-threshold=500&apos;.</span>
+
+<span class="kwa">using</span> Printf
+
+<span class="kwa">const</span> SOLAR_MASS <span class="opt">=</span> <span class="num">4</span> <span class="opt">*</span> pi <span class="opt">*</span> pi
+<span class="kwa">const</span> DAYS_PER_YEAR <span class="opt">=</span> <span class="num">365.24</span>
+<span class="slc"># Precalculate the pairs of bodies that must be compared so that it</span>
+<span class="slc"># doesn&apos;t have to be done each loop.</span>
+<span class="kwa">const</span> PAIRS <span class="opt">=</span> <span class="kwd">Tuple</span><span class="opt">((</span>i<span class="opt">,</span> j<span class="opt">)</span> <span class="kwa">for</span> i<span class="opt">=</span><span class="num">1</span><span class="opt">:</span><span class="num">4</span> <span class="kwa">for</span> j<span class="opt">=</span>i<span class="opt">+</span><span class="num">1</span><span class="opt">:</span><span class="num">5</span><span class="opt">)</span>
+<span class="kwa">const</span> V <span class="opt">=</span> VecElement
+
+<span class="slc"># Use a struct instead of mutable struct since a struct can be stored</span>
+<span class="slc"># inline in an array avoiding the overhead of following a pointer</span>
+<span class="kwa">struct</span> Body
+    x<span class="opt">::</span>NTuple<span class="opt">{</span><span class="num">3</span><span class="opt">,</span><span class="kwb">Float64</span><span class="opt">}</span>
+    v<span class="opt">::</span>NTuple<span class="opt">{</span><span class="num">3</span><span class="opt">,</span><span class="kwb">Float64</span><span class="opt">}</span>
+    m<span class="opt">::</span><span class="kwb">Float64</span>
+<span class="kwa">end</span>
+
+<span class="kwa">function</span> <span class="kwd">init_sun</span><span class="opt">(</span>bodies<span class="opt">)</span>
+    p <span class="opt">= (</span><span class="num">0.0</span><span class="opt">,</span> <span class="num">0.0</span><span class="opt">,</span> <span class="num">0.0</span><span class="opt">)</span>
+    <span class="kwa">for</span> b <span class="kwa">in</span> bodies
+        p <span class="opt">=</span> p <span class="opt">.-</span> b<span class="opt">.</span>v <span class="opt">.*</span> b<span class="opt">.</span>m
+    <span class="kwa">end</span>
+    <span class="kwd">Body</span><span class="opt">((</span><span class="num">0.0</span><span class="opt">,</span> <span class="num">0.0</span><span class="opt">,</span> <span class="num">0.0</span><span class="opt">),</span> p <span class="opt">./</span> SOLAR_MASS<span class="opt">,</span> SOLAR_MASS<span class="opt">)</span>
+<span class="kwa">end</span>
+
+<span class="slc"># Advance all bodies in the system by one timestep of 0.01. This</span>
+<span class="slc"># function always uses a timestep of 0.01 and assumes that there are</span>
+<span class="slc"># exactly 5 bodies in the system.</span>
+<span class="kwc">&#64;inline</span> <span class="kwa">function</span> <span class="kwd">advance</span><span class="opt">!(</span>bodies<span class="opt">)</span>
+    <span class="slc"># Δx holds the difference in position between bodies for each</span>
+    <span class="slc"># interaction. ntuple(f, Val(10)) is used instead of ntuple(f, 10)</span>
+    <span class="slc"># so that the results of the function call are type-stable. 10 is</span>
+    <span class="slc"># the number of pairs of bodies.</span>
+    Δx <span class="opt">=</span> <span class="kwd">ntuple</span><span class="opt">(</span><span class="kwd">Val</span><span class="opt">(</span><span class="num">10</span><span class="opt">))</span> <span class="kwa">do</span> k
+        <span class="kwc">&#64;inbounds</span> bodies<span class="opt">[</span>PAIRS<span class="opt">[</span>k<span class="opt">][</span><span class="num">1</span><span class="opt">]].</span>x <span class="opt">.-</span> bodies<span class="opt">[</span>PAIRS<span class="opt">[</span>k<span class="opt">][</span><span class="num">2</span><span class="opt">]].</span>x
+    <span class="kwa">end</span>
+
+    <span class="slc"># This function calculates the magnitude of forces between two</span>
+    <span class="slc"># pairs of bodies (determined by k).  It can&apos;t be written using</span>
+    <span class="slc"># do-notation on the ntuple call below because it must be inlined</span>
+    <span class="slc"># for performance, and Julia doesn&apos;t seem to have syntax to force</span>
+    <span class="slc"># inlining with do-notation functions.</span>
+    <span class="kwc">&#64;inline</span> <span class="kwa">function</span> <span class="kwd">magnitude</span><span class="opt">(</span>k<span class="opt">)</span>
+        dx1 <span class="opt">=</span> <span class="kwc">&#64;inbounds</span> Δx<span class="opt">[</span><span class="num">2</span>k<span class="opt">-</span><span class="num">1</span><span class="opt">]</span>
+        dx2 <span class="opt">=</span> <span class="kwc">&#64;inbounds</span> Δx<span class="opt">[</span><span class="num">2</span>k<span class="opt">]</span>
+
+        dsq1 <span class="opt">=</span> <span class="kwd">sum</span><span class="opt">(</span>dx1 <span class="opt">.*</span> dx1<span class="opt">)</span>
+        dsq2 <span class="opt">=</span> <span class="kwd">sum</span><span class="opt">(</span>dx2 <span class="opt">.*</span> dx2<span class="opt">)</span>
+
+        <span class="slc"># Float64 sqrt is relatively expensive. As an approximation, we</span>
+        <span class="slc"># use the SSE single-precision reciprocal square root</span>
+        <span class="slc"># approximation along with two iterations of the Newton-Raphson</span>
+        <span class="slc"># method.</span>
+        v <span class="opt">=</span> Base<span class="opt">.</span><span class="kwd">llvmcall</span><span class="opt">((</span><span class="str">&quot;&quot;&quot;</span>
+<span class="str">declare &lt;4 x float&gt; &#64;llvm.x86.sse.rsqrt.ps(&lt;4 x float&gt;)</span>
+<span class="str">declare &lt;4 x float&gt; &#64;llvm.x86.sse2.cvtpd2ps(&lt;2 x double&gt;)</span>
+<span class="str">        &quot;&quot;&quot;</span><span class="opt">,</span> <span class="str">&quot;&quot;&quot;</span>
+<span class="str"></span><span class="ipl">%2</span> <span class="str">= call &lt;4 x float&gt; &#64;llvm.x86.sse2.cvtpd2ps(&lt;2 x double&gt;</span> <span class="ipl">%0</span><span class="str">)</span>
+<span class="str"></span><span class="ipl">%3</span> <span class="str">= call &lt;4 x float&gt; &#64;llvm.x86.sse.rsqrt.ps(&lt;4 x float&gt;</span> <span class="ipl">%2</span><span class="str">)</span>
+<span class="str"></span><span class="ipl">%4</span> <span class="str">= shufflevector &lt;4 x float&gt;</span> <span class="ipl">%3</span><span class="str">, &lt;4 x float&gt; undef, &lt;2 x i32&gt; &lt;i32 0, i32 1&gt;</span>
+<span class="str"></span><span class="ipl">%5</span> <span class="str">= fpext &lt;2 x float&gt;</span> <span class="ipl">%4</span> <span class="str">to &lt;2 x double&gt;</span>
+<span class="str">ret &lt;2 x double&gt;</span> <span class="ipl">%5</span>
+<span class="str">        &quot;&quot;&quot;</span><span class="opt">),</span> NTuple<span class="opt">{</span><span class="num">2</span><span class="opt">,</span>V<span class="opt">{</span><span class="kwb">Float64</span><span class="opt">}},</span> Tuple<span class="opt">{</span>NTuple<span class="opt">{</span><span class="num">2</span><span class="opt">,</span>V<span class="opt">{</span><span class="kwb">Float64</span><span class="opt">}}}, (</span><span class="kwd">V</span><span class="opt">(</span>dsq1<span class="opt">),</span> <span class="kwd">V</span><span class="opt">(</span>dsq2<span class="opt">)))</span>
+        rd1<span class="opt">,</span> rd2 <span class="opt">=</span> <span class="kwc">&#64;inbounds</span> v<span class="opt">[</span><span class="num">1</span><span class="opt">].</span>value<span class="opt">,</span> v<span class="opt">[</span><span class="num">2</span><span class="opt">].</span>value
+
+        <span class="slc"># Two iterations of Newton-Raphson method</span>
+        <span class="kwa">for</span> _<span class="opt">=</span><span class="num">1</span><span class="opt">:</span><span class="num">2</span>
+            rd1 <span class="opt">=</span> <span class="num">1.5</span>rd1 <span class="opt">-</span> <span class="num">0.5</span>dsq1 <span class="opt">*</span> rd1 <span class="opt">* (</span>rd1 <span class="opt">*</span> rd1<span class="opt">)</span>
+            rd2 <span class="opt">=</span> <span class="num">1.5</span>rd2 <span class="opt">-</span> <span class="num">0.5</span>dsq2 <span class="opt">*</span> rd2 <span class="opt">* (</span>rd2 <span class="opt">*</span> rd2<span class="opt">)</span>
+        <span class="kwa">end</span>
+
+        <span class="num">0.01</span>rd1 <span class="opt">* (</span>rd1 <span class="opt">*</span> rd1<span class="opt">),</span> <span class="num">0.01</span>rd2 <span class="opt">* (</span>rd2 <span class="opt">*</span> rd2<span class="opt">)</span>
+    <span class="kwa">end</span>
+
+    <span class="slc"># Call magnitude 5 times to obtain an NTuple{5,NTuple{2,Float64}}</span>
+    <span class="slc"># of the force-magnitudes for pairs of bodies.</span>
+    mags2 <span class="opt">=</span> <span class="kwd">ntuple</span><span class="opt">(</span>magnitude<span class="opt">,</span> <span class="kwd">Val</span><span class="opt">(</span><span class="num">5</span><span class="opt">))</span>
+    <span class="slc"># This very ugly call flattens the results of the above call to</span>
+    <span class="slc"># ntuple for convenience and so less index-arithmetic is necessary</span>
+    <span class="slc"># in the loop below.</span>
+    mags <span class="opt">=</span> <span class="kwd">ntuple</span><span class="opt">(</span>k<span class="opt">-&gt;</span> mags2<span class="opt">[(</span>k<span class="opt">+</span><span class="num">1</span><span class="opt">)</span>÷<span class="num">2</span><span class="opt">][</span><span class="kwd">iseven</span><span class="opt">(</span>k<span class="opt">)+</span><span class="num">1</span><span class="opt">],</span> <span class="kwd">Val</span><span class="opt">(</span><span class="num">10</span><span class="opt">))</span>
+
+    <span class="slc"># Use the inter-body force magnitudes to update the velocities of</span>
+    <span class="slc"># all bodies.</span>
+    k <span class="opt">=</span> <span class="num">1</span>
+    <span class="kwc">&#64;inbounds</span> <span class="kwa">for</span> i<span class="opt">=</span><span class="num">1</span><span class="opt">:</span><span class="num">4</span>
+        vi <span class="opt">=</span> bodies<span class="opt">[</span>i<span class="opt">].</span>v
+        mi <span class="opt">=</span> bodies<span class="opt">[</span>i<span class="opt">].</span>m
+
+        <span class="kwa">for</span> j<span class="opt">=</span>i<span class="opt">+</span><span class="num">1</span><span class="opt">:</span><span class="num">5</span>
+            bj <span class="opt">=</span> bodies<span class="opt">[</span>j<span class="opt">]</span>
+
+            vi <span class="opt">=</span> vi <span class="opt">.-</span> Δx<span class="opt">[</span>k<span class="opt">] .* (</span>mags<span class="opt">[</span>k<span class="opt">] *</span> bj<span class="opt">.</span>m<span class="opt">)</span>
+            bodies<span class="opt">[</span>j<span class="opt">] =</span> <span class="kwd">Body</span><span class="opt">(</span>bj<span class="opt">.</span>x<span class="opt">,</span> bj<span class="opt">.</span>v <span class="opt">.+</span> Δx<span class="opt">[</span>k<span class="opt">] .* (</span>mags<span class="opt">[</span>k<span class="opt">] *</span> mi<span class="opt">),</span> bj<span class="opt">.</span>m<span class="opt">)</span>
+            k <span class="opt">+=</span> <span class="num">1</span>
+        <span class="kwa">end</span>
+        bodies<span class="opt">[</span>i<span class="opt">] =</span> <span class="kwd">Body</span><span class="opt">(</span>bodies<span class="opt">[</span>i<span class="opt">].</span>x<span class="opt">,</span> vi<span class="opt">,</span> mi<span class="opt">)</span>
+    <span class="kwa">end</span>
+
+    <span class="slc"># Advance body positions using the updated velocities.</span>
+    <span class="kwc">&#64;inbounds</span> <span class="kwa">for</span> i<span class="opt">=</span><span class="num">1</span><span class="opt">:</span><span class="num">5</span>
+        bi <span class="opt">=</span> bodies<span class="opt">[</span>i<span class="opt">]</span>
+        bodies<span class="opt">[</span>i<span class="opt">] =</span> <span class="kwd">Body</span><span class="opt">(</span>bi<span class="opt">.</span>x <span class="opt">.+</span> bi<span class="opt">.</span>v <span class="opt">.*</span> <span class="num">0.01</span><span class="opt">,</span> bi<span class="opt">.</span>v<span class="opt">,</span> bi<span class="opt">.</span>m<span class="opt">)</span>
+    <span class="kwa">end</span>
+<span class="kwa">end</span>
+
+<span class="slc"># Total energy of the system</span>
+<span class="kwa">function</span> <span class="kwd">energy</span><span class="opt">(</span>bodies<span class="opt">)</span>
+    e <span class="opt">=</span> <span class="num">0.0</span>
+    <span class="slc"># Kinetic energy of bodies</span>
+    <span class="kwc">&#64;inbounds</span> <span class="kwa">for</span> b <span class="kwa">in</span> bodies
+        e <span class="opt">+=</span> <span class="num">0.5</span>b<span class="opt">.</span>m <span class="opt">*</span> <span class="kwd">sum</span><span class="opt">(</span>b<span class="opt">.</span>v <span class="opt">.*</span> b<span class="opt">.</span>v<span class="opt">)</span>
+    <span class="kwa">end</span>
+    
+    <span class="slc"># Potential energy between body i and body j</span>
+    <span class="kwc">&#64;inbounds</span> <span class="kwa">for</span> <span class="opt">(</span>i<span class="opt">,</span> j<span class="opt">)</span> <span class="kwa">in</span> PAIRS
+        Δx <span class="opt">=</span> bodies<span class="opt">[</span>i<span class="opt">].</span>x <span class="opt">.-</span> bodies<span class="opt">[</span>j<span class="opt">].</span>x
+        e <span class="opt">-=</span> bodies<span class="opt">[</span>i<span class="opt">].</span>m <span class="opt">*</span> bodies<span class="opt">[</span>j<span class="opt">].</span>m <span class="opt">/</span> √<span class="kwd">sum</span><span class="opt">(</span>Δx <span class="opt">.*</span> Δx<span class="opt">)</span>
+    <span class="kwa">end</span>
+    e
+<span class="kwa">end</span>
+
+<span class="slc"># Mutate bodies array according to symplectic integrator in advance!</span>
+<span class="slc"># for n iterations.</span>
+<span class="kwd">nbody</span><span class="opt">!(</span>bodies<span class="opt">,</span> n<span class="opt">) =</span> <span class="kwa">for</span> i<span class="opt">=</span><span class="num">1</span><span class="opt">:</span>n
+    <span class="kwd">advance</span><span class="opt">!(</span>bodies<span class="opt">)</span>
+<span class="kwa">end</span>
+
+<span class="slc"># Doing the allocation of the Vector{Body} as a global constant</span>
+<span class="slc"># instead of within the nbody! function speeds up inference</span>
+<span class="slc"># considerably. Inference takes less than 60% of the time it would</span>
+<span class="slc"># otherwise for an overall speedup of 2%-3%.</span>
+<span class="kwa">const</span> bodies <span class="opt">= [</span>
+    <span class="slc"># Jupiter</span>
+    <span class="kwd">Body</span><span class="opt">((</span> <span class="num">4.84143144246472090e+0</span><span class="opt">,</span>                <span class="slc"># x</span>
+          <span class="opt">-</span><span class="num">1.16032004402742839e+0</span><span class="opt">,</span>                <span class="slc"># y</span>
+          <span class="opt">-</span><span class="num">1.03622044471123109e-1</span><span class="opt">),</span>               <span class="slc"># z</span>
+         <span class="opt">(</span> <span class="num">1.66007664274403694e-3</span>DAYS_PER_YEAR<span class="opt">,</span>   <span class="slc"># vx</span>
+           <span class="num">7.69901118419740425e-3</span>DAYS_PER_YEAR<span class="opt">,</span>   <span class="slc"># vy</span>
+          <span class="opt">-</span><span class="num">6.90460016972063023e-5</span>DAYS_PER_YEAR<span class="opt">),</span>  <span class="slc"># vz</span>
+           <span class="num">9.54791938424326609e-4</span>SOLAR_MASS<span class="opt">)</span>      <span class="slc"># mass</span>
+    <span class="slc"># Saturn</span>
+    <span class="kwd">Body</span><span class="opt">((</span> <span class="num">8.34336671824457987e+0</span><span class="opt">,</span>
+           <span class="num">4.12479856412430479e+0</span><span class="opt">,</span>
+          <span class="opt">-</span><span class="num">4.03523417114321381e-1</span><span class="opt">),</span>
+         <span class="opt">(-</span><span class="num">2.76742510726862411e-3</span>DAYS_PER_YEAR<span class="opt">,</span>
+           <span class="num">4.99852801234917238e-3</span>DAYS_PER_YEAR<span class="opt">,</span>
+           <span class="num">2.30417297573763929e-5</span>DAYS_PER_YEAR<span class="opt">),</span>
+           <span class="num">2.85885980666130812e-4</span>SOLAR_MASS<span class="opt">)</span>
+    <span class="slc"># Uranus</span>
+    <span class="kwd">Body</span><span class="opt">((</span> <span class="num">1.28943695621391310e+1</span><span class="opt">,</span>
+          <span class="opt">-</span><span class="num">1.51111514016986312e+1</span><span class="opt">,</span>
+          <span class="opt">-</span><span class="num">2.23307578892655734e-1</span><span class="opt">),</span>
+         <span class="opt">(</span> <span class="num">2.96460137564761618e-3</span>DAYS_PER_YEAR<span class="opt">,</span>
+           <span class="num">2.37847173959480950e-3</span>DAYS_PER_YEAR<span class="opt">,</span>
+          <span class="opt">-</span><span class="num">2.96589568540237556e-5</span>DAYS_PER_YEAR<span class="opt">),</span>
+           <span class="num">4.36624404335156298e-5</span>SOLAR_MASS<span class="opt">)</span>
+    <span class="slc"># Neptune</span>
+    <span class="kwd">Body</span><span class="opt">((</span> <span class="num">1.53796971148509165e+1</span><span class="opt">,</span>
+          <span class="opt">-</span><span class="num">2.59193146099879641e+1</span><span class="opt">,</span>
+           <span class="num">1.79258772950371181e-1</span><span class="opt">),</span>
+         <span class="opt">(</span> <span class="num">2.68067772490389322e-3</span>DAYS_PER_YEAR<span class="opt">,</span>
+           <span class="num">1.62824170038242295e-3</span>DAYS_PER_YEAR<span class="opt">,</span>
+          <span class="opt">-</span><span class="num">9.51592254519715870e-5</span>DAYS_PER_YEAR<span class="opt">),</span>
+           <span class="num">5.15138902046611451e-5</span>SOLAR_MASS<span class="opt">)</span>
+<span class="opt">]</span>
+<span class="kwd">push</span><span class="opt">!(</span>bodies<span class="opt">,</span> <span class="kwd">init_sun</span><span class="opt">(</span>bodies<span class="opt">))</span>
+
+<span class="kwa">if</span> <span class="opt">!</span><span class="kwd">isinteractive</span><span class="opt">()</span>
+    <span class="kwc">&#64;printf</span><span class="opt">(</span><span class="str">&quot;%.9f</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span> <span class="kwd">energy</span><span class="opt">(</span>bodies<span class="opt">))</span>
+    <span class="kwd">nbody</span><span class="opt">!(</span>bodies<span class="opt">,</span> <span class="kwd">parse</span><span class="opt">(</span>Int<span class="opt">,</span> ARGS<span class="opt">[</span><span class="num">1</span><span class="opt">]))</span>
+    <span class="kwc">&#64;printf</span><span class="opt">(</span><span class="str">&quot;%.9f</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span> <span class="kwd">energy</span><span class="opt">(</span>bodies<span class="opt">))</span>
+<span class="kwa">end</span>
+    </pre>
+  </section>
+  <section>
+    <div>
+      <h2 id="log">notes, command-line, and program output</h2>
+    </div>
+    <pre>
+NOTES:
+64-bit Ubuntu quad core
+julia version 1.3.0
+
+
+Fri, 21 Feb 2020 21:51:51 GMT
+
+MAKE:
+printenv JULIA_NUM_THREADS
+4
+printenv JULIA_LLVM_ARGS
+-unroll-threshold=500
+
+0.18s to complete and log all make actions
+
+COMMAND LINE:
+/opt/src/julia-1.3.0/bin/julia -O3 --cpu-target=core2  -- nbody.julia-6.julia 50000000
+
+PROGRAM OUTPUT:
+-0.169075164
+-0.169059907
+    </pre>
+  </section>
+</article>
+<footer>
+  <nav>
+    <ul>
+      <li><a href="https://salsa.debian.org/benchmarksgame-team/benchmarksgame/blob/master/CONTRIBUTING.md#contribute-source-code-for-measurement"><span>Contribute your own program</span></a>
+      <li><a href="../license.html"><span>3-Clause BSD License</span></a>
+    </ul>
+  </nav>
+</footer>
+
