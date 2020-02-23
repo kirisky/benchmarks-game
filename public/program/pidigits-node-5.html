@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,follow,noarchive">
+
+<title>pidigits Node js&nbsp;#5 program | Computer Language Benchmarks Game </title>
+<style><!--
+a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,header{margin:auto;width:92%}body{font:100% Droid Sans, Ubuntu, Verdana, sans-serif;margin:0;-webkit-text-size-adjust:100%}h3, h1, h2, li a{font-family:Ubuntu Mono,Consolas,Menlo,monospace}div,footer,header{max-width:31em}footer{padding:2.6em 0 0}h3{font-size:1.4em;font-weight:bold;margin:0;padding: .4em}h3, h3 a{color:white;background-color:#dd4814}h3 small{font-size:0.64em}h1,h2{margin:1.5em 0 0}h1{font-size:1.4em;font-weight:normal}h2{font-size:1.2em}li{list-style-type:none;vertical-align:top}li a{display:block;font-size:1.2em;margin: .5em .5em 0;padding: .5em .5em .3em}ul{clear:left;margin:-0.3em 0 1.5em;padding-left:0;text-align:center}p{color:#333;line-height:1.4;margin: .3em 0 0}p a, a span{border-bottom: .1em solid #333;padding-bottom: .1em}.com,.slc{color:#888}.kwa{color:#066}.kwb{color:#900}.kwc{color:#050}.kwa,.kwb,.kwc{font-weight:bold}.dstr,.str,.sym,.num{color:#930}pre{color:#222;font-size:1em;overflow-wrap:break-word;white-space:pre-wrap;word-wrap:break-word}@media only screen and (min-width: 60em){article,footer,header{font-size:1.25em}}
+--></style>
+<link rel="shortcut icon" href="./favicon.ico">
+<header>
+  <h3><a href="https://benchmarksgame-team.pages.debian.net/benchmarksgame/">The&nbsp;<small>Computer&nbsp;Language</small><br>Benchmarks&nbsp;Game</a></h3>
+</header>
+<article>
+  <div>
+    <h1>pidigits Node js&nbsp;#5 program</h1>
+    <aside>
+      <p><a href="../description/pidigits.html#pidigits">description</a>
+    </aside>
+  </div>
+  <section>
+    <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="com">/* The Computer Language Benchmarks Game</span>
+<span class="com"> * https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="com"> *</span>
+<span class="com"> * contributed by Denis Gribov</span>
+<span class="com"> *    a translation of the C program contributed by Mr Ledhug</span>
+<span class="com"> *</span>
+<span class="com"> * js BigInt replaced with gmplib by Andrey Filatkin</span>
+<span class="com"> */</span>
+
+<span class="kwa">const</span> MPZ <span class="opt">=</span> <span class="kwd">require</span><span class="opt">(</span><span class="str">&apos;mpzjs&apos;</span><span class="opt">);</span>
+
+<span class="kwa">const</span> n <span class="opt">= +</span>process<span class="opt">.</span>argv<span class="opt">[</span><span class="num">2</span><span class="opt">] ||</span> <span class="num">10000</span><span class="opt">;</span>
+
+<span class="kwa">const</span> char0 <span class="opt">=</span> <span class="str">&apos;0&apos;</span><span class="opt">.</span><span class="kwd">charCodeAt</span><span class="opt">(</span><span class="num">0</span><span class="opt">);</span>
+<span class="kwa">const</span> charT <span class="opt">=</span> <span class="str">&apos;</span><span class="esc">\t</span><span class="str">&apos;</span><span class="opt">.</span><span class="kwd">charCodeAt</span><span class="opt">(</span><span class="num">0</span><span class="opt">);</span>
+<span class="kwa">const</span> charN <span class="opt">=</span> <span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span><span class="opt">.</span><span class="kwd">charCodeAt</span><span class="opt">(</span><span class="num">0</span><span class="opt">);</span>
+<span class="kwa">const</span> charC <span class="opt">=</span> <span class="str">&apos;:&apos;</span><span class="opt">.</span><span class="kwd">charCodeAt</span><span class="opt">(</span><span class="num">0</span><span class="opt">);</span>
+
+<span class="kwa">let</span> bufSize <span class="opt">= (</span><span class="num">10</span> <span class="opt">+</span> <span class="num">2</span> <span class="opt">+</span> n<span class="opt">.</span><span class="kwd">toString</span><span class="opt">().</span>length <span class="opt">+</span> <span class="num">1</span><span class="opt">) * (</span>n <span class="opt">/</span> <span class="num">10</span><span class="opt">);</span>
+<span class="kwa">for</span> <span class="opt">(</span><span class="kwa">let</span> i <span class="opt">=</span> <span class="num">10</span><span class="opt">,</span> ii <span class="opt">=</span> <span class="num">10</span> <span class="opt">** (</span>Math<span class="opt">.</span><span class="kwd">log10</span><span class="opt">(</span>n<span class="opt">) &gt;&gt;&gt;</span> <span class="num">0</span><span class="opt">);</span> i <span class="opt">&lt;</span> ii<span class="opt">;</span> i <span class="opt">*=</span> <span class="num">10</span><span class="opt">) {</span>
+    bufSize <span class="opt">-=</span> i <span class="opt">-</span> <span class="num">1</span><span class="opt">;</span>
+<span class="opt">}</span>
+
+<span class="kwa">const</span> buf <span class="opt">=</span> Buffer<span class="opt">.</span><span class="kwd">allocUnsafe</span><span class="opt">(</span>bufSize<span class="opt">);</span>
+<span class="kwa">let</span> bufOffs <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+
+<span class="kwa">let</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+<span class="kwa">let</span> k <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+<span class="kwa">let</span> k2 <span class="opt">=</span> <span class="num">1</span><span class="opt">;</span>
+<span class="kwa">const</span> acc <span class="opt">=</span> <span class="kwd">MPZ</span><span class="opt">(</span><span class="num">0</span><span class="opt">);</span>
+<span class="kwa">const</span> den <span class="opt">=</span> <span class="kwd">MPZ</span><span class="opt">(</span><span class="num">1</span><span class="opt">);</span>
+<span class="kwa">const</span> num <span class="opt">=</span> <span class="kwd">MPZ</span><span class="opt">(</span><span class="num">1</span><span class="opt">);</span>
+<span class="kwa">const</span> tmp <span class="opt">=</span> <span class="kwd">MPZ</span><span class="opt">();</span>
+<span class="kwa">const</span> d3 <span class="opt">=</span> <span class="kwd">MPZ</span><span class="opt">();</span>
+<span class="kwa">const</span> d4 <span class="opt">=</span> <span class="kwd">MPZ</span><span class="opt">();</span>
+
+<span class="kwa">while</span> <span class="opt">(</span>i <span class="opt">&lt;</span> n<span class="opt">) {</span>
+    k<span class="opt">++;</span>
+    k2 <span class="opt">+=</span> <span class="num">2</span><span class="opt">;</span>
+
+    MPZ<span class="opt">.</span><span class="kwd">addMul</span><span class="opt">(</span>acc<span class="opt">,</span> num<span class="opt">,</span> <span class="num">2</span><span class="opt">);</span>
+    MPZ<span class="opt">.</span><span class="kwd">mul</span><span class="opt">(</span>acc<span class="opt">,</span> acc<span class="opt">,</span> k2<span class="opt">);</span>
+    MPZ<span class="opt">.</span><span class="kwd">mul</span><span class="opt">(</span>den<span class="opt">,</span> den<span class="opt">,</span> k2<span class="opt">);</span>
+    MPZ<span class="opt">.</span><span class="kwd">mul</span><span class="opt">(</span>num<span class="opt">,</span> num<span class="opt">,</span> k<span class="opt">);</span>
+
+    <span class="kwa">if</span> <span class="opt">(</span>num<span class="opt">.</span><span class="kwd">gt</span><span class="opt">(</span>acc<span class="opt">)) {</span>
+        <span class="kwa">continue</span><span class="opt">;</span>
+    <span class="opt">}</span>
+
+    MPZ<span class="opt">.</span><span class="kwd">mul</span><span class="opt">(</span>tmp<span class="opt">,</span> num<span class="opt">,</span> <span class="num">3</span><span class="opt">);</span>
+    MPZ<span class="opt">.</span><span class="kwd">add</span><span class="opt">(</span>tmp<span class="opt">,</span> tmp<span class="opt">,</span> acc<span class="opt">);</span>
+    MPZ<span class="opt">.</span><span class="kwd">div</span><span class="opt">(</span>d3<span class="opt">,</span> tmp<span class="opt">,</span> den<span class="opt">);</span>
+
+    MPZ<span class="opt">.</span><span class="kwd">add</span><span class="opt">(</span>tmp<span class="opt">,</span> tmp<span class="opt">,</span> num<span class="opt">);</span>
+    MPZ<span class="opt">.</span><span class="kwd">div</span><span class="opt">(</span>d4<span class="opt">,</span> tmp<span class="opt">,</span> den<span class="opt">);</span>
+
+    <span class="kwa">if</span> <span class="opt">(</span>d3<span class="opt">.</span><span class="kwd">ne</span><span class="opt">(</span>d4<span class="opt">)) {</span>
+        <span class="kwa">continue</span><span class="opt">;</span>
+    <span class="opt">}</span>
+
+    <span class="kwa">const</span> d <span class="opt">=</span> d3<span class="opt">.</span><span class="kwd">toNumber</span><span class="opt">();</span>
+    buf<span class="opt">.</span><span class="kwd">writeInt8</span><span class="opt">(</span>d <span class="opt">+</span> char0<span class="opt">,</span> bufOffs<span class="opt">++);</span>
+    i<span class="opt">++;</span>
+    <span class="kwa">if</span> <span class="opt">(</span>i <span class="opt">%</span> <span class="num">10</span> <span class="opt">===</span> <span class="num">0</span><span class="opt">) {</span>
+        <span class="kwd">writeLineEnd</span><span class="opt">(</span>i<span class="opt">);</span>
+    <span class="opt">}</span>
+
+    MPZ<span class="opt">.</span><span class="kwd">subMul</span><span class="opt">(</span>acc<span class="opt">,</span> den<span class="opt">,</span> d<span class="opt">);</span>
+    MPZ<span class="opt">.</span><span class="kwd">mul</span><span class="opt">(</span>acc<span class="opt">,</span> acc<span class="opt">,</span> <span class="num">10</span><span class="opt">);</span>
+    MPZ<span class="opt">.</span><span class="kwd">mul</span><span class="opt">(</span>num<span class="opt">,</span> num<span class="opt">,</span> <span class="num">10</span><span class="opt">);</span>
+<span class="opt">}</span>
+
+<span class="kwa">function</span> <span class="kwd">writeLineEnd</span><span class="opt">(</span>i<span class="opt">) {</span>
+    buf<span class="opt">.</span><span class="kwd">writeInt8</span><span class="opt">(</span>charT<span class="opt">,</span> bufOffs<span class="opt">++);</span>
+    buf<span class="opt">.</span><span class="kwd">writeInt8</span><span class="opt">(</span>charC<span class="opt">,</span> bufOffs<span class="opt">++);</span>
+
+    <span class="kwa">let</span> str <span class="opt">=</span> i<span class="opt">.</span><span class="kwd">toString</span><span class="opt">();</span>
+    buf<span class="opt">.</span><span class="kwd">write</span><span class="opt">(</span>str<span class="opt">,</span> bufOffs<span class="opt">,</span> bufOffs <span class="opt">+=</span> str<span class="opt">.</span>length<span class="opt">);</span>
+
+    buf<span class="opt">.</span><span class="kwd">writeInt8</span><span class="opt">(</span>charN<span class="opt">,</span> bufOffs<span class="opt">++);</span>
+<span class="opt">}</span>
+
+process<span class="opt">.</span>stdout<span class="opt">.</span><span class="kwd">write</span><span class="opt">(</span>buf<span class="opt">);</span>
+    </pre>
+  </section>
+  <section>
+    <div>
+      <h2 id="log">notes, command-line, and program output</h2>
+    </div>
+    <pre>
+NOTES:
+64-bit Ubuntu quad core
+v13.9.0
+
+
+Sun, 23 Feb 2020 16:42:53 GMT
+
+MAKE:
+cp -L pidigits.node-5.node pidigits.node-5.js
+
+0.20s to complete and log all make actions
+
+COMMAND LINE:
+/opt/src/node-v13.9.0-linux-x64/bin/node pidigits.node-5.js 2000
+
+PROGRAM FAILED 
+
+
+PROGRAM OUTPUT:
+
+internal/buffer.js:729
+    throw new ERR_OUT_OF_RANGE('value', `&gt;= ${min} and &lt;= ${max}`, value);
+    ^
+
+RangeError [ERR_OUT_OF_RANGE]: The value of &quot;value&quot; is out of range. It must be &gt;= -128 and &lt;= 127. Received 4_611_686_018_427_388_000
+    at writeU_Int8 (internal/buffer.js:729:11)
+    at Buffer.writeInt8 (internal/buffer.js:860:10)
+    at Object.&lt;anonymous&gt; (/home/dunham/benchmarksgame_quadcore/pidigits/tmp/pidigits.node-5.js:62:9)
+    at Module._compile (internal/modules/cjs/loader.js:1151:30)
+    at Object.Module._extensions..js (internal/modules/cjs/loader.js:1171:10)
+    at Module.load (internal/modules/cjs/loader.js:1000:32)
+    at Function.Module._load (internal/modules/cjs/loader.js:899:14)
+    at Function.executeUserEntryPoint [as runMain] (internal/modules/run_main.js:71:12)
+    at internal/main/run_main_module.js:17:47 {
+  code: 'ERR_OUT_OF_RANGE'
+}
+    </pre>
+  </section>
+</article>
+<footer>
+  <nav>
+    <ul>
+      <li><a href="https://salsa.debian.org/benchmarksgame-team/benchmarksgame/blob/master/CONTRIBUTING.md#contribute-source-code-for-measurement"><span>Contribute your own program</span></a>
+      <li><a href="../license.html"><span>3-Clause BSD License</span></a>
+    </ul>
+  </nav>
+</footer>
+
