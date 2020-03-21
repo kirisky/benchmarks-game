@@ -18,89 +18,268 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
     </aside>
   </div>
   <section>
-    </div>
+    <div>
       <h2>source code</h2>
     </div>
     <pre>
 <span class="com">/* The Computer Language Benchmarks Game</span>
 <span class="com">   https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
 <span class="com"></span>
-<span class="com">   contributed by Isaac Gouy, transliterated from Mike Pall&apos;s Lua program </span>
-<span class="com">   modified by Roman Pletnev</span>
-<span class="com">   transliterated from JavaScript to TypeScript by Isaac Gouy</span>
+<span class="com">   contributed by Andrey Filatkin</span>
+<span class="com">   based on Go source code by Oleg Mazurov</span>
+<span class="com">   converted by Isaac Gouy</span>
 <span class="com">*/</span>
 
-<span class="slc">/// &lt;reference path=&quot;./Include/node/index.d.ts&quot; /&gt;</span>
+<span class="kwa">import</span> <span class="opt">{</span> Worker<span class="opt">,</span> isMainThread<span class="opt">,</span> parentPort<span class="opt">,</span> workerData <span class="opt">}</span> from <span class="str">&apos;worker_threads&apos;</span><span class="opt">;</span>
+<span class="kwa">const</span> os <span class="opt">=</span> <span class="kwd">require</span><span class="opt">(</span><span class="str">&apos;os&apos;</span><span class="opt">);</span>
 
-<span class="kwa">function</span> <span class="kwd">fannkuch</span><span class="opt">(</span>n<span class="opt">:</span> <span class="kwb">number</span><span class="opt">): [</span><span class="kwb">number</span><span class="opt">,</span><span class="kwb">number</span><span class="opt">] {</span>
-   <span class="kwa">const</span> p <span class="opt">=</span> <span class="kwa">new</span> <span class="kwd">Int32Array</span><span class="opt">(</span>n<span class="opt">),</span> q <span class="opt">=</span> <span class="kwa">new</span> <span class="kwd">Int32Array</span><span class="opt">(</span>n<span class="opt">),</span> s <span class="opt">=</span> <span class="kwa">new</span> <span class="kwd">Int32Array</span><span class="opt">(</span>n<span class="opt">);</span>
-   <span class="kwa">let</span> sign <span class="opt">=</span> <span class="num">1</span><span class="opt">,</span> maxflips <span class="opt">=</span> <span class="num">0</span><span class="opt">,</span> sum <span class="opt">=</span> <span class="num">0</span><span class="opt">,</span> m <span class="opt">=</span> n<span class="opt">-</span><span class="num">1</span><span class="opt">;</span>
-   <span class="kwa">for</span><span class="opt">(</span><span class="kwa">let</span> i<span class="opt">=</span><span class="num">0</span><span class="opt">;</span> i<span class="opt">&lt;</span>n<span class="opt">;</span> i<span class="opt">++){</span> p<span class="opt">[</span>i<span class="opt">] =</span> i<span class="opt">;</span> q<span class="opt">[</span>i<span class="opt">] =</span> i<span class="opt">;</span> s<span class="opt">[</span>i<span class="opt">] =</span> i<span class="opt">; }</span>
-   <span class="kwa">do</span> <span class="opt">{</span>
-      <span class="slc">// Copy and flip.</span>
-      <span class="kwa">let</span> q0 <span class="opt">=</span> p<span class="opt">[</span><span class="num">0</span><span class="opt">];</span>                                     <span class="slc">// Cache 0th element.</span>
-      <span class="kwa">if</span> <span class="opt">(</span>q0 <span class="opt">!=</span> <span class="num">0</span><span class="opt">){</span>
-         <span class="kwa">for</span><span class="opt">(</span><span class="kwa">let</span> i<span class="opt">=</span><span class="num">1</span><span class="opt">;</span> i<span class="opt">&lt;</span>n<span class="opt">;</span> i<span class="opt">++)</span> q<span class="opt">[</span>i<span class="opt">] =</span> p<span class="opt">[</span>i<span class="opt">];</span>             <span class="slc">// Work on a copy.</span>
-         <span class="kwa">let</span> flips <span class="opt">=</span> <span class="num">1</span><span class="opt">;</span>
-         <span class="kwa">do</span> <span class="opt">{</span> 
-            <span class="kwa">let</span> qq <span class="opt">=</span> q<span class="opt">[</span>q0<span class="opt">];</span> 
-            <span class="kwa">if</span> <span class="opt">(</span>qq <span class="opt">===</span> <span class="num">0</span><span class="opt">){</span>                               <span class="slc">// ... until 0th element is 0.</span>
-               sum <span class="opt">+=</span> sign<span class="opt">*</span>flips<span class="opt">;</span>
-	       <span class="kwa">if</span> <span class="opt">(</span>flips <span class="opt">&gt;</span> maxflips<span class="opt">)</span> maxflips <span class="opt">=</span> flips<span class="opt">;</span>   <span class="slc">// New maximum?</span>
-               <span class="kwa">break</span><span class="opt">;</span> 
-            <span class="opt">}</span> 
- 	    q<span class="opt">[</span>q0<span class="opt">] =</span> q0<span class="opt">;</span> 
-	    <span class="kwa">if</span> <span class="opt">(</span>q0 <span class="opt">&gt;=</span> <span class="num">3</span><span class="opt">){</span>
-	       <span class="kwa">let</span> i <span class="opt">=</span> <span class="num">1</span><span class="opt">,</span> j <span class="opt">=</span> q0 <span class="opt">-</span> <span class="num">1</span><span class="opt">,</span> t<span class="opt">;</span>
-               <span class="kwa">do</span> <span class="opt">{</span> t <span class="opt">=</span> q<span class="opt">[</span>i<span class="opt">];</span> q<span class="opt">[</span>i<span class="opt">] =</span> q<span class="opt">[</span>j<span class="opt">];</span> q<span class="opt">[</span>j<span class="opt">] =</span> t<span class="opt">;</span> i<span class="opt">++;</span> j<span class="opt">--; }</span> <span class="kwa">while</span> <span class="opt">(</span>i <span class="opt">&lt;</span> j<span class="opt">);</span> 
-            <span class="opt">}</span>
-	    q0 <span class="opt">=</span> qq<span class="opt">;</span> flips<span class="opt">++;</span>
-         <span class="opt">}</span> <span class="kwa">while</span> <span class="opt">(</span><span class="kwb">true</span><span class="opt">);</span> 
-      <span class="opt">}</span>
-      <span class="slc">// Permute.</span>
-      <span class="kwa">if</span> <span class="opt">(</span>sign <span class="opt">===</span> <span class="num">1</span><span class="opt">){</span>
-         <span class="kwa">let</span> t <span class="opt">=</span> p<span class="opt">[</span><span class="num">1</span><span class="opt">];</span> p<span class="opt">[</span><span class="num">1</span><span class="opt">] =</span> p<span class="opt">[</span><span class="num">0</span><span class="opt">];</span> p<span class="opt">[</span><span class="num">0</span><span class="opt">] =</span> t<span class="opt">;</span> sign <span class="opt">= -</span><span class="num">1</span><span class="opt">;</span> <span class="slc">// Rotate 0&lt;-1.</span>
-      <span class="opt">}</span> <span class="kwa">else</span> <span class="opt">{</span> 
-         <span class="kwa">let</span> t <span class="opt">=</span> p<span class="opt">[</span><span class="num">1</span><span class="opt">];</span> p<span class="opt">[</span><span class="num">1</span><span class="opt">] =</span> p<span class="opt">[</span><span class="num">2</span><span class="opt">];</span> p<span class="opt">[</span><span class="num">2</span><span class="opt">] =</span> t<span class="opt">;</span> sign <span class="opt">=</span> <span class="num">1</span><span class="opt">;</span>  <span class="slc">// Rotate 0&lt;-1 and 0&lt;-1&lt;-2.</span>
-         <span class="kwa">for</span><span class="opt">(</span><span class="kwa">let</span> i<span class="opt">=</span><span class="num">2</span><span class="opt">;</span> i<span class="opt">&lt;</span>n<span class="opt">;</span> i<span class="opt">++){</span> 
-	    <span class="kwa">let</span> sx <span class="opt">=</span> s<span class="opt">[</span>i<span class="opt">];</span>
-	    <span class="kwa">if</span> <span class="opt">(</span>sx <span class="opt">!=</span> <span class="num">0</span><span class="opt">){</span> s<span class="opt">[</span>i<span class="opt">] =</span> sx<span class="opt">-</span><span class="num">1</span><span class="opt">;</span> <span class="kwa">break</span><span class="opt">; }</span>
-	    <span class="kwa">if</span> <span class="opt">(</span>i <span class="opt">===</span> m<span class="opt">)</span> <span class="kwa">return</span> <span class="opt">[</span>sum<span class="opt">,</span>maxflips<span class="opt">];</span>      <span class="slc">// Out of permutations.</span>
-	    s<span class="opt">[</span>i<span class="opt">] =</span> i<span class="opt">;</span>
-	    <span class="slc">// Rotate 0&lt;-...&lt;-i+1.</span>
-	    t <span class="opt">=</span> p<span class="opt">[</span><span class="num">0</span><span class="opt">];</span> <span class="kwa">for</span><span class="opt">(</span><span class="kwa">var</span> j<span class="opt">=</span><span class="num">0</span><span class="opt">;</span> j<span class="opt">&lt;=</span>i<span class="opt">;</span> j<span class="opt">++){</span> p<span class="opt">[</span>j<span class="opt">] =</span> p<span class="opt">[</span>j<span class="opt">+</span><span class="num">1</span><span class="opt">]; }</span> p<span class="opt">[</span>i<span class="opt">+</span><span class="num">1</span><span class="opt">] =</span> t<span class="opt">;</span>
-         <span class="opt">}</span>
-      <span class="opt">}</span>
-   <span class="opt">}</span> <span class="kwa">while</span> <span class="opt">(</span><span class="kwb">true</span><span class="opt">);</span>
+<span class="kwa">const</span> fact<span class="opt">:</span> <span class="kwb">number</span><span class="opt">[] = [];</span>
+
+<span class="kwa">function</span> <span class="kwd">fillFact</span><span class="opt">(</span>n<span class="opt">:</span> <span class="kwb">number</span><span class="opt">) {</span>
+    fact<span class="opt">[</span><span class="num">0</span><span class="opt">] =</span> <span class="num">1</span><span class="opt">;</span>
+    <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">let</span> i <span class="opt">=</span> <span class="num">1</span><span class="opt">;</span> i <span class="opt">&lt;=</span> n<span class="opt">;</span> i<span class="opt">++) {</span>
+        fact<span class="opt">[</span>i<span class="opt">] =</span> fact<span class="opt">[</span>i <span class="opt">-</span> <span class="num">1</span><span class="opt">] *</span> i<span class="opt">;</span>
+    <span class="opt">}</span>
 <span class="opt">}</span>
 
-<span class="kwa">const</span> n<span class="opt">:</span> <span class="kwb">number</span> <span class="opt">= +</span>process<span class="opt">.</span>argv<span class="opt">[</span><span class="num">2</span><span class="opt">];</span>
-<span class="kwa">const</span> pf <span class="opt">=</span> <span class="kwd">fannkuch</span><span class="opt">(</span>n<span class="opt">);</span>
-console<span class="opt">.</span><span class="kwd">log</span><span class="opt">(</span>pf<span class="opt">[</span><span class="num">0</span><span class="opt">] +</span> <span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span> <span class="opt">+</span> <span class="str">&quot;Pfannkuchen(&quot;</span> <span class="opt">+</span> n <span class="opt">+</span> <span class="str">&quot;) = &quot;</span> <span class="opt">+</span> pf<span class="opt">[</span><span class="num">1</span><span class="opt">]);</span>
+<span class="kwa">function</span> <span class="kwd">fannkuch</span><span class="opt">(</span>n<span class="opt">:</span> <span class="kwb">number</span><span class="opt">) {</span>
+    <span class="kwa">return function</span> <span class="opt">({</span>idxMin<span class="opt">,</span> idxMax<span class="opt">}:</span> Indexes<span class="opt">) {</span>
+        <span class="kwa">const</span> p <span class="opt">=</span> <span class="kwb">Array</span><span class="opt">(</span>n<span class="opt">);</span>
+        <span class="kwa">const</span> pp <span class="opt">=</span> <span class="kwb">Array</span><span class="opt">(</span>n<span class="opt">);</span>
+        <span class="kwa">const</span> count <span class="opt">=</span> <span class="kwb">Array</span><span class="opt">(</span>n<span class="opt">);</span>
+
+        <span class="slc">// first permutation</span>
+        <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">let</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> n<span class="opt">;</span> i<span class="opt">++) {</span>
+            p<span class="opt">[</span>i<span class="opt">] =</span> i<span class="opt">;</span>
+        <span class="opt">}</span>
+        <span class="kwa">let</span> idx <span class="opt">=</span> idxMin<span class="opt">;</span>
+        <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">let</span> i <span class="opt">=</span> n <span class="opt">-</span> <span class="num">1</span><span class="opt">;</span> i <span class="opt">&gt;</span> <span class="num">0</span><span class="opt">;</span> i<span class="opt">--) {</span>
+            <span class="kwa">const</span> d <span class="opt">=</span> <span class="kwd">div</span><span class="opt">(</span>idx<span class="opt">,</span> fact<span class="opt">[</span>i<span class="opt">]);</span>
+            count<span class="opt">[</span>i<span class="opt">] =</span> d<span class="opt">;</span>
+            idx <span class="opt">=</span> idx <span class="opt">%</span> fact<span class="opt">[</span>i<span class="opt">];</span>
+
+            <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">let</span> j <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> j <span class="opt">&lt;</span> n<span class="opt">;</span> j<span class="opt">++) {</span>
+                pp<span class="opt">[</span>j<span class="opt">] =</span> p<span class="opt">[</span>j<span class="opt">];</span>
+            <span class="opt">}</span>
+
+            <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">let</span> j <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> j <span class="opt">&lt;=</span> i<span class="opt">;</span> j<span class="opt">++) {</span>
+                <span class="kwa">if</span> <span class="opt">(</span>j <span class="opt">+</span> d <span class="opt">&lt;=</span> i<span class="opt">) {</span>
+                    p<span class="opt">[</span>j<span class="opt">] =</span> pp<span class="opt">[</span>j <span class="opt">+</span> d<span class="opt">];</span>
+                <span class="opt">}</span> <span class="kwa">else</span> <span class="opt">{</span>
+                    p<span class="opt">[</span>j<span class="opt">] =</span> pp<span class="opt">[</span>j <span class="opt">+</span> d <span class="opt">-</span> i <span class="opt">-</span> <span class="num">1</span><span class="opt">];</span>
+                <span class="opt">}</span>
+            <span class="opt">}</span>
+        <span class="opt">}</span>
+
+        <span class="kwa">let</span> maxFlips <span class="opt">=</span> <span class="num">1</span><span class="opt">;</span>
+        <span class="kwa">let</span> checkSum <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+
+        idx <span class="opt">=</span> idxMin<span class="opt">;</span>
+        <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">let</span> sign <span class="opt">=</span> <span class="kwb">true</span><span class="opt">; ;</span> sign <span class="opt">= !</span>sign<span class="opt">) {</span>
+            <span class="kwa">let</span> first <span class="opt">=</span> p<span class="opt">[</span><span class="num">0</span><span class="opt">];</span>
+            <span class="kwa">if</span> <span class="opt">(</span>first <span class="opt">!==</span> <span class="num">0</span><span class="opt">) {</span>
+                <span class="kwa">let</span> flips <span class="opt">=</span> <span class="num">1</span><span class="opt">;</span>
+                <span class="kwa">if</span> <span class="opt">(</span>p<span class="opt">[</span>first<span class="opt">] !==</span> <span class="num">0</span><span class="opt">) {</span>
+                    <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">let</span> j <span class="opt">=</span> <span class="num">1</span><span class="opt">;</span> j <span class="opt">&lt;</span> n<span class="opt">;</span> j<span class="opt">++) {</span>
+                        pp<span class="opt">[</span>j<span class="opt">] =</span> p<span class="opt">[</span>j<span class="opt">];</span>
+                    <span class="opt">}</span>
+                    <span class="kwa">let</span> p0 <span class="opt">=</span> first<span class="opt">;</span>
+                    <span class="kwa">while</span> <span class="opt">(</span><span class="kwb">true</span><span class="opt">) {</span>
+                        flips<span class="opt">++;</span>
+                        <span class="kwa">let</span> i <span class="opt">=</span> <span class="num">1</span><span class="opt">;</span>
+                        <span class="kwa">let</span> j <span class="opt">=</span> p0 <span class="opt">-</span> <span class="num">1</span><span class="opt">;</span>
+                        <span class="kwa">while</span> <span class="opt">(</span>i <span class="opt">&lt;</span> j<span class="opt">) {</span>
+                            <span class="kwa">const</span> t <span class="opt">=</span> pp<span class="opt">[</span>i<span class="opt">];</span>
+                            pp<span class="opt">[</span>i<span class="opt">] =</span> pp<span class="opt">[</span>j<span class="opt">];</span>
+                            pp<span class="opt">[</span>j<span class="opt">] =</span> t<span class="opt">;</span>
+                            i<span class="opt">++;</span>
+                            j<span class="opt">--;</span>
+                        <span class="opt">}</span>
+                        <span class="kwa">const</span> t <span class="opt">=</span> pp<span class="opt">[</span>p0<span class="opt">];</span>
+                        pp<span class="opt">[</span>p0<span class="opt">] =</span> p0<span class="opt">;</span>
+                        p0 <span class="opt">=</span> t<span class="opt">;</span>
+                        <span class="kwa">if</span> <span class="opt">(</span>pp<span class="opt">[</span>p0<span class="opt">] ===</span> <span class="num">0</span><span class="opt">) {</span>
+                            <span class="kwa">break</span><span class="opt">;</span>
+                        <span class="opt">}</span>
+                    <span class="opt">}</span>
+                <span class="opt">}</span>
+                <span class="kwa">if</span> <span class="opt">(</span>maxFlips <span class="opt">&lt;</span> flips<span class="opt">) {</span>
+                    maxFlips <span class="opt">=</span> flips<span class="opt">;</span>
+                <span class="opt">}</span>
+                <span class="kwa">if</span> <span class="opt">(</span>sign<span class="opt">) {</span>
+                    checkSum <span class="opt">+=</span> flips<span class="opt">;</span>
+                <span class="opt">}</span> <span class="kwa">else</span> <span class="opt">{</span>
+                    checkSum <span class="opt">-=</span> flips<span class="opt">;</span>
+                <span class="opt">}</span>
+            <span class="opt">}</span>
+
+            idx<span class="opt">++;</span>
+            <span class="kwa">if</span> <span class="opt">(</span>idx <span class="opt">===</span> idxMax<span class="opt">) {</span>
+                <span class="kwa">break</span><span class="opt">;</span>
+            <span class="opt">}</span>
+
+            <span class="slc">// next permutation</span>
+            <span class="kwa">if</span> <span class="opt">(</span>sign<span class="opt">) {</span>
+                p<span class="opt">[</span><span class="num">0</span><span class="opt">] =</span> p<span class="opt">[</span><span class="num">1</span><span class="opt">];</span>
+                p<span class="opt">[</span><span class="num">1</span><span class="opt">] =</span> first<span class="opt">;</span>
+            <span class="opt">}</span> <span class="kwa">else</span> <span class="opt">{</span>
+                <span class="kwa">const</span> t <span class="opt">=</span> p<span class="opt">[</span><span class="num">1</span><span class="opt">];</span>
+                p<span class="opt">[</span><span class="num">1</span><span class="opt">] =</span> p<span class="opt">[</span><span class="num">2</span><span class="opt">];</span>
+                p<span class="opt">[</span><span class="num">2</span><span class="opt">] =</span> t<span class="opt">;</span>
+                <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">let</span> k <span class="opt">=</span> <span class="num">2</span><span class="opt">; ;</span> k<span class="opt">++) {</span>
+                    count<span class="opt">[</span>k<span class="opt">]++;</span>
+                    <span class="kwa">if</span> <span class="opt">(</span>count<span class="opt">[</span>k<span class="opt">] &lt;=</span> k<span class="opt">) {</span>
+                        <span class="kwa">break</span><span class="opt">;</span>
+                    <span class="opt">}</span>
+                    count<span class="opt">[</span>k<span class="opt">] =</span> <span class="num">0</span><span class="opt">;</span>
+                    <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">let</span> j <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> j <span class="opt">&lt;=</span> k<span class="opt">;</span> j<span class="opt">++) {</span>
+                        p<span class="opt">[</span>j<span class="opt">] =</span> p<span class="opt">[</span>j <span class="opt">+</span> <span class="num">1</span><span class="opt">];</span>
+                    <span class="opt">}</span>
+                    p<span class="opt">[</span>k <span class="opt">+</span> <span class="num">1</span><span class="opt">] =</span> first<span class="opt">;</span>
+                    first <span class="opt">=</span> p<span class="opt">[</span><span class="num">0</span><span class="opt">];</span>
+                <span class="opt">}</span>
+            <span class="opt">}</span>
+        <span class="opt">}</span>
+
+        <span class="kwa">return</span> <span class="opt">{</span>maxFlips<span class="opt">,</span> checkSum<span class="opt">};</span>
+    <span class="opt">}</span>
+<span class="opt">}</span>
+
+<span class="kwa">function</span> <span class="kwd">div</span><span class="opt">(</span>val<span class="opt">:</span> <span class="kwb">number</span><span class="opt">,</span> by<span class="opt">:</span> <span class="kwb">number</span><span class="opt">) {</span>
+    <span class="kwa">return</span> <span class="opt">(</span>val <span class="opt">-</span> val <span class="opt">%</span> by<span class="opt">) /</span> by<span class="opt">;</span>
+<span class="opt">}</span>
+
+<span class="kwa">if</span> <span class="opt">(</span>isMainThread<span class="opt">) {</span>
+    <span class="kwd">mainThread</span><span class="opt">(+</span>process<span class="opt">.</span>argv<span class="opt">[</span><span class="num">2</span><span class="opt">]);</span>
+<span class="opt">}</span> <span class="kwa">else</span> <span class="opt">{</span>
+    <span class="kwd">workerThread</span><span class="opt">(</span>workerData<span class="opt">);</span>
+<span class="opt">}</span>
+
+<span class="kwa">async function</span> <span class="kwd">mainThread</span><span class="opt">(</span>n<span class="opt">:</span> <span class="kwb">number</span><span class="opt">) {</span>
+    <span class="kwd">fillFact</span><span class="opt">(</span>n<span class="opt">);</span>
+
+    <span class="kwa">const</span> nchunks <span class="opt">=</span> <span class="num">720</span><span class="opt">;</span>
+    <span class="kwa">let</span> chunkSize <span class="opt">=</span> <span class="kwd">div</span><span class="opt">((</span>fact<span class="opt">[</span>n<span class="opt">] +</span> nchunks <span class="opt">-</span> <span class="num">1</span><span class="opt">),</span> nchunks<span class="opt">);</span>
+    chunkSize <span class="opt">+=</span> chunkSize <span class="opt">%</span> <span class="num">2</span><span class="opt">;</span>
+
+    <span class="kwa">const</span> tasks<span class="opt">:</span> Indexes<span class="opt">[] = [];</span>
+    <span class="kwa">const</span> len <span class="opt">=</span> <span class="kwd">div</span><span class="opt">((</span>fact<span class="opt">[</span>n<span class="opt">] +</span> chunkSize <span class="opt">-</span> <span class="num">1</span><span class="opt">),</span> chunkSize<span class="opt">);</span>
+    <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">let</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> len<span class="opt">;</span> i<span class="opt">++) {</span>
+        <span class="kwa">const</span> idxMin <span class="opt">=</span> chunkSize <span class="opt">*</span> i<span class="opt">;</span>
+        <span class="kwa">const</span> idxMax <span class="opt">=</span> <span class="kwb">Math</span><span class="opt">.</span><span class="kwd">min</span><span class="opt">(</span>fact<span class="opt">[</span>n<span class="opt">],</span> idxMin <span class="opt">+</span> chunkSize<span class="opt">);</span>
+        tasks<span class="opt">.</span><span class="kwd">push</span><span class="opt">({</span>idxMin<span class="opt">,</span> idxMax<span class="opt">});</span>
+    <span class="opt">}</span>
+
+    <span class="kwa">let</span> flips <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+    <span class="kwa">let</span> chk <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+
+    <span class="kwa">await</span> <span class="kwd">threadReduce</span><span class="opt">(</span>tasks<span class="opt">,</span> n<span class="opt">, ({</span>maxFlips<span class="opt">,</span> checkSum<span class="opt">}) =&gt; {</span>
+            <span class="kwa">if</span> <span class="opt">(</span>flips <span class="opt">&lt;</span> maxFlips<span class="opt">) {</span>
+                flips <span class="opt">=</span> maxFlips<span class="opt">;</span>
+            <span class="opt">}</span>
+            chk <span class="opt">+=</span> checkSum<span class="opt">;</span>
+        <span class="opt">});</span>
+
+    console<span class="opt">.</span><span class="kwd">log</span><span class="opt">(</span><span class="str">`</span><span class="ipl">${chk}</span><span class="str"></span><span class="esc">\n</span><span class="str">Pfannkuchen(</span><span class="ipl">${n}</span><span class="str">) =</span> <span class="ipl">${flips}</span><span class="str">`</span><span class="opt">);</span>
+<span class="opt">}</span>
+
+<span class="kwa">function</span> <span class="kwd">workerThread</span><span class="opt">(</span>n<span class="opt">:</span> <span class="kwb">number</span><span class="opt">) {</span>
+    <span class="kwd">fillFact</span><span class="opt">(</span>n<span class="opt">);</span>
+
+    <span class="kwd">runWorker</span><span class="opt">(</span><span class="kwd">fannkuch</span><span class="opt">(</span>n<span class="opt">));</span>
+<span class="opt">}</span>
+
+<span class="kwa">function</span> <span class="kwd">threadReduce</span><span class="opt">(</span>tasks<span class="opt">:</span> Indexes<span class="opt">[],</span> workerData<span class="opt">:</span> <span class="kwb">number</span><span class="opt">,</span> 
+        reducer<span class="opt">: (</span>_<span class="opt">:</span> Results<span class="opt">) =&gt;</span> <span class="kwb">void</span><span class="opt">):</span> Promise<span class="opt">&lt;</span>Results<span class="opt">&gt; {</span>
+    <span class="kwa">return new</span> <span class="kwd">Promise</span><span class="opt">(</span>resolve <span class="opt">=&gt; {</span>
+        <span class="kwa">const</span> size <span class="opt">=</span> os<span class="opt">.</span><span class="kwd">cpus</span><span class="opt">().</span>length<span class="opt">;</span>
+        <span class="kwa">const</span> workers <span class="opt">=</span> <span class="kwa">new</span> <span class="kwd">Set</span><span class="opt">();</span>
+        <span class="kwa">let</span> ind <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+
+        <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">let</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> size<span class="opt">;</span> i<span class="opt">++) {</span>
+            <span class="kwa">const</span> worker <span class="opt">=</span> <span class="kwa">new</span> <span class="kwd">Worker</span><span class="opt">(</span>__filename<span class="opt">, {</span>workerData<span class="opt">});</span>
+
+            worker<span class="opt">.</span><span class="kwd">on</span><span class="opt">(</span><span class="str">&apos;message&apos;</span><span class="opt">,</span> message <span class="opt">=&gt; {</span>
+                <span class="kwa">const</span> reply<span class="opt">:</span> Reply <span class="opt">=</span> message<span class="opt">.</span>reply<span class="opt">;</span>
+
+                <span class="kwa">if</span> <span class="opt">(</span>reply <span class="opt">===</span> <span class="str">&apos;result&apos;</span><span class="opt">) {</span>
+                    <span class="kwd">reducer</span><span class="opt">(</span>message<span class="opt">.</span>data<span class="opt">);</span>
+                <span class="opt">}</span>
+                <span class="kwa">if</span> <span class="opt">(</span>reply <span class="opt">===</span> <span class="str">&apos;ready&apos;</span> <span class="opt">||</span> reply <span class="opt">===</span> <span class="str">&apos;result&apos;</span><span class="opt">) {</span>
+                    <span class="kwa">if</span> <span class="opt">(</span>ind <span class="opt">&lt;</span> tasks<span class="opt">.</span>length<span class="opt">) {</span>
+                        <span class="kwa">const</span> data <span class="opt">=</span> tasks<span class="opt">[</span>ind<span class="opt">];</span>
+                        ind<span class="opt">++;</span>
+                        worker<span class="opt">.</span><span class="kwd">postMessage</span><span class="opt">({</span>request<span class="opt">:</span> <span class="str">&apos;work&apos;</span><span class="opt">,</span> data<span class="opt">});</span>
+                    <span class="opt">}</span> <span class="kwa">else</span> <span class="opt">{</span>
+                        worker<span class="opt">.</span><span class="kwd">postMessage</span><span class="opt">({</span>request<span class="opt">:</span> <span class="str">&apos;exit&apos;</span><span class="opt">});</span>
+                    <span class="opt">}</span>
+                <span class="opt">}</span>
+            <span class="opt">});</span>
+            worker<span class="opt">.</span><span class="kwd">on</span><span class="opt">(</span><span class="str">&apos;exit&apos;</span><span class="opt">, () =&gt; {</span>
+                workers<span class="opt">.</span><span class="kwa">delete</span><span class="opt">(</span>worker<span class="opt">);</span>
+                <span class="kwa">if</span> <span class="opt">(</span>workers<span class="opt">.</span>size <span class="opt">===</span> <span class="num">0</span><span class="opt">) {</span>
+                    <span class="kwd">resolve</span><span class="opt">();</span>
+                <span class="opt">}</span>
+            <span class="opt">});</span>
+
+            workers<span class="opt">.</span><span class="kwd">add</span><span class="opt">(</span>worker<span class="opt">);</span>
+        <span class="opt">}</span>
+    <span class="opt">});</span>
+<span class="opt">}</span>
+
+<span class="kwa">function</span> <span class="kwd">runWorker</span><span class="opt">(</span>onWork<span class="opt">: (</span>_<span class="opt">:</span> Indexes<span class="opt">) =&gt;</span> Results<span class="opt">) {</span>
+    parentPort<span class="opt">?.</span><span class="kwd">on</span><span class="opt">(</span><span class="str">&apos;message&apos;</span><span class="opt">,</span> message <span class="opt">=&gt; {</span>
+        <span class="kwa">const</span> request<span class="opt">:</span> Request <span class="opt">=</span> message<span class="opt">.</span>request<span class="opt">;</span>
+
+        <span class="kwa">if</span> <span class="opt">(</span>request <span class="opt">===</span> <span class="str">&apos;work&apos;</span><span class="opt">) {</span>
+            parentPort<span class="opt">?.</span><span class="kwd">postMessage</span><span class="opt">({</span>
+                reply<span class="opt">:</span> <span class="str">&apos;result&apos;</span><span class="opt">,</span>
+                data<span class="opt">:</span> <span class="kwd">onWork</span><span class="opt">(</span>message<span class="opt">.</span>data<span class="opt">),</span>
+            <span class="opt">});</span>
+        <span class="opt">}</span> <span class="kwa">else if</span> <span class="opt">(</span>request <span class="opt">===</span> <span class="str">&apos;exit&apos;</span><span class="opt">) {</span>
+            process<span class="opt">.</span><span class="kwd">exit</span><span class="opt">();</span>
+        <span class="opt">}</span>
+    <span class="opt">});</span>
+    parentPort<span class="opt">?.</span><span class="kwd">postMessage</span><span class="opt">({</span>reply<span class="opt">:</span> <span class="str">&apos;ready&apos;</span><span class="opt">});</span>
+<span class="opt">}</span>
+
+<span class="kwa">type</span> Request <span class="opt">=</span> <span class="str">&apos;exit&apos;</span> <span class="opt">|</span> <span class="str">&apos;work&apos;</span><span class="opt">;</span>
+<span class="kwa">type</span> Reply <span class="opt">=</span> <span class="str">&apos;ready&apos;</span> <span class="opt">|</span> <span class="str">&apos;result&apos;</span><span class="opt">;</span>
+
+<span class="kwa">interface</span> Indexes <span class="opt">{</span>
+    idxMin<span class="opt">:</span> <span class="kwb">number</span><span class="opt">;</span>
+    idxMax<span class="opt">:</span> <span class="kwb">number</span><span class="opt">;</span>
+<span class="opt">}</span>
+
+<span class="kwa">interface</span> Results <span class="opt">{</span>
+    maxFlips<span class="opt">:</span> <span class="kwb">number</span><span class="opt">;</span>
+    checkSum<span class="opt">:</span> <span class="kwb">number</span><span class="opt">;</span>
+<span class="opt">}</span>
 
     </pre>
   </section>
   <section>
-    <h2 id="log">notes, command-line, and program output</h2>
+    <div>
+      <h2 id="log">notes, command-line, and program output</h2>
+    </div>
     <pre>
 NOTES:
 64-bit Ubuntu quad core
-Version 3.3.3333
--t ESNEXT
-node.js v11.12.0
+Version 3.8.2
+node.js v13.9.0
 
 
 
-Tue, 02 Apr 2019 20:49:16 GMT
+Sat, 21 Mar 2020 22:48:50 GMT
 
 MAKE:
 mv fannkuchredux.typescript-5.typescript fannkuchredux.typescript-5.ts
-/opt/src/node-v11.12.0-linux-x64/bin/tsc --strict --noEmitOnError --removeComments -t ESNEXT  fannkuchredux.typescript-5.ts
+/opt/src/node-v13.9.0-linux-x64/bin/tsc --strict --noEmitOnError --removeComments  fannkuchredux.typescript-5.ts
 
-4.11s to complete and log all make actions
+5.78s to complete and log all make actions
 
 COMMAND LINE:
-/opt/src/node-v11.12.0-linux-x64/bin/node --use_strict  fannkuchredux.typescript-5.js 12
+/opt/src/node-v13.9.0-linux-x64/bin/node --use_strict  fannkuchredux.typescript-5.js 12
 
 PROGRAM OUTPUT:
 3968050
@@ -111,6 +290,7 @@ Pfannkuchen(12) = 65
 <footer>
   <nav>
     <ul>
+      <li><a href="https://salsa.debian.org/benchmarksgame-team/benchmarksgame/blob/master/CONTRIBUTING.md#contribute-source-code-for-measurement"><span>Contribute your own program</span></a>
       <li><a href="../license.html"><span>3-Clause BSD License</span></a>
     </ul>
   </nav>
