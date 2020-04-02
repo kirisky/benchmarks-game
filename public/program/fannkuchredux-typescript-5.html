@@ -200,18 +200,18 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
             <span class="kwa">const</span> worker <span class="opt">=</span> <span class="kwa">new</span> <span class="kwd">Worker</span><span class="opt">(</span>__filename<span class="opt">, {</span>workerData<span class="opt">});</span>
 
             worker<span class="opt">.</span><span class="kwd">on</span><span class="opt">(</span><span class="str">&apos;message&apos;</span><span class="opt">,</span> message <span class="opt">=&gt; {</span>
-                <span class="kwa">const</span> reply<span class="opt">:</span> Reply <span class="opt">=</span> message<span class="opt">.</span>reply<span class="opt">;</span>
+                <span class="kwa">const</span> name <span class="opt">=</span> message<span class="opt">.</span>name<span class="opt">;</span>
 
-                <span class="kwa">if</span> <span class="opt">(</span>reply <span class="opt">===</span> <span class="str">&apos;result&apos;</span><span class="opt">) {</span>
+                <span class="kwa">if</span> <span class="opt">(</span>name <span class="opt">===</span> <span class="str">&apos;result&apos;</span><span class="opt">) {</span>
                     <span class="kwd">reducer</span><span class="opt">(</span>message<span class="opt">.</span>data<span class="opt">);</span>
                 <span class="opt">}</span>
-                <span class="kwa">if</span> <span class="opt">(</span>reply <span class="opt">===</span> <span class="str">&apos;ready&apos;</span> <span class="opt">||</span> reply <span class="opt">===</span> <span class="str">&apos;result&apos;</span><span class="opt">) {</span>
+                <span class="kwa">if</span> <span class="opt">(</span>name <span class="opt">===</span> <span class="str">&apos;ready&apos;</span> <span class="opt">||</span> name <span class="opt">===</span> <span class="str">&apos;result&apos;</span><span class="opt">) {</span>
                     <span class="kwa">if</span> <span class="opt">(</span>ind <span class="opt">&lt;</span> tasks<span class="opt">.</span>length<span class="opt">) {</span>
                         <span class="kwa">const</span> data <span class="opt">=</span> tasks<span class="opt">[</span>ind<span class="opt">];</span>
                         ind<span class="opt">++;</span>
-                        worker<span class="opt">.</span><span class="kwd">postMessage</span><span class="opt">({</span>request<span class="opt">:</span> <span class="str">&apos;work&apos;</span><span class="opt">,</span> data<span class="opt">});</span>
+                        worker<span class="opt">.</span><span class="kwd">postMessage</span><span class="opt">({</span>name<span class="opt">:</span> <span class="str">&apos;work&apos;</span><span class="opt">,</span> data<span class="opt">});</span>
                     <span class="opt">}</span> <span class="kwa">else</span> <span class="opt">{</span>
-                        worker<span class="opt">.</span><span class="kwd">postMessage</span><span class="opt">({</span>request<span class="opt">:</span> <span class="str">&apos;exit&apos;</span><span class="opt">});</span>
+                        worker<span class="opt">.</span><span class="kwd">postMessage</span><span class="opt">({</span>name<span class="opt">:</span> <span class="str">&apos;exit&apos;</span><span class="opt">});</span>
                     <span class="opt">}</span>
                 <span class="opt">}</span>
             <span class="opt">});</span>
@@ -229,22 +229,19 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 
 <span class="kwa">function</span> <span class="kwd">runWorker</span><span class="opt">(</span>onWork<span class="opt">: (</span>_<span class="opt">:</span> Indexes<span class="opt">) =&gt;</span> Results<span class="opt">) {</span>
     parentPort<span class="opt">?.</span><span class="kwd">on</span><span class="opt">(</span><span class="str">&apos;message&apos;</span><span class="opt">,</span> message <span class="opt">=&gt; {</span>
-        <span class="kwa">const</span> request<span class="opt">:</span> Request <span class="opt">=</span> message<span class="opt">.</span>request<span class="opt">;</span>
+        <span class="kwa">const</span> name <span class="opt">=</span> message<span class="opt">.</span>name<span class="opt">;</span>
 
-        <span class="kwa">if</span> <span class="opt">(</span>request <span class="opt">===</span> <span class="str">&apos;work&apos;</span><span class="opt">) {</span>
+        <span class="kwa">if</span> <span class="opt">(</span>name <span class="opt">===</span> <span class="str">&apos;work&apos;</span><span class="opt">) {</span>
             parentPort<span class="opt">?.</span><span class="kwd">postMessage</span><span class="opt">({</span>
-                reply<span class="opt">:</span> <span class="str">&apos;result&apos;</span><span class="opt">,</span>
+                name<span class="opt">:</span> <span class="str">&apos;result&apos;</span><span class="opt">,</span>
                 data<span class="opt">:</span> <span class="kwd">onWork</span><span class="opt">(</span>message<span class="opt">.</span>data<span class="opt">),</span>
             <span class="opt">});</span>
-        <span class="opt">}</span> <span class="kwa">else if</span> <span class="opt">(</span>request <span class="opt">===</span> <span class="str">&apos;exit&apos;</span><span class="opt">) {</span>
+        <span class="opt">}</span> <span class="kwa">else if</span> <span class="opt">(</span>name <span class="opt">===</span> <span class="str">&apos;exit&apos;</span><span class="opt">) {</span>
             process<span class="opt">.</span><span class="kwd">exit</span><span class="opt">();</span>
         <span class="opt">}</span>
     <span class="opt">});</span>
-    parentPort<span class="opt">?.</span><span class="kwd">postMessage</span><span class="opt">({</span>reply<span class="opt">:</span> <span class="str">&apos;ready&apos;</span><span class="opt">});</span>
+    parentPort<span class="opt">?.</span><span class="kwd">postMessage</span><span class="opt">({</span>name<span class="opt">:</span> <span class="str">&apos;ready&apos;</span><span class="opt">});</span>
 <span class="opt">}</span>
-
-<span class="kwa">type</span> Request <span class="opt">=</span> <span class="str">&apos;exit&apos;</span> <span class="opt">|</span> <span class="str">&apos;work&apos;</span><span class="opt">;</span>
-<span class="kwa">type</span> Reply <span class="opt">=</span> <span class="str">&apos;ready&apos;</span> <span class="opt">|</span> <span class="str">&apos;result&apos;</span><span class="opt">;</span>
 
 <span class="kwa">interface</span> Indexes <span class="opt">{</span>
     idxMin<span class="opt">:</span> <span class="kwb">number</span><span class="opt">;</span>
@@ -270,16 +267,16 @@ node.js v13.9.0
 
 
 
-Sat, 21 Mar 2020 22:48:50 GMT
+Thu, 02 Apr 2020 00:34:07 GMT
 
 MAKE:
 mv fannkuchredux.typescript-5.typescript fannkuchredux.typescript-5.ts
-/opt/src/node-v13.9.0-linux-x64/bin/tsc --strict --noEmitOnError --removeComments  fannkuchredux.typescript-5.ts
+/opt/src/node-v13.12.0-linux-x64/bin/tsc --strict --noEmitOnError --removeComments  fannkuchredux.typescript-5.ts
 
-5.78s to complete and log all make actions
+6.05s to complete and log all make actions
 
 COMMAND LINE:
-/opt/src/node-v13.9.0-linux-x64/bin/node --use_strict  fannkuchredux.typescript-5.js 12
+/opt/src/node-v13.12.0-linux-x64/bin/node --use_strict  fannkuchredux.typescript-5.js 12
 
 PROGRAM OUTPUT:
 3968050
