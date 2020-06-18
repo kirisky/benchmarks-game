@@ -25,120 +25,139 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="slc">// The Computer Language Benchmarks Game</span>
 <span class="slc">// https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
 <span class="slc">//</span>
-<span class="slc">// Contributed by Valentin Kraevskiy</span>
+<span class="slc">// contributed by Valentin Kraevskiy</span>
+<span class="slc">// modified by Peter Kese</span>
+<span class="slc">// rewritten to be less &quot;advanced&quot; and similar to the OCAML implementation by Phillip Carter</span>
 
-<span class="kwa">let</span> <span class="kwc">pi</span> <span class="opt">=</span> <span class="num">3.141592653589793</span>
-<span class="kwa">let</span> <span class="kwc">daysPerYear</span> <span class="opt">=</span> <span class="num">365.24</span>
-<span class="kwa">let</span> <span class="kwc">solarMass</span> <span class="opt">=</span> <span class="num">4.0</span> <span class="opt">*</span> <span class="kwc">pi</span> <span class="opt">**</span> <span class="num">2.0</span>
+<span class="kwa">open</span> <span class="kwd">System</span>
+
+<span class="kwa">let</span> <span class="kwc">solar_mass</span> <span class="opt">=</span> <span class="num">4</span><span class="opt">. *</span> <span class="kwd">Math</span><span class="opt">.</span><span class="kwd">PI</span> <span class="opt">*</span> <span class="kwd">Math</span><span class="opt">.</span><span class="kwd">PI</span>
+<span class="kwa">let</span> <span class="kwc">days_per_year</span> <span class="opt">=</span> <span class="num">365.24</span>
 
 <span class="kwa">type</span> <span class="kwc">Planet</span> <span class="opt">=</span>
-    <span class="opt">{</span><span class="kwa">mutable</span> <span class="kwc">X</span><span class="opt">:</span> <span class="kwb">float</span><span class="opt">;</span> <span class="kwa">mutable</span> <span class="kwc">Y</span><span class="opt">:</span> <span class="kwb">float</span><span class="opt">;</span> <span class="kwa">mutable</span> <span class="kwc">Z</span><span class="opt">:</span> <span class="kwb">float</span>
-     <span class="kwa">mutable</span> <span class="kwc">VX</span><span class="opt">:</span> <span class="kwb">float</span><span class="opt">;</span> <span class="kwa">mutable</span> <span class="kwc">VY</span><span class="opt">:</span> <span class="kwb">float</span><span class="opt">;</span> <span class="kwa">mutable</span> <span class="kwc">VZ</span><span class="opt">:</span> <span class="kwb">float</span>
-     <span class="kwd">Mass</span><span class="opt">:</span> <span class="kwb">float</span><span class="opt">}</span>
+    <span class="opt">{</span> <span class="kwa">mutable</span> <span class="kwc">X</span><span class="opt">:</span> <span class="kwb">float</span>
+      <span class="kwa">mutable</span> <span class="kwc">Y</span><span class="opt">:</span> <span class="kwb">float</span>
+      <span class="kwa">mutable</span> <span class="kwc">Z</span><span class="opt">:</span> <span class="kwb">float</span>
+      <span class="kwa">mutable</span> <span class="kwc">VX</span><span class="opt">:</span> <span class="kwb">float</span>
+      <span class="kwa">mutable</span> <span class="kwc">VY</span><span class="opt">:</span> <span class="kwb">float</span>
+      <span class="kwa">mutable</span> <span class="kwc">VZ</span><span class="opt">:</span> <span class="kwb">float</span>
+      <span class="kwd">Mass</span><span class="opt">:</span> <span class="kwb">float</span> <span class="opt">}</span>
+
+<span class="kwa">let</span> <span class="kwc">advance</span> bodies <span class="kwc">dt</span> <span class="opt">=</span>
+    <span class="kwa">let</span> <span class="kwc">n</span> <span class="opt">=</span> <span class="kwd">Array</span><span class="opt">.</span>length bodies <span class="opt">-</span> <span class="num">1</span>
+
+    <span class="kwa">for</span> i <span class="opt">=</span> <span class="num">0</span> <span class="kwa">to</span> <span class="kwc">n</span> <span class="kwa">do</span>
+        <span class="kwa">let</span> <span class="kwc">b</span> <span class="opt">=</span> bodies<span class="opt">.[</span>i<span class="opt">]</span>
+        <span class="kwa">for</span> j <span class="opt">=</span> i<span class="opt">+</span><span class="num">1</span> <span class="kwa">to</span> <span class="kwc">n</span> <span class="kwa">do</span>
+            <span class="kwa">let</span> <span class="kwc">b</span><span class="str">&apos; = bodies.[j]</span>
+<span class="str">            let dx = b.X - b&apos;</span><span class="opt">.</span><span class="kwc">X</span>
+            <span class="kwa">let</span> <span class="kwc">dy</span> <span class="opt">=</span> <span class="kwc">b</span><span class="opt">.</span><span class="kwc">Y</span> <span class="opt">-</span> <span class="kwc">b</span><span class="str">&apos;.Y</span>
+<span class="str">            let dz = b.Z - b&apos;</span><span class="opt">.</span><span class="kwc">Z</span>
+            <span class="kwa">let</span> <span class="kwc">dist2</span> <span class="opt">=</span> <span class="kwc">dx</span> <span class="opt">*</span> <span class="kwc">dx</span> <span class="opt">+</span> <span class="kwc">dy</span> <span class="opt">*</span> <span class="kwc">dy</span> <span class="opt">+</span> <span class="kwc">dz</span> <span class="opt">*</span> <span class="kwc">dz</span>
+            <span class="kwa">let</span> <span class="kwc">mag</span> <span class="opt">=</span> <span class="kwc">dt</span> <span class="opt">/ (</span><span class="kwc">dist2</span> <span class="opt">*</span> sqrt<span class="opt">(</span><span class="kwc">dist2</span><span class="opt">))</span>
+
+            <span class="kwc">b</span><span class="opt">.</span><span class="kwc">VX</span> <span class="opt">&lt;-</span> <span class="kwc">b</span><span class="opt">.</span><span class="kwc">VX</span> <span class="opt">-</span> <span class="kwc">dx</span> <span class="opt">*</span> <span class="kwc">b</span><span class="str">&apos;.Mass * mag</span>
+<span class="str">            b.VY &lt;- b.VY - dy * b&apos;</span><span class="opt">.</span><span class="kwd">Mass</span> <span class="opt">*</span> <span class="kwc">mag</span>
+            <span class="kwc">b</span><span class="opt">.</span><span class="kwc">VZ</span> <span class="opt">&lt;-</span> <span class="kwc">b</span><span class="opt">.</span><span class="kwc">VZ</span> <span class="opt">-</span> <span class="kwc">dz</span> <span class="opt">*</span> <span class="kwc">b</span><span class="str">&apos;.Mass * mag</span>
+<span class="str"></span>
+<span class="str">            b&apos;</span><span class="opt">.</span><span class="kwc">VX</span> <span class="opt">&lt;-</span> <span class="kwc">b</span><span class="str">&apos;.VX + dx * b.Mass * mag</span>
+<span class="str">            b&apos;</span><span class="opt">.</span><span class="kwc">VY</span> <span class="opt">&lt;-</span> <span class="kwc">b</span><span class="str">&apos;.VY + dy * b.Mass * mag</span>
+<span class="str">            b&apos;</span><span class="opt">.</span><span class="kwc">VZ</span> <span class="opt">&lt;-</span> <span class="kwc">b</span><span class="str">&apos;.VZ + dz * b.Mass * mag</span>
+<span class="str"></span>
+<span class="str">    for i = 0 to n do</span>
+<span class="str">        let b = bodies.[i]</span>
+<span class="str">        b.X &lt;- b.X + dt * b.VX</span>
+<span class="str">        b.Y &lt;- b.Y + dt * b.VY</span>
+<span class="str">        b.Z &lt;- b.Z + dt * b.VZ    </span>
+<span class="str"></span>
+<span class="str">let energy bodies =</span>
+<span class="str">    let mutable e = 0.0</span>
+<span class="str">    let n = Array.length bodies - 1</span>
+<span class="str">    for i = 0 to n do</span>
+<span class="str">        let b = bodies.[i]</span>
+<span class="str">        e &lt;- e + 0.5 * b.Mass * (b.VX * b.VX + b.VY * b.VY + b.VZ * b.VZ)</span>
+<span class="str">        for j = i+1 to n do</span>
+<span class="str">            let b&apos;</span> <span class="opt">=</span> bodies<span class="opt">.[</span>j<span class="opt">]</span>
+            <span class="kwa">let</span> <span class="kwc">dx</span> <span class="opt">=</span> <span class="kwc">b</span><span class="opt">.</span><span class="kwc">X</span> <span class="opt">-</span> <span class="kwc">b</span><span class="str">&apos;.X</span>
+<span class="str">            let dy = b.Y - b&apos;</span><span class="opt">.</span><span class="kwc">Y</span>
+            <span class="kwa">let</span> <span class="kwc">dz</span> <span class="opt">=</span> <span class="kwc">b</span><span class="opt">.</span><span class="kwc">Z</span> <span class="opt">-</span> <span class="kwc">b</span><span class="str">&apos;.Z</span>
+<span class="str">            let distance = sqrt(dx * dx + dy * dy + dz * dz)</span>
+<span class="str">            e &lt;- e - (b.Mass * b&apos;</span><span class="opt">.</span><span class="kwd">Mass</span><span class="opt">) /</span> <span class="kwc">distance</span>
+    <span class="kwc">e</span>
+
+<span class="kwa">let</span> <span class="kwc">offset_momentum</span> bodies <span class="opt">=</span>
+    <span class="kwa">let mutable</span> <span class="kwc">px</span> <span class="opt">=</span> <span class="num">0.0</span>
+    <span class="kwa">let mutable</span> <span class="kwc">py</span> <span class="opt">=</span> <span class="num">0.0</span>
+    <span class="kwa">let mutable</span> <span class="kwc">pz</span> <span class="opt">=</span> <span class="num">0.0</span>
+
+    <span class="kwa">for</span> i <span class="opt">=</span> <span class="num">0</span> <span class="kwa">to</span> <span class="kwd">Array</span><span class="opt">.</span>length bodies <span class="opt">-</span> <span class="num">1</span> <span class="kwa">do</span>
+        <span class="kwc">px</span> <span class="opt">&lt;-</span> <span class="kwc">px</span> <span class="opt">+</span> bodies<span class="opt">.[</span>i<span class="opt">].</span><span class="kwc">VX</span> <span class="opt">*</span> bodies<span class="opt">.[</span>i<span class="opt">].</span><span class="kwd">Mass</span>
+        <span class="kwc">py</span> <span class="opt">&lt;-</span> <span class="kwc">py</span> <span class="opt">+</span> bodies<span class="opt">.[</span>i<span class="opt">].</span><span class="kwc">VY</span> <span class="opt">*</span> bodies<span class="opt">.[</span>i<span class="opt">].</span><span class="kwd">Mass</span>
+        <span class="kwc">pz</span> <span class="opt">&lt;-</span> <span class="kwc">pz</span> <span class="opt">+</span> bodies<span class="opt">.[</span>i<span class="opt">].</span><span class="kwc">VZ</span> <span class="opt">*</span> bodies<span class="opt">.[</span>i<span class="opt">].</span><span class="kwd">Mass</span>
+
+    bodies<span class="opt">.[</span><span class="num">0</span><span class="opt">].</span><span class="kwc">VX</span> <span class="opt">&lt;- -</span><span class="kwc">px</span> <span class="opt">/</span> <span class="kwc">solar_mass</span>
+    bodies<span class="opt">.[</span><span class="num">0</span><span class="opt">].</span><span class="kwc">VY</span> <span class="opt">&lt;- -</span><span class="kwc">py</span> <span class="opt">/</span> <span class="kwc">solar_mass</span>
+    bodies<span class="opt">.[</span><span class="num">0</span><span class="opt">].</span><span class="kwc">VZ</span> <span class="opt">&lt;- -</span><span class="kwc">pz</span> <span class="opt">/</span> <span class="kwc">solar_mass</span>
 
 <span class="kwa">let</span> <span class="kwc">jupiter</span> <span class="opt">=</span>
-    <span class="opt">{</span><span class="kwc">X</span> <span class="opt">=</span> <span class="num">4.84143144246472090e+00</span>
-     <span class="kwc">Y</span> <span class="opt">= -</span><span class="num">1.16032004402742839e+00</span>
-     <span class="kwc">Z</span> <span class="opt">= -</span><span class="num">1.03622044471123109e-01</span>
-     <span class="kwc">VX</span> <span class="opt">=</span> <span class="num">1.66007664274403694e-03</span> <span class="opt">*</span> <span class="kwc">daysPerYear</span>
-     <span class="kwc">VY</span> <span class="opt">=</span> <span class="num">7.69901118419740425e-03</span> <span class="opt">*</span> <span class="kwc">daysPerYear</span>
-     <span class="kwc">VZ</span> <span class="opt">= -</span><span class="num">6.90460016972063023e-05</span> <span class="opt">*</span> <span class="kwc">daysPerYear</span>
-     <span class="kwd">Mass</span> <span class="opt">=</span> <span class="num">9.54791938424326609e-04</span> <span class="opt">*</span> <span class="kwc">solarMass</span><span class="opt">}</span>
+    <span class="opt">{</span> <span class="kwc">X</span> <span class="opt">=</span> <span class="num">4.84143144246472090e+00</span>
+      <span class="kwc">Y</span> <span class="opt">= -</span><span class="num">1.16032004402742839e+00</span>
+      <span class="kwc">Z</span> <span class="opt">= -</span><span class="num">1.03622044471123109e-01</span>
+      <span class="kwc">VX</span> <span class="opt">=</span> <span class="num">1.66007664274403694e-03</span> <span class="opt">*</span> <span class="kwc">days_per_year</span>
+      <span class="kwc">VY</span> <span class="opt">=</span> <span class="num">7.69901118419740425e-03</span> <span class="opt">*</span> <span class="kwc">days_per_year</span>
+      <span class="kwc">VZ</span> <span class="opt">= -</span><span class="num">6.90460016972063023e-05</span> <span class="opt">*</span> <span class="kwc">days_per_year</span>
+      <span class="kwd">Mass</span> <span class="opt">=</span> <span class="num">9.54791938424326609e-04</span> <span class="opt">*</span> <span class="kwc">solar_mass</span> <span class="opt">}</span>
 
 <span class="kwa">let</span> <span class="kwc">saturn</span> <span class="opt">=</span>
-    <span class="opt">{</span><span class="kwc">X</span> <span class="opt">=</span> <span class="num">8.34336671824457987e+00</span>
-     <span class="kwc">Y</span> <span class="opt">=</span> <span class="num">4.12479856412430479e+00</span>
-     <span class="kwc">Z</span> <span class="opt">= -</span><span class="num">4.03523417114321381e-01</span>
-     <span class="kwc">VX</span> <span class="opt">= -</span><span class="num">2.76742510726862411e-03</span> <span class="opt">*</span> <span class="kwc">daysPerYear</span>
-     <span class="kwc">VY</span> <span class="opt">=</span> <span class="num">4.99852801234917238e-03</span> <span class="opt">*</span> <span class="kwc">daysPerYear</span>
-     <span class="kwc">VZ</span> <span class="opt">=</span> <span class="num">2.30417297573763929e-05</span> <span class="opt">*</span> <span class="kwc">daysPerYear</span>
-     <span class="kwd">Mass</span> <span class="opt">=</span> <span class="num">2.85885980666130812e-04</span> <span class="opt">*</span> <span class="kwc">solarMass</span><span class="opt">}</span>
+    <span class="opt">{</span> <span class="kwc">X</span> <span class="opt">=</span> <span class="num">8.34336671824457987e+00</span>
+      <span class="kwc">Y</span> <span class="opt">=</span> <span class="num">4.12479856412430479e+00</span>
+      <span class="kwc">Z</span> <span class="opt">= -</span><span class="num">4.03523417114321381e-01</span>
+      <span class="kwc">VX</span> <span class="opt">= -</span><span class="num">2.76742510726862411e-03</span> <span class="opt">*</span> <span class="kwc">days_per_year</span>
+      <span class="kwc">VY</span> <span class="opt">=</span> <span class="num">4.99852801234917238e-03</span> <span class="opt">*</span> <span class="kwc">days_per_year</span>
+      <span class="kwc">VZ</span> <span class="opt">=</span> <span class="num">2.30417297573763929e-05</span> <span class="opt">*</span> <span class="kwc">days_per_year</span>
+      <span class="kwd">Mass</span> <span class="opt">=</span> <span class="num">2.85885980666130812e-04</span> <span class="opt">*</span> <span class="kwc">solar_mass</span> <span class="opt">}</span>
 
 <span class="kwa">let</span> <span class="kwc">uranus</span> <span class="opt">=</span>
-    <span class="opt">{</span><span class="kwc">X</span> <span class="opt">=</span> <span class="num">1.28943695621391310e+01</span>
-     <span class="kwc">Y</span> <span class="opt">= -</span><span class="num">1.51111514016986312e+01</span>
-     <span class="kwc">Z</span> <span class="opt">= -</span><span class="num">2.23307578892655734e-01</span>
-     <span class="kwc">VX</span> <span class="opt">=</span> <span class="num">2.96460137564761618e-03</span> <span class="opt">*</span> <span class="kwc">daysPerYear</span>
-     <span class="kwc">VY</span> <span class="opt">=</span> <span class="num">2.37847173959480950e-03</span> <span class="opt">*</span> <span class="kwc">daysPerYear</span>
-     <span class="kwc">VZ</span> <span class="opt">= -</span><span class="num">2.96589568540237556e-05</span> <span class="opt">*</span> <span class="kwc">daysPerYear</span>
-     <span class="kwd">Mass</span> <span class="opt">=</span> <span class="num">4.36624404335156298e-05</span> <span class="opt">*</span> <span class="kwc">solarMass</span><span class="opt">}</span>
+    <span class="opt">{</span> <span class="kwc">X</span> <span class="opt">=</span> <span class="num">1.28943695621391310e+01</span>
+      <span class="kwc">Y</span> <span class="opt">= -</span><span class="num">1.51111514016986312e+01</span>
+      <span class="kwc">Z</span> <span class="opt">= -</span><span class="num">2.23307578892655734e-01</span>
+      <span class="kwc">VX</span> <span class="opt">=</span> <span class="num">2.96460137564761618e-03</span> <span class="opt">*</span> <span class="kwc">days_per_year</span>
+      <span class="kwc">VY</span> <span class="opt">=</span> <span class="num">2.37847173959480950e-03</span> <span class="opt">*</span> <span class="kwc">days_per_year</span>
+      <span class="kwc">VZ</span> <span class="opt">= -</span><span class="num">2.96589568540237556e-05</span> <span class="opt">*</span> <span class="kwc">days_per_year</span>
+      <span class="kwd">Mass</span> <span class="opt">=</span> <span class="num">4.36624404335156298e-05</span> <span class="opt">*</span> <span class="kwc">solar_mass</span> <span class="opt">}</span>
 
 <span class="kwa">let</span> <span class="kwc">neptune</span> <span class="opt">=</span>
-    <span class="opt">{</span><span class="kwc">X</span> <span class="opt">=</span> <span class="num">1.53796971148509165e+01</span>
-     <span class="kwc">Y</span> <span class="opt">= -</span><span class="num">2.59193146099879641e+01</span>
-     <span class="kwc">Z</span> <span class="opt">=</span> <span class="num">1.79258772950371181e-01</span>
-     <span class="kwc">VX</span> <span class="opt">=</span> <span class="num">2.68067772490389322e-03</span> <span class="opt">*</span> <span class="kwc">daysPerYear</span>
-     <span class="kwc">VY</span> <span class="opt">=</span> <span class="num">1.62824170038242295e-03</span> <span class="opt">*</span> <span class="kwc">daysPerYear</span>
-     <span class="kwc">VZ</span> <span class="opt">= -</span><span class="num">9.51592254519715870e-05</span> <span class="opt">*</span> <span class="kwc">daysPerYear</span>
-     <span class="kwd">Mass</span> <span class="opt">=</span> <span class="num">5.15138902046611451e-05</span> <span class="opt">*</span> <span class="kwc">solarMass</span><span class="opt">}</span>
+    <span class="opt">{</span> <span class="kwc">X</span> <span class="opt">=</span> <span class="num">1.53796971148509165e+01</span>
+      <span class="kwc">Y</span> <span class="opt">= -</span><span class="num">2.59193146099879641e+01</span>
+      <span class="kwc">Z</span> <span class="opt">=</span> <span class="num">1.79258772950371181e-01</span>
+      <span class="kwc">VX</span> <span class="opt">=</span> <span class="num">2.68067772490389322e-03</span> <span class="opt">*</span> <span class="kwc">days_per_year</span>
+      <span class="kwc">VY</span> <span class="opt">=</span> <span class="num">1.62824170038242295e-03</span> <span class="opt">*</span> <span class="kwc">days_per_year</span>
+      <span class="kwc">VZ</span> <span class="opt">= -</span><span class="num">9.51592254519715870e-05</span> <span class="opt">*</span> <span class="kwc">days_per_year</span>
+      <span class="kwd">Mass</span> <span class="opt">=</span> <span class="num">5.15138902046611451e-05</span> <span class="opt">*</span> <span class="kwc">solar_mass</span>   <span class="opt">}</span>
 
 <span class="kwa">let</span> <span class="kwc">sun</span> <span class="opt">=</span>
-    <span class="opt">{</span><span class="kwc">X</span> <span class="opt">=</span> <span class="num">0.0</span><span class="opt">;</span> <span class="kwc">Y</span> <span class="opt">=</span> <span class="num">0.0</span><span class="opt">;</span> <span class="kwc">Z</span> <span class="opt">=</span> <span class="num">0.0</span>
-     <span class="kwc">VX</span> <span class="opt">=</span> <span class="num">0.0</span><span class="opt">;</span> <span class="kwc">VY</span> <span class="opt">=</span> <span class="num">0.0</span><span class="opt">;</span> <span class="kwc">VZ</span> <span class="opt">=</span> <span class="num">0.0</span>
-     <span class="kwd">Mass</span> <span class="opt">=</span> <span class="kwc">solarMass</span><span class="opt">}</span>
+    <span class="opt">{</span> <span class="kwc">X</span> <span class="opt">=</span> <span class="num">0.0</span>
+      <span class="kwc">Y</span> <span class="opt">=</span> <span class="num">0.0</span>
+      <span class="kwc">Z</span> <span class="opt">=</span> <span class="num">0.0</span>
+      <span class="kwc">VX</span> <span class="opt">=</span> <span class="num">0.0</span>
+      <span class="kwc">VY</span> <span class="opt">=</span> <span class="num">0.0</span>
+      <span class="kwc">VZ</span> <span class="opt">=</span> <span class="num">0.0</span>
+      <span class="kwd">Mass</span> <span class="opt">=</span> <span class="kwc">solar_mass</span> <span class="opt">}</span>
+      
+<span class="kwa">let</span> <span class="kwc">bodies</span> <span class="opt">= [|</span> <span class="kwc">sun</span><span class="opt">;</span> <span class="kwc">jupiter</span><span class="opt">;</span> <span class="kwc">saturn</span><span class="opt">;</span> <span class="kwc">uranus</span><span class="opt">;</span> <span class="kwc">neptune</span> <span class="opt">|]</span>
 
-<span class="kwa">let</span> <span class="kwc">offsetMomentum</span> a <span class="opt">=</span>
-    <span class="kwa">let</span> <span class="kwc">x</span><span class="opt">,</span> y<span class="opt">,</span> z <span class="opt">=</span>
-        <span class="kwd">Array</span><span class="opt">.</span>fold <span class="opt">(</span><span class="kwa">fun</span> <span class="opt">(</span><span class="kwc">x</span><span class="opt">,</span> y<span class="opt">,</span> z<span class="opt">)</span> body <span class="opt">-&gt;</span>
-            <span class="kwa">let</span> <span class="kwc">c</span> <span class="opt">=</span> body<span class="opt">.</span><span class="kwd">Mass</span> <span class="opt">/</span> <span class="kwc">solarMass</span>
-            <span class="opt">(</span><span class="kwc">x</span> <span class="opt">+</span> <span class="kwc">c</span> <span class="opt">*</span> body<span class="opt">.</span><span class="kwc">VX</span><span class="opt">,</span> y <span class="opt">+</span> <span class="kwc">c</span> <span class="opt">*</span> body<span class="opt">.</span><span class="kwc">VY</span><span class="opt">,</span> z <span class="opt">+</span> <span class="kwc">c</span> <span class="opt">*</span> body<span class="opt">.</span><span class="kwc">VZ</span><span class="opt">))</span>
-            <span class="opt">(</span><span class="num">0.0</span><span class="opt">,</span> <span class="num">0.0</span><span class="opt">,</span> <span class="num">0.0</span><span class="opt">)</span> a
-    a<span class="opt">.[</span><span class="num">0</span><span class="opt">].</span><span class="kwc">VX</span> <span class="opt">&lt;- -</span> <span class="kwc">x</span>
-    a<span class="opt">.[</span><span class="num">0</span><span class="opt">].</span><span class="kwc">VY</span> <span class="opt">&lt;- -</span> y
-    a<span class="opt">.[</span><span class="num">0</span><span class="opt">].</span><span class="kwc">VZ</span> <span class="opt">&lt;- -</span> z
+<span class="opt">[&lt;</span><span class="kwd">EntryPoint</span><span class="opt">&gt;]</span>
+<span class="kwa">let</span> <span class="kwc">main</span> args <span class="opt">=</span>
+    <span class="kwa">let</span> <span class="kwc">n</span> <span class="opt">=</span> <span class="kwa">if</span> <span class="kwd">Array</span><span class="opt">.</span>isEmpty args <span class="kwa">then</span> <span class="num">20_000_000</span> <span class="kwa">else</span> <span class="kwb">int</span> args<span class="opt">.[</span><span class="num">0</span><span class="opt">]</span>
+    <span class="kwa">let</span> <span class="kwc">e0</span> <span class="opt">=</span> <span class="kwc">energy bodies</span>
+    <span class="kwc">offset_momentum bodies</span>
 
-<span class="kwa">let</span> <span class="kwc">move</span> t <span class="opt">=</span>
-    <span class="kwd">Array</span><span class="opt">.</span>iter <span class="opt">(</span><span class="kwa">fun</span> body <span class="opt">-&gt;</span>
-        body<span class="opt">.</span><span class="kwc">X</span> <span class="opt">&lt;-</span> body<span class="opt">.</span><span class="kwc">X</span> <span class="opt">+</span> t <span class="opt">*</span> body<span class="opt">.</span><span class="kwc">VX</span>
-        body<span class="opt">.</span><span class="kwc">Y</span> <span class="opt">&lt;-</span> body<span class="opt">.</span><span class="kwc">Y</span> <span class="opt">+</span> t <span class="opt">*</span> body<span class="opt">.</span><span class="kwc">VY</span>
-        body<span class="opt">.</span><span class="kwc">Z</span> <span class="opt">&lt;-</span> body<span class="opt">.</span><span class="kwc">Z</span> <span class="opt">+</span> t <span class="opt">*</span> body<span class="opt">.</span><span class="kwc">VZ</span><span class="opt">)</span>
+    <span class="kwa">for</span> _ <span class="opt">=</span> <span class="num">1</span> <span class="kwa">to</span> <span class="kwc">n</span> <span class="kwa">do</span>
+        <span class="kwc">advance bodies</span> <span class="num">0.01</span>
 
-<span class="kwa">let</span> <span class="kwc">advance</span> a t <span class="opt">=</span>
-    <span class="kwa">for</span> i <span class="kwa">in</span> <span class="num">0</span><span class="opt">..</span><span class="kwd">Array</span><span class="opt">.</span>length a <span class="opt">-</span> <span class="num">2</span> <span class="kwa">do</span>
-        <span class="kwa">let</span> <span class="kwc">b1</span> <span class="opt">=</span> a<span class="opt">.[</span>i<span class="opt">]</span>
-        <span class="kwa">for</span> j <span class="kwa">in</span> i <span class="opt">+</span> <span class="num">1</span><span class="opt">..</span><span class="kwd">Array</span><span class="opt">.</span>length a <span class="opt">-</span> <span class="num">1</span> <span class="kwa">do</span>
-            <span class="kwa">let</span> <span class="kwc">b2</span> <span class="opt">=</span> a<span class="opt">.[</span>j<span class="opt">]</span>
-            <span class="kwa">let</span> <span class="kwc">dx</span><span class="opt">,</span> dy<span class="opt">,</span> dz <span class="opt">=</span> <span class="kwc">b1</span><span class="opt">.</span><span class="kwc">X</span> <span class="opt">-</span> <span class="kwc">b2</span><span class="opt">.</span><span class="kwc">X</span><span class="opt">,</span> <span class="kwc">b1</span><span class="opt">.</span><span class="kwc">Y</span> <span class="opt">-</span> <span class="kwc">b2</span><span class="opt">.</span><span class="kwc">Y</span><span class="opt">,</span> <span class="kwc">b1</span><span class="opt">.</span><span class="kwc">Z</span> <span class="opt">-</span> <span class="kwc">b2</span><span class="opt">.</span><span class="kwc">Z</span>
-            <span class="kwa">let</span> <span class="kwc">dist</span> <span class="opt">=</span> sqrt <span class="opt">(</span><span class="kwc">dx</span> <span class="opt">*</span> <span class="kwc">dx</span> <span class="opt">+</span> dy <span class="opt">*</span> dy <span class="opt">+</span> dz <span class="opt">*</span> dz<span class="opt">)</span>
-            <span class="kwa">let</span> <span class="kwc">mag</span> <span class="opt">=</span> t <span class="opt">/ (</span><span class="kwc">dist</span> <span class="opt">*</span> <span class="kwc">dist</span> <span class="opt">*</span> <span class="kwc">dist</span><span class="opt">)</span>
-            <span class="kwc">b1</span><span class="opt">.</span><span class="kwc">VX</span> <span class="opt">&lt;-</span> <span class="kwc">b1</span><span class="opt">.</span><span class="kwc">VX</span> <span class="opt">-</span> <span class="kwc">b2</span><span class="opt">.</span><span class="kwd">Mass</span> <span class="opt">*</span> <span class="kwc">mag</span> <span class="opt">*</span> <span class="kwc">dx</span>
-            <span class="kwc">b1</span><span class="opt">.</span><span class="kwc">VY</span> <span class="opt">&lt;-</span> <span class="kwc">b1</span><span class="opt">.</span><span class="kwc">VY</span> <span class="opt">-</span> <span class="kwc">b2</span><span class="opt">.</span><span class="kwd">Mass</span> <span class="opt">*</span> <span class="kwc">mag</span> <span class="opt">*</span> dy
-            <span class="kwc">b1</span><span class="opt">.</span><span class="kwc">VZ</span> <span class="opt">&lt;-</span> <span class="kwc">b1</span><span class="opt">.</span><span class="kwc">VZ</span> <span class="opt">-</span> <span class="kwc">b2</span><span class="opt">.</span><span class="kwd">Mass</span> <span class="opt">*</span> <span class="kwc">mag</span> <span class="opt">*</span> dz
-            <span class="kwc">b2</span><span class="opt">.</span><span class="kwc">VX</span> <span class="opt">&lt;-</span> <span class="kwc">b2</span><span class="opt">.</span><span class="kwc">VX</span> <span class="opt">+</span> <span class="kwc">b1</span><span class="opt">.</span><span class="kwd">Mass</span> <span class="opt">*</span> <span class="kwc">mag</span> <span class="opt">*</span> <span class="kwc">dx</span>
-            <span class="kwc">b2</span><span class="opt">.</span><span class="kwc">VY</span> <span class="opt">&lt;-</span> <span class="kwc">b2</span><span class="opt">.</span><span class="kwc">VY</span> <span class="opt">+</span> <span class="kwc">b1</span><span class="opt">.</span><span class="kwd">Mass</span> <span class="opt">*</span> <span class="kwc">mag</span> <span class="opt">*</span> dy
-            <span class="kwc">b2</span><span class="opt">.</span><span class="kwc">VZ</span> <span class="opt">&lt;-</span> <span class="kwc">b2</span><span class="opt">.</span><span class="kwc">VZ</span> <span class="opt">+</span> <span class="kwc">b1</span><span class="opt">.</span><span class="kwd">Mass</span> <span class="opt">*</span> <span class="kwc">mag</span> <span class="opt">*</span> dz
-    <span class="kwc">move t</span> a
-
-<span class="kwa">let rec</span> energy i e <span class="kwc">a</span> <span class="opt">=</span>
-    <span class="kwa">if</span> i <span class="opt">&lt;</span> <span class="kwd">Array</span><span class="opt">.</span>length <span class="kwc">a</span>
-        <span class="kwa">then let</span> <span class="kwc">b1</span> <span class="opt">=</span> <span class="kwc">a</span><span class="opt">.[</span>i<span class="opt">]</span>
-             <span class="kwa">let rec</span> energy<span class="str">&apos; a j e =</span>
-<span class="str">                if j &lt; Array.length a</span>
-<span class="str">                then let b2 = a.[j]</span>
-<span class="str">                     let dx, dy, dz = b1.X - b2.X, b1.Y - b2.Y, b1.Z - b2.Z</span>
-<span class="str">                     let dist = sqrt (dx * dx + dy * dy + dz * dz)</span>
-<span class="str">                     energy&apos;</span> <span class="kwc">a</span> <span class="opt">(</span>j <span class="opt">+</span> <span class="num">1</span><span class="opt">)</span>
-                        <span class="opt">(</span>e <span class="opt">-</span> <span class="kwc">b1</span><span class="opt">.</span><span class="kwd">Mass</span> <span class="opt">*</span> <span class="kwc">b2</span><span class="opt">.</span><span class="kwd">Mass</span> <span class="opt">/</span> <span class="kwc">dist</span> <span class="opt">)</span>
-                <span class="kwa">else</span> <span class="kwc">e</span>
-
-             <span class="kwa">let</span> <span class="kwc">sq</span> <span class="opt">=</span> <span class="kwc">b1</span><span class="opt">.</span><span class="kwc">VX</span> <span class="opt">*</span> <span class="kwc">b1</span><span class="opt">.</span><span class="kwc">VX</span> <span class="opt">+</span> <span class="kwc">b1</span><span class="opt">.</span><span class="kwc">VY</span> <span class="opt">*</span> <span class="kwc">b1</span><span class="opt">.</span><span class="kwc">VY</span> <span class="opt">+</span> <span class="kwc">b1</span><span class="opt">.</span><span class="kwc">VZ</span> <span class="opt">*</span> <span class="kwc">b1</span><span class="opt">.</span><span class="kwc">VZ</span>
-             energy <span class="opt">(</span>i <span class="opt">+</span> <span class="num">1</span><span class="opt">)</span>
-                <span class="opt">(</span>energy<span class="str">&apos; a (i + 1)</span>
-<span class="str">                    (e + 0.5 * b1.Mass * sq)) a</span>
-<span class="str">        else e</span>
-<span class="str"></span>
-<span class="str">let planets = [|sun; jupiter; saturn; uranus; neptune|]</span>
-<span class="str">offsetMomentum planets</span>
-<span class="str"></span>
-<span class="str">let print = energy 0 0.0 &gt;&gt; printf &quot;%.9f</span><span class="esc">\n</span><span class="str">&quot;</span>
-<span class="str"></span>
-<span class="str">[&lt;EntryPoint&gt;]</span>
-<span class="str">let main args =</span>
-<span class="str">    let n = try int args.[0] with _ -&gt; 20000000</span>
-<span class="str">    print planets</span>
-<span class="str">    for i in 1..n do advance planets 0.01</span>
-<span class="str">    print planets</span>
-<span class="str">    0</span>
+    <span class="kwa">let</span> <span class="kwc">e1</span> <span class="opt">=</span> <span class="kwc">energy bodies</span>
+    printf <span class="str">&quot;%.9f</span><span class="esc">\n</span><span class="str">%.9f</span><span class="esc">\n</span><span class="str">&quot;</span> <span class="kwc">e0 e1</span>
+    <span class="num">0</span>
     </pre>
   </section>
   <section>
@@ -148,13 +167,13 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
     <pre>
 NOTES:
 64-bit Ubuntu quad core
-.NET Core SDK   3.1.101
-Host Version: 3.1.2; Commit: 916b5cba26
+.NET Core SDK   3.1.201
+Host Version: 3.1.3; Commit: 4a9f85e9f8
 &lt;ServerGarbageCollection&gt;true
 &lt;ConcurrentGarbageCollection&gt;true
 
 
-Wed, 19 Feb 2020 19:42:45 GMT
+Thu, 18 Jun 2020 19:58:09 GMT
 
 MAKE:
 cp nbody.fsharpcore Program.fs
@@ -162,7 +181,7 @@ cp Include/fsharpcore/tmp.fsproj .
 mkdir obj
 cp Include/fsharpcore/project.assets.json ./obj
 /usr/bin/dotnet build -c Release --no-restore
-Microsoft (R) Build Engine version 16.4.0+e901037fe for .NET Core
+Microsoft (R) Build Engine version 16.5.0+d4cbfca49 for .NET Core
 Copyright (C) Microsoft Corporation. All rights reserved.
 
   tmp -&gt; /home/dunham/benchmarksgame_quadcore/nbody/tmp/bin/Release/netcoreapp3.1/tmp.dll
@@ -171,16 +190,23 @@ Build succeeded.
     0 Warning(s)
     0 Error(s)
 
-Time Elapsed 00:00:10.64
+Time Elapsed 00:00:11.80
 
-14.11s to complete and log all make actions
+17.30s to complete and log all make actions
 
 COMMAND LINE:
-/usr/bin/dotnet ./bin/Release/netcoreapp3.1/tmp.dll 50000000
+/usr/bin/dotnet ./bin/Release/netcoreapp3.1/tmp.dll 500000
+
+UNEXPECTED OUTPUT 
+
+1c1
+&lt; -0.169289903
+--- field 1	absolute error 2.15e-04
+&gt; -0.169075164
 
 PROGRAM OUTPUT:
--0.169075164
--0.169059907
+-0.169289903
+-0.169096567
     </pre>
   </section>
 </article>
