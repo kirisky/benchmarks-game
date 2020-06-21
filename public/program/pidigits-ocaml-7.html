@@ -26,80 +26,66 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="com"> * The Computer Language Benchmarks Game </span>
 <span class="com"> * https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
 <span class="com"> *</span>
-<span class="com"> * contributed by Gabriel Scherer and Guillaume Melquiond</span>
-<span class="com"> * inspired by Zarith version (OCaml#5) by Christophe Troestler and Matías Giovannini</span>
+<span class="com"> * contributed by Gabriel Scherer with GMP advice from Guillaume Melquiond</span>
 <span class="com"> *)</span>
 
-<span class="kwa">let</span> <span class="kwd">init</span> <span class="opt">= (</span><span class="kwc">Mpz</span><span class="opt">.</span>of_int <span class="num">1</span><span class="opt">,</span> <span class="kwc">Mpz</span><span class="opt">.</span>of_int <span class="num">1</span><span class="opt">,</span> <span class="kwc">Mpz</span><span class="opt">.</span>of_int <span class="num">0</span><span class="opt">)</span>
-
-<span class="kwa">let</span> <span class="kwd">extract</span> <span class="opt">=</span>
-  <span class="kwa">let</span> <span class="kwd">tmp1</span> <span class="opt">:</span> <span class="kwc">Mpz</span><span class="opt">.</span>m <span class="kwc">Mpz</span><span class="opt">.</span>tt <span class="opt">=</span> <span class="kwc">Mpz</span><span class="opt">.</span><span class="kwd">init</span> <span class="opt">()</span> <span class="kwa">in</span>
-  <span class="kwa">let</span> <span class="kwd">tmp2</span> <span class="opt">:</span> <span class="kwc">Mpz</span><span class="opt">.</span>m <span class="kwc">Mpz</span><span class="opt">.</span>tt <span class="opt">=</span> <span class="kwc">Mpz</span><span class="opt">.</span><span class="kwd">init</span> <span class="opt">()</span> <span class="kwa">in</span>
+<span class="kwa">let</span> <span class="kwd">extract_digit</span> <span class="opt">=</span>
+  <span class="kwa">let</span> <span class="kwd">tmp1</span> <span class="opt">:</span> <span class="kwc">Mpz</span><span class="opt">.</span>m <span class="kwc">Mpz</span><span class="opt">.</span>tt <span class="opt">=</span> <span class="kwc">Mpz</span><span class="opt">.</span>init <span class="opt">()</span> <span class="kwa">in</span>
+  <span class="kwa">let</span> <span class="kwd">tmp2</span> <span class="opt">:</span> <span class="kwc">Mpz</span><span class="opt">.</span>m <span class="kwc">Mpz</span><span class="opt">.</span>tt <span class="opt">=</span> <span class="kwc">Mpz</span><span class="opt">.</span>init <span class="opt">()</span> <span class="kwa">in</span>
   <span class="kwa">fun</span> <span class="opt">(</span>num<span class="opt">,</span>den<span class="opt">,</span>acc<span class="opt">)</span> nth <span class="opt">-&gt;</span>
-    <span class="com">(* (nth * num + acc) / den |&gt; to_int *)</span>
+   <span class="com">(* joggling between tmp1 and tmp2,</span>
+<span class="com">      so that GMP does not use temporary buffers *)</span>
     <span class="kwc">Mpz</span><span class="opt">.</span>mul_si <span class="kwd">tmp1</span> num nth<span class="opt">;</span>
     <span class="kwc">Mpz</span><span class="opt">.</span>add <span class="kwd">tmp2</span> acc <span class="kwd">tmp1</span><span class="opt">;</span>
     <span class="kwc">Mpz</span><span class="opt">.</span>tdiv_q <span class="kwd">tmp1 tmp2</span> den<span class="opt">;</span>
-    <span class="kwc">Mpz</span><span class="opt">.</span>get_int <span class="kwd">tmp1</span>
+    <span class="kwc">Mpz</span><span class="opt">.</span>get_int <span class="kwd">tmp1</span> <span class="com">(* (nth * num + acc) / den |&gt; to_int *)</span>
 
-<span class="kwa">let</span> <span class="kwd">next</span> z <span class="opt">=</span> <span class="kwd">extract</span> z <span class="num">3</span>
 
-<span class="kwa">let</span> <span class="kwd">safe</span> z n <span class="opt">=</span> <span class="kwd">extract</span> z <span class="num">4</span> <span class="opt">=</span> n
+<span class="kwa">let</span> <span class="kwd">eliminate_digit</span> <span class="opt">(</span>num<span class="opt">,</span> den<span class="opt">,</span> acc<span class="opt">)</span> d <span class="opt">=</span>
+  <span class="kwc">Mpz</span><span class="opt">.</span>mul_si num num <span class="num">10</span><span class="opt">;</span>   <span class="com">(* num &lt;- num * 10 *)</span>
+  <span class="kwc">Mpz</span><span class="opt">.</span>submul_ui acc den d<span class="opt">;</span> 
+  <span class="kwc">Mpz</span><span class="opt">.</span>mul_si acc acc <span class="num">10</span> <span class="com">(* acc &lt;- 10 * (acc - den * d) *)</span>
 
-<span class="kwa">let</span> <span class="kwd">prod</span> <span class="opt">=</span>
-  <span class="kwa">fun</span> <span class="opt">(</span>res_num<span class="opt">,</span> res_den<span class="opt">,</span> res_acc<span class="opt">) (</span>num<span class="opt">,</span>den<span class="opt">,</span>acc<span class="opt">)</span> d <span class="opt">-&gt;</span>
-    <span class="com">(* (10 * num, den, 10 * (acc - den * of_int d)) *)</span>
-    <span class="kwc">Mpz</span><span class="opt">.</span>mul_si res_num num <span class="num">10</span><span class="opt">;</span>
+<span class="kwa">let</span> <span class="kwd">next_term</span> <span class="opt">(</span>num<span class="opt">,</span> den<span class="opt">,</span> acc<span class="opt">)</span> k <span class="opt">=</span>
+  <span class="kwa">let</span> <span class="kwd">k2</span> <span class="opt">=</span> k <span class="opt">*</span> <span class="num">2</span> <span class="opt">+</span> <span class="num">1</span> <span class="kwa">in</span>
+  <span class="kwc">Mpz</span><span class="opt">.</span>mul_si den den <span class="kwd">k2</span><span class="opt">;</span> <span class="com">(* den &lt;- den * k2 *)</span>
+  <span class="kwc">Mpz</span><span class="opt">.</span>addmul_ui acc num <span class="num">2</span><span class="opt">;</span>
+  <span class="kwc">Mpz</span><span class="opt">.</span>mul_si acc acc <span class="kwd">k2</span><span class="opt">;</span> <span class="com">(* acc &lt;- (acc + 2*num) * k2 *)</span>
+  <span class="kwc">Mpz</span><span class="opt">.</span>mul_si num num k <span class="com">(* num &lt;- num*k *)</span>
 
-    <span class="kwa">if</span> res_den <span class="opt">!=</span> den <span class="kwa">then</span> <span class="kwc">Mpz</span><span class="opt">.</span>set res_den den<span class="opt">;</span>
+<span class="kwa">let rec</span> <span class="kwd">terms</span> z k <span class="opt">=</span>
+  <span class="kwa">fun</span> <span class="opt">() -&gt;</span> 
+  <span class="kwd">next_term</span> z k<span class="opt">;</span>
+  <span class="kwc">Seq</span><span class="opt">.</span>Cons<span class="opt">(</span>z<span class="opt">,</span> <span class="kwd">terms</span> z <span class="opt">(</span>k <span class="opt">+</span> <span class="num">1</span><span class="opt">))</span>
 
-    <span class="kwa">if</span> res_acc <span class="opt">!=</span> acc <span class="kwa">then</span> <span class="kwc">Mpz</span><span class="opt">.</span>set res_acc acc<span class="opt">;</span>
-    <span class="kwc">Mpz</span><span class="opt">.</span>submul_ui res_acc den d<span class="opt">;</span>
-    <span class="kwc">Mpz</span><span class="opt">.</span>mul_si res_acc res_acc <span class="num">10</span><span class="opt">;</span>
+<span class="kwa">let</span> <span class="kwd">digit</span> z <span class="opt">=</span>
+  <span class="kwa">let</span> <span class="kwd">d</span> <span class="opt">=</span> <span class="kwd">extract_digit</span> z <span class="num">3</span> <span class="kwa">in</span>
+  <span class="kwa">if</span> <span class="kwd">extract_digit</span> z <span class="num">4</span> <span class="opt">=</span> <span class="kwd">d</span>
+  <span class="kwa">then</span> <span class="opt">(</span><span class="kwd">eliminate_digit</span> z <span class="kwd">d</span><span class="opt">;</span> Some <span class="kwd">d</span><span class="opt">)</span>
+  <span class="kwa">else</span> None
 
-    <span class="opt">()</span>
-
-<span class="kwa">let</span> <span class="kwd">cons</span> <span class="opt">=</span>
-  <span class="kwa">fun</span> <span class="opt">(</span>res_num<span class="opt">,</span> res_den<span class="opt">,</span> res_acc<span class="opt">) (</span>num<span class="opt">,</span>den<span class="opt">,</span>acc<span class="opt">)</span> k <span class="opt">-&gt;</span>
-    <span class="kwa">let</span> <span class="kwd">k2</span> <span class="opt">=</span> k <span class="opt">*</span> <span class="num">2</span> <span class="opt">+</span> <span class="num">1</span> <span class="kwa">in</span>
-    <span class="com">(*  (k * num, k2 * den,  k2 * (acc + num + num)) *)</span>
-    <span class="kwc">Mpz</span><span class="opt">.</span>mul_si res_den den <span class="kwd">k2</span><span class="opt">;</span>
-
-    <span class="kwc">Mpz</span><span class="opt">.</span>add res_acc acc num<span class="opt">;</span>
-    <span class="kwc">Mpz</span><span class="opt">.</span>add res_acc res_acc num<span class="opt">;</span>
-    <span class="kwc">Mpz</span><span class="opt">.</span>mul_si res_acc res_acc <span class="kwd">k2</span><span class="opt">;</span>
-
-    <span class="com">(* must go below the computation of res_acc,</span>
-<span class="com">       to avoid trashing the &apos;num&apos; value it uses *)</span>
-    <span class="kwc">Mpz</span><span class="opt">.</span>mul_si res_num num k<span class="opt">;</span>
-
-    <span class="opt">()</span>
+<span class="kwa">let</span> <span class="kwd">all_digits</span> <span class="opt">=</span>
+  <span class="kwd">terms</span> <span class="opt">(</span><span class="kwc">Mpz</span><span class="opt">.</span>of_int <span class="num">1</span><span class="opt">,</span> <span class="kwc">Mpz</span><span class="opt">.</span>of_int <span class="num">1</span><span class="opt">,</span> <span class="kwc">Mpz</span><span class="opt">.</span>of_int <span class="num">0</span><span class="opt">)</span> <span class="num">1</span>
+  <span class="opt">|&gt;</span> <span class="kwc">Seq</span><span class="opt">.</span>filter <span class="opt">(</span><span class="kwa">fun</span> <span class="opt">(</span>num<span class="opt">,</span> _den<span class="opt">,</span> acc<span class="opt">) -&gt;</span> <span class="kwc">Mpz</span><span class="opt">.</span>cmp num acc <span class="opt">&lt;=</span> <span class="num">0</span><span class="opt">)</span>
+  <span class="opt">|&gt;</span> <span class="kwc">Seq</span><span class="opt">.</span>filter_map <span class="kwd">digit</span>
 
 <span class="kwa">let</span> <span class="kwd">columns</span> <span class="opt">=</span> <span class="num">10</span>
-
-<span class="kwa">let rec</span> <span class="kwd">digit</span> k z n row col <span class="opt">=</span>
-  <span class="kwa">if</span> n <span class="opt">=</span> <span class="num">0</span> <span class="kwa">then</span> <span class="kwc">Printf</span><span class="opt">.</span>printf <span class="str">&quot;%*s</span><span class="esc">\t</span><span class="str">:</span><span class="ipl">%i</span><span class="str"></span><span class="esc">\n</span><span class="str">&quot;</span> <span class="opt">(</span><span class="kwd">columns</span><span class="opt">-</span>col<span class="opt">)</span> <span class="str">&quot;&quot;</span> <span class="opt">(</span>row<span class="opt">+</span>col<span class="opt">)</span> <span class="kwa">else</span>
-  <span class="kwa">let</span> <span class="kwd">d</span> <span class="opt">=</span> <span class="kwd">next</span> z <span class="kwa">in</span>
-  <span class="kwa">if</span> <span class="kwd">safe</span> z <span class="kwd">d</span> <span class="kwa">then</span>
-    <span class="kwa">if</span> col <span class="opt">=</span> <span class="kwd">columns</span> <span class="kwa">then begin</span>
-      <span class="kwa">let</span> <span class="kwd">row</span> <span class="opt">=</span> <span class="kwd">row</span> <span class="opt">+</span> col <span class="kwa">in</span>
-      <span class="kwc">Printf</span><span class="opt">.</span>printf <span class="str">&quot;</span><span class="esc">\t</span><span class="str">:</span><span class="ipl">%i</span><span class="str"></span><span class="esc">\n</span><span class="str"></span><span class="ipl">%i</span><span class="str">&quot;</span> <span class="kwd">row d</span><span class="opt">;</span>
-      <span class="kwd">prod</span> z z <span class="kwd">d</span><span class="opt">;</span>
-      <span class="kwd">digit</span> k z <span class="opt">(</span>n<span class="opt">-</span><span class="num">1</span><span class="opt">)</span> <span class="kwd">row</span> <span class="num">1</span>
-    <span class="kwa">end else begin</span> 
-      print_int <span class="kwd">d</span><span class="opt">;</span>
-      <span class="kwd">prod</span> z z <span class="kwd">d</span><span class="opt">;</span>
-      <span class="kwd">digit</span> k z <span class="opt">(</span>n<span class="opt">-</span><span class="num">1</span><span class="opt">)</span> <span class="kwd">row</span> <span class="opt">(</span>col<span class="opt">+</span><span class="num">1</span><span class="opt">)</span>
+<span class="kwa">let rec</span> <span class="kwd">print_digits</span> pos n digits <span class="opt">=</span>
+  <span class="kwa">if</span> pos <span class="kwa">mod</span> <span class="kwd">columns</span> <span class="opt">=</span> <span class="num">0</span> <span class="opt">&amp;&amp;</span> pos <span class="opt">&gt;</span> <span class="num">0</span> <span class="kwa">then</span> <span class="kwc">Printf</span><span class="opt">.</span>printf <span class="str">&quot;</span><span class="esc">\t</span><span class="str">:</span><span class="ipl">%i</span><span class="str"></span><span class="esc">\n</span><span class="str">&quot;</span> pos<span class="opt">;</span>
+  <span class="kwa">if</span> pos <span class="opt">=</span> n <span class="kwa">then</span> <span class="opt">()</span>
+  <span class="kwa">else match</span> digits <span class="opt">()</span> <span class="kwa">with</span>
+  <span class="opt">|</span> <span class="kwc">Seq</span><span class="opt">.</span>Nil <span class="opt">-&gt;</span>
+    <span class="kwa">if</span> pos <span class="kwa">mod</span> <span class="kwd">columns</span> <span class="opt">&gt;</span> <span class="num">0</span> <span class="kwa">then begin</span>
+      print_char &apos; &apos;<span class="opt">;</span>
+      <span class="kwd">print_digits</span> <span class="opt">(</span>pos <span class="opt">+</span> <span class="num">1</span><span class="opt">)</span> n digits
     <span class="kwa">end</span>
-  <span class="kwa">else begin</span>
-    <span class="kwd">cons</span> z z k<span class="opt">;</span>
-    <span class="kwd">digit</span> <span class="opt">(</span>k<span class="opt">+</span><span class="num">1</span><span class="opt">)</span> z n <span class="kwd">row</span> col
-  <span class="kwa">end</span>
+  <span class="opt">|</span> <span class="kwc">Seq</span><span class="opt">.</span>Cons <span class="opt">(</span><span class="kwd">d</span><span class="opt">,</span> rest<span class="opt">) -&gt;</span>
+    print_int <span class="kwd">d</span><span class="opt">;</span>
+    <span class="kwd">print_digits</span> <span class="opt">(</span>pos <span class="opt">+</span> <span class="num">1</span><span class="opt">)</span> n rest
 
-<span class="kwa">let</span> <span class="kwd">digits</span> n <span class="opt">=</span> <span class="kwd">digit</span> <span class="num">1</span> <span class="kwd">init</span> n <span class="num">0 0</span>
-
-<span class="kwa">let</span> <span class="opt">() =</span> <span class="kwd">digits</span> <span class="opt">(</span><span class="kwa">try</span> int_of_string <span class="opt">(</span><span class="kwc">Array</span><span class="opt">.</span>get <span class="kwc">Sys</span><span class="opt">.</span>argv <span class="num">1</span><span class="opt">)</span> <span class="kwa">with</span> _ <span class="opt">-&gt;</span> <span class="num">27</span><span class="opt">)</span>
-
+<span class="kwa">let</span> <span class="opt">() =</span>
+  <span class="kwa">let</span> <span class="kwd">n</span> <span class="opt">=</span> <span class="kwa">try</span> int_of_string <span class="opt">(</span><span class="kwc">Array</span><span class="opt">.</span>get <span class="kwc">Sys</span><span class="opt">.</span>argv <span class="num">1</span><span class="opt">)</span> <span class="kwa">with</span> _ <span class="opt">-&gt;</span> <span class="num">27</span> <span class="kwa">in</span>  
+  <span class="kwd">print_digits</span> <span class="num">0</span> <span class="kwd">n all_digits</span>
     </pre>
   </section>
   <section>
@@ -112,14 +98,14 @@ NOTES:
 The OCaml native-code compiler, version 4.10.0
 
 
-Sun, 21 Jun 2020 14:45:22 GMT
+Sun, 21 Jun 2020 22:09:57 GMT
 
 MAKE:
 mv pidigits.ocaml-7.ocaml pidigits.ocaml-7.ml
 /opt/src/ocaml-4.10.0/bin/ocamlopt -noassert -unsafe -fPIC -nodynlink -inline 100 -O3 -I Include/ocaml gmp.cmxa -ccopt -march=core2 pidigits.ocaml-7.ml -o pidigits.ocaml-7.ocaml_run
 rm pidigits.ocaml-7.ml
 
-2.09s to complete and log all make actions
+2.32s to complete and log all make actions
 
 COMMAND LINE:
 ./pidigits.ocaml-7.ocaml_run 10000
