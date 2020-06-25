@@ -3,7 +3,7 @@ The Benchmarks Game — bencher
 
 Overview
 --------
-* bencher is an example of how to use the benchmarks game Python program measurement scripts to make the content for the mybenchmarks [PHP website scripts](../mybenchmarks).
+* bencher is an example of how to use the benchmarks game Python 2 program measurement scripts to make the content for the mybenchmarks [PHP website scripts](../mybenchmarks).
 
 * Different [.ini files](makefiles) allow different sets of measurements to be separated into different folders.
   You really are expected to copy/edit the ini file.
@@ -15,7 +15,7 @@ Overview
 Background
 ----------
 
-* These Python scripts were originally written because there didn't seem to be a way to set processor affinity with the previous Perl scripts (which was a problem for single core measurements on a quad-core machine).
+* These Python 2 scripts were originally written because there didn't seem to be a way to set processor affinity with the previous Perl scripts (which was a problem for single core measurements on a quad-core machine).
 
 Example
 -------
