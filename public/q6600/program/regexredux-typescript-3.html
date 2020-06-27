@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,follow,noarchive">
+
+<title>regex-redux TypeScript&nbsp;#3 program | Q6600 Benchmarks Game </title>
+<style><!--
+a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,header{margin:auto;width:92%}body{font:100% Droid Sans, Ubuntu, Verdana, sans-serif;margin:0;-webkit-text-size-adjust:100%}h3, h1, h2, li a{font-family:Ubuntu Mono,Consolas,Menlo,monospace}div,footer,header{max-width:31em}footer{padding:2.6em 0 0}h3{font-size:1.4em;font-weight:bold;margin:0;padding: .4em}h3, h3 a{color:white;background-color:#ffb515}h3 small{font-size:0.64em}h1,h2{margin:1.5em 0 0}h1{font-size:1.4em;font-weight:normal}h2{font-size:1.2em}li{list-style-type:none;vertical-align:top}li a{display:block;font-size:1.2em;margin: .5em .5em 0;padding: .5em .5em .3em}ul{clear:left;margin:-0.3em 0 1.5em;padding-left:0;text-align:center}p{color:#333;line-height:1.4;margin: .3em 0 0}p a, a span{border-bottom: .1em solid #333;padding-bottom: .1em}.com,.slc{color:#888}.kwa{color:#066}.kwb{color:#900}.kwc{color:#050}.kwa,.kwb,.kwc{font-weight:bold}.dstr,.str,.sym,.num{color:#930}pre{color:#222;font-size:1em;overflow-wrap:break-word;white-space:pre-wrap;word-wrap:break-word}@media only screen and (min-width: 60em){article,footer,header{font-size:1.25em}}
+--></style>
+<link rel="shortcut icon" href="./favicon.ico">
+<header>
+  <h3><a href="https://benchmarksgame-team.pages.debian.net/benchmarksgame/q6600/">The&nbsp;Q6600<br>Benchmarks&nbsp;Game</a></h3>
+</header>
+<article>
+  <div>
+    <h1>regex-redux TypeScript&nbsp;#3 program</h1>
+    <aside>
+      <p><a href="../description/regexredux.html#regexredux">description</a>
+    </aside>
+  </div>
+  <section>
+    <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="com">/* The Q6600 Benchmarks Game</span>
+<span class="com">   https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="com"></span>
+<span class="com">   regex-dna program contributed by Jesse Millikan</span>
+<span class="com">   based on the Ruby version by jose fco. gonzalez</span>
+<span class="com">   fixed by Matthew Wilson</span>
+<span class="com">   ported to Node.js and sped up by Roman Pletnev</span>
+<span class="com">   converted from regex-dna program</span>
+<span class="com">   fixed by Josh Goldfoot</span>
+<span class="com">   multi thread by Andrey Filatkin</span>
+<span class="com">   converted by Isaac Gouy</span>
+<span class="com">*/</span>
+
+<span class="kwa">import</span> <span class="opt">{</span> Worker<span class="opt">,</span> isMainThread<span class="opt">,</span> parentPort<span class="opt">,</span> workerData <span class="opt">}</span> from <span class="str">&apos;worker_threads&apos;</span><span class="opt">;</span>
+<span class="kwa">const</span> fs <span class="opt">=</span> <span class="kwd">require</span><span class="opt">(</span><span class="str">&apos;fs&apos;</span><span class="opt">);</span>
+
+<span class="kwa">if</span> <span class="opt">(</span>isMainThread<span class="opt">) {</span>
+    <span class="kwd">mainThread</span><span class="opt">();</span>
+<span class="opt">}</span> <span class="kwa">else</span> <span class="opt">{</span>
+    <span class="kwd">workerThread</span><span class="opt">(</span>workerData<span class="opt">);</span>
+<span class="opt">}</span>
+
+<span class="kwa">async function</span> <span class="kwd">mainThread</span><span class="opt">() {</span>
+    <span class="kwa">const</span> regExps <span class="opt">= [</span>
+        <span class="opt">/</span>agggtaaa<span class="opt">|</span>tttaccct<span class="opt">/</span>ig<span class="opt">,</span>
+        <span class="opt">/[</span>cgt<span class="opt">]</span>gggtaaa<span class="opt">|</span>tttaccc<span class="opt">[</span>acg<span class="opt">]/</span>ig<span class="opt">,</span>
+        <span class="opt">/</span>a<span class="opt">[</span>act<span class="opt">]</span>ggtaaa<span class="opt">|</span>tttacc<span class="opt">[</span>agt<span class="opt">]</span>t<span class="opt">/</span>ig<span class="opt">,</span>
+        <span class="opt">/</span>ag<span class="opt">[</span>act<span class="opt">]</span>gtaaa<span class="opt">|</span>tttac<span class="opt">[</span>agt<span class="opt">]</span>ct<span class="opt">/</span>ig<span class="opt">,</span>
+        <span class="opt">/</span>agg<span class="opt">[</span>act<span class="opt">]</span>taaa<span class="opt">|</span>ttta<span class="opt">[</span>agt<span class="opt">]</span>cct<span class="opt">/</span>ig<span class="opt">,</span>
+        <span class="opt">/</span>aggg<span class="opt">[</span>acg<span class="opt">]</span>aaa<span class="opt">|</span>ttt<span class="opt">[</span>cgt<span class="opt">]</span>ccct<span class="opt">/</span>ig<span class="opt">,</span>
+        <span class="opt">/</span>agggt<span class="opt">[</span>cgt<span class="opt">]</span>aa<span class="opt">|</span>tt<span class="opt">[</span>acg<span class="opt">]</span>accct<span class="opt">/</span>ig<span class="opt">,</span>
+        <span class="opt">/</span>agggta<span class="opt">[</span>cgt<span class="opt">]</span>a<span class="opt">|</span>t<span class="opt">[</span>acg<span class="opt">]</span>taccct<span class="opt">/</span>ig<span class="opt">,</span>
+        <span class="opt">/</span>agggtaa<span class="opt">[</span>cgt<span class="opt">]|[</span>acg<span class="opt">]</span>ttaccct<span class="opt">/</span>ig
+    <span class="opt">];</span>
+
+    <span class="kwa">let</span> data <span class="opt">=</span> fs<span class="opt">.</span><span class="kwd">readFileSync</span><span class="opt">(</span><span class="str">&apos;/dev/stdin&apos;</span><span class="opt">,</span> <span class="str">&apos;ascii&apos;</span><span class="opt">);</span>
+    <span class="kwa">const</span> initialLen <span class="opt">=</span> data<span class="opt">.</span>length<span class="opt">;</span>
+
+    data <span class="opt">=</span> data<span class="opt">.</span><span class="kwd">replace</span><span class="opt">(/^&gt;.*</span><span class="esc">\n</span><span class="opt">|</span><span class="esc">\n</span><span class="opt">/</span>mg<span class="opt">,</span> <span class="str">&apos;&apos;</span><span class="opt">);</span>
+    <span class="kwa">const</span> cleanedLen <span class="opt">=</span> data<span class="opt">.</span>length<span class="opt">;</span>
+
+    <span class="kwa">const</span> worker <span class="opt">=</span> <span class="kwd">replaceWork</span><span class="opt">(</span>data<span class="opt">);</span>
+
+    <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">let</span> j <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> j <span class="opt">&lt;</span> regExps<span class="opt">.</span>length<span class="opt">;</span> j<span class="opt">++) {</span>
+        <span class="kwa">const</span> re <span class="opt">=</span> regExps<span class="opt">[</span>j<span class="opt">];</span>
+        <span class="kwa">const</span> m <span class="opt">=</span> data<span class="opt">.</span><span class="kwd">match</span><span class="opt">(</span>re<span class="opt">);</span>
+        console<span class="opt">.</span><span class="kwd">log</span><span class="opt">(</span>re<span class="opt">.</span>source<span class="opt">,</span> m <span class="opt">?</span> m<span class="opt">.</span>length <span class="opt">:</span> <span class="num">0</span><span class="opt">);</span>
+    <span class="opt">}</span>
+
+    <span class="kwa">const</span> endLen <span class="opt">=</span> <span class="kwa">await</span> worker<span class="opt">;</span>
+
+    console<span class="opt">.</span><span class="kwd">log</span><span class="opt">(</span><span class="str">`</span><span class="esc">\n</span><span class="str"></span><span class="ipl">${initialLen}</span><span class="str"></span><span class="esc">\n</span><span class="str"></span><span class="ipl">${cleanedLen}</span><span class="str"></span><span class="esc">\n</span><span class="str"></span><span class="ipl">${endLen}</span><span class="str">`</span><span class="opt">);</span>
+
+    <span class="kwa">function</span> <span class="kwd">replaceWork</span><span class="opt">(</span>data<span class="opt">:</span> <span class="kwb">string</span><span class="opt">) {</span>
+        <span class="kwa">return new</span> <span class="kwd">Promise</span><span class="opt">(</span>resolve <span class="opt">=&gt; {</span>
+            <span class="kwa">const</span> worker <span class="opt">=</span> <span class="kwa">new</span> <span class="kwd">Worker</span><span class="opt">(</span>__filename<span class="opt">, {</span>workerData<span class="opt">:</span> data<span class="opt">});</span>
+            worker<span class="opt">.</span><span class="kwd">on</span><span class="opt">(</span><span class="str">&apos;message&apos;</span><span class="opt">,</span> message <span class="opt">=&gt; {</span>
+                <span class="kwd">resolve</span><span class="opt">(</span>message<span class="opt">.</span>data<span class="opt">);</span>
+            <span class="opt">});</span>
+        <span class="opt">});</span>
+    <span class="opt">}</span>
+<span class="opt">}</span>
+
+<span class="kwa">function</span> <span class="kwd">workerThread</span><span class="opt">(</span>data<span class="opt">:</span> <span class="kwb">string</span><span class="opt">) {</span>
+    <span class="kwa">const</span> len <span class="opt">=</span> data
+        <span class="opt">.</span><span class="kwd">replace</span><span class="opt">(/</span>tHa<span class="opt">[</span>Nt<span class="opt">]/</span>g<span class="opt">,</span> <span class="str">&apos;&lt;4&gt;&apos;</span><span class="opt">)</span>
+        <span class="opt">.</span><span class="kwd">replace</span><span class="opt">(/</span>aND<span class="opt">|</span>caN<span class="opt">|</span>Ha<span class="opt">[</span>DS<span class="opt">]|</span>WaS<span class="opt">/</span>g<span class="opt">,</span> <span class="str">&apos;&lt;3&gt;&apos;</span><span class="opt">)</span>
+        <span class="opt">.</span><span class="kwd">replace</span><span class="opt">(/</span>a<span class="opt">[</span>NSt<span class="opt">]|</span>BY<span class="opt">/</span>g<span class="opt">,</span> <span class="str">&apos;&lt;2&gt;&apos;</span><span class="opt">)</span>
+        <span class="opt">.</span><span class="kwd">replace</span><span class="opt">(/&lt;[^&gt;]*&gt;/</span>g<span class="opt">,</span> <span class="str">&apos;|&apos;</span><span class="opt">)</span>
+        <span class="opt">.</span><span class="kwd">replace</span><span class="opt">(/</span>\<span class="opt">|[^|][^|]*</span>\<span class="opt">|/</span>g<span class="opt">,</span> <span class="str">&apos;-&apos;</span><span class="opt">)</span>
+        <span class="opt">.</span>length<span class="opt">;</span>
+    parentPort<span class="opt">?.</span><span class="kwd">postMessage</span><span class="opt">({</span>data<span class="opt">:</span> len<span class="opt">});</span>
+<span class="opt">}</span>
+    </pre>
+  </section>
+  <section>
+    <div>
+      <h2 id="log">notes, command-line, and program output</h2>
+    </div>
+    <pre>
+NOTES:
+64-bit Ubuntu quad core
+Version 3.9.2
+node.js v14.2.0
+
+
+Wed, 13 May 2020 17:35:52 GMT
+
+MAKE:
+mv regexredux.typescript-3.typescript regexredux.typescript-3.ts
+/opt/src/node-v14.2.0-linux-x64/bin/tsc --strict --noEmitOnError --removeComments --lib es7 regexredux.typescript-3.ts
+
+4.24s to complete and log all make actions
+
+COMMAND LINE:
+/opt/src/node-v14.2.0-linux-x64/bin/node --use_strict  regexredux.typescript-3.js 0 &lt; regexredux-input5000000.txt
+
+PROGRAM OUTPUT:
+agggtaaa|tttaccct 356
+[cgt]gggtaaa|tttaccc[acg] 1250
+a[act]ggtaaa|tttacc[agt]t 4252
+ag[act]gtaaa|tttac[agt]ct 2894
+agg[act]taaa|ttta[agt]cct 5435
+aggg[acg]aaa|ttt[cgt]ccct 1537
+agggt[cgt]aa|tt[acg]accct 1431
+agggta[cgt]a|t[acg]taccct 1608
+agggtaa[cgt]|[acg]ttaccct 2178
+
+50833411
+50000000
+27388361
+    </pre>
+  </section>
+</article>
+<footer>
+  <nav>
+    <ul>
+      <li><a href="https://salsa.debian.org/benchmarksgame-team/benchmarksgame/blob/master/CONTRIBUTING.md#contribute-source-code-for-measurement"><span>Contribute your own program</span></a>
+      <li><a href="../license.html"><span>3-Clause BSD License</span></a>
+    </ul>
+  </nav>
+</footer>
+

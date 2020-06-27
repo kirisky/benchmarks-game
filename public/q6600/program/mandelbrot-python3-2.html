@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,follow,noarchive">
+
+<title>mandelbrot Python 3&nbsp;#2 program | Q6600 Benchmarks Game </title>
+<style><!--
+a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,header{margin:auto;width:92%}body{font:100% Droid Sans, Ubuntu, Verdana, sans-serif;margin:0;-webkit-text-size-adjust:100%}h3, h1, h2, li a{font-family:Ubuntu Mono,Consolas,Menlo,monospace}div,footer,header{max-width:31em}footer{padding:2.6em 0 0}h3{font-size:1.4em;font-weight:bold;margin:0;padding: .4em}h3, h3 a{color:white;background-color:#ffb515}h3 small{font-size:0.64em}h1,h2{margin:1.5em 0 0}h1{font-size:1.4em;font-weight:normal}h2{font-size:1.2em}li{list-style-type:none;vertical-align:top}li a{display:block;font-size:1.2em;margin: .5em .5em 0;padding: .5em .5em .3em}ul{clear:left;margin:-0.3em 0 1.5em;padding-left:0;text-align:center}p{color:#333;line-height:1.4;margin: .3em 0 0}p a, a span{border-bottom: .1em solid #333;padding-bottom: .1em}.com,.slc{color:#888}.kwa{color:#066}.kwb{color:#900}.kwc{color:#050}.kwa,.kwb,.kwc{font-weight:bold}.dstr,.str,.sym,.num{color:#930}pre{color:#222;font-size:1em;overflow-wrap:break-word;white-space:pre-wrap;word-wrap:break-word}@media only screen and (min-width: 60em){article,footer,header{font-size:1.25em}}
+--></style>
+<link rel="shortcut icon" href="./favicon.ico">
+<header>
+  <h3><a href="https://benchmarksgame-team.pages.debian.net/benchmarksgame/q6600/">The&nbsp;Q6600<br>Benchmarks&nbsp;Game</a></h3>
+</header>
+<article>
+  <div>
+    <h1>mandelbrot Python 3&nbsp;#2 program</h1>
+    <aside>
+      <p><a href="../description/mandelbrot.html#mandelbrot">description</a>
+    </aside>
+  </div>
+  <section>
+    <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc"># The Q6600 Benchmarks Game</span>
+<span class="slc"># https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">#</span>
+<span class="slc"># contributed by Tupteq</span>
+<span class="slc"># modified by Simon Descarpentries</span>
+<span class="slc"># modified for multi-core by Ahmad Syukri</span>
+
+<span class="kwa">import</span> multiprocessing <span class="kwa">as</span> mp
+<span class="kwa">import</span> sys
+
+<span class="kwa">def</span> <span class="kwd">writer</span><span class="opt">(</span>buff_queue<span class="opt">,</span>size<span class="opt">):</span>  <span class="slc">#i/o is slow, so leave it to only one worker</span>
+    <span class="kwa">from</span> array <span class="kwa">import</span> array
+    buff_pos <span class="opt">=</span> <span class="num">0</span>
+    buff <span class="opt">= []</span>
+    cout <span class="opt">=</span> sys<span class="opt">.</span>stdout<span class="opt">.</span><span class="kwb">buffer</span><span class="opt">.</span>write
+    <span class="kwa">while</span> <span class="num">1</span><span class="opt">:</span>
+        <span class="kwa">try</span><span class="opt">:</span>
+            buff<span class="opt">.</span><span class="kwd">append</span><span class="opt">(</span>buff_queue<span class="opt">.</span><span class="kwd">get_nowait</span><span class="opt">())</span>
+        <span class="kwa">except</span><span class="opt">:</span>
+            <span class="kwa">if</span> <span class="kwb">len</span><span class="opt">(</span>buff<span class="opt">):</span>
+                buff<span class="opt">.</span><span class="kwd">sort</span><span class="opt">()</span> 
+                pos <span class="opt">=</span> <span class="kwb">len</span><span class="opt">(</span>buff<span class="opt">) -</span> <span class="num">1</span> 
+                <span class="kwa">while</span> pos<span class="opt">&gt;</span><span class="num">0</span><span class="opt">:</span>
+                    <span class="kwa">if</span> buff<span class="opt">[</span>pos<span class="opt">][</span><span class="num">0</span><span class="opt">] ==</span> buff<span class="opt">[</span>pos<span class="opt">-</span><span class="num">1</span><span class="opt">][</span><span class="num">1</span><span class="opt">]:</span>  <span class="slc">#connect contiguous segment</span>
+                        buff<span class="opt">[</span>pos<span class="opt">-</span><span class="num">1</span><span class="opt">] = (</span>buff<span class="opt">[</span>pos<span class="opt">-</span><span class="num">1</span><span class="opt">][</span><span class="num">0</span><span class="opt">],</span>buff<span class="opt">[</span>pos<span class="opt">][</span><span class="num">1</span><span class="opt">],</span>buff<span class="opt">[</span>pos<span class="opt">-</span><span class="num">1</span><span class="opt">][</span><span class="num">2</span><span class="opt">]+</span>buff<span class="opt">[</span>pos<span class="opt">][</span><span class="num">2</span><span class="opt">])</span>
+                        <span class="kwa">del</span><span class="opt">(</span>buff<span class="opt">[</span>pos<span class="opt">])</span>
+                    pos<span class="opt">-=</span><span class="num">1</span>
+                <span class="kwa">if</span> buff<span class="opt">[</span><span class="num">0</span><span class="opt">][</span><span class="num">0</span><span class="opt">]==</span>buff_pos<span class="opt">:</span>  <span class="slc"># write if segment is the next needed one</span>
+                    <span class="kwd">cout</span><span class="opt">(</span><span class="kwd">array</span><span class="opt">(</span><span class="str">&apos;B&apos;</span><span class="opt">,</span> buff<span class="opt">[</span><span class="num">0</span><span class="opt">][</span><span class="num">2</span><span class="opt">]).</span><span class="kwd">tostring</span><span class="opt">())</span>
+                    buff_pos <span class="opt">=</span> buff<span class="opt">[</span><span class="num">0</span><span class="opt">][</span><span class="num">1</span><span class="opt">]</span>
+                    <span class="kwa">del</span><span class="opt">(</span>buff<span class="opt">[</span><span class="num">0</span><span class="opt">])</span>
+
+            <span class="kwa">if</span> buff_pos<span class="opt">&gt;=</span>size<span class="opt">:</span>
+                <span class="kwa">break</span>
+
+<span class="kwa">def</span> <span class="kwd">worker</span><span class="opt">(</span>size<span class="opt">,</span> task_queue<span class="opt">,</span> buff_queue<span class="opt">):</span>
+    cout <span class="opt">=</span> sys<span class="opt">.</span>stdout<span class="opt">.</span><span class="kwb">buffer</span><span class="opt">.</span>write
+    fsize <span class="opt">=</span> <span class="kwb">float</span><span class="opt">(</span>size<span class="opt">)</span>
+    r_size <span class="opt">=</span> <span class="kwb">range</span><span class="opt">(</span>size<span class="opt">)</span>
+    r_iter <span class="opt">=</span> <span class="kwb">range</span><span class="opt">(</span><span class="num">50</span><span class="opt">)</span>
+    local_abs <span class="opt">=</span> <span class="kwb">abs</span>
+    result <span class="opt">= []</span>
+    y<span class="opt">=</span>size  <span class="slc">#only to ensure task_head is initialized. not so pretty code</span>
+    <span class="kwa">while</span> <span class="num">1</span><span class="opt">:</span>
+        task <span class="opt">=</span> task_queue<span class="opt">.</span><span class="kwd">get</span><span class="opt">()</span>
+        <span class="kwa">if</span> task <span class="kwa">is None</span><span class="opt">:</span>
+            <span class="kwa">if</span> <span class="kwb">len</span><span class="opt">(</span>result<span class="opt">):</span>  <span class="slc"># push remaining segments</span>
+                buff_queue<span class="opt">.</span><span class="kwd">put</span><span class="opt">((</span>task_head<span class="opt">,</span>y<span class="opt">+</span><span class="num">1</span><span class="opt">,</span>result<span class="opt">))</span>
+            <span class="kwa">break</span>
+        <span class="kwa">elif</span> task<span class="opt">-</span>y<span class="opt">-</span><span class="num">1</span><span class="opt">:</span>
+            <span class="kwa">if</span> <span class="kwb">len</span><span class="opt">(</span>result<span class="opt">):</span>      <span class="slc"># try to resume from previous segment unless broken</span>
+                buff_queue<span class="opt">.</span><span class="kwd">put</span><span class="opt">((</span>task_head<span class="opt">,</span>y<span class="opt">+</span><span class="num">1</span><span class="opt">,</span>result<span class="opt">))</span>
+            task_head <span class="opt">=</span> task
+            result <span class="opt">= []</span>
+        <span class="slc">#got new job</span>
+        y <span class="opt">=</span> task
+        bit_num <span class="opt">=</span> <span class="num">7</span>
+        byte_acc <span class="opt">=</span> <span class="num">0</span>
+        fy <span class="opt">=</span> <span class="num">2</span>j <span class="opt">*</span> y <span class="opt">/</span> fsize <span class="opt">-</span> <span class="num">1</span>j
+        <span class="kwa">for</span> x <span class="kwa">in</span> r_size<span class="opt">:</span>
+            z <span class="opt">=</span> <span class="num">0</span>j
+            c <span class="opt">=</span> <span class="num">2</span><span class="opt">. *</span> x <span class="opt">/</span> fsize <span class="opt">-</span> <span class="num">1.5</span> <span class="opt">+</span> fy
+     
+            <span class="kwa">for</span> i <span class="kwa">in</span> r_iter<span class="opt">:</span>
+                z <span class="opt">=</span> z <span class="opt">*</span> z <span class="opt">+</span> c
+                <span class="kwa">if</span> <span class="kwd">local_abs</span><span class="opt">(</span>z<span class="opt">) &gt;=</span> <span class="num">2</span><span class="opt">.:</span> <span class="kwa">break</span>
+            <span class="kwa">else</span><span class="opt">:</span>
+                byte_acc <span class="opt">+=</span> <span class="num">1</span> <span class="opt">&lt;&lt;</span> bit_num
+     
+            <span class="kwa">if</span> bit_num <span class="opt">==</span> <span class="num">0</span><span class="opt">:</span>
+                result<span class="opt">.</span><span class="kwd">append</span><span class="opt">(</span>byte_acc<span class="opt">)</span>
+                bit_num <span class="opt">=</span> <span class="num">7</span>
+                byte_acc <span class="opt">=</span> <span class="num">0</span>
+            <span class="kwa">else</span><span class="opt">:</span>
+                bit_num <span class="opt">-=</span> <span class="num">1</span>
+        <span class="kwa">if</span> bit_num <span class="opt">!=</span> <span class="num">7</span><span class="opt">:</span>
+            result<span class="opt">.</span><span class="kwd">append</span><span class="opt">(</span>byte_acc<span class="opt">)</span>
+
+<span class="kwa">def</span> <span class="kwd">main</span><span class="opt">():</span>
+    size <span class="opt">=</span> <span class="kwb">int</span><span class="opt">(</span>sys<span class="opt">.</span>argv<span class="opt">[</span><span class="num">1</span><span class="opt">])</span>
+    task_queue <span class="opt">=</span> mp<span class="opt">.</span><span class="kwd">Queue</span><span class="opt">()</span>
+    <span class="kwa">for</span> i <span class="kwa">in</span> <span class="kwb">range</span><span class="opt">(</span>size<span class="opt">):</span>
+        task_queue<span class="opt">.</span><span class="kwd">put</span><span class="opt">(</span>i<span class="opt">)</span>
+    buff_queue <span class="opt">=</span> mp<span class="opt">.</span><span class="kwd">Queue</span><span class="opt">()</span>
+    num_proc <span class="opt">=</span> <span class="num">64</span> 
+    proc <span class="opt">= []</span>
+    <span class="kwa">for</span> i <span class="kwa">in</span> <span class="kwb">range</span><span class="opt">(</span>num_proc<span class="opt">):</span>
+        task_queue<span class="opt">.</span><span class="kwd">put</span><span class="opt">(</span><span class="kwa">None</span><span class="opt">)</span>
+
+    worker_args <span class="opt">= (</span>size<span class="opt">,</span> task_queue<span class="opt">,</span> buff_queue<span class="opt">)</span>
+
+    <span class="kwa">for</span> a <span class="kwa">in</span> <span class="kwb">range</span><span class="opt">(</span>num_proc<span class="opt">):</span>
+        p <span class="opt">=</span> mp<span class="opt">.</span><span class="kwd">Process</span><span class="opt">(</span>target<span class="opt">=</span>worker<span class="opt">,</span> args<span class="opt">=</span>worker_args<span class="opt">)</span>
+        p<span class="opt">.</span><span class="kwd">start</span><span class="opt">()</span>
+        proc<span class="opt">.</span><span class="kwd">append</span><span class="opt">(</span>p<span class="opt">)</span>
+    sys<span class="opt">.</span>stdout<span class="opt">.</span><span class="kwd">write</span><span class="opt">(</span><span class="str">&quot;P4</span><span class="esc">\n</span><span class="str"></span><span class="ipl">%d %d</span><span class="str"></span><span class="esc">\n</span><span class="str">&quot;</span> <span class="opt">% (</span>size<span class="opt">,</span> size<span class="opt">))</span>
+    w <span class="opt">=</span> mp<span class="opt">.</span><span class="kwd">Process</span><span class="opt">(</span>target<span class="opt">=</span>writer<span class="opt">,</span> args<span class="opt">=(</span>buff_queue<span class="opt">,</span>size<span class="opt">))</span>
+    w<span class="opt">.</span><span class="kwd">start</span><span class="opt">()</span>
+    proc<span class="opt">.</span><span class="kwd">append</span><span class="opt">(</span>w<span class="opt">)</span>
+
+    <span class="kwa">for</span> p <span class="kwa">in</span> proc<span class="opt">:</span>
+        p<span class="opt">.</span><span class="kwd">join</span><span class="opt">()</span>
+
+<span class="kwa">if</span> __name__<span class="opt">==</span><span class="str">&apos;__main__&apos;</span><span class="opt">:</span>
+    <span class="kwd">main</span><span class="opt">()</span>
+
+    </pre>
+  </section>
+  <section>
+    <div>
+      <h2 id="log">notes, command-line, and program output</h2>
+    </div>
+    <pre>
+NOTES:
+64-bit Ubuntu quad core
+Python 3.8.0
+
+
+Mon, 11 May 2020 01:52:55 GMT
+
+MAKE:
+mv mandelbrot.python3-2.python3 mandelbrot.python3-2.py
+mypy .
+There are no .py[i] files in directory '.'
+make: [/home/dunham/8000-benchmarksgame/nanobench/makefiles/u64q.programs.Makefile:352: mandelbrot.python3-2.python3_run] Error 2 (ignored)
+
+3.49s to complete and log all make actions
+
+COMMAND LINE:
+/opt/src/Python-3.8.0/bin/python3 -OO mandelbrot.python3-2.py 16000
+
+(BINARY) PROGRAM OUTPUT NOT SHOWN
+    </pre>
+  </section>
+</article>
+<footer>
+  <nav>
+    <ul>
+      <li><a href="https://salsa.debian.org/benchmarksgame-team/benchmarksgame/blob/master/CONTRIBUTING.md#contribute-source-code-for-measurement"><span>Contribute your own program</span></a>
+      <li><a href="../license.html"><span>3-Clause BSD License</span></a>
+    </ul>
+  </nav>
+</footer>
+

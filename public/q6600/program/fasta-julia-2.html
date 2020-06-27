@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,follow,noarchive">
+
+<title>fasta Julia&nbsp;#2 program | Q6600 Benchmarks Game </title>
+<style><!--
+a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,header{margin:auto;width:92%}body{font:100% Droid Sans, Ubuntu, Verdana, sans-serif;margin:0;-webkit-text-size-adjust:100%}h3, h1, h2, li a{font-family:Ubuntu Mono,Consolas,Menlo,monospace}div,footer,header{max-width:31em}footer{padding:2.6em 0 0}h3{font-size:1.4em;font-weight:bold;margin:0;padding: .4em}h3, h3 a{color:white;background-color:#ffb515}h3 small{font-size:0.64em}h1,h2{margin:1.5em 0 0}h1{font-size:1.4em;font-weight:normal}h2{font-size:1.2em}li{list-style-type:none;vertical-align:top}li a{display:block;font-size:1.2em;margin: .5em .5em 0;padding: .5em .5em .3em}ul{clear:left;margin:-0.3em 0 1.5em;padding-left:0;text-align:center}p{color:#333;line-height:1.4;margin: .3em 0 0}p a, a span{border-bottom: .1em solid #333;padding-bottom: .1em}.com,.slc{color:#888}.kwa{color:#066}.kwb{color:#900}.kwc{color:#050}.kwa,.kwb,.kwc{font-weight:bold}.dstr,.str,.sym,.num{color:#930}pre{color:#222;font-size:1em;overflow-wrap:break-word;white-space:pre-wrap;word-wrap:break-word}@media only screen and (min-width: 60em){article,footer,header{font-size:1.25em}}
+--></style>
+<link rel="shortcut icon" href="./favicon.ico">
+<header>
+  <h3><a href="https://benchmarksgame-team.pages.debian.net/benchmarksgame/q6600/">The&nbsp;Q6600<br>Benchmarks&nbsp;Game</a></h3>
+</header>
+<article>
+  <div>
+    <h1>fasta Julia&nbsp;#2 program</h1>
+    <aside>
+      <p><a href="../description/fasta.html#fasta">description</a>
+    </aside>
+  </div>
+  <section>
+    </div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc"># The Q6600 Benchmarks Game</span>
+<span class="slc"># https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">#</span>
+<span class="slc"># Contributed by Lutfullah Tomak</span>
+<span class="slc"># based on C gcc implementation</span>
+
+<span class="kwa">const</span> IM <span class="opt">=</span> <span class="num">139968</span>
+<span class="kwa">const</span> IA <span class="opt">=</span> <span class="num">3877</span>
+<span class="kwa">const</span> IC <span class="opt">=</span> <span class="num">29573</span>
+
+<span class="kwa">const</span> last_genrandom <span class="opt">=</span> <span class="kwd">Ref</span><span class="opt">(</span><span class="num">42</span><span class="opt">)</span>
+<span class="kwa">function</span> <span class="kwd">gen_random</span><span class="opt">(</span>max<span class="opt">::</span><span class="kwb">AbstractFloat</span><span class="opt">)</span> 
+    last <span class="opt">= (</span>last_genrandom<span class="opt">[] *</span> IA <span class="opt">+</span> IC<span class="opt">) %</span> IM
+    last_genrandom<span class="opt">[] =</span> last
+    <span class="kwa">return</span> max <span class="opt">*</span> last <span class="opt">/</span> IM
+<span class="kwa">end</span>
+
+mutable <span class="kwa">struct</span> Aminoacids
+    c<span class="opt">::</span><span class="kwb">UInt8</span>
+    p<span class="opt">::</span><span class="kwb">Float64</span>
+<span class="kwa">end</span>
+
+<span class="slc"># Weighted selection from alphabet </span>
+
+<span class="kwa">function</span> <span class="kwd">makeCumulative</span><span class="opt">(</span>genelist<span class="opt">::</span>Vector<span class="opt">{</span>Aminoacids<span class="opt">},</span>
+                        count<span class="opt">::</span><span class="kwb">Integer</span><span class="opt">)</span> 
+    cp <span class="opt">=</span> <span class="num">0.0</span>
+    <span class="kwa">for</span> i <span class="opt">=</span> <span class="num">1</span><span class="opt">:</span>count
+        cp <span class="opt">+=</span> genelist<span class="opt">[</span>i<span class="opt">].</span>p
+        genelist<span class="opt">[</span>i<span class="opt">].</span>p <span class="opt">=</span> cp
+    <span class="kwa">end</span>
+<span class="kwa">end</span>
+
+<span class="kwa">function</span> <span class="kwd">selectRandom</span><span class="opt">(</span>genelist<span class="opt">::</span>Vector<span class="opt">{</span>Aminoacids<span class="opt">},</span>
+                      count<span class="opt">::</span><span class="kwb">Integer</span><span class="opt">)</span>
+    r <span class="opt">=</span> <span class="kwd">gen_random</span><span class="opt">(</span><span class="num">1.0</span><span class="opt">)</span>
+
+    <span class="kwa">if</span> <span class="opt">(</span>r <span class="opt">&lt;</span> genelist<span class="opt">[</span><span class="num">1</span><span class="opt">].</span>p<span class="opt">)</span> 
+        <span class="kwa">return</span> genelist<span class="opt">[</span><span class="num">1</span><span class="opt">].</span>c
+    <span class="kwa">end</span>
+
+    lo <span class="opt">=</span> <span class="num">1</span>
+    hi <span class="opt">=</span> count
+
+    <span class="kwa">while</span> <span class="opt">(</span>hi <span class="opt">&gt;</span> lo<span class="opt">+</span><span class="num">1</span><span class="opt">)</span>
+        i <span class="opt">= (</span>hi <span class="opt">+</span> lo<span class="opt">) &gt;&gt;</span> <span class="num">1</span>
+        <span class="kwa">if</span> <span class="opt">(</span>r <span class="opt">&lt;</span> genelist<span class="opt">[</span>i<span class="opt">].</span>p<span class="opt">)</span>
+            hi <span class="opt">=</span> i
+        <span class="kwa">else</span>
+            lo <span class="opt">=</span> i
+        <span class="kwa">end</span>
+    <span class="kwa">end</span>
+    <span class="kwa">return</span> genelist<span class="opt">[</span>hi<span class="opt">].</span>c
+<span class="kwa">end</span>
+
+<span class="slc"># Generate and write FASTA format</span>
+
+<span class="kwa">const</span> LINE_LENGTH <span class="opt">=</span> <span class="num">60</span>
+
+<span class="kwa">function</span> <span class="kwd">makeRandomFasta</span><span class="opt">(</span>id<span class="opt">::</span>String<span class="opt">,</span> desc<span class="opt">::</span>String<span class="opt">,</span>
+                         genelist<span class="opt">::</span>Vector<span class="opt">{</span>Aminoacids<span class="opt">},</span>
+                         count<span class="opt">::</span><span class="kwb">Integer</span><span class="opt">,</span> n<span class="opt">::</span><span class="kwb">Integer</span><span class="opt">)</span>
+
+    <span class="kwd">write</span><span class="opt">(</span>stdout<span class="opt">,</span>&apos;<span class="opt">&gt;</span>&apos;<span class="opt">,</span> id<span class="opt">,</span> &apos; &apos;<span class="opt">,</span> desc<span class="opt">,</span>&apos;<span class="esc">\n</span>&apos;<span class="opt">)</span>
+    pick <span class="opt">=</span> Vector<span class="opt">{</span><span class="kwb">UInt8</span><span class="opt">}(</span>undef<span class="opt">,</span>LINE_LENGTH<span class="opt">+</span><span class="num">1</span><span class="opt">)</span>
+    <span class="kwa">for</span> todo <span class="opt">=</span> n<span class="opt">:(-</span>LINE_LENGTH<span class="opt">):</span><span class="num">1</span>
+        <span class="kwa">if</span> <span class="opt">(</span>todo <span class="opt">&lt;</span> LINE_LENGTH<span class="opt">)</span>
+            m <span class="opt">=</span> todo
+        <span class="kwa">else</span> 
+            m <span class="opt">=</span> LINE_LENGTH
+        <span class="kwa">end</span>
+        <span class="kwa">for</span> i <span class="opt">=</span> <span class="num">1</span><span class="opt">:</span>m
+            pick<span class="opt">[</span>i<span class="opt">] =</span> <span class="kwd">selectRandom</span><span class="opt">(</span>genelist<span class="opt">,</span> count<span class="opt">)</span>
+        <span class="kwa">end</span>
+        pick<span class="opt">[</span>m<span class="opt">+</span><span class="num">1</span><span class="opt">] =</span> &apos;<span class="esc">\n</span>&apos;
+        <span class="kwd">write</span><span class="opt">(</span>stdout<span class="opt">,</span> <span class="kwc">&#64;view</span> pick<span class="opt">[</span><span class="num">1</span><span class="opt">:(</span>m<span class="opt">+</span><span class="num">1</span><span class="opt">)])</span>
+    <span class="kwa">end</span>
+    <span class="kwa">return</span> nothing
+<span class="kwa">end</span>
+
+<span class="kwa">function</span> <span class="kwd">makeRepeatFasta</span><span class="opt">(</span>id<span class="opt">::</span>String<span class="opt">,</span> desc<span class="opt">::</span>String<span class="opt">,</span>
+                          s<span class="opt">::</span>Vector<span class="opt">{</span><span class="kwb">UInt8</span><span class="opt">},</span> n<span class="opt">::</span><span class="kwb">Integer</span><span class="opt">)</span>
+    k <span class="opt">=</span> <span class="num">0</span>
+    kn <span class="opt">=</span> <span class="kwd">length</span><span class="opt">(</span>s<span class="opt">)</span>
+    ss <span class="opt">=</span> <span class="kwd">copy</span><span class="opt">(</span>s<span class="opt">)</span>
+    <span class="kwd">write</span><span class="opt">(</span>stdout<span class="opt">,</span>&apos;<span class="opt">&gt;</span>&apos;<span class="opt">,</span> id<span class="opt">,</span> &apos; &apos;<span class="opt">,</span> desc<span class="opt">,</span>&apos;<span class="esc">\n</span>&apos;<span class="opt">)</span>
+
+    <span class="kwa">for</span> todo <span class="opt">=</span> n<span class="opt">:(-</span>LINE_LENGTH<span class="opt">):</span><span class="num">1</span>
+        <span class="kwa">if</span> <span class="opt">(</span>todo <span class="opt">&lt;</span> LINE_LENGTH<span class="opt">)</span>
+            m <span class="opt">=</span> todo
+        <span class="kwa">else</span>
+            m <span class="opt">=</span> LINE_LENGTH
+        <span class="kwa">end</span>
+        <span class="kwa">while</span> <span class="opt">(</span>m <span class="opt">&gt;=</span> kn <span class="opt">-</span> k<span class="opt">)</span>
+            <span class="kwd">write</span><span class="opt">(</span>stdout<span class="opt">,</span> <span class="kwc">&#64;view</span> s<span class="opt">[(</span>k<span class="opt">+</span><span class="num">1</span><span class="opt">):</span>kn<span class="opt">])</span>
+            m <span class="opt">-=</span> kn <span class="opt">-</span> k
+            k <span class="opt">=</span> <span class="num">0</span>
+        <span class="kwa">end</span>
+        ss<span class="opt">[</span>k <span class="opt">+</span> m <span class="opt">+</span> <span class="num">1</span><span class="opt">] =</span> &apos;<span class="esc">\n</span>&apos;
+        <span class="kwd">write</span><span class="opt">(</span>stdout<span class="opt">,</span> <span class="kwc">&#64;view</span> ss<span class="opt">[(</span>k<span class="opt">+</span><span class="num">1</span><span class="opt">):(</span>k<span class="opt">+</span>m<span class="opt">+</span><span class="num">1</span><span class="opt">)])</span>
+        ss<span class="opt">[</span>k <span class="opt">+</span> m <span class="opt">+</span> <span class="num">1</span><span class="opt">] =</span> s<span class="opt">[</span>m <span class="opt">+</span> k <span class="opt">+</span> <span class="num">1</span><span class="opt">]</span>
+        k <span class="opt">+=</span> m
+    <span class="kwa">end</span>
+    <span class="kwa">return</span> nothing
+<span class="kwa">end</span>
+
+<span class="slc">#* Main -- define alphabets, make 3 fragments</span>
+
+<span class="kwa">const</span> iub <span class="opt">= [</span>
+    <span class="kwd">Aminoacids</span><span class="opt">(</span> &apos;a&apos;<span class="opt">,</span> <span class="num">0.27</span> <span class="opt">),</span>
+    <span class="kwd">Aminoacids</span><span class="opt">(</span> &apos;c&apos;<span class="opt">,</span> <span class="num">0.12</span> <span class="opt">),</span>
+    <span class="kwd">Aminoacids</span><span class="opt">(</span> &apos;g&apos;<span class="opt">,</span> <span class="num">0.12</span> <span class="opt">),</span>
+    <span class="kwd">Aminoacids</span><span class="opt">(</span> &apos;t&apos;<span class="opt">,</span> <span class="num">0.27</span> <span class="opt">),</span>
+    
+    <span class="kwd">Aminoacids</span><span class="opt">(</span> &apos;B&apos;<span class="opt">,</span> <span class="num">0.02</span> <span class="opt">),</span>
+    <span class="kwd">Aminoacids</span><span class="opt">(</span> &apos;D&apos;<span class="opt">,</span> <span class="num">0.02</span> <span class="opt">),</span>
+    <span class="kwd">Aminoacids</span><span class="opt">(</span> &apos;H&apos;<span class="opt">,</span> <span class="num">0.02</span> <span class="opt">),</span>
+    <span class="kwd">Aminoacids</span><span class="opt">(</span> &apos;K&apos;<span class="opt">,</span> <span class="num">0.02</span> <span class="opt">),</span>
+    <span class="kwd">Aminoacids</span><span class="opt">(</span> &apos;M&apos;<span class="opt">,</span> <span class="num">0.02</span> <span class="opt">),</span>
+    <span class="kwd">Aminoacids</span><span class="opt">(</span> &apos;N&apos;<span class="opt">,</span> <span class="num">0.02</span> <span class="opt">),</span>
+    <span class="kwd">Aminoacids</span><span class="opt">(</span> &apos;R&apos;<span class="opt">,</span> <span class="num">0.02</span> <span class="opt">),</span>
+    <span class="kwd">Aminoacids</span><span class="opt">(</span> &apos;S&apos;<span class="opt">,</span> <span class="num">0.02</span> <span class="opt">),</span>
+    <span class="kwd">Aminoacids</span><span class="opt">(</span> &apos;V&apos;<span class="opt">,</span> <span class="num">0.02</span> <span class="opt">),</span>
+    <span class="kwd">Aminoacids</span><span class="opt">(</span> &apos;W&apos;<span class="opt">,</span> <span class="num">0.02</span> <span class="opt">),</span>
+    <span class="kwd">Aminoacids</span><span class="opt">(</span> &apos;Y&apos;<span class="opt">,</span> <span class="num">0.02</span> <span class="opt">)</span>
+<span class="opt">]</span>
+
+<span class="kwa">const</span> IUB_LEN  <span class="opt">=</span> <span class="kwd">length</span><span class="opt">(</span>iub<span class="opt">)</span>
+
+<span class="kwa">const</span> homosapiens <span class="opt">= [</span>
+    <span class="kwd">Aminoacids</span><span class="opt">(</span> &apos;a&apos;<span class="opt">,</span> <span class="num">0.3029549426680</span> <span class="opt">),</span>
+    <span class="kwd">Aminoacids</span><span class="opt">(</span> &apos;c&apos;<span class="opt">,</span> <span class="num">0.1979883004921</span> <span class="opt">),</span>
+    <span class="kwd">Aminoacids</span><span class="opt">(</span> &apos;g&apos;<span class="opt">,</span> <span class="num">0.1975473066391</span> <span class="opt">),</span>
+    <span class="kwd">Aminoacids</span><span class="opt">(</span> &apos;t&apos;<span class="opt">,</span> <span class="num">0.3015094502008</span> <span class="opt">),</span>
+<span class="opt">]</span>
+
+<span class="kwa">const</span> HOMOSAPIENS_LEN <span class="opt">=</span> <span class="kwd">length</span><span class="opt">(</span>homosapiens<span class="opt">)</span>
+
+<span class="kwa">const</span> alustring <span class="opt">=</span>
+   <span class="str">&quot;GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGG&quot;</span><span class="opt">*</span>
+   <span class="str">&quot;GAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGA&quot;</span><span class="opt">*</span>
+   <span class="str">&quot;CCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAAT&quot;</span><span class="opt">*</span>
+   <span class="str">&quot;ACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCA&quot;</span><span class="opt">*</span>
+   <span class="str">&quot;GCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGG&quot;</span><span class="opt">*</span>
+   <span class="str">&quot;AGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCC&quot;</span><span class="opt">*</span>
+   <span class="str">&quot;AGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA&quot;</span>
+   
+<span class="kwa">const</span> alu <span class="opt">=</span> <span class="kwd">unsafe_wrap</span><span class="opt">(</span>Vector<span class="opt">{</span><span class="kwb">UInt8</span><span class="opt">},</span><span class="kwd">pointer</span><span class="opt">(</span>alustring<span class="opt">),</span>
+                        <span class="kwd">length</span><span class="opt">(</span>alustring<span class="opt">),</span>own<span class="opt">=</span><span class="kwa">true</span><span class="opt">)</span>
+
+<span class="kwa">function</span> <span class="kwd">main</span><span class="opt">(</span>n<span class="opt">)</span>
+
+    <span class="kwd">makeCumulative</span><span class="opt">(</span>iub<span class="opt">,</span> IUB_LEN<span class="opt">)</span>
+    <span class="kwd">makeCumulative</span><span class="opt">(</span>homosapiens<span class="opt">,</span> HOMOSAPIENS_LEN<span class="opt">)</span>
+    <span class="kwd">makeRepeatFasta</span><span class="opt">(</span><span class="str">&quot;ONE&quot;</span><span class="opt">,</span> <span class="str">&quot;Homo sapiens alu&quot;</span><span class="opt">,</span> alu<span class="opt">,</span> n<span class="opt">*</span><span class="num">2</span><span class="opt">)</span>
+    <span class="kwd">makeRandomFasta</span><span class="opt">(</span><span class="str">&quot;TWO&quot;</span><span class="opt">,</span> <span class="str">&quot;IUB ambiguity codes&quot;</span><span class="opt">,</span> iub<span class="opt">,</span> IUB_LEN<span class="opt">,</span> n<span class="opt">*</span><span class="num">3</span><span class="opt">)</span>
+    <span class="kwd">makeRandomFasta</span><span class="opt">(</span><span class="str">&quot;THREE&quot;</span><span class="opt">,</span> <span class="str">&quot;Homo sapiens frequency&quot;</span><span class="opt">,</span> homosapiens<span class="opt">,</span>
+                    HOMOSAPIENS_LEN<span class="opt">,</span> n<span class="opt">*</span><span class="num">5</span><span class="opt">)</span>
+
+    <span class="kwa">return</span> nothing
+<span class="kwa">end</span>
+
+n <span class="opt">=</span> <span class="kwd">parse</span><span class="opt">(</span>Int<span class="opt">,</span> ARGS<span class="opt">[</span><span class="num">1</span><span class="opt">])</span>
+<span class="kwd">main</span><span class="opt">(</span>n<span class="opt">)</span>
+    </pre>
+  </section>
+  <section>
+    <h2 id="log">notes, command-line, and program output</h2>
+    <pre>
+NOTES:
+64-bit Ubuntu quad core
+julia version 1.3.0
+export JULIA_NUM_THREADS=4
+
+
+Tue, 26 Nov 2019 23:11:51 GMT
+
+COMMAND LINE:
+/opt/src/julia-1.3.0/bin/julia -O3  -- fasta.julia-2.julia 25000000
+
+(TRUNCATED) PROGRAM OUTPUT:
+&gt;ONE Homo sapiens alu
+GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGA
+TCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACT
+AAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAG
+GCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCG
+CCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAAGGCCGGGCGCGGT
+GGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCA
+GGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAA
+TTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAG
+AATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCA
+GCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAAGGCCGGGCGCGGTGGCTCACGCCTGT
+AATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGACC
+AGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGCGTG
+GTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACC
+CGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAG
+AGCGAGACTCCGTCTCAAAAAGGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTT
+TGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACA
+TGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCT
+GTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGG
+TTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGT
+CTCAAAAAGGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGG
+CGGGCGGATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCG
+TCTCTACTAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTA
+CTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCG
+AGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAAGGCCG
+GGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACC
+TGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAA
+TACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGA
+GGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACT
+GCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAAGGCCGGGCGCGGTGGCTC
+ACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGT
+TCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGC
+CGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCG
+CTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTG
+GGCGACAGAGCGAGACTCCGTCTCAAAAAGGCCGGGCGCGGTGGCTCACGCCTGTAATCC
+CAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGACCAGCCT
+GGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGCGTGGTGGC
+GCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGA
+GGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGA
+GACTCCGTCTCAAAAAGGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGA
+GGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTG
+AAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAAT
+CCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCA
+GTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAA
+AAAGGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGC
+GGATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCT
+ACTAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGG
+GAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATC
+GCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAAGGCCGGGCGC
+GGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGG
+TCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAA
+AAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAG
+GAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACT
+CCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAAGGCCGGGCGCGGTGGCTCACGCC
+TGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAG
+ACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGC
+GTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGA
+ACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGA
+CAGAGCGAGACTCCGTCTCAAAAAGGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCA
+CTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCA
+ACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCG
+CCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGG
+AGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTC
+CGTCTCAAAAAGGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCG
+AGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACC
+CCGTCTCTACTAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAG
+CTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAG
+CCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAAGG
+CCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATC
+ACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAA
+AAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGC
+TGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCC
+ACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAAGGCCGGGCGCGGTGG
+CTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGG
+AGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATT
+AGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAA
+TCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGC
+CTGGGCGACAGAGCGAGACTCCGTCTCAAAAAGGCCGGGCGCGGTGGCTCACGCCTGTAA
+TCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGACCAG
+CCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGCGTGGT
+GGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCG
+GGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAG
+CGAGACTCCGTCTCAAAAAGGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTG
+GGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATG
+GTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGT
+AATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTT
+GCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCT
+CAAAAAGGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCG
+GGCGGATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTC
+TCTACTAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACT
+CGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAG
+ATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAAGGCCGGG
+CGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTG
+AGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATA
+CAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGG
+CAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGC
+ACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAAGGCCGGGCGCGGTGGCTCAC
+GCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTC
+GAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCG
+GGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCT
+TGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGG
+CGACAGAGCGAGACTCCGTCTCAAAAAGGCCGGGCGCGGTGGCTCACGCCTGTAATCCCA
+GCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGG
+CCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGCGTGGTGGCGC
+GCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGG
+CGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGA
+CTCCGTCTCAAAAAGGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGG
+CCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAA
+ACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCC
+CAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGT
+GAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAA
+AGGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGG
+ATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTAC
+TAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGA
+GGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGC
+GCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAAGGCCGGGCGCGG
+TGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTC
+AGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAA
+ATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGA
+GAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCC
+AGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAAGGCCGGGCGCGGTGGCTCACGCCTG
+TAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGAC
+CAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGCGT
+GGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAAC
+CCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACA
+GAGCGAGACTCCGTCTCAAAAAGGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACT
+TTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAAC
+ATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCC
+TGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAG
+GTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCG
+TCTCAAAAAGGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAG
+GCGGGCGGATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCC
+GTCTCTACTAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCT
+ACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCC
+GAGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAAGGCC
+GGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCAC
+CTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAA
+ATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTG
+AGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCAC
+TGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAAGGCCGGGCGCGGTGGCT
+CACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAG
+TTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAG
+CCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATC
+GCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCT
+GGGCGACAGAGCGAGACTCCGTCTCAAAAAGGCCGGGCGCGGTGGCTCACGCCTGTAATC
+CCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGACCAGCC
+TGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGCGTGGTGG
+CGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGG
+AGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCG
+AGACTCCGTCTCAAAAAGGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGG
+AGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGT
+GAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAA
+TCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGC
+AGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCA
+AAAAGGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGG
+CGGATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTC
+TACTAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCG
+GGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGAT
+CGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAAGGCCGGGCG
+CGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAG
+GTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACA
+AAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCA
+GGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCAC
+TCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAAGGCCGGGCGCGGTGGCTCACGC
+CTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGA
+GACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGG
+CGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTG
+AACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCG
+ACAGAGCGAGACTCCGTCTCAAAAAGGCCGG    </pre>
+  </section>
+</article>
+<footer>
+  <nav>
+    <ul>
+      <li><a href="../license.html"><span>3-Clause BSD License</span></a>
+    </ul>
+  </nav>
+</footer>
+
