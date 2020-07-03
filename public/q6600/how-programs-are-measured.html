@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="index,follow,archive">
+<meta name="description" content="How programs are measured: elapsed secs, memory use, source code size, CPU load, CPU secs.">
+<title>How programs are measured | Computer Language Benchmarks Game</title>
+<link href="https://benchmarksgame-team.pages.debian.net/benchmarksgame/how-programs-are-measured.html" rel="canonical">
+<link rel="shortcut icon" href="./favicon.ico">
+<style><!-- 
+a{color:black;text-decoration:none}article,footer,header{margin:auto;max-width:31em;width:92%}body{font:100% Droid Sans,Ubuntu,Verdana,sans-serif;margin:0;-webkit-text-size-adjust:100%}code,h3,h2{font-family:Ubuntu Mono,Consolas,Menlo,monospace}footer{padding:2.6em 0 0}h3{font-size:1.4em;font-weight:bold;margin:0;padding: .4em}h3, h3 a{color:white;background-color:#dd4814}h3 small{font-size:0.64em}h2{margin:1.5em 0 0}h2{font-size:1.2em}nav li{list-style-type:none;vertical-align:top}p{color:#333;line-height:1.4;margin: .3em 0 0}.external{border-bottom:.1em dashed #333}p a{border-bottom: .1em solid #333;padding-bottom: .1em}table{font-family:Menlo,Consolas,Ubuntu Monospace,Andale Mono,monospace;margin:.7em 0;text-align:right}td{border-bottom:.15em dotted #eee;padding:.7em .7em 0 0}td:first-child,th:first-child{text-align:left}th{font-weight:400;padding:0 .7em 0 0;text-align:left}code{font-size:1em;overflow-wrap:break-word;white-space:pre-wrap;word-wrap:break-word}@media only screen and (min-width: 60em){article,footer,header{font-size:1.25em}}
+--></style>
+<header>
+  <h3><a href="https://benchmarksgame-team.pages.debian.net/benchmarksgame/">The&nbsp;<small>Computer&nbsp;Language</small><br>Benchmarks&nbsp;Game</a></h3>
+</header>
+<article>
+  <h2></h2>
+  <aside>
+    <p>Measured on a <a class="external" href="https://www.techspot.com/article/1313-intel-q6600-ten-years-later/">quad-core 2.4Ghz Intel<sup>&#174;</sup> Q6600<sup>&#174;</sup></a> with 3.8 GiB of RAM and 250GB SATA II disk drive; using Ubuntu&#8482; 20.04 Linux x64 5.4.0-29-generic.
+    <p>No doubt on current hardware all the programs would be faster. Would that make the measurements <a href="https://benchmarksgame-team.pages.debian.net/benchmarksgame/sometimes-people-just-make-up-stuff.html#pre-2007-cpu">more informative or just different?</a>
+  </aside>
+  <section>
+    <h2 id="play">Who wrote the programs</h2>
+    <p>The programs have been crowd sourced, contributed to the project by an ever-changing self-selected group. 
+    <p>Please <a href="https://salsa.debian.org/benchmarksgame-team/benchmarksgame/blob/master/CONTRIBUTING.md#contribute-source-code-for-measurement">contribute better programs</a> — Programs age. Language implementations add new features. New programs are needed to show the modern language.
+  </section>
+  <section>
+    <h2 id="measured">How programs are measured</h2>
+    <ol>
+      <li><p>Each program is run and measured at the smallest input value, program output redirected to a file and compared to expected output. As long as the output matches expected output, the program is then run and measured at the next larger input value until measurements have been made at every input value.
+      <li><p>If the program gives the expected output within an arbitrary cutoff time (120 seconds) the program is measured again (5 more times) with output redirected to <code>/dev/null</code>.
+      <li><p>If the program doesn't give the expected output within an arbitrary timeout (usually one hour) the program is forced to quit. If measurements at a smaller input value have been successful within an arbitrary cutoff time (120 seconds), the program is measured again (5 more times) at that smaller input value, with output redirected to <code>/dev/null</code>.
+<li><p>The measurements shown on the website are either:
+      <ul>
+        <li><p>within the arbitrary cutoff - the lowest time and highest memory use from 6 measurements
+        <li><p>outside the arbitrary cutoff - the sole time and memory use measurement
+      </ul>
+      <li><p>For sure, programs taking 4 and 5 hours were only measured once!
+    </ol>
+  </section>
+  <section>
+    <h2 id="time">How programs are timed</h2>
+    <p>Each program is run as a child-process of <a href="https://salsa.debian.org/benchmarksgame-team/benchmarksgame/blob/master/bencher/README.md">a Python script</a> using <a class="external" href="http://docs.python.org/library/subprocess.html#popen-objects"><code>Popen</code></a>:
+    <ul>
+      <li><p>secs - The time is taken before forking the child-process and after the child-process exits, using <a class="external" href="http://docs.python.org/library/time.html?highlight=time.time#time.time"><code>time.time()</code></a>
+      <li><p>cpu - The script child-process <code>usr+sys rusage</code> time is taken using <a class="external" href="http://docs.python.org/library/os.html?highlight=os.wait3#os.wait3"><code>os.wait3</code></a>. Rarely (for example OCaml), that may not measure all processes forked from the script child-process.
+      <li><p>busy - The GTop cpu idle and GTop cpu total are taken before forking the child-process and after the child-process exits. The sum of GTop cpu not-idle for each core, scaled by secs. 
+    </ul>
+    <p>On win32:
+    <ul>
+      <li><p>secs - The time is taken before forking the child-process and after the child-process exits, using <a class="external" href="http://msdn.microsoft.com/en-us/library/ms644904(VS.85).aspx"><code>QueryPerformanceCounter</code></a>
+      <li><p>cpu - <code>QueryInformationJobObject(hJob,JobObjectBasicAccountingInformation)</code> <a class="external" href="http://msdn.microsoft.com/en-us/library/ms684143(VS.85).aspx"><code>TotalKernelTime + TotalUserTime</code></a>
+    </ul>
+    <p>(Note: <a href="./sometimes-people-just-make-up-stuff.html#jvm-startup-time">Those measurements include startup time</a>).
+  </section>
+  <section>
+    <h2 id="memory">How program memory use is measured</h2>
+    <p>By sampling <code>GLIBTOP_PROC_MEM_RESIDENT</code> for the program and it's child processes every 0.2 seconds. Obviously those measurements are unlikely to be reliable for programs that run for less than 0.2 seconds.
+    <p>On win32: <code>QueryInformationJobObject(hJob,JobObjectExtendedLimitInformation)</code> <a class="external" href="http://msdn.microsoft.com/en-us/library/ms684156(VS.85).aspx"><code>PeakJobMemoryUsed</code></a>
+  </section>
+  <section>
+    <h2 id="source-code">How source code size is measured</h2>
+    <p>We start with the source-code markup you can see, remove comments, remove duplicate whitespace characters, and then apply minimum GZip compression. The measurement is the size in bytes of that GZip compressed source-code file.
+    <p>Thanks to Brian Hurt for the idea of using <b>size of compressed source code</b> instead of lines of code.
+
+    <table>
+      <tr>
+        <th colspan="2">median source code gzip (July 2018)
+      <tr>
+        <td>Perl
+        <td>513
+      <tr>
+        <td>TypeScript
+        <td>532
+      <tr>
+        <td>Lua
+        <td>553
+      <tr>
+        <td>Ruby
+        <td>568
+      <tr>
+        <td>Dart
+        <td>610
+      <tr>
+        <td>Chapel
+        <td>632
+      <tr>
+        <td>Racket
+        <td>638
+      <tr>
+        <td>Python
+        <td>672
+      <tr>
+        <td>PHP
+        <td>736
+      <tr>
+        <td>Hack
+        <td>745
+      <tr>
+        <td>JavaScript
+        <td>779
+      <tr>
+        <td>Erlang
+        <td>792
+      <tr>
+        <td>Go
+        <td>829
+      <tr>
+        <td>Haskell
+        <td>842
+      <tr>
+        <td>Pascal
+        <td>846
+      <tr>
+        <td>F#
+        <td>876
+      <tr>
+        <td>OCaml
+        <td>914
+      <tr>
+        <td>Java
+        <td>945
+      <tr>
+        <td>Smalltalk
+        <td>950
+      <tr>
+        <td>Lisp
+        <td>1004
+      <tr>
+        <td>Fortran
+        <td>1019
+      <tr>
+        <td>C++
+        <td>1044
+      <tr>
+        <td>C#
+        <td>1059
+      <tr>
+        <td>C
+        <td>1115
+      <tr>
+        <td>Swift
+        <td>1164
+      <tr>
+        <td>Rust
+        <td>1319
+      <tr>
+        <td>Ada
+        <td>1819
+    </table>
+
+    <p>(Note: There is some evidence that <a class="external" href="http://my.safaribooksonline.com/book/software-engineering-and-development/9780596808310/general-principles-of-searching-for-and-using-evidence/herraiz_hassan_metrics">complexity metrics don't provide any more information than SLoC or LoC</a>.)
+  </section>
+  <section>
+    <h2 id="cpu-load">How CPU load is measured</h2>
+    <p>The GTop cpu idle and GTop cpu total are taken before forking the child-process and after the child-process exits. The percentages represent the proportion of cpu not-idle to cpu total for each core.
+    <p>On win32: <code>GetSystemTimes</code> <a class="external" href="http://msdn.microsoft.com/en-us/library/ms724400(VS.85).aspx"><code>UserTime</code> <code>IdleTime</code></a> are taken before forking the child-process and after the child-process exits. The percentage represents the proportion of <code>TotalUserTime</code> to <code>UserTime + IdleTime</code> (because that's like the percentage you'll see in Task Manager).
+  </section>
+</article>
+<footer>
+  <nav>
+    <ul>
+      <li>&nbsp;
+    </ul>
+  </nav>
+</footer>
