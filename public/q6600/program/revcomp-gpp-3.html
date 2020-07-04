@@ -17,6 +17,130 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc">// The Computer Language Benchmarks Game</span>
+<span class="slc">// https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">// Contributed by Paul Kitchin</span>
+
+<span class="ppc">#include &lt;iostream&gt;</span>
+<span class="ppc">#include &lt;iterator&gt;</span>
+<span class="ppc">#include &lt;vector&gt;</span>
+
+<span class="kwc">std</span><span class="opt">::</span><span class="kwb">size_t</span> line_length <span class="opt">=</span> <span class="num">60</span><span class="opt">;</span>
+
+<span class="kwb">char</span> <span class="kwd">complement</span><span class="opt">(</span><span class="kwb">char</span> character<span class="opt">)</span>
+<span class="opt">{</span>
+   <span class="kwb">static char const</span> complement_map<span class="opt">[] =</span>
+   <span class="opt">{</span>
+      <span class="str">&apos;\0&apos;</span><span class="opt">,</span> <span class="str">&apos;T&apos;</span><span class="opt">,</span> <span class="str">&apos;V&apos;</span><span class="opt">,</span> <span class="str">&apos;G&apos;</span><span class="opt">,</span> <span class="str">&apos;H&apos;</span><span class="opt">,</span> <span class="str">&apos;\0&apos;</span><span class="opt">,</span> <span class="str">&apos;\0&apos;</span><span class="opt">,</span> <span class="str">&apos;C&apos;</span><span class="opt">,</span> <span class="str">&apos;D&apos;</span><span class="opt">,</span> <span class="str">&apos;\0&apos;</span><span class="opt">,</span> <span class="str">&apos;\0&apos;</span><span class="opt">,</span> <span class="str">&apos;M&apos;</span><span class="opt">,</span> <span class="str">&apos;\0&apos;</span><span class="opt">,</span> <span class="str">&apos;K&apos;</span><span class="opt">,</span> <span class="str">&apos;N&apos;</span><span class="opt">,</span> <span class="str">&apos;\0&apos;</span><span class="opt">,</span> <span class="str">&apos;\0&apos;</span><span class="opt">,</span> <span class="str">&apos;\0&apos;</span><span class="opt">,</span> <span class="str">&apos;Y&apos;</span><span class="opt">,</span> <span class="str">&apos;S&apos;</span><span class="opt">,</span> <span class="str">&apos;A&apos;</span><span class="opt">,</span> <span class="str">&apos;A&apos;</span><span class="opt">,</span> <span class="str">&apos;B&apos;</span><span class="opt">,</span> <span class="str">&apos;W&apos;</span><span class="opt">,</span> <span class="str">&apos;\0&apos;</span><span class="opt">,</span> <span class="str">&apos;R&apos;</span>
+   <span class="opt">};</span>
+   <span class="kwa">return</span> complement_map<span class="opt">[</span>character <span class="opt">&amp;</span> <span class="num">0x1f</span><span class="opt">];</span>
+<span class="opt">}</span>
+
+<span class="kwb">struct</span> chunk
+<span class="opt">{</span>
+   <span class="kwd">chunk</span><span class="opt">()</span>
+      <span class="opt">:</span>
+      <span class="kwd">previous</span><span class="opt">(</span><span class="num">0</span><span class="opt">),</span>
+      <span class="kwd">next</span><span class="opt">(</span><span class="num">0</span><span class="opt">),</span>
+      <span class="kwd">length</span><span class="opt">(</span><span class="num">0</span><span class="opt">)</span>
+   <span class="opt">{</span>
+   <span class="opt">}</span>
+   <span class="kwd">chunk</span><span class="opt">(</span>chunk <span class="opt">*</span> previous<span class="opt">)</span>
+      <span class="opt">:</span>
+      <span class="kwd">previous</span><span class="opt">(</span>previous<span class="opt">),</span>
+      <span class="kwd">next</span><span class="opt">(</span><span class="num">0</span><span class="opt">),</span>
+      <span class="kwd">length</span><span class="opt">(</span><span class="num">0</span><span class="opt">)</span>
+   <span class="opt">{</span>
+      previous<span class="opt">-&gt;</span>next <span class="opt">=</span> <span class="kwa">this</span><span class="opt">;</span>
+   <span class="opt">}</span>
+   chunk <span class="opt">*</span> previous<span class="opt">;</span>
+   chunk <span class="opt">*</span> next<span class="opt">;</span>
+   <span class="kwb">unsigned short</span> length<span class="opt">;</span>
+   <span class="kwb">char</span> data<span class="opt">[</span><span class="num">65526</span><span class="opt">];</span>
+<span class="opt">};</span>
+
+<span class="kwb">void</span> <span class="kwd">write_reverse_complement</span><span class="opt">(</span>chunk <span class="opt">*</span> begin<span class="opt">,</span> chunk <span class="opt">*</span> end<span class="opt">)</span>
+<span class="opt">{</span>
+   chunk <span class="opt">*</span> start <span class="opt">=</span> begin<span class="opt">;</span>
+   <span class="kwb">char</span> <span class="opt">*</span> begin_char <span class="opt">=</span> begin<span class="opt">-&gt;</span>data<span class="opt">;</span>
+   <span class="kwb">char</span> <span class="opt">*</span> end_char <span class="opt">=</span> end<span class="opt">-&gt;</span>data <span class="opt">+</span> end<span class="opt">-&gt;</span>length <span class="opt">-</span> <span class="num">1</span><span class="opt">;</span>
+   <span class="kwa">while</span> <span class="opt">(</span>begin <span class="opt">!=</span> end <span class="opt">||</span> begin_char <span class="opt">&lt;</span> end_char<span class="opt">)</span>
+   <span class="opt">{</span>
+      <span class="kwb">char</span> temp <span class="opt">=</span> <span class="kwd">complement</span><span class="opt">(*</span>begin_char<span class="opt">);</span>
+      <span class="opt">*</span>begin_char<span class="opt">++ =</span> <span class="kwd">complement</span><span class="opt">(*</span>end_char<span class="opt">);</span>
+      <span class="opt">*</span>end_char<span class="opt">-- =</span> temp<span class="opt">;</span>
+      <span class="kwa">if</span> <span class="opt">(*</span>begin_char <span class="opt">==</span> <span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span><span class="opt">)</span>
+      <span class="opt">{</span>
+         <span class="opt">++</span>begin_char<span class="opt">;</span>
+      <span class="opt">}</span>
+      <span class="kwa">if</span> <span class="opt">(*</span>end_char <span class="opt">==</span> <span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span><span class="opt">)</span>
+      <span class="opt">{</span>
+         <span class="opt">--</span>end_char<span class="opt">;</span>
+      <span class="opt">}</span>
+      <span class="kwa">if</span> <span class="opt">(</span>begin_char <span class="opt">==</span> begin<span class="opt">-&gt;</span>data <span class="opt">+</span> begin<span class="opt">-&gt;</span>length<span class="opt">)</span>
+      <span class="opt">{</span>
+         begin <span class="opt">=</span> begin<span class="opt">-&gt;</span>next<span class="opt">;</span>
+         begin_char <span class="opt">=</span> begin<span class="opt">-&gt;</span>data<span class="opt">;</span>
+         <span class="kwa">if</span> <span class="opt">(*</span>begin_char <span class="opt">==</span> <span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span><span class="opt">)</span>
+         <span class="opt">{</span>
+            <span class="opt">++</span>begin_char<span class="opt">;</span>
+         <span class="opt">}</span>
+      <span class="opt">}</span>
+      <span class="kwa">if</span> <span class="opt">(</span>end_char <span class="opt">==</span> end<span class="opt">-&gt;</span>data <span class="opt">-</span> <span class="num">1</span><span class="opt">)</span>
+      <span class="opt">{</span>
+         end <span class="opt">=</span> end<span class="opt">-&gt;</span>previous<span class="opt">;</span>
+         end_char <span class="opt">=</span> end<span class="opt">-&gt;</span>data <span class="opt">+</span> end<span class="opt">-&gt;</span>length <span class="opt">-</span> <span class="num">1</span><span class="opt">;</span>
+         <span class="kwa">if</span> <span class="opt">(*</span>end_char <span class="opt">==</span> <span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span><span class="opt">)</span>
+         <span class="opt">{</span>
+            <span class="opt">--</span>end_char<span class="opt">;</span>
+         <span class="opt">}</span>
+      <span class="opt">}</span>
+   <span class="opt">}</span>
+   <span class="kwa">while</span> <span class="opt">(</span>start<span class="opt">)</span>
+   <span class="opt">{</span>
+      <span class="kwc">std</span><span class="opt">::</span>cout<span class="opt">.</span><span class="kwd">write</span><span class="opt">(</span>start<span class="opt">-&gt;</span>data<span class="opt">,</span> start<span class="opt">-&gt;</span>length<span class="opt">);</span>
+      chunk <span class="opt">*</span> last <span class="opt">=</span> start<span class="opt">;</span>
+      start <span class="opt">=</span> start<span class="opt">-&gt;</span>next<span class="opt">;</span>
+      <span class="kwa">delete</span> last<span class="opt">;</span>
+   <span class="opt">}</span>
+   <span class="kwc">std</span><span class="opt">::</span>cout<span class="opt">.</span><span class="kwd">put</span><span class="opt">(</span><span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span><span class="opt">);</span>
+<span class="opt">}</span>
+
+<span class="kwb">int</span> <span class="kwd">main</span><span class="opt">()</span>
+<span class="opt">{</span>
+   <span class="kwc">std</span><span class="opt">::</span>cin<span class="opt">.</span><span class="kwd">sync_with_stdio</span><span class="opt">(</span><span class="kwa">false</span><span class="opt">);</span>
+   <span class="kwc">std</span><span class="opt">::</span>cout<span class="opt">.</span><span class="kwd">sync_with_stdio</span><span class="opt">(</span><span class="kwa">false</span><span class="opt">);</span>
+   <span class="kwa">while</span> <span class="opt">(!</span><span class="kwc">std</span><span class="opt">::</span>cin<span class="opt">.</span><span class="kwd">eof</span><span class="opt">())</span>
+   <span class="opt">{</span>
+      <span class="kwc">std</span><span class="opt">::</span>string header<span class="opt">;</span>
+      <span class="kwc">std</span><span class="opt">::</span><span class="kwd">getline</span><span class="opt">(</span><span class="kwc">std</span><span class="opt">::</span>cin<span class="opt">,</span> header<span class="opt">);</span>
+      <span class="kwc">std</span><span class="opt">::</span>cout <span class="opt">&lt;&lt;</span> header <span class="opt">&lt;&lt;</span> <span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span><span class="opt">;</span>
+      chunk <span class="opt">*</span> start <span class="opt">=</span> <span class="kwa">new</span> <span class="kwd">chunk</span><span class="opt">();</span>
+      chunk <span class="opt">*</span> end <span class="opt">=</span> start<span class="opt">;</span>
+      <span class="kwa">while</span> <span class="opt">(!</span><span class="kwc">std</span><span class="opt">::</span>cin<span class="opt">.</span><span class="kwd">eof</span><span class="opt">() &amp;&amp;</span> <span class="kwc">std</span><span class="opt">::</span>cin<span class="opt">.</span><span class="kwd">peek</span><span class="opt">() !=</span> <span class="str">&apos;&gt;&apos;</span><span class="opt">)</span>
+      <span class="opt">{</span>
+         <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> line <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> line <span class="opt">&lt;</span> <span class="num">1074</span> <span class="opt">&amp;&amp; !</span><span class="kwc">std</span><span class="opt">::</span>cin<span class="opt">.</span><span class="kwd">eof</span><span class="opt">() &amp;&amp;</span> <span class="kwc">std</span><span class="opt">::</span>cin<span class="opt">.</span><span class="kwd">peek</span><span class="opt">() !=</span> <span class="str">&apos;&gt;&apos;</span><span class="opt">; ++</span>line<span class="opt">)</span>
+         <span class="opt">{</span>
+            <span class="kwc">std</span><span class="opt">::</span>cin<span class="opt">.</span><span class="kwd">getline</span><span class="opt">(</span>end<span class="opt">-&gt;</span>data <span class="opt">+</span> end<span class="opt">-&gt;</span>length<span class="opt">,</span> line_length <span class="opt">+</span> <span class="num">1</span><span class="opt">);</span>
+            end<span class="opt">-&gt;</span>length <span class="opt">+=</span> <span class="kwc">std</span><span class="opt">::</span>cin<span class="opt">.</span><span class="kwd">gcount</span><span class="opt">();</span>
+            <span class="opt">*(</span>end<span class="opt">-&gt;</span>data <span class="opt">+</span> end<span class="opt">-&gt;</span>length <span class="opt">-</span> <span class="num">1</span><span class="opt">) =</span> <span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span><span class="opt">;</span>
+         <span class="opt">}</span>
+         <span class="kwa">if</span> <span class="opt">(!</span><span class="kwc">std</span><span class="opt">::</span>cin<span class="opt">.</span><span class="kwd">eof</span><span class="opt">() &amp;&amp;</span> <span class="kwc">std</span><span class="opt">::</span>cin<span class="opt">.</span><span class="kwd">peek</span><span class="opt">() !=</span> <span class="str">&apos;&gt;&apos;</span><span class="opt">)</span>
+         <span class="opt">{</span>
+            end <span class="opt">=</span> <span class="kwa">new</span> <span class="kwd">chunk</span><span class="opt">(</span>end<span class="opt">);</span>
+         <span class="opt">}</span>
+      <span class="opt">}</span>
+      <span class="opt">--</span>end<span class="opt">-&gt;</span>length<span class="opt">;</span>
+      <span class="kwd">write_reverse_complement</span><span class="opt">(</span>start<span class="opt">,</span> end<span class="opt">);</span>
+   <span class="opt">}</span>
+<span class="opt">}</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

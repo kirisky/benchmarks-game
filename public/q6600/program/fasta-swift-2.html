@@ -17,6 +17,251 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="com">/* The Computer Language Benchmarks Game</span>
+<span class="com"> https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="com"> contributed by Ralph Ganszky</span>
+<span class="com"> converted to Swift 3 by Sergo Beruashvili</span>
+<span class="com"> software pipelining of randomFasta and optimized sequential</span>
+<span class="com">   performance by using UnsafeMutableBufferPointer by Dave Grove</span>
+<span class="com"> */</span>
+
+<span class="ppc">#if os(macOS)</span>
+    <span class="kwa">import</span> Darwin
+<span class="ppc">#else</span>
+    <span class="kwa">import</span> Glibc
+<span class="ppc">#endif</span>
+<span class="kwa">import</span> Dispatch
+
+<span class="kwa">typealias</span> AminoAcid <span class="opt">= (</span>prob<span class="opt">:</span> Float<span class="opt">,</span> sym<span class="opt">:</span> UInt8<span class="opt">)</span>
+
+<span class="kwa">let</span> <span class="kwc">IM</span> <span class="opt">=</span> <span class="kwd">UInt32</span><span class="opt">(</span><span class="num">139968</span><span class="opt">)</span>
+<span class="kwa">let</span> <span class="kwc">IA</span> <span class="opt">=</span> <span class="kwd">UInt32</span><span class="opt">(</span><span class="num">3877</span><span class="opt">)</span>
+<span class="kwa">let</span> <span class="kwc">IC</span> <span class="opt">=</span> <span class="kwd">UInt32</span><span class="opt">(</span><span class="num">29573</span><span class="opt">)</span>
+<span class="kwa">var</span> <span class="kwc">seed</span><span class="opt">:</span>UInt32 <span class="opt">=</span> <span class="kwd">UInt32</span><span class="opt">(</span><span class="num">42</span><span class="opt">)</span>
+
+<span class="kwa">let</span> <span class="kwc">n</span><span class="opt">:</span> Int
+<span class="kwa">if</span> CommandLine<span class="opt">.</span>arguments<span class="opt">.</span>count <span class="opt">&gt;</span> <span class="num">1</span> <span class="opt">{</span>
+    <span class="kwc">n</span> <span class="opt">=</span> <span class="kwd">Int</span><span class="opt">(</span>CommandLine<span class="opt">.</span>arguments<span class="opt">[</span><span class="num">1</span><span class="opt">])</span> ?? <span class="num">1000</span>
+<span class="opt">}</span> <span class="kwa">else</span> <span class="opt">{</span>
+    <span class="kwc">n</span> <span class="opt">=</span> <span class="num">1000</span>
+<span class="opt">}</span>
+
+<span class="kwa">let</span> <span class="kwc">lineWidth</span> <span class="opt">=</span> <span class="num">60</span>
+<span class="kwa">let</span> <span class="kwc">linesPerBlock</span> <span class="opt">=</span> <span class="num">1024</span>
+
+<span class="kwa">let</span> <span class="kwc">aluString</span> <span class="opt">=</span> <span class="str">&quot;GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGG&quot;</span> <span class="opt">+</span>
+    <span class="str">&quot;GAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGA&quot;</span> <span class="opt">+</span>
+    <span class="str">&quot;CCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAAT&quot;</span> <span class="opt">+</span>
+    <span class="str">&quot;ACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCA&quot;</span> <span class="opt">+</span>
+    <span class="str">&quot;GCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGG&quot;</span> <span class="opt">+</span>
+    <span class="str">&quot;AGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCC&quot;</span> <span class="opt">+</span>
+    <span class="str">&quot;AGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA&quot;</span>
+<span class="kwa">var</span> <span class="kwc">alu</span> <span class="opt">=</span> <span class="kwc">aluString</span><span class="opt">.</span>utf8CString<span class="opt">.</span><span class="kwd">map</span><span class="opt">({</span> <span class="kwd">UInt8</span><span class="opt">(</span>$<span class="num">0</span><span class="opt">) })</span>
+_ <span class="opt">=</span> <span class="kwc">alu</span><span class="opt">.</span><span class="kwd">popLast</span><span class="opt">()</span>
+
+<span class="kwa">var</span> <span class="kwc">iub</span> <span class="opt">= [</span>
+    <span class="kwd">AminoAcid</span><span class="opt">(</span><span class="num">0.27</span><span class="opt">,</span> <span class="num">97</span><span class="opt">),</span> <span class="slc">// &quot;a&quot;),</span>
+    <span class="kwd">AminoAcid</span><span class="opt">(</span><span class="num">0.12</span><span class="opt">,</span> <span class="num">99</span><span class="opt">),</span> <span class="slc">// &quot;c&quot;),</span>
+    <span class="kwd">AminoAcid</span><span class="opt">(</span><span class="num">0.12</span><span class="opt">,</span> <span class="num">103</span><span class="opt">),</span> <span class="slc">// &quot;g&quot;),</span>
+    <span class="kwd">AminoAcid</span><span class="opt">(</span><span class="num">0.27</span><span class="opt">,</span> <span class="num">116</span><span class="opt">),</span> <span class="slc">// &quot;t&quot;),</span>
+    <span class="kwd">AminoAcid</span><span class="opt">(</span><span class="num">0.02</span><span class="opt">,</span> <span class="num">66</span><span class="opt">),</span> <span class="slc">// &quot;B&quot;),</span>
+    <span class="kwd">AminoAcid</span><span class="opt">(</span><span class="num">0.02</span><span class="opt">,</span> <span class="num">68</span><span class="opt">),</span> <span class="slc">// &quot;D&quot;),</span>
+    <span class="kwd">AminoAcid</span><span class="opt">(</span><span class="num">0.02</span><span class="opt">,</span> <span class="num">72</span><span class="opt">),</span> <span class="slc">// &quot;H&quot;),</span>
+    <span class="kwd">AminoAcid</span><span class="opt">(</span><span class="num">0.02</span><span class="opt">,</span> <span class="num">75</span><span class="opt">),</span> <span class="slc">// &quot;K&quot;),</span>
+    <span class="kwd">AminoAcid</span><span class="opt">(</span><span class="num">0.02</span><span class="opt">,</span> <span class="num">77</span><span class="opt">),</span> <span class="slc">// &quot;M&quot;),</span>
+    <span class="kwd">AminoAcid</span><span class="opt">(</span><span class="num">0.02</span><span class="opt">,</span> <span class="num">78</span><span class="opt">),</span> <span class="slc">// &quot;N&quot;),</span>
+    <span class="kwd">AminoAcid</span><span class="opt">(</span><span class="num">0.02</span><span class="opt">,</span> <span class="num">82</span><span class="opt">),</span> <span class="slc">// &quot;R&quot;),</span>
+    <span class="kwd">AminoAcid</span><span class="opt">(</span><span class="num">0.02</span><span class="opt">,</span> <span class="num">83</span><span class="opt">),</span> <span class="slc">// &quot;S&quot;),</span>
+    <span class="kwd">AminoAcid</span><span class="opt">(</span><span class="num">0.02</span><span class="opt">,</span> <span class="num">86</span><span class="opt">),</span> <span class="slc">// &quot;V&quot;),</span>
+    <span class="kwd">AminoAcid</span><span class="opt">(</span><span class="num">0.02</span><span class="opt">,</span> <span class="num">87</span><span class="opt">),</span> <span class="slc">// &quot;W&quot;),</span>
+    <span class="kwd">AminoAcid</span><span class="opt">(</span><span class="num">0.02</span><span class="opt">,</span> <span class="num">89</span><span class="opt">),</span> <span class="slc">// &quot;Y&quot;),</span>
+<span class="opt">]</span>
+
+<span class="kwa">var</span> <span class="kwc">homosapiens</span> <span class="opt">= [</span>
+    <span class="kwd">AminoAcid</span><span class="opt">(</span><span class="num">0.3029549426680</span><span class="opt">,</span> <span class="num">97</span><span class="opt">),</span> <span class="slc">// &quot;a&quot;),</span>
+    <span class="kwd">AminoAcid</span><span class="opt">(</span><span class="num">0.1979883004921</span><span class="opt">,</span> <span class="num">99</span><span class="opt">),</span> <span class="slc">// &quot;c&quot;),</span>
+    <span class="kwd">AminoAcid</span><span class="opt">(</span><span class="num">0.1975473066391</span><span class="opt">,</span> <span class="num">103</span><span class="opt">),</span> <span class="slc">// &quot;g&quot;),</span>
+    <span class="kwd">AminoAcid</span><span class="opt">(</span><span class="num">0.3015094502008</span><span class="opt">,</span> <span class="num">116</span><span class="opt">),</span> <span class="slc">// &quot;t&quot;),</span>
+<span class="opt">]</span>
+
+<span class="kwa">func</span> <span class="kwd">write</span><span class="opt">(</span>msg<span class="opt">:</span> String<span class="opt">) {</span>
+    <span class="kwa">let</span> <span class="kwc">cStr</span> <span class="opt">=</span> msg<span class="opt">.</span><span class="kwd">withCString</span><span class="opt">({</span> s <span class="kwa">in</span> s <span class="opt">})</span>
+    <span class="kwa">var</span> <span class="kwc">iov</span> <span class="opt">=</span> UnsafeMutablePointer<span class="opt">&lt;</span>iovec<span class="opt">&gt;.</span><span class="kwd">allocate</span><span class="opt">(</span>capacity<span class="opt">:</span> <span class="num">1</span><span class="opt">)</span>
+    defer <span class="opt">{</span>
+        <span class="kwc">iov</span><span class="opt">.</span><span class="kwd">deallocate</span><span class="opt">()</span>
+    <span class="opt">}</span>
+    <span class="kwc">iov</span><span class="opt">.</span>pointee<span class="opt">.</span>iov_base <span class="opt">=</span> <span class="kwd">UnsafeMutableRawPointer</span><span class="opt">(</span>mutating<span class="opt">:</span> <span class="kwc">cStr</span><span class="opt">)</span>
+    <span class="kwc">iov</span><span class="opt">.</span>pointee<span class="opt">.</span>iov_len <span class="opt">=</span> msg<span class="opt">.</span>utf8CString<span class="opt">.</span>count <span class="opt">-</span> <span class="num">1</span>
+    <span class="kwd">writev</span><span class="opt">(</span>STDOUT_FILENO<span class="opt">,</span> <span class="kwc">iov</span><span class="opt">,</span> <span class="num">1</span><span class="opt">)</span>
+<span class="opt">}</span>
+
+<span class="kwa">func</span> <span class="kwd">write</span><span class="opt">(</span>buffer<span class="opt">:</span> UnsafeMutableBufferPointer<span class="opt">&lt;</span>UInt8<span class="opt">&gt;,</span> ofLen len<span class="opt">:</span> Int<span class="opt">) {</span>
+    <span class="kwa">var</span> <span class="kwc">iov</span> <span class="opt">=</span> UnsafeMutablePointer<span class="opt">&lt;</span>iovec<span class="opt">&gt;.</span><span class="kwd">allocate</span><span class="opt">(</span>capacity<span class="opt">:</span> <span class="num">1</span><span class="opt">)</span>
+    defer <span class="opt">{</span>
+        <span class="kwc">iov</span><span class="opt">.</span><span class="kwd">deallocate</span><span class="opt">()</span>
+    <span class="opt">}</span>
+    <span class="kwc">iov</span><span class="opt">.</span>pointee<span class="opt">.</span>iov_base <span class="opt">=</span> <span class="kwd">UnsafeMutableRawPointer</span><span class="opt">(</span>mutating<span class="opt">:</span> buffer<span class="opt">.</span>baseAddress<span class="opt">)</span>
+    <span class="kwc">iov</span><span class="opt">.</span>pointee<span class="opt">.</span>iov_len <span class="opt">=</span> len
+    <span class="kwd">writev</span><span class="opt">(</span>STDOUT_FILENO<span class="opt">,</span> <span class="kwc">iov</span><span class="opt">,</span> <span class="num">1</span><span class="opt">)</span>
+<span class="opt">}</span>
+
+<span class="kwa">func</span> <span class="kwd">repeatFasta</span><span class="opt">(</span>gene<span class="opt">: [</span>UInt8<span class="opt">],</span> <span class="kwc">n</span><span class="opt">:</span> Int<span class="opt">) {</span>
+    <span class="kwa">let</span> <span class="kwc">gene2</span> <span class="opt">=</span> gene <span class="opt">+</span> gene
+    <span class="kwa">let</span> <span class="kwc">bufSize</span> <span class="opt">=</span> <span class="kwc">linesPerBlock</span> <span class="opt">* (</span><span class="kwc">lineWidth</span> <span class="opt">+</span> <span class="num">1</span><span class="opt">)</span>
+    <span class="kwa">let</span> <span class="kwc">raw</span> <span class="opt">=</span> UnsafeMutablePointer<span class="opt">&lt;</span>UInt8<span class="opt">&gt;.</span><span class="kwd">allocate</span><span class="opt">(</span>capacity<span class="opt">:</span> <span class="kwc">bufSize</span><span class="opt">)</span>
+    defer <span class="opt">{</span> <span class="kwc">raw</span><span class="opt">.</span><span class="kwd">deallocate</span><span class="opt">() }</span>
+    <span class="kwa">let</span> <span class="kwc">buffer</span> <span class="opt">=</span> UnsafeMutableBufferPointer<span class="opt">&lt;</span>UInt8<span class="opt">&gt;(</span>start<span class="opt">:</span> <span class="kwc">raw</span><span class="opt">,</span> count<span class="opt">:</span> <span class="kwc">bufSize</span><span class="opt">)</span>
+    <span class="kwa">var</span> <span class="kwc">pos</span> <span class="opt">=</span> <span class="num">0</span>
+    <span class="kwa">var</span> <span class="kwc">rpos</span> <span class="opt">=</span> <span class="num">0</span>
+    <span class="kwa">var</span> <span class="kwc">cnt</span> <span class="opt">=</span> <span class="kwc">n</span>
+    <span class="kwa">var</span> <span class="kwc">lwidth</span> <span class="opt">=</span> <span class="kwc">lineWidth</span>
+    <span class="kwa">while</span> <span class="kwc">cnt</span> <span class="opt">&gt;</span> <span class="num">0</span> <span class="opt">{</span>
+        <span class="kwa">if</span> <span class="kwc">pos</span> <span class="opt">+</span> <span class="kwc">lwidth</span> <span class="opt">&gt;</span> <span class="kwc">buffer</span><span class="opt">.</span>count <span class="opt">{</span>
+            <span class="kwd">write</span><span class="opt">(</span><span class="kwc">buffer</span><span class="opt">:</span> <span class="kwc">buffer</span><span class="opt">,</span> ofLen<span class="opt">:</span> <span class="kwc">pos</span><span class="opt">)</span>
+            <span class="kwc">pos</span> <span class="opt">=</span> <span class="num">0</span>
+        <span class="opt">}</span>
+        <span class="kwa">if</span> <span class="kwc">rpos</span> <span class="opt">+</span> <span class="kwc">lwidth</span> <span class="opt">&gt;</span> gene<span class="opt">.</span>count <span class="opt">{</span>
+            <span class="kwc">rpos</span> <span class="opt">=</span> <span class="kwc">rpos</span> <span class="opt">%</span> gene<span class="opt">.</span>count
+        <span class="opt">}</span>
+        <span class="kwa">if</span> <span class="kwc">cnt</span> <span class="opt">&lt;</span> <span class="kwc">lwidth</span> <span class="opt">{</span>
+            <span class="kwc">lwidth</span> <span class="opt">=</span> <span class="kwc">cnt</span>
+        <span class="opt">}</span>
+        <span class="kwa">for</span> i <span class="kwa">in</span> <span class="num">0</span><span class="opt">...</span><span class="kwc">lwidth</span> <span class="opt">{</span>
+            <span class="kwc">buffer</span><span class="opt">[</span><span class="kwc">pos</span><span class="opt">+</span>i<span class="opt">] =</span> <span class="kwc">gene2</span><span class="opt">[</span><span class="kwc">rpos</span><span class="opt">+</span>i<span class="opt">]</span>
+        <span class="opt">}</span>
+        <span class="kwc">buffer</span><span class="opt">[</span><span class="kwc">pos</span><span class="opt">+</span><span class="kwc">lwidth</span><span class="opt">] =</span> <span class="num">10</span>
+        <span class="kwc">pos</span> <span class="opt">+=</span> <span class="kwc">lwidth</span> <span class="opt">+</span> <span class="num">1</span>
+        <span class="kwc">rpos</span> <span class="opt">+=</span> <span class="kwc">lwidth</span>
+        <span class="kwc">cnt</span> <span class="opt">-=</span> <span class="kwc">lwidth</span>
+    <span class="opt">}</span>
+    <span class="kwa">if</span> <span class="kwc">pos</span> <span class="opt">&gt;</span> <span class="num">0</span> <span class="opt">&amp;&amp;</span> <span class="kwc">pos</span> <span class="opt">&lt;</span> <span class="kwc">buffer</span><span class="opt">.</span>count <span class="opt">{</span>
+        <span class="kwc">buffer</span><span class="opt">[</span><span class="kwc">pos</span><span class="opt">] =</span> <span class="num">10</span>
+        <span class="kwd">write</span><span class="opt">(</span><span class="kwc">buffer</span><span class="opt">:</span> <span class="kwc">buffer</span><span class="opt">,</span> ofLen<span class="opt">:</span> <span class="kwc">pos</span><span class="opt">)</span>
+    <span class="opt">}</span> <span class="kwa">else if</span> <span class="kwc">pos</span> <span class="opt">==</span> <span class="kwc">buffer</span><span class="opt">.</span>count <span class="opt">{</span>
+        <span class="kwd">write</span><span class="opt">(</span><span class="kwc">buffer</span><span class="opt">:</span> <span class="kwc">buffer</span><span class="opt">,</span> ofLen<span class="opt">:</span> <span class="kwc">pos</span><span class="opt">)</span>
+        <span class="kwc">buffer</span><span class="opt">[</span><span class="num">0</span><span class="opt">] =</span> <span class="num">10</span>
+        <span class="kwd">write</span><span class="opt">(</span><span class="kwc">buffer</span><span class="opt">:</span> <span class="kwc">buffer</span><span class="opt">,</span> ofLen<span class="opt">:</span> <span class="num">1</span><span class="opt">)</span>
+    <span class="opt">}</span>
+<span class="opt">}</span>
+
+<span class="kwa">func</span> <span class="kwd">accumulateProbabilities</span><span class="opt">(</span>acid<span class="opt">:</span> inout <span class="opt">[</span>AminoAcid<span class="opt">]) {</span>
+    <span class="kwa">for</span> i <span class="kwa">in</span> <span class="num">1</span><span class="opt">..&lt;</span>acid<span class="opt">.</span>count <span class="opt">{</span>
+        acid<span class="opt">[</span>i<span class="opt">].</span>prob <span class="opt">+=</span> acid<span class="opt">[</span>i<span class="opt">-</span><span class="num">1</span><span class="opt">].</span>prob
+    <span class="opt">}</span>
+<span class="opt">}</span>
+
+<span class="kwa">class</span> Buffer<span class="opt">&lt;</span>T<span class="opt">&gt; {</span>
+    <span class="kwa">let</span> <span class="kwc">raw</span><span class="opt">:</span>UnsafeMutablePointer<span class="opt">&lt;</span>T<span class="opt">&gt;</span>
+    <span class="kwa">let</span> <span class="kwc">data</span><span class="opt">:</span>UnsafeMutableBufferPointer<span class="opt">&lt;</span>T<span class="opt">&gt;</span>
+    <span class="kwa">let</span> <span class="kwc">capacity</span><span class="opt">:</span>Int
+    <span class="kwa">var</span> <span class="kwc">filled</span><span class="opt">:</span>Int
+    <span class="kwa">init</span><span class="opt">(</span><span class="kwc">capacity</span><span class="opt">:</span>Int<span class="opt">) {</span>
+        <span class="kwb">self</span><span class="opt">.</span><span class="kwc">capacity</span> <span class="opt">=</span> <span class="kwc">capacity</span><span class="opt">;</span>
+        <span class="kwc">raw</span> <span class="opt">=</span> UnsafeMutablePointer<span class="opt">&lt;</span>T<span class="opt">&gt;.</span><span class="kwd">allocate</span><span class="opt">(</span><span class="kwc">capacity</span><span class="opt">:</span> <span class="kwc">capacity</span><span class="opt">)</span>
+        <span class="kwc">data</span> <span class="opt">=</span> UnsafeMutableBufferPointer<span class="opt">&lt;</span>T<span class="opt">&gt;(</span>start<span class="opt">:</span> <span class="kwc">raw</span><span class="opt">,</span> count<span class="opt">:</span> <span class="kwc">capacity</span><span class="opt">)</span>
+        <span class="kwc">filled</span> <span class="opt">=</span> <span class="num">0</span>
+    <span class="opt">}</span>
+    <span class="kwa">deinit</span> <span class="opt">{</span>
+        <span class="kwc">raw</span><span class="opt">.</span><span class="kwd">deallocate</span><span class="opt">()</span>
+    <span class="opt">}</span>
+    <span class="kwa">public subscript</span><span class="opt">(</span>i<span class="opt">:</span> Int<span class="opt">) -&gt;</span> T <span class="opt">{</span>
+        &#64;<span class="kwd">inline</span><span class="opt">(</span>__always<span class="opt">)</span> get <span class="opt">{</span>
+            <span class="kwa">return</span> <span class="kwc">data</span><span class="opt">[</span>i<span class="opt">]</span>
+        <span class="opt">}</span>
+
+        &#64;<span class="kwd">inline</span><span class="opt">(</span>__always<span class="opt">)</span> set <span class="opt">{</span>
+            <span class="kwc">data</span><span class="opt">[</span>i<span class="opt">] =</span> newValue
+        <span class="opt">}</span>
+    <span class="opt">}</span>
+<span class="opt">}</span>
+
+
+<span class="kwa">func</span> <span class="kwd">fillSeedBuffer</span><span class="opt">(</span><span class="kwc">cnt</span><span class="opt">:</span> inout Int<span class="opt">,</span> <span class="kwc">buffer</span><span class="opt">:</span>Buffer<span class="opt">&lt;</span>Float<span class="opt">&gt;) {</span>
+    <span class="kwa">let</span> <span class="kwc">data</span> <span class="opt">=</span> <span class="kwc">buffer</span><span class="opt">.</span><span class="kwc">data</span>
+    <span class="kwa">let</span> <span class="kwc">chunk</span> <span class="opt">=</span> <span class="kwc">cnt</span> <span class="opt">&gt;</span> <span class="kwc">data</span><span class="opt">.</span>count ? <span class="kwc">data</span><span class="opt">.</span>count <span class="opt">:</span> <span class="kwc">cnt</span>
+
+    <span class="kwa">let</span> <span class="kwc">f</span> <span class="opt">=</span> <span class="num">1.0</span> <span class="opt">/</span> <span class="kwd">Float</span><span class="opt">(</span><span class="kwc">IM</span><span class="opt">)</span>
+    <span class="kwa">var</span> <span class="kwc">myrand</span> <span class="opt">:</span> UInt32 <span class="opt">=</span> <span class="kwc">seed</span>
+    <span class="kwa">for</span> i <span class="kwa">in</span> <span class="num">0</span><span class="opt">..&lt;</span><span class="kwc">chunk</span> <span class="opt">{</span>
+        <span class="kwc">myrand</span> <span class="opt">= (</span><span class="kwc">myrand</span> <span class="opt">*</span> <span class="kwc">IA</span> <span class="opt">+</span> <span class="kwc">IC</span><span class="opt">) %</span> <span class="kwc">IM</span>
+        <span class="kwc">buffer</span><span class="opt">[</span>i<span class="opt">] =</span> <span class="kwd">Float</span><span class="opt">(</span><span class="kwc">myrand</span><span class="opt">) *</span> <span class="kwc">f</span>
+    <span class="opt">}</span>
+    <span class="kwc">seed</span> <span class="opt">=</span> <span class="kwc">myrand</span>
+
+    <span class="kwc">cnt</span> <span class="opt">-=</span> <span class="kwc">chunk</span>
+    <span class="kwc">buffer</span><span class="opt">.</span><span class="kwc">filled</span> <span class="opt">=</span> <span class="kwc">chunk</span>
+<span class="opt">}</span>
+
+<span class="kwa">func</span> <span class="kwd">processSeedBuffer</span><span class="opt">(</span><span class="kwc">seed</span><span class="opt">:</span>Buffer<span class="opt">&lt;</span>Float<span class="opt">&gt;,</span> out<span class="opt">:</span>Buffer<span class="opt">&lt;</span>UInt8<span class="opt">&gt;,</span> acid<span class="opt">:[</span>AminoAcid<span class="opt">]) {</span>
+    <span class="kwa">var</span> <span class="kwc">pos</span> <span class="opt">=</span> <span class="num">0</span>
+    <span class="kwa">var</span> <span class="kwc">charCount</span> <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+    <span class="kwa">let</span> <span class="kwc">chunk</span> <span class="opt">=</span> <span class="kwc">seed</span><span class="opt">.</span><span class="kwc">filled</span>
+    <span class="kwa">let</span> <span class="kwc">seedBuffer</span> <span class="opt">=</span> <span class="kwc">seed</span><span class="opt">.</span><span class="kwc">data</span>
+    <span class="kwa">let</span> <span class="kwc">outputBuffer</span> <span class="opt">=</span> out<span class="opt">.</span><span class="kwc">data</span>
+    <span class="kwa">for</span> i <span class="kwa">in</span> <span class="num">0</span><span class="opt">..&lt;</span><span class="kwc">chunk</span> <span class="opt">{</span>
+        <span class="kwa">let</span> <span class="kwc">v</span> <span class="opt">=</span> <span class="kwc">seedBuffer</span><span class="opt">[</span>i<span class="opt">]</span>
+        <span class="kwa">var</span> <span class="kwc">j</span> <span class="opt">=</span> <span class="num">0</span>
+        <span class="kwa">while</span> <span class="opt">(</span>acid<span class="opt">[</span><span class="kwc">j</span><span class="opt">].</span>prob <span class="opt">&lt;</span> <span class="kwc">v</span><span class="opt">) {</span>
+            <span class="kwc">j</span> <span class="opt">+=</span> <span class="num">1</span>
+        <span class="opt">}</span>
+        <span class="kwc">outputBuffer</span><span class="opt">[</span><span class="kwc">pos</span><span class="opt">] =</span> acid<span class="opt">[</span><span class="kwc">j</span><span class="opt">].</span>sym
+        <span class="kwc">pos</span> <span class="opt">+=</span> <span class="num">1</span>
+        <span class="kwc">charCount</span> <span class="opt">+=</span> <span class="num">1</span>
+        <span class="kwa">if</span> <span class="opt">(</span><span class="kwc">charCount</span> <span class="opt">==</span> <span class="kwc">lineWidth</span><span class="opt">) {</span>
+            <span class="kwc">outputBuffer</span><span class="opt">[</span><span class="kwc">pos</span><span class="opt">] =</span> <span class="num">10</span>
+            <span class="kwc">pos</span> <span class="opt">+=</span> <span class="num">1</span>
+            <span class="kwc">charCount</span> <span class="opt">=</span> <span class="num">0</span>
+        <span class="opt">}</span>
+    <span class="opt">}</span>
+
+    <span class="kwa">if</span> <span class="opt">(</span><span class="kwc">charCount</span> <span class="opt">&gt;</span> <span class="num">0</span><span class="opt">) {</span>
+        <span class="kwc">outputBuffer</span><span class="opt">[</span><span class="kwc">pos</span><span class="opt">] =</span> <span class="num">10</span>
+        <span class="kwc">pos</span> <span class="opt">+=</span> <span class="num">1</span>
+    <span class="opt">}</span>
+    <span class="kwd">write</span><span class="opt">(</span><span class="kwc">buffer</span><span class="opt">:</span> <span class="kwc">outputBuffer</span><span class="opt">,</span> ofLen<span class="opt">:</span> <span class="kwc">pos</span><span class="opt">)</span>
+<span class="opt">}</span>
+
+<span class="kwa">func</span> <span class="kwd">randomFasta</span><span class="opt">(</span>acid<span class="opt">: [</span>AminoAcid<span class="opt">],</span> _ <span class="kwc">n</span><span class="opt">:</span> Int<span class="opt">) {</span>
+    <span class="kwa">var</span> <span class="kwc">cnt</span> <span class="opt">=</span> <span class="kwc">n</span>
+    <span class="kwa">let</span> <span class="kwc">dg</span> <span class="opt">=</span> <span class="kwd">DispatchGroup</span><span class="opt">()</span>
+    <span class="kwa">let</span> <span class="kwc">q</span> <span class="opt">=</span> DispatchQueue<span class="opt">.</span><span class="kwd">global</span><span class="opt">()</span>
+
+    <span class="kwa">let</span> <span class="kwc">seedBufferSize</span> <span class="opt">=</span> <span class="kwc">linesPerBlock</span> <span class="opt">*</span> <span class="kwc">lineWidth</span>
+    <span class="kwa">let</span> <span class="kwc">seedBuffers</span> <span class="opt">= [</span>Buffer<span class="opt">&lt;</span>Float<span class="opt">&gt;(</span><span class="kwc">capacity</span><span class="opt">:</span> <span class="kwc">seedBufferSize</span><span class="opt">),</span> Buffer<span class="opt">&lt;</span>Float<span class="opt">&gt;(</span><span class="kwc">capacity</span><span class="opt">:</span> <span class="kwc">seedBufferSize</span><span class="opt">)]</span>
+
+    <span class="kwa">let</span> <span class="kwc">outBufferSize</span> <span class="opt">=</span> <span class="kwc">linesPerBlock</span> <span class="opt">* (</span><span class="kwc">lineWidth</span> <span class="opt">+</span> <span class="num">1</span><span class="opt">)</span>
+    <span class="kwa">let</span> <span class="kwc">outputBuffer</span> <span class="opt">=</span> Buffer<span class="opt">&lt;</span>UInt8<span class="opt">&gt;(</span><span class="kwc">capacity</span><span class="opt">:</span> <span class="kwc">outBufferSize</span><span class="opt">)</span>
+
+    <span class="kwa">var</span> <span class="kwc">color</span> <span class="opt">=</span> <span class="num">1</span> <span class="slc">// red/black for software pipelining of loop</span>
+    <span class="kwd">fillSeedBuffer</span><span class="opt">(</span><span class="kwc">cnt</span><span class="opt">: &amp;</span><span class="kwc">cnt</span><span class="opt">,</span> <span class="kwc">buffer</span><span class="opt">:</span> <span class="kwc">seedBuffers</span><span class="opt">[</span><span class="num">0</span><span class="opt">])</span>
+    <span class="kwa">while</span> <span class="kwc">cnt</span> <span class="opt">&gt;</span> <span class="num">0</span> <span class="opt">{</span>
+        <span class="kwc">q</span><span class="opt">.</span><span class="kwd">async</span><span class="opt">(</span>group<span class="opt">:</span> <span class="kwc">dg</span><span class="opt">) {</span> <span class="kwd">fillSeedBuffer</span><span class="opt">(</span><span class="kwc">cnt</span><span class="opt">: &amp;</span><span class="kwc">cnt</span><span class="opt">,</span> <span class="kwc">buffer</span><span class="opt">:</span> <span class="kwc">seedBuffers</span><span class="opt">[</span><span class="kwc">color</span> <span class="opt">%</span> <span class="num">2</span><span class="opt">]) }</span>
+        <span class="kwc">q</span><span class="opt">.</span><span class="kwd">async</span><span class="opt">(</span>group<span class="opt">:</span> <span class="kwc">dg</span><span class="opt">) {</span> <span class="kwd">processSeedBuffer</span><span class="opt">(</span><span class="kwc">seed</span><span class="opt">:</span> <span class="kwc">seedBuffers</span><span class="opt">[(</span><span class="kwc">color</span> <span class="opt">+</span> <span class="num">1</span><span class="opt">) %</span> <span class="num">2</span><span class="opt">],</span> out<span class="opt">:</span> <span class="kwc">outputBuffer</span><span class="opt">,</span> acid<span class="opt">:</span> acid<span class="opt">) }</span>
+        <span class="kwc">dg</span><span class="opt">.</span><span class="kwd">wait</span><span class="opt">()</span>
+        <span class="kwc">color</span> <span class="opt">+=</span> <span class="num">1</span>
+    <span class="opt">}</span>
+    <span class="kwd">processSeedBuffer</span><span class="opt">(</span><span class="kwc">seed</span><span class="opt">:</span> <span class="kwc">seedBuffers</span><span class="opt">[(</span><span class="kwc">color</span> <span class="opt">+</span> <span class="num">1</span><span class="opt">) %</span> <span class="num">2</span><span class="opt">],</span> out<span class="opt">:</span> <span class="kwc">outputBuffer</span><span class="opt">,</span> acid<span class="opt">:</span> acid<span class="opt">)</span>
+<span class="opt">}</span>
+
+
+<span class="kwd">accumulateProbabilities</span><span class="opt">(</span>acid<span class="opt">: &amp;</span><span class="kwc">homosapiens</span><span class="opt">)</span>
+<span class="kwd">accumulateProbabilities</span><span class="opt">(</span>acid<span class="opt">: &amp;</span><span class="kwc">iub</span><span class="opt">)</span>
+
+<span class="kwd">write</span><span class="opt">(</span>msg<span class="opt">:</span> <span class="str">&quot;&gt;ONE Homo sapiens alu</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">)</span>
+<span class="kwd">repeatFasta</span><span class="opt">(</span>gene<span class="opt">:</span> <span class="kwc">alu</span><span class="opt">,</span> <span class="kwc">n</span><span class="opt">:</span> <span class="num">2</span><span class="opt">*</span><span class="kwc">n</span><span class="opt">)</span>
+
+<span class="kwd">write</span><span class="opt">(</span>msg<span class="opt">:</span> <span class="str">&quot;&gt;TWO IUB ambiguity codes</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">)</span>
+<span class="kwd">randomFasta</span><span class="opt">(</span>acid<span class="opt">:</span> <span class="kwc">iub</span><span class="opt">,</span><span class="num">3</span><span class="opt">*</span><span class="kwc">n</span><span class="opt">)</span>
+
+<span class="kwd">write</span><span class="opt">(</span>msg<span class="opt">:</span> <span class="str">&quot;&gt;THREE Homo sapiens frequency</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">)</span>
+<span class="kwd">randomFasta</span><span class="opt">(</span>acid<span class="opt">:</span> <span class="kwc">homosapiens</span><span class="opt">,</span><span class="num">5</span><span class="opt">*</span><span class="kwc">n</span><span class="opt">)</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

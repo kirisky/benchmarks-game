@@ -17,6 +17,82 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc">// The Computer Language Benchmarks Game</span>
+<span class="slc">// https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">//</span>
+<span class="slc">// contributed by Tom Kaitchuck</span>
+
+<span class="kwa">extern crate</span> regex<span class="opt">;</span>
+
+<span class="kwa">use</span> std<span class="opt">::</span>io<span class="opt">::{</span><span class="kwa">self</span><span class="opt">,</span> Read<span class="opt">};</span>
+<span class="kwa">use</span> std<span class="opt">::</span>thread<span class="opt">;</span>
+
+macro_rules<span class="opt">!</span> regex <span class="opt">{ (</span>$re<span class="opt">:</span>expr<span class="opt">) =&gt; {</span>
+    <span class="opt">::</span>regex<span class="opt">::</span>bytes<span class="opt">::</span>Regex<span class="opt">::</span><span class="kwd">new</span><span class="opt">(</span>$re<span class="opt">)</span><span class="num">.u</span>nwrap<span class="opt">()</span> 
+<span class="opt">} }</span>
+
+<span class="kwa">fn</span> <span class="kwd">count_reverse_complements</span><span class="opt">(</span>sequence <span class="opt">:</span> Vec<span class="opt">&lt;</span><span class="kwb">u8</span><span class="opt">&gt;) -&gt;</span> Vec<span class="opt">&lt;</span>String<span class="opt">&gt; {</span>
+    <span class="slc">// Search for occurrences of the following patterns:</span>
+    <span class="kwa">let</span> variants <span class="opt">=</span> vec<span class="opt">![</span>
+        regex<span class="opt">!(</span><span class="str">&quot;agggtaaa|tttaccct&quot;</span><span class="opt">),</span>
+        regex<span class="opt">!(</span><span class="str">&quot;[cgt]gggtaaa|tttaccc[acg]&quot;</span><span class="opt">),</span>
+        regex<span class="opt">!(</span><span class="str">&quot;a[act]ggtaaa|tttacc[agt]t&quot;</span><span class="opt">),</span>
+        regex<span class="opt">!(</span><span class="str">&quot;ag[act]gtaaa|tttac[agt]ct&quot;</span><span class="opt">),</span>
+        regex<span class="opt">!(</span><span class="str">&quot;agg[act]taaa|ttta[agt]cct&quot;</span><span class="opt">),</span>
+        regex<span class="opt">!(</span><span class="str">&quot;aggg[acg]aaa|ttt[cgt]ccct&quot;</span><span class="opt">),</span>
+        regex<span class="opt">!(</span><span class="str">&quot;agggt[cgt]aa|tt[acg]accct&quot;</span><span class="opt">),</span>
+        regex<span class="opt">!(</span><span class="str">&quot;agggta[cgt]a|t[acg]taccct&quot;</span><span class="opt">),</span>
+        regex<span class="opt">!(</span><span class="str">&quot;agggtaa[cgt]|[acg]ttaccct&quot;</span><span class="opt">),</span>
+    <span class="opt">];</span>
+    variants<span class="num">.i</span>ter<span class="opt">()</span>
+	    <span class="opt">.</span><span class="kwd">map</span><span class="opt">(|</span><span class="kwa">ref</span> variant<span class="opt">|</span> 
+		format<span class="opt">!(</span><span class="str">&quot;{} {}&quot;</span><span class="opt">,</span> 
+			variant<span class="opt">.</span><span class="kwd">to_string</span><span class="opt">(),</span> 
+			variant<span class="num">.fi</span>nd<span class="num">_i</span>ter<span class="opt">(&amp;</span>sequence<span class="opt">).</span><span class="kwd">count</span><span class="opt">()) )</span> 
+            <span class="opt">.</span><span class="kwd">collect</span><span class="opt">()</span>
+<span class="opt">}</span>
+
+<span class="kwa">fn</span> <span class="kwd">find_replaced_sequence_length</span><span class="opt">(</span>sequence <span class="opt">:</span> Vec<span class="opt">&lt;</span><span class="kwb">u8</span><span class="opt">&gt;) -&gt;</span> <span class="kwb">usize</span> <span class="opt">{</span>
+    <span class="slc">// Replace the following patterns, one at a time:</span>
+    <span class="kwa">let</span> substs <span class="opt">=</span> vec<span class="opt">![</span>
+        <span class="opt">(</span>regex<span class="opt">!(</span><span class="str">&quot;tHa[Nt]&quot;</span><span class="opt">), &amp;</span>b<span class="str">&quot;&lt;4&gt;&quot;</span><span class="opt">[..]),</span>
+        <span class="opt">(</span>regex<span class="opt">!(</span><span class="str">&quot;aND|caN|Ha[DS]|WaS&quot;</span><span class="opt">), &amp;</span>b<span class="str">&quot;&lt;3&gt;&quot;</span><span class="opt">[..]),</span>
+        <span class="opt">(</span>regex<span class="opt">!(</span><span class="str">&quot;a[NSt]|BY&quot;</span><span class="opt">), &amp;</span>b<span class="str">&quot;&lt;2&gt;&quot;</span><span class="opt">[..]),</span>
+        <span class="opt">(</span>regex<span class="opt">!(</span><span class="str">&quot;&lt;[^&gt;]*&gt;&quot;</span><span class="opt">), &amp;</span>b<span class="str">&quot;|&quot;</span><span class="opt">[..]),</span>
+        <span class="opt">(</span>regex<span class="opt">!(</span><span class="str">&quot;</span><span class="esc">\\</span><span class="str">|[^|][^|]*</span><span class="esc">\\</span><span class="str">|&quot;</span><span class="opt">), &amp;</span>b<span class="str">&quot;-&quot;</span><span class="opt">[..]),</span>
+    <span class="opt">];</span>
+    <span class="kwa">let mut</span> seq <span class="opt">=</span> sequence<span class="opt">;</span>
+    <span class="slc">// Perform the replacements in sequence:</span>
+    <span class="kwa">for</span> <span class="opt">(</span>re<span class="opt">,</span> replacement<span class="opt">)</span> <span class="kwa">in</span> substs <span class="opt">{</span>
+        seq <span class="opt">=</span> re<span class="opt">.</span><span class="kwd">replace_all</span><span class="opt">(&amp;</span>seq<span class="opt">,</span> replacement<span class="opt">)</span><span class="num">.i</span>nto<span class="num">_</span>owned<span class="opt">();</span>
+    <span class="opt">}</span>
+    seq<span class="opt">.</span><span class="kwd">len</span><span class="opt">()</span>
+<span class="opt">}</span>
+
+<span class="kwa">fn</span> <span class="kwd">main</span><span class="opt">() {</span>
+    <span class="kwa">let mut</span> input <span class="opt">=</span> Vec<span class="opt">::</span><span class="kwd">with_capacity</span><span class="opt">(</span><span class="num">51</span> <span class="opt">* (</span><span class="num">1</span> <span class="opt">&lt;&lt;</span> <span class="num">20</span><span class="opt">));</span>
+    io<span class="opt">::</span><span class="kwd">stdin</span><span class="opt">().</span><span class="kwd">read_to_end</span><span class="opt">(&amp;</span><span class="kwa">mut</span> input<span class="opt">)</span><span class="num">.u</span>nwrap<span class="opt">();</span>
+    <span class="kwa">let</span> input_len <span class="opt">=</span> input<span class="opt">.</span><span class="kwd">len</span><span class="opt">();</span>
+    <span class="kwa">let</span> sequence <span class="opt">=</span> regex<span class="opt">!(</span><span class="str">&quot;&gt;[^</span><span class="esc">\</span><span class="str">n]*</span><span class="esc">\</span><span class="str">n|</span><span class="esc">\</span><span class="str">n&quot;</span><span class="opt">)</span>
+			<span class="opt">.</span><span class="kwd">replace_all</span><span class="opt">(&amp;</span>input<span class="opt">, &amp;</span>b<span class="str">&quot;&quot;</span><span class="opt">[..])</span><span class="num">.i</span>nto<span class="num">_</span>owned<span class="opt">();</span>
+    <span class="kwa">let</span> clen <span class="opt">=</span> sequence<span class="opt">.</span><span class="kwd">len</span><span class="opt">();</span>
+    <span class="kwa">let</span> seq_clone <span class="opt">=</span> sequence<span class="opt">.</span><span class="kwd">clone</span><span class="opt">();</span>
+    <span class="kwa">let</span> result <span class="opt">=</span> thread<span class="opt">::</span><span class="kwd">spawn</span><span class="opt">(||</span> <span class="kwd">find_replaced_sequence_length</span><span class="opt">(</span>seq_clone<span class="opt">) );</span>
+    <span class="kwa">let</span> counts <span class="opt">=</span> thread<span class="opt">::</span><span class="kwd">spawn</span><span class="opt">(||</span> <span class="kwd">count_reverse_complements</span><span class="opt">(</span>sequence<span class="opt">) );</span>
+
+    <span class="kwa">for</span> variant <span class="kwa">in</span> counts<span class="opt">.</span><span class="kwd">join</span><span class="opt">()</span><span class="num">.u</span>nwrap<span class="opt">() {</span>
+	println<span class="opt">!(</span><span class="str">&quot;{}&quot;</span><span class="opt">,</span> variant<span class="opt">)</span>
+    <span class="opt">}</span>
+    println<span class="opt">!(</span><span class="str">&quot;</span><span class="esc">\</span><span class="str">n{}</span><span class="esc">\</span><span class="str">n{}</span><span class="esc">\</span><span class="str">n{:?}&quot;</span><span class="opt">,</span> input_len<span class="opt">,</span> clen<span class="opt">,</span> result<span class="opt">.</span><span class="kwd">join</span><span class="opt">()</span><span class="num">.u</span>nwrap<span class="opt">());</span>
+<span class="opt">}</span>
+    
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

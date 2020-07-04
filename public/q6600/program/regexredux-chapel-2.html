@@ -17,6 +17,73 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="com">/* The Computer Language Benchmarks Game</span>
+<span class="com">   https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="com"></span>
+<span class="com">   contributed by Ben Harshbarger</span>
+<span class="com">   derived from the GNU C++ RE2 version by Alexey Zolotov</span>
+<span class="com">*/</span>
+
+<span class="kwa">use</span> IO<span class="opt">,</span> Regexp<span class="opt">;</span>
+
+<span class="kwa">proc</span> <span class="kwc">main</span><span class="opt">(</span>args<span class="opt">: []</span> <span class="kwb">string</span><span class="opt">) {</span>
+  <span class="kwa">var</span> variants <span class="opt">= [</span>
+    <span class="str">&quot;agggtaaa|tttaccct&quot;</span><span class="opt">,</span>
+    <span class="str">&quot;[cgt]gggtaaa|tttaccc[acg]&quot;</span><span class="opt">,</span>
+    <span class="str">&quot;a[act]ggtaaa|tttacc[agt]t&quot;</span><span class="opt">,</span>
+    <span class="str">&quot;ag[act]gtaaa|tttac[agt]ct&quot;</span><span class="opt">,</span>
+    <span class="str">&quot;agg[act]taaa|ttta[agt]cct&quot;</span><span class="opt">,</span>
+    <span class="str">&quot;aggg[acg]aaa|ttt[cgt]ccct&quot;</span><span class="opt">,</span>
+    <span class="str">&quot;agggt[cgt]aa|tt[acg]accct&quot;</span><span class="opt">,</span>
+    <span class="str">&quot;agggta[cgt]a|t[acg]taccct&quot;</span><span class="opt">,</span>
+    <span class="str">&quot;agggtaa[cgt]|[acg]ttaccct&quot;</span>
+  <span class="opt">];</span>
+
+  <span class="kwa">var</span> subst <span class="opt">= [</span>
+    <span class="opt">(</span><span class="str">&quot;tHa[Nt]&quot;</span><span class="opt">,</span> <span class="str">&quot;&lt;4&gt;&quot;</span><span class="opt">), (</span><span class="str">&quot;aND|caN|Ha[DS]|WaS&quot;</span><span class="opt">,</span> <span class="str">&quot;&lt;3&gt;&quot;</span><span class="opt">), (</span><span class="str">&quot;a[NSt]|BY&quot;</span><span class="opt">,</span> <span class="str">&quot;&lt;2&gt;&quot;</span><span class="opt">),</span> 
+    <span class="opt">(</span><span class="str">&quot;&lt;[^&gt;]*&gt;&quot;</span><span class="opt">,</span> <span class="str">&quot;|&quot;</span><span class="opt">), (</span><span class="str">&quot;</span><span class="esc">\\</span><span class="str">|[^|][^|]*</span><span class="esc">\\</span><span class="str">|&quot;</span><span class="opt">,</span> <span class="str">&quot;-&quot;</span><span class="opt">)</span>
+  <span class="opt">];</span>
+
+  <span class="kwa">var</span> data<span class="opt">:</span> <span class="kwb">string</span><span class="opt">;</span>
+  stdin<span class="opt">.</span><span class="kwc">readstring</span><span class="opt">(</span>data<span class="opt">);</span> <span class="slc">// read in the entire file</span>
+  <span class="kwa">const</span> initLen <span class="opt">=</span> data<span class="opt">.</span>size<span class="opt">;</span>
+
+  <span class="slc">// remove newlines</span>
+  data <span class="opt">=</span> <span class="kwc">compile</span><span class="opt">(</span><span class="str">&quot;&gt;.*</span><span class="esc">\n</span><span class="str">|</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">).</span><span class="kwc">sub</span><span class="opt">(</span><span class="str">&quot;&quot;</span><span class="opt">,</span> data<span class="opt">);</span>
+
+  <span class="kwa">var</span> copy <span class="opt">=</span> data<span class="opt">;</span> <span class="slc">// make a copy so we can perform replacements in parallel</span>
+
+  <span class="kwa">var</span> results<span class="opt">: [</span>variants<span class="opt">.</span><span class="kwa">domain</span><span class="opt">]</span> <span class="kwb">int</span><span class="opt">;</span>
+
+  <span class="kwa">sync</span> <span class="opt">{</span>
+    <span class="slc">// fire off a task to perform replacements</span>
+    <span class="kwa">begin with</span> <span class="opt">(</span><span class="kwa">ref</span> copy<span class="opt">) {</span>
+      <span class="kwa">for</span> <span class="opt">(</span>f<span class="opt">,</span> r<span class="opt">)</span> <span class="kwa">in</span> subst <span class="kwa">do</span>
+        copy <span class="opt">=</span> <span class="kwc">compile</span><span class="opt">(</span>f<span class="opt">).</span><span class="kwc">sub</span><span class="opt">(</span>r<span class="opt">,</span> copy<span class="opt">);</span>
+    <span class="opt">}</span>
+
+    <span class="slc">// count patterns</span>
+    <span class="kwa">forall</span> <span class="opt">(</span>pattern<span class="opt">,</span> result<span class="opt">)</span> <span class="kwa">in zip</span><span class="opt">(</span>variants<span class="opt">,</span> results<span class="opt">)</span> <span class="kwa">do</span>
+      <span class="kwa">for</span> m <span class="kwa">in</span> <span class="kwc">compile</span><span class="opt">(</span>pattern<span class="opt">).</span><span class="kwc">matches</span><span class="opt">(</span>data<span class="opt">)</span> <span class="kwa">do</span>
+        result <span class="opt">+=</span> <span class="num">1</span><span class="opt">;</span>
+  <span class="opt">}</span>
+
+  <span class="slc">// print results</span>
+  <span class="kwa">for</span> <span class="opt">(</span>p<span class="opt">,</span>r<span class="opt">)</span> <span class="kwa">in zip</span><span class="opt">(</span>variants<span class="opt">,</span> results<span class="opt">)</span> <span class="kwa">do</span>
+    <span class="kwc">writeln</span><span class="opt">(</span>p<span class="opt">,</span> <span class="str">&quot; &quot;</span><span class="opt">,</span> r<span class="opt">);</span>
+  <span class="kwc">writeln</span><span class="opt">();</span>
+
+  <span class="kwc">writeln</span><span class="opt">(</span>initLen<span class="opt">);</span>
+  <span class="kwc">writeln</span><span class="opt">(</span>data<span class="opt">.</span>size<span class="opt">);</span>
+  <span class="kwc">writeln</span><span class="opt">(</span>copy<span class="opt">.</span>size<span class="opt">);</span>
+<span class="opt">}</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

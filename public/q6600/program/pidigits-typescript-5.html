@@ -17,6 +17,96 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="com">/* The Computer Language Benchmarks Game</span>
+<span class="com">   https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="com"></span>
+<span class="com">   contributed by Denis Gribov</span>
+<span class="com">   based on C source code by Ledhug</span>
+<span class="com">   js BigInt replaced with gmplib by Andrey Filatkin</span>
+<span class="com">   converted by Isaac Gouy</span>
+<span class="com">*/</span>
+
+<span class="kwa">const</span> MPZ <span class="opt">=</span> <span class="kwd">require</span><span class="opt">(</span><span class="str">&apos;mpzjs&apos;</span><span class="opt">);</span>
+
+<span class="kwa">const</span> n <span class="opt">= +</span>process<span class="opt">.</span>argv<span class="opt">[</span><span class="num">2</span><span class="opt">] ||</span> <span class="num">10000</span><span class="opt">;</span>
+
+<span class="kwa">const</span> char0 <span class="opt">=</span> <span class="str">&apos;0&apos;</span><span class="opt">.</span><span class="kwd">charCodeAt</span><span class="opt">(</span><span class="num">0</span><span class="opt">);</span>
+<span class="kwa">const</span> charT <span class="opt">=</span> <span class="str">&apos;</span><span class="esc">\t</span><span class="str">&apos;</span><span class="opt">.</span><span class="kwd">charCodeAt</span><span class="opt">(</span><span class="num">0</span><span class="opt">);</span>
+<span class="kwa">const</span> charN <span class="opt">=</span> <span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span><span class="opt">.</span><span class="kwd">charCodeAt</span><span class="opt">(</span><span class="num">0</span><span class="opt">);</span>
+<span class="kwa">const</span> charC <span class="opt">=</span> <span class="str">&apos;:&apos;</span><span class="opt">.</span><span class="kwd">charCodeAt</span><span class="opt">(</span><span class="num">0</span><span class="opt">);</span>
+
+<span class="kwa">let</span> bufSize <span class="opt">= (</span><span class="num">10</span> <span class="opt">+</span> <span class="num">2</span> <span class="opt">+</span> n<span class="opt">.</span><span class="kwd">toString</span><span class="opt">().</span>length <span class="opt">+</span> <span class="num">1</span><span class="opt">) * (</span>n <span class="opt">/</span> <span class="num">10</span><span class="opt">);</span>
+<span class="kwa">for</span> <span class="opt">(</span><span class="kwa">let</span> i <span class="opt">=</span> <span class="num">10</span><span class="opt">,</span> ii <span class="opt">=</span> <span class="num">10</span> <span class="opt">** (</span><span class="kwb">Math</span><span class="opt">.</span><span class="kwd">log10</span><span class="opt">(</span>n<span class="opt">) &gt;&gt;&gt;</span> <span class="num">0</span><span class="opt">);</span> i <span class="opt">&lt;</span> ii<span class="opt">;</span> i <span class="opt">*=</span> <span class="num">10</span><span class="opt">) {</span>
+    bufSize <span class="opt">-=</span> i <span class="opt">-</span> <span class="num">1</span><span class="opt">;</span>
+<span class="opt">}</span>
+
+<span class="kwa">const</span> buf <span class="opt">=</span> Buffer<span class="opt">.</span><span class="kwd">allocUnsafe</span><span class="opt">(</span>bufSize<span class="opt">);</span>
+<span class="kwa">let</span> bufOffs <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+
+<span class="kwa">let</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+<span class="kwa">let</span> k <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+<span class="kwa">let</span> k2 <span class="opt">=</span> <span class="num">1</span><span class="opt">;</span>
+<span class="kwa">const</span> acc <span class="opt">=</span> <span class="kwd">MPZ</span><span class="opt">(</span><span class="num">0</span><span class="opt">);</span>
+<span class="kwa">const</span> den <span class="opt">=</span> <span class="kwd">MPZ</span><span class="opt">(</span><span class="num">1</span><span class="opt">);</span>
+<span class="kwa">const</span> num <span class="opt">=</span> <span class="kwd">MPZ</span><span class="opt">(</span><span class="num">1</span><span class="opt">);</span>
+<span class="kwa">const</span> tmp <span class="opt">=</span> <span class="kwd">MPZ</span><span class="opt">();</span>
+<span class="kwa">const</span> d3 <span class="opt">=</span> <span class="kwd">MPZ</span><span class="opt">();</span>
+<span class="kwa">const</span> d4 <span class="opt">=</span> <span class="kwd">MPZ</span><span class="opt">();</span>
+
+<span class="kwa">while</span> <span class="opt">(</span>i <span class="opt">&lt;</span> n<span class="opt">) {</span>
+    k<span class="opt">++;</span>
+    k2 <span class="opt">+=</span> <span class="num">2</span><span class="opt">;</span>
+
+    MPZ<span class="opt">.</span><span class="kwd">addMul</span><span class="opt">(</span>acc<span class="opt">,</span> num<span class="opt">,</span> <span class="num">2</span><span class="opt">);</span>
+    MPZ<span class="opt">.</span><span class="kwd">mul</span><span class="opt">(</span>acc<span class="opt">,</span> acc<span class="opt">,</span> k2<span class="opt">);</span>
+    MPZ<span class="opt">.</span><span class="kwd">mul</span><span class="opt">(</span>den<span class="opt">,</span> den<span class="opt">,</span> k2<span class="opt">);</span>
+    MPZ<span class="opt">.</span><span class="kwd">mul</span><span class="opt">(</span>num<span class="opt">,</span> num<span class="opt">,</span> k<span class="opt">);</span>
+
+    <span class="kwa">if</span> <span class="opt">(</span>num<span class="opt">.</span><span class="kwd">gt</span><span class="opt">(</span>acc<span class="opt">)) {</span>
+        <span class="kwa">continue</span><span class="opt">;</span>
+    <span class="opt">}</span>
+
+    MPZ<span class="opt">.</span><span class="kwd">mul</span><span class="opt">(</span>tmp<span class="opt">,</span> num<span class="opt">,</span> <span class="num">3</span><span class="opt">);</span>
+    MPZ<span class="opt">.</span><span class="kwd">add</span><span class="opt">(</span>tmp<span class="opt">,</span> tmp<span class="opt">,</span> acc<span class="opt">);</span>
+    MPZ<span class="opt">.</span><span class="kwd">div</span><span class="opt">(</span>d3<span class="opt">,</span> tmp<span class="opt">,</span> den<span class="opt">);</span>
+
+    MPZ<span class="opt">.</span><span class="kwd">add</span><span class="opt">(</span>tmp<span class="opt">,</span> tmp<span class="opt">,</span> num<span class="opt">);</span>
+    MPZ<span class="opt">.</span><span class="kwd">div</span><span class="opt">(</span>d4<span class="opt">,</span> tmp<span class="opt">,</span> den<span class="opt">);</span>
+
+    <span class="kwa">if</span> <span class="opt">(</span>d3<span class="opt">.</span><span class="kwd">ne</span><span class="opt">(</span>d4<span class="opt">)) {</span>
+        <span class="kwa">continue</span><span class="opt">;</span>
+    <span class="opt">}</span>
+
+    <span class="kwa">const</span> d <span class="opt">=</span> d3<span class="opt">.</span><span class="kwd">toNumber</span><span class="opt">();</span>
+    buf<span class="opt">.</span><span class="kwd">writeInt8</span><span class="opt">(</span>d <span class="opt">+</span> char0<span class="opt">,</span> bufOffs<span class="opt">++);</span>
+    i<span class="opt">++;</span>
+    <span class="kwa">if</span> <span class="opt">(</span>i <span class="opt">%</span> <span class="num">10</span> <span class="opt">===</span> <span class="num">0</span><span class="opt">) {</span>
+        <span class="kwd">writeLineEnd</span><span class="opt">(</span>i<span class="opt">);</span>
+    <span class="opt">}</span>
+
+    MPZ<span class="opt">.</span><span class="kwd">subMul</span><span class="opt">(</span>acc<span class="opt">,</span> den<span class="opt">,</span> d<span class="opt">);</span>
+    MPZ<span class="opt">.</span><span class="kwd">mul</span><span class="opt">(</span>acc<span class="opt">,</span> acc<span class="opt">,</span> <span class="num">10</span><span class="opt">);</span>
+    MPZ<span class="opt">.</span><span class="kwd">mul</span><span class="opt">(</span>num<span class="opt">,</span> num<span class="opt">,</span> <span class="num">10</span><span class="opt">);</span>
+<span class="opt">}</span>
+
+<span class="kwa">function</span> <span class="kwd">writeLineEnd</span><span class="opt">(</span>i<span class="opt">:</span> <span class="kwb">number</span><span class="opt">) {</span>
+    buf<span class="opt">.</span><span class="kwd">writeInt8</span><span class="opt">(</span>charT<span class="opt">,</span> bufOffs<span class="opt">++);</span>
+    buf<span class="opt">.</span><span class="kwd">writeInt8</span><span class="opt">(</span>charC<span class="opt">,</span> bufOffs<span class="opt">++);</span>
+
+    <span class="kwa">let</span> str <span class="opt">=</span> i<span class="opt">.</span><span class="kwd">toString</span><span class="opt">();</span>
+    buf<span class="opt">.</span><span class="kwd">write</span><span class="opt">(</span>str<span class="opt">,</span> bufOffs<span class="opt">,</span> bufOffs <span class="opt">+=</span> str<span class="opt">.</span>length<span class="opt">);</span>
+
+    buf<span class="opt">.</span><span class="kwd">writeInt8</span><span class="opt">(</span>charN<span class="opt">,</span> bufOffs<span class="opt">++);</span>
+<span class="opt">}</span>
+
+process<span class="opt">.</span>stdout<span class="opt">.</span><span class="kwd">write</span><span class="opt">(</span>buf<span class="opt">);</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

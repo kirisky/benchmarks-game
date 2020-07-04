@@ -17,6 +17,116 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="com">/* The Computer Language Benchmarks Game</span>
+<span class="com">   https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="com"></span>
+<span class="com">   contributed by Brad Chamberlain</span>
+<span class="com">   based on the C gcc #5 version by Mr Ledrug</span>
+<span class="com">   and the Chapel #2 version by myself and Ben Harshbarger</span>
+<span class="com">*/</span>
+
+<span class="kwa">param</span> eol <span class="opt">=</span> <span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">.</span><span class="kwc">toByte</span><span class="opt">();</span>      <span class="slc">// end-of-line, as an integer</span>
+
+<span class="kwa">const</span> table <span class="opt">=</span> <span class="kwc">createTable</span><span class="opt">();</span>    <span class="slc">// create the table of code complements</span>
+
+<span class="kwa">proc</span> <span class="kwc">main</span><span class="opt">(</span>args<span class="opt">: []</span> <span class="kwb">string</span><span class="opt">) {</span>
+  <span class="kwa">use</span> IO<span class="opt">;</span>
+  <span class="kwa">const</span> stdinBin <span class="opt">=</span> <span class="kwc">openfd</span><span class="opt">(</span><span class="num">0</span><span class="opt">).</span><span class="kwc">reader</span><span class="opt">(</span>iokind<span class="opt">.</span>native<span class="opt">,</span> locking<span class="opt">=</span><span class="kwa">false</span><span class="opt">,</span>
+                                 hints <span class="opt">=</span> QIO_CH_ALWAYS_UNBUFFERED<span class="opt">),</span>
+        stdoutBin <span class="opt">=</span> <span class="kwc">openfd</span><span class="opt">(</span><span class="num">1</span><span class="opt">).</span><span class="kwc">writer</span><span class="opt">(</span>iokind<span class="opt">.</span>native<span class="opt">,</span> locking<span class="opt">=</span><span class="kwa">false</span><span class="opt">,</span>
+                                  hints<span class="opt">=</span>QIO_CH_ALWAYS_UNBUFFERED<span class="opt">);</span>
+
+  <span class="slc">// read in the data using an incrementally growing buffer</span>
+  <span class="kwa">var</span> bufLen <span class="opt">=</span> <span class="num">8</span> <span class="opt">*</span> <span class="num">1024</span><span class="opt">,</span>
+      bufDom <span class="opt">= {</span><span class="num">0</span><span class="opt">..&lt;</span>bufLen<span class="opt">},</span>
+      buf<span class="opt">: [</span>bufDom<span class="opt">]</span> <span class="kwb">uint</span><span class="opt">(</span><span class="num">8</span><span class="opt">),</span>
+      end <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+
+  <span class="kwa">do</span> <span class="opt">{</span>
+    <span class="kwa">const</span> more <span class="opt">=</span> stdinBin<span class="opt">.</span><span class="kwc">read</span><span class="opt">(</span>buf<span class="opt">[</span>end<span class="opt">..]);</span>
+    <span class="kwa">if</span> more <span class="opt">{</span>
+      end <span class="opt">=</span> bufLen<span class="opt">;</span>
+      bufLen <span class="opt">+=</span> <span class="kwc">min</span><span class="opt">(</span><span class="num">1024</span><span class="opt">**</span><span class="num">2</span><span class="opt">,</span> bufLen<span class="opt">);</span>
+      bufDom <span class="opt">= {</span><span class="num">0</span><span class="opt">..&lt;</span>bufLen<span class="opt">};</span>
+    <span class="opt">}</span>
+  <span class="opt">}</span> <span class="kwa">while</span> more<span class="opt">;</span>
+  end <span class="opt">=</span> stdinBin<span class="opt">.</span><span class="kwc">offset</span><span class="opt">()-</span><span class="num">1</span><span class="opt">;</span>
+
+  <span class="slc">// process the buffer a sequence at a time, working from the end</span>
+  <span class="kwa">var</span> hi <span class="opt">=</span> end<span class="opt">;</span>
+  <span class="kwa">while</span> <span class="opt">(</span>hi <span class="opt">&gt;=</span> <span class="num">0</span><span class="opt">) {</span>
+    <span class="slc">// search for the &apos;&gt;&apos; that marks the start of a sequence</span>
+    <span class="kwa">var</span> lo <span class="opt">=</span> hi<span class="opt">;</span>
+    <span class="kwa">while</span> buf<span class="opt">[</span>lo<span class="opt">] !=</span> <span class="str">&apos;&gt;&apos;</span><span class="opt">.</span><span class="kwc">toByte</span><span class="opt">()</span> <span class="kwa">do</span>
+      lo <span class="opt">-=</span> <span class="num">1</span><span class="opt">;</span>
+
+    <span class="slc">// reverse and complement the sequence once we find it</span>
+    <span class="kwc">revcomp</span><span class="opt">(</span>buf<span class="opt">[</span>lo<span class="opt">..</span>hi<span class="opt">]);</span>
+
+    hi <span class="opt">=</span> lo <span class="opt">-</span> <span class="num">1</span><span class="opt">;</span>
+  <span class="opt">}</span>
+
+  <span class="slc">// write out the transformed buffer</span>
+  stdoutBin<span class="opt">.</span><span class="kwc">write</span><span class="opt">(</span>buf<span class="opt">[..</span>end<span class="opt">]);</span>
+<span class="opt">}</span>
+
+
+<span class="kwa">proc</span> <span class="kwc">revcomp</span><span class="opt">(</span>buf<span class="opt">: [?</span>inds<span class="opt">]) {</span>
+  <span class="kwa">param</span> cols <span class="opt">=</span> <span class="num">61</span><span class="opt">;</span>  <span class="slc">// the number of characters per full row (including &apos;\n&apos;)</span>
+  <span class="kwa">var</span> lo <span class="opt">=</span> inds<span class="opt">.</span>low<span class="opt">,</span>
+      hi <span class="opt">=</span> inds<span class="opt">.</span>high<span class="opt">;</span>
+
+  <span class="slc">// skip past header line</span>
+  <span class="kwa">do</span> <span class="opt">{</span>
+    lo <span class="opt">+=</span> <span class="num">1</span><span class="opt">;</span>
+  <span class="opt">}</span> <span class="kwa">while</span> buf<span class="opt">[</span>lo<span class="opt">-</span><span class="num">1</span><span class="opt">] !=</span> eol<span class="opt">;</span>
+
+  <span class="slc">// shift all of the linefeeds into the right places</span>
+  <span class="kwa">const</span> len <span class="opt">=</span> hi <span class="opt">-</span> lo <span class="opt">+</span> <span class="num">1</span><span class="opt">,</span>
+        off <span class="opt">= (</span>len <span class="opt">-</span> <span class="num">1</span><span class="opt">) %</span> cols<span class="opt">,</span>
+        shift <span class="opt">=</span> cols <span class="opt">-</span> off <span class="opt">-</span> <span class="num">1</span><span class="opt">;</span>
+
+  <span class="kwa">if</span> off <span class="opt">{</span>
+    <span class="kwa">forall</span> m <span class="kwa">in</span> lo<span class="opt">+</span>off<span class="opt">..&lt;</span>hi <span class="kwa">by</span> cols <span class="opt">{</span>
+      <span class="kwa">for</span> i <span class="kwa">in</span> m<span class="opt">..#</span>shift <span class="kwa">by</span> <span class="opt">-</span><span class="num">1</span> <span class="kwa">do</span>
+        buf<span class="opt">[</span>i<span class="opt">+</span><span class="num">1</span><span class="opt">] =</span> buf<span class="opt">[</span>i<span class="opt">];</span>
+      buf<span class="opt">[</span>m<span class="opt">] =</span> eol<span class="opt">;</span>
+    <span class="opt">}</span>
+  <span class="opt">}</span>
+
+  <span class="slc">// walk from both ends of the sequence, complementing and swapping</span>
+  <span class="kwa">forall</span> <span class="opt">(</span>i<span class="opt">,</span>j<span class="opt">)</span> <span class="kwa">in zip</span><span class="opt">(</span>lo<span class="opt">..#(</span>len<span class="opt">/</span><span class="num">2</span><span class="opt">), ..&lt;</span>hi <span class="kwa">by</span> <span class="opt">-</span><span class="num">1</span><span class="opt">)</span> <span class="kwa">do</span>
+    <span class="opt">(</span>buf<span class="opt">[</span>i<span class="opt">],</span> buf<span class="opt">[</span>j<span class="opt">]) = (</span>table<span class="opt">[</span>buf<span class="opt">[</span>j<span class="opt">]],</span> table<span class="opt">[</span>buf<span class="opt">[</span>i<span class="opt">]]);</span>
+<span class="opt">}</span>
+
+
+<span class="kwa">proc</span> <span class="kwc">createTable</span><span class="opt">() {</span>
+  <span class="slc">// `pairs` compactly represents the table we&apos;re creating, where the</span>
+  <span class="slc">// first byte of each pair (in either case) maps to the second:</span>
+  <span class="slc">//   A|a -&gt; T, C|c -&gt; G, G|g -&gt; C, T|t -&gt; A, etc.</span>
+  <span class="kwa">param</span> pairs <span class="opt">=</span> b<span class="str">&quot;ATCGGCTAUAMKRYWWSSYRKMVBHDDHBVNN&quot;</span><span class="opt">,</span>
+        upperToLower <span class="opt">=</span> <span class="str">&quot;a&quot;</span><span class="opt">.</span><span class="kwc">toByte</span><span class="opt">() -</span> <span class="str">&quot;A&quot;</span><span class="opt">.</span><span class="kwc">toByte</span><span class="opt">();</span>
+
+  <span class="kwa">var</span> table<span class="opt">: [</span><span class="num">0</span><span class="opt">.</span><span class="num">.127</span><span class="opt">]</span> <span class="kwb">uint</span><span class="opt">(</span><span class="num">8</span><span class="opt">);</span>
+
+  <span class="kwa">for</span> i <span class="kwa">in</span> pairs<span class="opt">.</span>indices <span class="kwa">by</span> <span class="num">2</span> <span class="opt">{</span>
+    <span class="kwa">const</span> src <span class="opt">=</span> pairs<span class="opt">[</span>i<span class="opt">],</span>
+          dst <span class="opt">=</span> pairs<span class="opt">[</span>i<span class="opt">+</span><span class="num">1</span><span class="opt">];</span>
+
+    table<span class="opt">[</span>src<span class="opt">] =</span> dst<span class="opt">;</span>
+    table<span class="opt">[</span>src<span class="opt">+</span>upperToLower<span class="opt">] =</span> dst<span class="opt">;</span>
+  <span class="opt">}</span>
+  table<span class="opt">[</span>eol<span class="opt">] =</span> eol<span class="opt">;</span>
+
+  <span class="kwa">return</span> table<span class="opt">;</span>
+<span class="opt">}</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

@@ -17,6 +17,158 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+﻿<span class="com">/* The Computer Language Benchmarks Game</span>
+<span class="com">   https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="com"> </span>
+<span class="com">   contributed by Isaac Gouy </span>
+<span class="com">   modified by Josh Goldfoot, based on the Java version by The Anh Tran</span>
+<span class="com">*/</span>
+
+<span class="kwa">using</span> System<span class="opt">;</span>
+<span class="kwa">using</span> System<span class="opt">.</span>Threading<span class="opt">;</span>
+<span class="kwa">using</span> System<span class="opt">.</span>Threading<span class="opt">.</span>Tasks<span class="opt">;</span>
+
+<span class="kwa">namespace</span> SpectralNorms
+<span class="opt">{</span>
+    <span class="kwa">class</span> SpectralNorm
+    <span class="opt">{</span>
+        <span class="kwa">public static void</span> <span class="kwd">Main</span><span class="opt">(</span>String<span class="opt">[]</span> args<span class="opt">)</span>
+        <span class="opt">{</span>
+            <span class="kwa">int</span> n <span class="opt">=</span> <span class="num">100</span><span class="opt">;</span>
+            <span class="kwa">if</span> <span class="opt">(</span>args<span class="opt">.</span>Length <span class="opt">&gt;</span> <span class="num">0</span><span class="opt">)</span> n <span class="opt">=</span> Int32<span class="opt">.</span><span class="kwd">Parse</span><span class="opt">(</span>args<span class="opt">[</span><span class="num">0</span><span class="opt">]);</span> 
+
+            Console<span class="opt">.</span><span class="kwd">WriteLine</span><span class="opt">(</span><span class="str">&quot;</span><span class="ipl">{0:f9}</span><span class="str">&quot;</span><span class="opt">,</span> <span class="kwd">spectralnormGame</span><span class="opt">(</span>n<span class="opt">));</span>
+        <span class="opt">}</span>
+
+        <span class="kwa">private static double</span> <span class="kwd">spectralnormGame</span><span class="opt">(</span><span class="kwa">int</span> n<span class="opt">)</span>
+        <span class="opt">{</span>
+            <span class="kwa">double</span><span class="opt">[]</span> u <span class="opt">=</span> <span class="kwa">new double</span><span class="opt">[</span>n<span class="opt">];</span>
+            <span class="kwa">double</span><span class="opt">[]</span> v <span class="opt">=</span> <span class="kwa">new double</span><span class="opt">[</span>n<span class="opt">];</span>
+            <span class="kwa">double</span><span class="opt">[]</span> tmp <span class="opt">=</span> <span class="kwa">new double</span><span class="opt">[</span>n<span class="opt">];</span>
+
+            <span class="slc">// create unit vector</span>
+            <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">int</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> n<span class="opt">;</span> i<span class="opt">++)</span>
+                u<span class="opt">[</span>i<span class="opt">] =</span> <span class="num">1.0</span><span class="opt">;</span>
+
+            <span class="kwa">int</span> nthread <span class="opt">=</span> Environment<span class="opt">.</span>ProcessorCount<span class="opt">;</span>
+            <span class="kwa">int</span> chunk <span class="opt">=</span> n <span class="opt">/</span> nthread<span class="opt">;</span>
+            <span class="kwa">var</span> barrier <span class="opt">=</span> <span class="kwa">new</span> <span class="kwd">Barrier</span><span class="opt">(</span>nthread<span class="opt">);</span>
+            Approximate<span class="opt">[]</span> ap <span class="opt">=</span> <span class="kwa">new</span> Approximate<span class="opt">[</span>nthread<span class="opt">];</span>
+
+            <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">int</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> nthread<span class="opt">;</span> i<span class="opt">++)</span>
+            <span class="opt">{</span>
+                <span class="kwa">int</span> r1 <span class="opt">=</span> i <span class="opt">*</span> chunk<span class="opt">;</span>
+                <span class="kwa">int</span> r2 <span class="opt">= (</span>i <span class="opt">&lt; (</span>nthread <span class="opt">-</span> <span class="num">1</span><span class="opt">)) ?</span> r1 <span class="opt">+</span> chunk <span class="opt">:</span> n<span class="opt">;</span>
+                ap<span class="opt">[</span>i<span class="opt">] =</span> <span class="kwa">new</span> <span class="kwd">Approximate</span><span class="opt">(</span>u<span class="opt">,</span> v<span class="opt">,</span> tmp<span class="opt">,</span> r1<span class="opt">,</span> r2<span class="opt">,</span> barrier<span class="opt">);</span>
+            <span class="opt">}</span>
+
+            <span class="kwa">double</span> vBv <span class="opt">=</span> <span class="num">0</span><span class="opt">,</span> vv <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+            <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">int</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> nthread<span class="opt">;</span> i<span class="opt">++)</span>
+            <span class="opt">{</span>
+                ap<span class="opt">[</span>i<span class="opt">].</span>t<span class="opt">.</span><span class="kwd">Wait</span><span class="opt">();</span>
+                vBv <span class="opt">+=</span> ap<span class="opt">[</span>i<span class="opt">].</span>m_vBv<span class="opt">;</span>
+                vv <span class="opt">+=</span> ap<span class="opt">[</span>i<span class="opt">].</span>m_vv<span class="opt">;</span>
+            <span class="opt">}</span>
+
+            <span class="kwa">return</span> Math<span class="opt">.</span><span class="kwd">Sqrt</span><span class="opt">(</span>vBv <span class="opt">/</span> vv<span class="opt">);</span>
+        <span class="opt">}</span>
+
+    <span class="opt">}</span>
+
+    <span class="kwa">public class</span> Approximate
+    <span class="opt">{</span>
+        <span class="kwa">private</span> Barrier barrier<span class="opt">;</span>
+        <span class="kwa">public</span> Task t<span class="opt">;</span>
+
+        <span class="kwa">private double</span><span class="opt">[]</span> _u<span class="opt">;</span>
+        <span class="kwa">private double</span><span class="opt">[]</span> _v<span class="opt">;</span>
+        <span class="kwa">private double</span><span class="opt">[]</span> _tmp<span class="opt">;</span>
+
+        <span class="kwa">private int</span> range_begin<span class="opt">,</span> range_end<span class="opt">;</span>
+        <span class="kwa">public double</span> m_vBv<span class="opt">,</span> m_vv<span class="opt">;</span>
+
+        <span class="kwa">public</span> <span class="kwd">Approximate</span><span class="opt">(</span><span class="kwa">double</span><span class="opt">[]</span> u<span class="opt">,</span> <span class="kwa">double</span><span class="opt">[]</span> v<span class="opt">,</span> <span class="kwa">double</span><span class="opt">[]</span> tmp<span class="opt">,</span> <span class="kwa">int</span> rbegin<span class="opt">,</span> <span class="kwa">int</span> rend<span class="opt">,</span> Barrier b<span class="opt">)</span>
+        <span class="opt">{</span>
+            m_vBv <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+            m_vv <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+            _u <span class="opt">=</span> u<span class="opt">;</span>
+            _v <span class="opt">=</span> v<span class="opt">;</span>
+            _tmp <span class="opt">=</span> tmp<span class="opt">;</span>
+            range_begin <span class="opt">=</span> rbegin<span class="opt">;</span>
+            range_end <span class="opt">=</span> rend<span class="opt">;</span>
+            barrier <span class="opt">=</span> b<span class="opt">;</span>
+            t <span class="opt">=</span> Task<span class="opt">.</span><span class="kwd">Run</span><span class="opt">(() =&gt;</span> <span class="kwd">run</span><span class="opt">());</span>
+        <span class="opt">}</span>
+
+        <span class="kwa">private void</span> <span class="kwd">run</span><span class="opt">()</span>
+        <span class="opt">{</span>
+            <span class="slc">// 20 steps of the power method</span>
+            <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">int</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> <span class="num">10</span><span class="opt">;</span> i<span class="opt">++)</span>
+            <span class="opt">{</span>
+                <span class="kwd">MultiplyAtAv</span><span class="opt">(</span>_u<span class="opt">,</span> _tmp<span class="opt">,</span> _v<span class="opt">);</span>
+                <span class="kwd">MultiplyAtAv</span><span class="opt">(</span>_v<span class="opt">,</span> _tmp<span class="opt">,</span> _u<span class="opt">);</span>
+            <span class="opt">}</span>
+
+            <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">int</span> i <span class="opt">=</span> range_begin<span class="opt">;</span> i <span class="opt">&lt;</span> range_end<span class="opt">;</span> i<span class="opt">++)</span>
+            <span class="opt">{</span>
+                m_vBv <span class="opt">+=</span> _u<span class="opt">[</span>i<span class="opt">] *</span> _v<span class="opt">[</span>i<span class="opt">];</span>
+                m_vv <span class="opt">+=</span> _v<span class="opt">[</span>i<span class="opt">] *</span> _v<span class="opt">[</span>i<span class="opt">];</span>
+            <span class="opt">}</span>
+        <span class="opt">}</span>
+
+        <span class="com">/* return element i,j of infinite matrix A */</span>
+        <span class="kwa">private double</span> <span class="kwd">eval_A</span><span class="opt">(</span><span class="kwa">int</span> i<span class="opt">,</span> <span class="kwa">int</span> j<span class="opt">)</span>
+        <span class="opt">{</span>
+            <span class="kwa">return</span> <span class="num">1.0</span> <span class="opt">/ ((</span>i <span class="opt">+</span> j<span class="opt">) * (</span>i <span class="opt">+</span> j <span class="opt">+</span> <span class="num">1</span><span class="opt">) /</span> <span class="num">2</span> <span class="opt">+</span> i <span class="opt">+</span> <span class="num">1</span><span class="opt">);</span>
+        <span class="opt">}</span>
+
+        <span class="com">/* multiply vector v by matrix A, each thread evaluate its range only */</span>
+        <span class="kwa">private void</span> <span class="kwd">MultiplyAv</span><span class="opt">(</span><span class="kwa">double</span><span class="opt">[]</span> v<span class="opt">,</span> <span class="kwa">double</span><span class="opt">[]</span> Av<span class="opt">)</span>
+        <span class="opt">{</span>
+            <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">int</span> i <span class="opt">=</span> range_begin<span class="opt">;</span> i <span class="opt">&lt;</span> range_end<span class="opt">;</span> i<span class="opt">++)</span>
+            <span class="opt">{</span>
+                <span class="kwa">double</span> sum <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+                <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">int</span> j <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> j <span class="opt">&lt;</span> v<span class="opt">.</span>Length<span class="opt">;</span> j<span class="opt">++)</span>
+                    sum <span class="opt">+=</span> <span class="kwd">eval_A</span><span class="opt">(</span>i<span class="opt">,</span> j<span class="opt">) *</span> v<span class="opt">[</span>j<span class="opt">];</span>
+
+                Av<span class="opt">[</span>i<span class="opt">] =</span> sum<span class="opt">;</span>
+            <span class="opt">}</span>
+        <span class="opt">}</span>
+
+        <span class="com">/* multiply vector v by matrix A transposed */</span>
+        <span class="kwa">private void</span> <span class="kwd">MultiplyAtv</span><span class="opt">(</span><span class="kwa">double</span><span class="opt">[]</span> v<span class="opt">,</span> <span class="kwa">double</span><span class="opt">[]</span> Atv<span class="opt">)</span>
+        <span class="opt">{</span>
+            <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">int</span> i <span class="opt">=</span> range_begin<span class="opt">;</span> i <span class="opt">&lt;</span> range_end<span class="opt">;</span> i<span class="opt">++)</span>
+            <span class="opt">{</span>
+                <span class="kwa">double</span> sum <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+                <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">int</span> j <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> j <span class="opt">&lt;</span> v<span class="opt">.</span>Length<span class="opt">;</span> j<span class="opt">++)</span>
+                    sum <span class="opt">+=</span> <span class="kwd">eval_A</span><span class="opt">(</span>j<span class="opt">,</span> i<span class="opt">) *</span> v<span class="opt">[</span>j<span class="opt">];</span>
+
+                Atv<span class="opt">[</span>i<span class="opt">] =</span> sum<span class="opt">;</span>
+            <span class="opt">}</span>
+        <span class="opt">}</span>
+
+        <span class="com">/* multiply vector v by matrix A and then by matrix A transposed */</span>
+        <span class="kwa">private void</span> <span class="kwd">MultiplyAtAv</span><span class="opt">(</span><span class="kwa">double</span><span class="opt">[]</span> v<span class="opt">,</span> <span class="kwa">double</span><span class="opt">[]</span> tmp<span class="opt">,</span> <span class="kwa">double</span><span class="opt">[]</span> AtAv<span class="opt">)</span>
+        <span class="opt">{</span>
+
+            <span class="kwd">MultiplyAv</span><span class="opt">(</span>v<span class="opt">,</span> tmp<span class="opt">);</span>
+            <span class="slc">// all thread must syn at completion</span>
+            barrier<span class="opt">.</span><span class="kwd">SignalAndWait</span><span class="opt">();</span>
+            <span class="kwd">MultiplyAtv</span><span class="opt">(</span>tmp<span class="opt">,</span> AtAv<span class="opt">);</span>
+            <span class="slc">// all thread must syn at completion</span>
+            barrier<span class="opt">.</span><span class="kwd">SignalAndWait</span><span class="opt">();</span>
+        <span class="opt">}</span>
+
+    <span class="opt">}</span>
+<span class="opt">}</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

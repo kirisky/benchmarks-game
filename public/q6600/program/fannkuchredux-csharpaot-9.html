@@ -17,6 +17,171 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc">// The Computer Language Benchmarks Game</span>
+<span class="slc">// https://benchmarksgame-team.pages.debian.net/benchmarksgame/</span>
+<span class="slc">//</span>
+<span class="slc">// contributed by Flim Nik</span>
+<span class="slc">// small optimisations by Anthony Lloyd</span>
+
+<span class="kwa">using</span> System<span class="opt">;</span>
+<span class="kwa">using</span> System<span class="opt">.</span>Linq<span class="opt">;</span>
+<span class="kwa">using</span> System<span class="opt">.</span>Runtime<span class="opt">.</span>CompilerServices<span class="opt">;</span>
+<span class="kwa">using</span> System<span class="opt">.</span>Threading<span class="opt">;</span>
+
+<span class="kwa">public unsafe static class</span> FannkuchRedux
+<span class="opt">{</span>
+    <span class="kwa">static int</span> taskCount<span class="opt">;</span>
+    <span class="kwa">static int</span><span class="opt">[]</span> fact<span class="opt">,</span> chkSums<span class="opt">,</span> maxFlips<span class="opt">;</span>
+
+    <span class="opt">[</span><span class="kwd">MethodImpl</span><span class="opt">(</span>MethodImplOptions<span class="opt">.</span>AggressiveInlining<span class="opt">)]</span>
+    <span class="kwa">static void</span> <span class="kwd">FirstPermutation</span><span class="opt">(</span><span class="kwa">short</span><span class="opt">*</span> p<span class="opt">,</span> <span class="kwa">short</span><span class="opt">*</span> pp<span class="opt">,</span> <span class="kwa">int</span><span class="opt">*</span> count<span class="opt">,</span> <span class="kwa">int</span> n<span class="opt">,</span> <span class="kwa">int</span> idx<span class="opt">)</span>
+    <span class="opt">{</span>
+        <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">int</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> n<span class="opt">; ++</span>i<span class="opt">)</span> p<span class="opt">[</span>i<span class="opt">] = (</span><span class="kwa">byte</span><span class="opt">)</span>i<span class="opt">;</span>
+        <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">int</span> i <span class="opt">=</span> n <span class="opt">-</span> <span class="num">1</span><span class="opt">;</span> i <span class="opt">&gt;</span> <span class="num">0</span><span class="opt">; --</span>i<span class="opt">)</span>
+        <span class="opt">{</span>
+            <span class="kwa">int</span> d <span class="opt">=</span> idx <span class="opt">/</span> fact<span class="opt">[</span>i<span class="opt">];</span>
+            count<span class="opt">[</span>i<span class="opt">] =</span> d<span class="opt">;</span>
+            <span class="kwa">if</span> <span class="opt">(</span>d <span class="opt">&gt;</span> <span class="num">0</span><span class="opt">)</span>
+            <span class="opt">{</span>
+                idx <span class="opt">%=</span> fact<span class="opt">[</span>i<span class="opt">];</span>
+                <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">int</span> j <span class="opt">=</span> i<span class="opt">;</span> j <span class="opt">&gt;=</span> <span class="num">0</span><span class="opt">; --</span>j<span class="opt">)</span> pp<span class="opt">[</span>j<span class="opt">] =</span> p<span class="opt">[</span>j<span class="opt">];</span>
+                <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">int</span> j <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> j <span class="opt">&lt;=</span> i<span class="opt">; ++</span>j<span class="opt">)</span> p<span class="opt">[</span>j<span class="opt">] =</span> pp<span class="opt">[(</span>j <span class="opt">+</span> d<span class="opt">) % (</span>i <span class="opt">+</span> <span class="num">1</span><span class="opt">)];</span>
+            <span class="opt">}</span>
+        <span class="opt">}</span>
+    <span class="opt">}</span>
+
+    <span class="opt">[</span><span class="kwd">MethodImpl</span><span class="opt">(</span>MethodImplOptions<span class="opt">.</span>AggressiveInlining<span class="opt">)]</span>
+    <span class="kwa">static void</span> <span class="kwd">NextPermutation</span><span class="opt">(</span><span class="kwa">short</span><span class="opt">*</span> p<span class="opt">,</span> <span class="kwa">int</span><span class="opt">*</span> count<span class="opt">)</span>
+    <span class="opt">{</span>
+        <span class="kwa">var</span> first <span class="opt">=</span> p<span class="opt">[</span><span class="num">1</span><span class="opt">];</span>
+        p<span class="opt">[</span><span class="num">1</span><span class="opt">] =</span> p<span class="opt">[</span><span class="num">0</span><span class="opt">];</span>
+        p<span class="opt">[</span><span class="num">0</span><span class="opt">] =</span> first<span class="opt">;</span>
+        <span class="kwa">int</span> i <span class="opt">=</span> <span class="num">1</span><span class="opt">;</span>
+        <span class="kwa">while</span> <span class="opt">(++</span>count<span class="opt">[</span>i<span class="opt">] &gt;</span> i<span class="opt">)</span>
+        <span class="opt">{</span>
+            count<span class="opt">[</span>i<span class="opt">++] =</span> <span class="num">0</span><span class="opt">;</span>
+            <span class="kwa">var</span> next <span class="opt">=</span> p<span class="opt">[</span><span class="num">1</span><span class="opt">];</span>
+            p<span class="opt">[</span><span class="num">0</span><span class="opt">] =</span> next<span class="opt">;</span>
+            <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">int</span> j <span class="opt">=</span> <span class="num">1</span><span class="opt">;</span> j <span class="opt">&lt;</span> i<span class="opt">;)</span> p<span class="opt">[</span>j<span class="opt">] =</span> p<span class="opt">[++</span>j<span class="opt">];</span>
+            p<span class="opt">[</span>i<span class="opt">] =</span> first<span class="opt">;</span>
+            first <span class="opt">=</span> next<span class="opt">;</span>
+        <span class="opt">}</span>
+    <span class="opt">}</span>
+
+    <span class="opt">[</span><span class="kwd">MethodImpl</span><span class="opt">(</span>MethodImplOptions<span class="opt">.</span>AggressiveInlining<span class="opt">)]</span>
+    <span class="kwa">static void</span> <span class="kwd">Copy</span><span class="opt">(</span><span class="kwa">short</span><span class="opt">*</span> p<span class="opt">,</span> <span class="kwa">short</span><span class="opt">*</span> pp<span class="opt">,</span> <span class="kwa">int</span> n<span class="opt">)</span>
+    <span class="opt">{</span>
+        <span class="kwa">var</span> startL <span class="opt">= (</span><span class="kwa">long</span><span class="opt">*)</span>p<span class="opt">;</span>
+        <span class="kwa">var</span> stateL <span class="opt">= (</span><span class="kwa">long</span><span class="opt">*)</span>pp<span class="opt">;</span>
+        <span class="kwa">var</span> lengthL <span class="opt">=</span> n <span class="opt">/</span> <span class="num">4</span><span class="opt">;</span>
+        <span class="kwa">int</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+        <span class="kwa">for</span> <span class="opt">(;</span> i <span class="opt">&lt;</span> lengthL<span class="opt">;</span> i<span class="opt">++)</span>
+        <span class="opt">{</span>
+            stateL<span class="opt">[</span>i<span class="opt">] =</span> startL<span class="opt">[</span>i<span class="opt">];</span>
+        <span class="opt">}</span>
+        <span class="kwa">for</span> <span class="opt">(</span>i <span class="opt">=</span> lengthL <span class="opt">*</span> <span class="num">4</span><span class="opt">;</span> i <span class="opt">&lt;</span> n<span class="opt">;</span> i<span class="opt">++)</span>
+        <span class="opt">{</span>
+            pp<span class="opt">[</span>i<span class="opt">] =</span> p<span class="opt">[</span>i<span class="opt">];</span>
+        <span class="opt">}</span>
+    <span class="opt">}</span>
+
+    <span class="opt">[</span><span class="kwd">MethodImpl</span><span class="opt">(</span>MethodImplOptions<span class="opt">.</span>AggressiveInlining<span class="opt">)]</span>
+    <span class="kwa">static int</span> <span class="kwd">CountFlips</span><span class="opt">(</span><span class="kwa">short</span><span class="opt">*</span> p<span class="opt">,</span> <span class="kwa">short</span><span class="opt">*</span> pp<span class="opt">,</span> <span class="kwa">int</span> n<span class="opt">)</span>
+    <span class="opt">{</span>
+        <span class="kwa">int</span> flips <span class="opt">=</span> <span class="num">1</span><span class="opt">;</span>
+        <span class="kwa">int</span> first <span class="opt">= *</span>p<span class="opt">;</span>
+        <span class="kwa">short</span> temp<span class="opt">;</span>
+        <span class="kwa">if</span> <span class="opt">(</span>p<span class="opt">[</span>first<span class="opt">] !=</span> <span class="num">0</span><span class="opt">)</span>
+        <span class="opt">{</span>
+            <span class="kwd">Copy</span><span class="opt">(</span>p<span class="opt">,</span> pp<span class="opt">,</span> n<span class="opt">);</span>
+            <span class="kwa">do</span>
+            <span class="opt">{</span>
+                <span class="opt">++</span>flips<span class="opt">;</span>
+                <span class="kwa">if</span> <span class="opt">(</span>first <span class="opt">&gt;</span> <span class="num">2</span><span class="opt">)</span>
+                <span class="opt">{</span>
+                    <span class="kwa">short</span><span class="opt">*</span> lo <span class="opt">=</span> pp <span class="opt">+</span> <span class="num">1</span><span class="opt">,</span> hi <span class="opt">=</span> pp <span class="opt">+</span> first <span class="opt">-</span> <span class="num">1</span><span class="opt">;</span>
+                    <span class="kwa">do</span>
+                    <span class="opt">{</span>
+                        temp <span class="opt">= *</span>lo<span class="opt">;</span>
+                        <span class="opt">*</span>lo <span class="opt">= *</span>hi<span class="opt">;</span>
+                        <span class="opt">*</span>hi <span class="opt">=</span> temp<span class="opt">;</span>
+                    <span class="opt">}</span> <span class="kwa">while</span> <span class="opt">(++</span>lo <span class="opt">&lt; --</span>hi<span class="opt">);</span>
+                <span class="opt">}</span>
+                temp <span class="opt">=</span> pp<span class="opt">[</span>first<span class="opt">];</span>
+                pp<span class="opt">[</span>first<span class="opt">] = (</span><span class="kwa">short</span><span class="opt">)</span>first<span class="opt">;</span>
+                first <span class="opt">=</span> temp<span class="opt">;</span>
+            <span class="opt">}</span> <span class="kwa">while</span> <span class="opt">(</span>pp<span class="opt">[</span>first<span class="opt">] !=</span> <span class="num">0</span><span class="opt">);</span>
+        <span class="opt">}</span>
+        <span class="kwa">return</span> flips<span class="opt">;</span>
+    <span class="opt">}</span>
+
+    <span class="kwa">static void</span> <span class="kwd">Run</span><span class="opt">(</span><span class="kwa">int</span> n<span class="opt">,</span> <span class="kwa">int</span> taskSize<span class="opt">)</span>
+    <span class="opt">{</span>
+        <span class="kwa">int</span><span class="opt">*</span> count <span class="opt">=</span> <span class="kwa">stackalloc int</span><span class="opt">[</span>n<span class="opt">];</span>
+        <span class="kwa">int</span> taskId<span class="opt">,</span> chksum <span class="opt">=</span> <span class="num">0</span><span class="opt">,</span> maxflips <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+        <span class="kwa">short</span><span class="opt">*</span> p <span class="opt">=</span> <span class="kwa">stackalloc short</span><span class="opt">[</span>n<span class="opt">];</span>
+        <span class="kwa">short</span><span class="opt">*</span> pp <span class="opt">=</span> <span class="kwa">stackalloc short</span><span class="opt">[</span>n<span class="opt">];</span>
+        <span class="kwa">while</span> <span class="opt">((</span>taskId <span class="opt">=</span> Interlocked<span class="opt">.</span><span class="kwd">Decrement</span><span class="opt">(</span><span class="kwa">ref</span> taskCount<span class="opt">)) &gt;=</span> <span class="num">0</span><span class="opt">)</span>
+        <span class="opt">{</span>
+            <span class="kwd">FirstPermutation</span><span class="opt">(</span>p<span class="opt">,</span> pp<span class="opt">,</span> count<span class="opt">,</span> n<span class="opt">,</span> taskId <span class="opt">*</span> taskSize<span class="opt">);</span>
+            <span class="kwa">if</span> <span class="opt">(*</span>p <span class="opt">!=</span> <span class="num">0</span><span class="opt">)</span>
+            <span class="opt">{</span>
+                <span class="kwa">var</span> flips <span class="opt">=</span> <span class="kwd">CountFlips</span><span class="opt">(</span>p<span class="opt">,</span> pp<span class="opt">,</span> n<span class="opt">);</span>
+                chksum <span class="opt">+=</span> flips<span class="opt">;</span>
+                <span class="kwa">if</span> <span class="opt">(</span>flips <span class="opt">&gt;</span> maxflips<span class="opt">)</span> maxflips <span class="opt">=</span> flips<span class="opt">;</span>
+            <span class="opt">}</span>
+            <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">int</span> i <span class="opt">=</span> <span class="num">1</span><span class="opt">;</span> i <span class="opt">&lt;</span> taskSize<span class="opt">;</span> i<span class="opt">++)</span>
+            <span class="opt">{</span>
+                <span class="kwd">NextPermutation</span><span class="opt">(</span>p<span class="opt">,</span> count<span class="opt">);</span>
+                <span class="kwa">if</span> <span class="opt">(*</span>p <span class="opt">!=</span> <span class="num">0</span><span class="opt">)</span>
+                <span class="opt">{</span>
+                    <span class="kwa">var</span> flips <span class="opt">=</span> <span class="kwd">CountFlips</span><span class="opt">(</span>p<span class="opt">,</span> pp<span class="opt">,</span> n<span class="opt">);</span>
+                    chksum <span class="opt">+= (</span><span class="num">1</span> <span class="opt">- (</span>i <span class="opt">&amp;</span> <span class="num">1</span><span class="opt">) *</span> <span class="num">2</span><span class="opt">) *</span> flips<span class="opt">;</span>
+                    <span class="kwa">if</span> <span class="opt">(</span>flips <span class="opt">&gt;</span> maxflips<span class="opt">)</span> maxflips <span class="opt">=</span> flips<span class="opt">;</span>
+                <span class="opt">}</span>
+            <span class="opt">}</span>
+        <span class="opt">}</span>
+        chkSums<span class="opt">[-</span>taskId <span class="opt">-</span> <span class="num">1</span><span class="opt">] =</span> chksum<span class="opt">;</span>
+        maxFlips<span class="opt">[-</span>taskId <span class="opt">-</span> <span class="num">1</span><span class="opt">] =</span> maxflips<span class="opt">;</span>
+    <span class="opt">}</span>
+
+    <span class="kwa">public static void</span> <span class="kwd">Main</span><span class="opt">(</span><span class="kwa">string</span><span class="opt">[]</span> args<span class="opt">)</span>
+    <span class="opt">{</span>
+        <span class="kwa">int</span> n <span class="opt">=</span> args<span class="opt">.</span>Length <span class="opt">&gt;</span> <span class="num">0</span> <span class="opt">?</span> <span class="kwa">int</span><span class="opt">.</span><span class="kwd">Parse</span><span class="opt">(</span>args<span class="opt">[</span><span class="num">0</span><span class="opt">]) :</span> <span class="num">7</span><span class="opt">;</span>
+        fact <span class="opt">=</span> <span class="kwa">new int</span><span class="opt">[</span>n <span class="opt">+</span> <span class="num">1</span><span class="opt">];</span>
+        fact<span class="opt">[</span><span class="num">0</span><span class="opt">] =</span> <span class="num">1</span><span class="opt">;</span>
+
+        <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">int</span> i <span class="opt">=</span> <span class="num">1</span><span class="opt">;</span> i <span class="opt">&lt;</span> fact<span class="opt">.</span>Length<span class="opt">;</span> i<span class="opt">++)</span>
+        <span class="opt">{</span>
+            fact<span class="opt">[</span>i<span class="opt">] =</span> fact<span class="opt">[</span>i <span class="opt">-</span> <span class="num">1</span><span class="opt">] *</span> i<span class="opt">;</span>
+        <span class="opt">}</span>
+
+        <span class="kwa">var</span> PC <span class="opt">=</span> Environment<span class="opt">.</span>ProcessorCount<span class="opt">;</span>
+        taskCount <span class="opt">=</span> n <span class="opt">&gt;</span> <span class="num">11</span> <span class="opt">?</span> fact<span class="opt">[</span>n<span class="opt">] / (</span><span class="num">9</span> <span class="opt">*</span> <span class="num">8</span> <span class="opt">*</span> <span class="num">7</span> <span class="opt">*</span> <span class="num">6</span> <span class="opt">*</span> <span class="num">5</span> <span class="opt">*</span> <span class="num">4</span> <span class="opt">*</span> <span class="num">3</span> <span class="opt">*</span> <span class="num">2</span><span class="opt">) :</span> PC<span class="opt">;</span>
+        <span class="kwa">int</span> taskSize <span class="opt">=</span> fact<span class="opt">[</span>n<span class="opt">] /</span> taskCount<span class="opt">;</span>
+        chkSums <span class="opt">=</span> <span class="kwa">new int</span><span class="opt">[</span>PC<span class="opt">];</span>
+        maxFlips <span class="opt">=</span> <span class="kwa">new int</span><span class="opt">[</span>PC<span class="opt">];</span>
+        <span class="kwa">var</span> threads <span class="opt">=</span> <span class="kwa">new</span> Thread<span class="opt">[</span>PC<span class="opt">];</span>
+        <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">int</span> i <span class="opt">=</span> <span class="num">1</span><span class="opt">;</span> i <span class="opt">&lt;</span> PC<span class="opt">;</span> i<span class="opt">++)</span>
+        <span class="opt">{</span>
+            <span class="opt">(</span>threads<span class="opt">[</span>i<span class="opt">] =</span> <span class="kwa">new</span> <span class="kwd">Thread</span><span class="opt">(() =&gt;</span> <span class="kwd">Run</span><span class="opt">(</span>n<span class="opt">,</span> taskSize<span class="opt">))).</span><span class="kwd">Start</span><span class="opt">();</span>
+        <span class="opt">}</span>
+        <span class="kwd">Run</span><span class="opt">(</span>n<span class="opt">,</span> taskSize<span class="opt">);</span>
+
+        <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">int</span> i <span class="opt">=</span> <span class="num">1</span><span class="opt">;</span> i <span class="opt">&lt;</span> threads<span class="opt">.</span>Length<span class="opt">;</span> i<span class="opt">++)</span>
+        <span class="opt">{</span>
+            threads<span class="opt">[</span>i<span class="opt">].</span><span class="kwd">Join</span><span class="opt">();</span>
+        <span class="opt">}</span>
+        Console<span class="opt">.</span><span class="kwd">WriteLine</span><span class="opt">(</span>chkSums<span class="opt">.</span><span class="kwd">Sum</span><span class="opt">() +</span> <span class="str">&quot;</span><span class="esc">\n</span><span class="str">Pfannkuchen(&quot;</span> <span class="opt">+</span> n <span class="opt">+</span> <span class="str">&quot;) = &quot;</span> <span class="opt">+</span> maxFlips<span class="opt">.</span><span class="kwd">Max</span><span class="opt">());</span>
+    <span class="opt">}</span>
+<span class="opt">}</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

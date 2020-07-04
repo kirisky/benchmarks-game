@@ -17,6 +17,107 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc"># The Computer Language Benchmarks Game</span>
+<span class="slc"># https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">#</span>
+<span class="slc"># Contributed by Kristoffer Carlsson</span>
+<span class="slc"># Updated by Adam Beckmeyer</span>
+
+<span class="kwa">const</span> LINEWIDTH <span class="opt">=</span> <span class="num">60</span>
+
+<span class="kwa">const</span> IM <span class="opt">=</span> <span class="kwb">Int32</span><span class="opt">(</span><span class="num">139968</span><span class="opt">)</span>
+<span class="kwa">const</span> IA <span class="opt">=</span> <span class="kwb">Int32</span><span class="opt">(</span><span class="num">3877</span><span class="opt">)</span>
+<span class="kwa">const</span> IC <span class="opt">=</span> <span class="kwb">Int32</span><span class="opt">(</span><span class="num">29573</span><span class="opt">)</span>
+<span class="kwd">gen_random</span><span class="opt">(</span>seed<span class="opt">) = ((</span>seed <span class="opt">*</span> IA<span class="opt">) +</span> IC<span class="opt">) %</span> IM
+
+<span class="slc"># Vector{UInt8} faster indexing than Base.CodeUnits{UInt8,String} (julia 1.2)</span>
+<span class="kwa">const</span> alu <span class="opt">=</span> Vector<span class="opt">{</span><span class="kwb">UInt8</span><span class="opt">}(</span><span class="kwd">string</span><span class="opt">(</span>
+   <span class="str">&quot;GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGG&quot;</span><span class="opt">,</span>
+   <span class="str">&quot;GAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGA&quot;</span><span class="opt">,</span>
+   <span class="str">&quot;CCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAAT&quot;</span><span class="opt">,</span>
+   <span class="str">&quot;ACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCA&quot;</span><span class="opt">,</span>
+   <span class="str">&quot;GCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGG&quot;</span><span class="opt">,</span>
+   <span class="str">&quot;AGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCC&quot;</span><span class="opt">,</span>
+   <span class="str">&quot;AGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA&quot;</span><span class="opt">))</span>
+
+<span class="kwa">const</span> iub1 <span class="opt">=</span> Vector<span class="opt">{</span><span class="kwb">UInt8</span><span class="opt">}(</span><span class="str">&quot;acgtBDHKMNRSVWY&quot;</span><span class="opt">)</span>
+<span class="slc"># Instead of the probability, iub2 is the integer upper-bounding the random</span>
+<span class="slc"># integer to the equivalent index in iub1</span>
+<span class="kwa">const</span> iub2 <span class="opt">=</span>
+    floor<span class="opt">.(</span><span class="kwb">Int32</span><span class="opt">,</span> IM <span class="opt">.*</span> <span class="kwd">cumsum</span><span class="opt">([</span><span class="num">0.27</span><span class="opt">,</span> <span class="num">0.12</span><span class="opt">,</span> <span class="num">0.12</span><span class="opt">,</span> <span class="num">0.27</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">,</span><span class="num">0.02</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">,</span>
+                                <span class="num">0.02</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">,</span><span class="num">0.02</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">]))</span>
+<span class="kwa">const</span> homosapiens1 <span class="opt">=</span> Vector<span class="opt">{</span><span class="kwb">UInt8</span><span class="opt">}(</span><span class="str">&quot;acgt&quot;</span><span class="opt">)</span>
+<span class="kwa">const</span> homosapiens2 <span class="opt">=</span>
+    floor<span class="opt">.(</span><span class="kwb">Int32</span><span class="opt">,</span> IM <span class="opt">.*</span> <span class="kwd">cumsum</span><span class="opt">([</span><span class="num">0.3029549426680</span><span class="opt">,</span> <span class="num">0.1979883004921</span><span class="opt">,</span>
+                                <span class="num">0.1975473066391</span><span class="opt">,</span> <span class="num">0.3015094502008</span><span class="opt">]))</span>
+
+<span class="slc"># Defining a function with successive comparisons is faster than getindex lookup</span>
+<span class="kwa">for</span> <span class="opt">(</span>op<span class="opt">,</span> symb<span class="opt">,</span> pr<span class="opt">)</span> <span class="kwa">in</span> <span class="opt">((:</span>iub<span class="opt">,</span> iub1<span class="opt">,</span> iub2<span class="opt">),</span>
+                       <span class="opt">(:</span>homosapiens<span class="opt">,</span> homosapiens1<span class="opt">,</span> homosapiens2<span class="opt">))</span>
+    <span class="slc"># successively compares x with all values in pr and returns value from symb</span>
+    <span class="kwc">&#64;eval</span> <span class="kwa">function</span> $op<span class="opt">(</span>x<span class="opt">)</span>
+        $((:(x &lt;= $p &amp;&amp; return $s) <span class="kwa">for</span> <span class="opt">(</span>p<span class="opt">,</span> s<span class="opt">)</span> <span class="kwa">in</span> <span class="kwd">zip</span><span class="opt">(</span>pr<span class="opt">,</span> symb<span class="opt">))...)</span>
+        &apos;a&apos; <span class="opt">%</span> <span class="kwb">UInt8</span>
+    <span class="kwa">end</span>
+<span class="kwa">end</span>
+
+<span class="kwa">function</span> <span class="kwd">repeat_fasta</span><span class="opt">(</span>io<span class="opt">,</span> src<span class="opt">,</span> n<span class="opt">)</span>
+    buffer <span class="opt">=</span> Vector<span class="opt">{</span><span class="kwb">UInt8</span><span class="opt">}(</span>undef<span class="opt">,</span> LINEWIDTH <span class="opt">+</span> <span class="num">1</span><span class="opt">)</span>
+    buffer<span class="opt">[</span><span class="kwa">end</span><span class="opt">] =</span> &apos;<span class="esc">\n</span>&apos; <span class="opt">%</span> <span class="kwb">UInt8</span>
+
+    col <span class="opt">=</span> count <span class="opt">=</span> <span class="num">0</span>
+    <span class="kwc">&#64;inbounds</span> <span class="kwa">for</span> c <span class="kwa">in</span> Iterators<span class="opt">.</span><span class="kwd">cycle</span><span class="opt">(</span>src<span class="opt">)</span>
+        col <span class="opt">+=</span> <span class="num">1</span>
+        buffer<span class="opt">[</span>col<span class="opt">] =</span> c
+        <span class="kwa">if</span> col <span class="opt">==</span> LINEWIDTH
+            <span class="kwd">write</span><span class="opt">(</span>io<span class="opt">,</span> buffer<span class="opt">)</span>
+            col <span class="opt">=</span> <span class="num">0</span>
+        <span class="kwa">end</span>
+        count <span class="opt">+=</span> <span class="num">1</span>
+        count <span class="opt">==</span> n <span class="opt">&amp;&amp;</span> <span class="kwa">break</span>
+    <span class="kwa">end</span>
+
+    <span class="kwd">resize</span><span class="opt">!(</span>buffer<span class="opt">,</span> col <span class="opt">+</span> <span class="num">1</span><span class="opt">)</span>
+    buffer<span class="opt">[</span><span class="kwa">end</span><span class="opt">] =</span> &apos;<span class="esc">\n</span>&apos; <span class="opt">%</span> <span class="kwb">UInt8</span>
+    <span class="kwd">write</span><span class="opt">(</span>io<span class="opt">,</span> buffer<span class="opt">)</span>
+<span class="kwa">end</span>
+
+<span class="kwa">function</span> <span class="kwd">random_fasta</span><span class="opt">(</span>io<span class="opt">,</span> flookup<span class="opt">,</span> n<span class="opt">,</span> seed<span class="opt">=</span><span class="num">42</span>%Int32<span class="opt">)</span>
+    buffer <span class="opt">=</span> Vector<span class="opt">{</span><span class="kwb">UInt8</span><span class="opt">}(</span>undef<span class="opt">,</span> LINEWIDTH <span class="opt">+</span> <span class="num">1</span><span class="opt">)</span>
+
+    <span class="kwa">for</span> k<span class="opt">=</span>n<span class="opt">:-</span>LINEWIDTH<span class="opt">:</span><span class="num">1</span>
+        m <span class="opt">=</span> <span class="kwd">min</span><span class="opt">(</span>k<span class="opt">,</span> LINEWIDTH<span class="opt">)</span>
+        <span class="kwd">resize</span><span class="opt">!(</span>buffer<span class="opt">,</span> m <span class="opt">+</span> <span class="num">1</span><span class="opt">)</span>
+
+        <span class="kwa">for</span> i<span class="opt">=</span><span class="num">1</span><span class="opt">:</span>m
+            seed <span class="opt">=</span> <span class="kwd">gen_random</span><span class="opt">(</span>seed<span class="opt">)</span>
+            <span class="kwc">&#64;inbounds</span> buffer<span class="opt">[</span>i<span class="opt">] =</span> <span class="kwd">flookup</span><span class="opt">(</span>seed<span class="opt">)</span>
+        <span class="kwa">end</span>
+
+        <span class="kwc">&#64;inbounds</span> buffer<span class="opt">[</span><span class="kwa">end</span><span class="opt">] =</span> &apos;<span class="esc">\n</span>&apos; <span class="opt">%</span> <span class="kwb">UInt8</span>
+        <span class="kwd">write</span><span class="opt">(</span>io<span class="opt">,</span> buffer<span class="opt">)</span>
+    <span class="kwa">end</span>
+    seed
+<span class="kwa">end</span>
+
+<span class="kwa">function</span> <span class="kwd">perf_fasta</span><span class="opt">(</span>n<span class="opt">=</span><span class="num">25000000</span><span class="opt">,</span> io<span class="opt">=</span>stdout<span class="opt">)</span>
+  <span class="kwd">write</span><span class="opt">(</span>io<span class="opt">,</span> <span class="str">&quot;&gt;ONE Homo sapiens alu</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">)</span>
+  <span class="kwd">repeat_fasta</span><span class="opt">(</span>io<span class="opt">,</span> alu<span class="opt">,</span> <span class="num">2</span>n<span class="opt">)</span>
+
+  <span class="kwd">write</span><span class="opt">(</span>io<span class="opt">,</span> <span class="str">&quot;&gt;TWO IUB ambiguity codes</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">)</span>
+  seed <span class="opt">=</span> <span class="kwd">random_fasta</span><span class="opt">(</span>io<span class="opt">,</span> iub<span class="opt">,</span> <span class="num">3</span>n<span class="opt">)</span>
+  <span class="kwd">write</span><span class="opt">(</span>io<span class="opt">,</span> <span class="str">&quot;&gt;THREE Homo sapiens frequency</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">)</span>
+  <span class="kwd">random_fasta</span><span class="opt">(</span>io<span class="opt">,</span> homosapiens<span class="opt">,</span> <span class="num">5</span>n<span class="opt">,</span> seed<span class="opt">)</span>
+<span class="kwa">end</span>
+
+<span class="kwd">isinteractive</span><span class="opt">() ||</span> <span class="kwd">perf_fasta</span><span class="opt">(</span><span class="kwd">parse</span><span class="opt">(</span>Int<span class="opt">,</span>ARGS<span class="opt">[</span><span class="num">1</span><span class="opt">]))</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

@@ -17,6 +17,169 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="com">/* The Computer Language Benchmarks Game</span>
+<span class="com">   https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="com"></span>
+<span class="com">   contributed by Preston Sahabu</span>
+<span class="com">   derived from the Chapel fastaredux version by Casey Battaglino et al.</span>
+<span class="com">            and the GNU C version by Paul Hsieh</span>
+<span class="com">*/</span>
+
+<span class="kwa">config const</span> n <span class="opt">=</span> <span class="num">1000</span><span class="opt">,</span>   <span class="slc">// controls the length of the generated strings</span>
+             lineLength <span class="opt">=</span> <span class="num">60</span><span class="opt">;</span>
+
+<span class="slc">//</span>
+<span class="slc">// Nucleotide definitions</span>
+<span class="slc">//</span>
+<span class="kwa">enum</span> nucleotide <span class="opt">{</span>
+  A <span class="opt">=</span> <span class="str">&quot;A&quot;</span><span class="opt">.</span><span class="kwc">toByte</span><span class="opt">(),</span> C <span class="opt">=</span> <span class="str">&quot;C&quot;</span><span class="opt">.</span><span class="kwc">toByte</span><span class="opt">(),</span> G <span class="opt">=</span> <span class="str">&quot;G&quot;</span><span class="opt">.</span><span class="kwc">toByte</span><span class="opt">(),</span> T <span class="opt">=</span> <span class="str">&quot;T&quot;</span><span class="opt">.</span><span class="kwc">toByte</span><span class="opt">(),</span>
+  a <span class="opt">=</span> <span class="str">&quot;a&quot;</span><span class="opt">.</span><span class="kwc">toByte</span><span class="opt">(),</span> c <span class="opt">=</span> <span class="str">&quot;c&quot;</span><span class="opt">.</span><span class="kwc">toByte</span><span class="opt">(),</span> g <span class="opt">=</span> <span class="str">&quot;g&quot;</span><span class="opt">.</span><span class="kwc">toByte</span><span class="opt">(),</span> t <span class="opt">=</span> <span class="str">&quot;t&quot;</span><span class="opt">.</span><span class="kwc">toByte</span><span class="opt">(),</span>
+  B <span class="opt">=</span> <span class="str">&quot;B&quot;</span><span class="opt">.</span><span class="kwc">toByte</span><span class="opt">(),</span> D <span class="opt">=</span> <span class="str">&quot;D&quot;</span><span class="opt">.</span><span class="kwc">toByte</span><span class="opt">(),</span> H <span class="opt">=</span> <span class="str">&quot;H&quot;</span><span class="opt">.</span><span class="kwc">toByte</span><span class="opt">(),</span> K <span class="opt">=</span> <span class="str">&quot;K&quot;</span><span class="opt">.</span><span class="kwc">toByte</span><span class="opt">(),</span>
+  M <span class="opt">=</span> <span class="str">&quot;M&quot;</span><span class="opt">.</span><span class="kwc">toByte</span><span class="opt">(),</span> N <span class="opt">=</span> <span class="str">&quot;N&quot;</span><span class="opt">.</span><span class="kwc">toByte</span><span class="opt">(),</span> R <span class="opt">=</span> <span class="str">&quot;R&quot;</span><span class="opt">.</span><span class="kwc">toByte</span><span class="opt">(),</span> S <span class="opt">=</span> <span class="str">&quot;S&quot;</span><span class="opt">.</span><span class="kwc">toByte</span><span class="opt">(),</span>
+  V <span class="opt">=</span> <span class="str">&quot;V&quot;</span><span class="opt">.</span><span class="kwc">toByte</span><span class="opt">(),</span> W <span class="opt">=</span> <span class="str">&quot;W&quot;</span><span class="opt">.</span><span class="kwc">toByte</span><span class="opt">(),</span> Y <span class="opt">=</span> <span class="str">&quot;Y&quot;</span><span class="opt">.</span><span class="kwc">toByte</span><span class="opt">()</span>
+<span class="opt">}</span>
+<span class="kwa">use</span> nucleotide<span class="opt">;</span>
+
+<span class="slc">//</span>
+<span class="slc">// Sequence to be repeated</span>
+<span class="slc">//</span>
+<span class="kwa">const</span> ALU<span class="opt">: [</span><span class="num">0</span><span class="opt">.</span><span class="num">.286</span><span class="opt">]</span> nucleotide <span class="opt">= [</span>
+  G<span class="opt">,</span> G<span class="opt">,</span> C<span class="opt">,</span> C<span class="opt">,</span> G<span class="opt">,</span> G<span class="opt">,</span> G<span class="opt">,</span> C<span class="opt">,</span> G<span class="opt">,</span> C<span class="opt">,</span> G<span class="opt">,</span> G<span class="opt">,</span> T<span class="opt">,</span> G<span class="opt">,</span> G<span class="opt">,</span> C<span class="opt">,</span> T<span class="opt">,</span> C<span class="opt">,</span> A<span class="opt">,</span> C<span class="opt">,</span>
+  G<span class="opt">,</span> C<span class="opt">,</span> C<span class="opt">,</span> T<span class="opt">,</span> G<span class="opt">,</span> T<span class="opt">,</span> A<span class="opt">,</span> A<span class="opt">,</span> T<span class="opt">,</span> C<span class="opt">,</span> C<span class="opt">,</span> C<span class="opt">,</span> A<span class="opt">,</span> G<span class="opt">,</span> C<span class="opt">,</span> A<span class="opt">,</span> C<span class="opt">,</span> T<span class="opt">,</span> T<span class="opt">,</span> T<span class="opt">,</span>
+  G<span class="opt">,</span> G<span class="opt">,</span> G<span class="opt">,</span> A<span class="opt">,</span> G<span class="opt">,</span> G<span class="opt">,</span> C<span class="opt">,</span> C<span class="opt">,</span> G<span class="opt">,</span> A<span class="opt">,</span> G<span class="opt">,</span> G<span class="opt">,</span> C<span class="opt">,</span> G<span class="opt">,</span> G<span class="opt">,</span> G<span class="opt">,</span> C<span class="opt">,</span> G<span class="opt">,</span> G<span class="opt">,</span> A<span class="opt">,</span>
+  T<span class="opt">,</span> C<span class="opt">,</span> A<span class="opt">,</span> C<span class="opt">,</span> C<span class="opt">,</span> T<span class="opt">,</span> G<span class="opt">,</span> A<span class="opt">,</span> G<span class="opt">,</span> G<span class="opt">,</span> T<span class="opt">,</span> C<span class="opt">,</span> A<span class="opt">,</span> G<span class="opt">,</span> G<span class="opt">,</span> A<span class="opt">,</span> G<span class="opt">,</span> T<span class="opt">,</span> T<span class="opt">,</span> C<span class="opt">,</span>
+  G<span class="opt">,</span> A<span class="opt">,</span> G<span class="opt">,</span> A<span class="opt">,</span> C<span class="opt">,</span> C<span class="opt">,</span> A<span class="opt">,</span> G<span class="opt">,</span> C<span class="opt">,</span> C<span class="opt">,</span> T<span class="opt">,</span> G<span class="opt">,</span> G<span class="opt">,</span> C<span class="opt">,</span> C<span class="opt">,</span> A<span class="opt">,</span> A<span class="opt">,</span> C<span class="opt">,</span> A<span class="opt">,</span> T<span class="opt">,</span>
+  G<span class="opt">,</span> G<span class="opt">,</span> T<span class="opt">,</span> G<span class="opt">,</span> A<span class="opt">,</span> A<span class="opt">,</span> A<span class="opt">,</span> C<span class="opt">,</span> C<span class="opt">,</span> C<span class="opt">,</span> C<span class="opt">,</span> G<span class="opt">,</span> T<span class="opt">,</span> C<span class="opt">,</span> T<span class="opt">,</span> C<span class="opt">,</span> T<span class="opt">,</span> A<span class="opt">,</span> C<span class="opt">,</span> T<span class="opt">,</span>
+  A<span class="opt">,</span> A<span class="opt">,</span> A<span class="opt">,</span> A<span class="opt">,</span> A<span class="opt">,</span> T<span class="opt">,</span> A<span class="opt">,</span> C<span class="opt">,</span> A<span class="opt">,</span> A<span class="opt">,</span> A<span class="opt">,</span> A<span class="opt">,</span> A<span class="opt">,</span> T<span class="opt">,</span> T<span class="opt">,</span> A<span class="opt">,</span> G<span class="opt">,</span> C<span class="opt">,</span> C<span class="opt">,</span> G<span class="opt">,</span>
+  G<span class="opt">,</span> G<span class="opt">,</span> C<span class="opt">,</span> G<span class="opt">,</span> T<span class="opt">,</span> G<span class="opt">,</span> G<span class="opt">,</span> T<span class="opt">,</span> G<span class="opt">,</span> G<span class="opt">,</span> C<span class="opt">,</span> G<span class="opt">,</span> C<span class="opt">,</span> G<span class="opt">,</span> C<span class="opt">,</span> G<span class="opt">,</span> C<span class="opt">,</span> C<span class="opt">,</span> T<span class="opt">,</span> G<span class="opt">,</span>
+  T<span class="opt">,</span> A<span class="opt">,</span> A<span class="opt">,</span> T<span class="opt">,</span> C<span class="opt">,</span> C<span class="opt">,</span> C<span class="opt">,</span> A<span class="opt">,</span> G<span class="opt">,</span> C<span class="opt">,</span> T<span class="opt">,</span> A<span class="opt">,</span> C<span class="opt">,</span> T<span class="opt">,</span> C<span class="opt">,</span> G<span class="opt">,</span> G<span class="opt">,</span> G<span class="opt">,</span> A<span class="opt">,</span> G<span class="opt">,</span>
+  G<span class="opt">,</span> C<span class="opt">,</span> T<span class="opt">,</span> G<span class="opt">,</span> A<span class="opt">,</span> G<span class="opt">,</span> G<span class="opt">,</span> C<span class="opt">,</span> A<span class="opt">,</span> G<span class="opt">,</span> G<span class="opt">,</span> A<span class="opt">,</span> G<span class="opt">,</span> A<span class="opt">,</span> A<span class="opt">,</span> T<span class="opt">,</span> C<span class="opt">,</span> G<span class="opt">,</span> C<span class="opt">,</span> T<span class="opt">,</span>
+  T<span class="opt">,</span> G<span class="opt">,</span> A<span class="opt">,</span> A<span class="opt">,</span> C<span class="opt">,</span> C<span class="opt">,</span> C<span class="opt">,</span> G<span class="opt">,</span> G<span class="opt">,</span> G<span class="opt">,</span> A<span class="opt">,</span> G<span class="opt">,</span> G<span class="opt">,</span> C<span class="opt">,</span> G<span class="opt">,</span> G<span class="opt">,</span> A<span class="opt">,</span> G<span class="opt">,</span> G<span class="opt">,</span> T<span class="opt">,</span>
+  T<span class="opt">,</span> G<span class="opt">,</span> C<span class="opt">,</span> A<span class="opt">,</span> G<span class="opt">,</span> T<span class="opt">,</span> G<span class="opt">,</span> A<span class="opt">,</span> G<span class="opt">,</span> C<span class="opt">,</span> C<span class="opt">,</span> G<span class="opt">,</span> A<span class="opt">,</span> G<span class="opt">,</span> A<span class="opt">,</span> T<span class="opt">,</span> C<span class="opt">,</span> G<span class="opt">,</span> C<span class="opt">,</span> G<span class="opt">,</span>
+  C<span class="opt">,</span> C<span class="opt">,</span> A<span class="opt">,</span> C<span class="opt">,</span> T<span class="opt">,</span> G<span class="opt">,</span> C<span class="opt">,</span> A<span class="opt">,</span> C<span class="opt">,</span> T<span class="opt">,</span> C<span class="opt">,</span> C<span class="opt">,</span> A<span class="opt">,</span> G<span class="opt">,</span> C<span class="opt">,</span> C<span class="opt">,</span> T<span class="opt">,</span> G<span class="opt">,</span> G<span class="opt">,</span> G<span class="opt">,</span>
+  C<span class="opt">,</span> G<span class="opt">,</span> A<span class="opt">,</span> C<span class="opt">,</span> A<span class="opt">,</span> G<span class="opt">,</span> A<span class="opt">,</span> G<span class="opt">,</span> C<span class="opt">,</span> G<span class="opt">,</span> A<span class="opt">,</span> G<span class="opt">,</span> A<span class="opt">,</span> C<span class="opt">,</span> T<span class="opt">,</span> C<span class="opt">,</span> C<span class="opt">,</span> G<span class="opt">,</span> T<span class="opt">,</span> C<span class="opt">,</span>
+  T<span class="opt">,</span> C<span class="opt">,</span> A<span class="opt">,</span> A<span class="opt">,</span> A<span class="opt">,</span> A<span class="opt">,</span> A
+<span class="opt">];</span>
+
+<span class="slc">//</span>
+<span class="slc">// Probability tables for sequences to be randomly generated</span>
+<span class="slc">//</span>
+<span class="kwa">var</span> IUB <span class="opt">= [(</span>a<span class="opt">,</span> <span class="num">0.27</span><span class="opt">), (</span>c<span class="opt">,</span> <span class="num">0.12</span><span class="opt">), (</span>g<span class="opt">,</span> <span class="num">0.12</span><span class="opt">), (</span>t<span class="opt">,</span> <span class="num">0.27</span><span class="opt">),</span>
+           <span class="opt">(</span>B<span class="opt">,</span> <span class="num">0.02</span><span class="opt">), (</span>D<span class="opt">,</span> <span class="num">0.02</span><span class="opt">), (</span>H<span class="opt">,</span> <span class="num">0.02</span><span class="opt">), (</span>K<span class="opt">,</span> <span class="num">0.02</span><span class="opt">),</span>
+           <span class="opt">(</span>M<span class="opt">,</span> <span class="num">0.02</span><span class="opt">), (</span>N<span class="opt">,</span> <span class="num">0.02</span><span class="opt">), (</span>R<span class="opt">,</span> <span class="num">0.02</span><span class="opt">), (</span>S<span class="opt">,</span> <span class="num">0.02</span><span class="opt">),</span>
+           <span class="opt">(</span>V<span class="opt">,</span> <span class="num">0.02</span><span class="opt">), (</span>W<span class="opt">,</span> <span class="num">0.02</span><span class="opt">), (</span>Y<span class="opt">,</span> <span class="num">0.02</span><span class="opt">)];</span>
+
+<span class="kwa">var</span> HomoSapiens <span class="opt">= [(</span>a<span class="opt">,</span> <span class="num">0.3029549426680</span><span class="opt">),</span>
+                   <span class="opt">(</span>c<span class="opt">,</span> <span class="num">0.1979883004921</span><span class="opt">),</span>
+                   <span class="opt">(</span>g<span class="opt">,</span> <span class="num">0.1975473066391</span><span class="opt">),</span>
+                   <span class="opt">(</span>t<span class="opt">,</span> <span class="num">0.3015094502008</span><span class="opt">)];</span>
+
+
+<span class="kwa">proc</span> <span class="kwc">main</span><span class="opt">() {</span>
+  <span class="kwc">sumProbs</span><span class="opt">(</span>IUB<span class="opt">);</span>
+  <span class="kwc">sumProbs</span><span class="opt">(</span>HomoSapiens<span class="opt">);</span>
+  <span class="kwc">repeatMake</span><span class="opt">(</span><span class="str">&quot;&gt;ONE Homo sapiens alu</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span> ALU<span class="opt">,</span> n <span class="opt">*</span> <span class="num">2</span><span class="opt">);</span>
+  <span class="kwc">randomMake</span><span class="opt">(</span><span class="str">&quot;&gt;TWO IUB ambiguity codes</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span> IUB<span class="opt">,</span> n <span class="opt">*</span> <span class="num">3</span><span class="opt">);</span>
+  <span class="kwc">randomMake</span><span class="opt">(</span><span class="str">&quot;&gt;THREE Homo sapiens frequency</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span> HomoSapiens<span class="opt">,</span> n <span class="opt">*</span> <span class="num">5</span><span class="opt">);</span>
+<span class="opt">}</span>
+
+<span class="slc">//</span>
+<span class="slc">// Scan the alphabets&apos; probabilities to compute cut-offs</span>
+<span class="slc">//</span>
+<span class="kwa">proc</span> <span class="kwc">sumProbs</span><span class="opt">(</span>alphabet<span class="opt">: []) {</span>
+  <span class="kwa">var</span> p <span class="opt">=</span> <span class="num">0.0</span><span class="opt">;</span>
+  <span class="kwa">for</span> letter <span class="kwa">in</span> alphabet <span class="opt">{</span>
+    <span class="kwa">ref</span> <span class="opt">(</span>_<span class="opt">,</span>prob<span class="opt">) =</span> letter<span class="opt">;</span>
+    p <span class="opt">+=</span> prob<span class="opt">;</span>
+    prob <span class="opt">=</span> p<span class="opt">;</span>
+  <span class="opt">}</span>
+<span class="opt">}</span>
+
+<span class="slc">//</span>
+<span class="slc">// Redefine stdout to use lock-free binary I/O and capture a newline</span>
+<span class="slc">//</span>
+<span class="kwa">use</span> IO<span class="opt">;</span>
+<span class="kwa">const</span> stdout <span class="opt">=</span> <span class="kwc">openfd</span><span class="opt">(</span><span class="num">1</span><span class="opt">).</span><span class="kwc">writer</span><span class="opt">(</span>kind<span class="opt">=</span>iokind<span class="opt">.</span>native<span class="opt">,</span> locking<span class="opt">=</span><span class="kwa">false</span><span class="opt">);</span>
+<span class="kwa">param</span> newline <span class="opt">=</span> <span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">.</span><span class="kwc">toByte</span><span class="opt">();</span>
+
+<span class="slc">//</span>
+<span class="slc">// Repeat sequence &quot;alu&quot; for n characters</span>
+<span class="slc">//</span>
+<span class="kwa">proc</span> <span class="kwc">repeatMake</span><span class="opt">(</span>desc<span class="opt">,</span> alu<span class="opt">,</span> n<span class="opt">) {</span>
+  stdout<span class="opt">.</span><span class="kwc">writef</span><span class="opt">(</span><span class="str">&quot;%s&quot;</span><span class="opt">,</span> desc<span class="opt">);</span>
+
+  <span class="kwa">const</span> r <span class="opt">=</span> alu<span class="opt">.</span>size<span class="opt">,</span>
+        s <span class="opt">= [</span>i <span class="kwa">in</span> <span class="num">0</span><span class="opt">..</span>r<span class="opt">+</span>lineLength<span class="opt">]</span> alu<span class="opt">[</span>i <span class="opt">%</span> r<span class="opt">]:</span> <span class="kwb">int</span><span class="opt">(</span><span class="num">8</span><span class="opt">);</span>
+
+  <span class="kwa">for</span> i <span class="kwa">in</span> <span class="num">0</span><span class="opt">..</span>n <span class="kwa">by</span> lineLength <span class="opt">{</span>
+    <span class="kwa">const</span> lo <span class="opt">=</span> i <span class="opt">%</span> r<span class="opt">,</span>
+          len <span class="opt">=</span> <span class="kwc">min</span><span class="opt">(</span>lineLength<span class="opt">,</span> n<span class="opt">-</span>i<span class="opt">);</span>
+    stdout<span class="opt">.</span><span class="kwc">write</span><span class="opt">(</span>s<span class="opt">[</span>lo<span class="opt">..#</span>len<span class="opt">],</span> newline<span class="opt">);</span>
+  <span class="opt">}</span>
+<span class="opt">}</span>
+
+<span class="slc">//</span>
+<span class="slc">// Output a random sequence of length &apos;n&apos; using distribution a</span>
+<span class="slc">//</span>
+<span class="kwa">proc</span> <span class="kwc">randomMake</span><span class="opt">(</span>desc<span class="opt">,</span> a<span class="opt">,</span> n<span class="opt">) {</span>
+  <span class="kwa">var</span> line_buff<span class="opt">: [</span><span class="num">0</span><span class="opt">..</span>lineLength<span class="opt">]</span> <span class="kwb">int</span><span class="opt">(</span><span class="num">8</span><span class="opt">);</span>
+
+  stdout<span class="opt">.</span><span class="kwc">writef</span><span class="opt">(</span><span class="str">&quot;%s&quot;</span><span class="opt">,</span> desc<span class="opt">);</span>
+  <span class="kwa">for</span> i <span class="kwa">in</span> <span class="num">1</span><span class="opt">..</span>n <span class="kwa">by</span> lineLength <span class="kwa">do</span>
+    <span class="kwc">addLine</span><span class="opt">(</span><span class="kwc">min</span><span class="opt">(</span>lineLength<span class="opt">,</span> n<span class="opt">-</span>i<span class="opt">+</span><span class="num">1</span><span class="opt">));</span>
+
+  <span class="slc">//</span>
+  <span class="slc">// Add a line of random sequence</span>
+  <span class="slc">//</span>
+  <span class="kwa">proc</span> <span class="kwc">addLine</span><span class="opt">(</span>numBytes<span class="opt">) {</span>
+    <span class="kwa">for</span> <span class="opt">(</span>r<span class="opt">,</span> i<span class="opt">)</span> <span class="kwa">in zip</span><span class="opt">(</span><span class="kwc">getRands</span><span class="opt">(</span>numBytes<span class="opt">),</span> <span class="num">0</span><span class="opt">..) {</span>
+      <span class="kwa">const</span> <span class="opt">(</span>nucl<span class="opt">,</span> prob<span class="opt">) =</span> a<span class="opt">[</span><span class="num">0</span><span class="opt">];</span>
+      <span class="kwa">if</span> r <span class="opt">&lt;</span> prob <span class="opt">{</span>
+        line_buff<span class="opt">[</span>i<span class="opt">] =</span> nucl<span class="opt">:</span> <span class="kwb">int</span><span class="opt">(</span><span class="num">8</span><span class="opt">);</span>
+      <span class="opt">}</span> <span class="kwa">else</span> <span class="opt">{</span>
+        <span class="kwa">var</span> lo <span class="opt">=</span> a<span class="opt">.</span><span class="kwa">domain</span><span class="opt">.</span>low<span class="opt">,</span>
+            hi <span class="opt">=</span> a<span class="opt">.</span><span class="kwa">domain</span><span class="opt">.</span>high<span class="opt">;</span>
+        <span class="kwa">while</span> <span class="opt">(</span>hi <span class="opt">&gt;</span> lo<span class="opt">+</span><span class="num">1</span><span class="opt">) {</span>
+          <span class="kwa">var</span> ai <span class="opt">= (</span>hi <span class="opt">+</span> lo<span class="opt">) /</span> <span class="num">2</span><span class="opt">;</span>
+          <span class="kwa">const</span> <span class="opt">(</span>_<span class="opt">,</span> prob<span class="opt">) =</span> a<span class="opt">[</span>ai<span class="opt">];</span>
+          <span class="kwa">if</span> r <span class="opt">&lt;</span> prob <span class="kwa">then</span>
+            hi <span class="opt">=</span> ai<span class="opt">;</span>
+          <span class="kwa">else</span>
+            lo <span class="opt">=</span> ai<span class="opt">;</span>
+        <span class="opt">}</span>
+        <span class="kwa">const</span> <span class="opt">(</span>nucl<span class="opt">,</span> _<span class="opt">) =</span> a<span class="opt">[</span>hi<span class="opt">];</span>
+        line_buff<span class="opt">[</span>i<span class="opt">] =</span> nucl<span class="opt">:</span> <span class="kwb">int</span><span class="opt">(</span><span class="num">8</span><span class="opt">);</span>
+      <span class="opt">}</span>
+    <span class="opt">}</span>
+    line_buff<span class="opt">[</span>numBytes<span class="opt">] =</span> newline<span class="opt">;</span>
+
+    stdout<span class="opt">.</span><span class="kwc">write</span><span class="opt">(</span>line_buff<span class="opt">[</span><span class="num">0</span><span class="opt">..</span>numBytes<span class="opt">]);</span>
+  <span class="opt">}</span>
+<span class="opt">}</span>
+
+
+<span class="slc">//</span>
+<span class="slc">// Deterministic random number generator</span>
+<span class="slc">//</span>
+<span class="kwa">var</span> lastRand <span class="opt">=</span> <span class="num">42</span><span class="opt">;</span>
+
+<span class="kwa">iter</span> <span class="kwc">getRands</span><span class="opt">(</span>n<span class="opt">) {</span>
+  <span class="kwa">param</span> IA <span class="opt">=</span> <span class="num">3877</span><span class="opt">,</span>
+        IC <span class="opt">=</span> <span class="num">29573</span><span class="opt">,</span>
+        IM <span class="opt">=</span> <span class="num">139968</span><span class="opt">;</span>
+
+  <span class="kwa">for</span> <span class="num">0</span><span class="opt">..#</span>n <span class="opt">{</span>
+    lastRand <span class="opt">= (</span>lastRand <span class="opt">*</span> IA <span class="opt">+</span> IC<span class="opt">) %</span> IM<span class="opt">;</span>
+    <span class="kwa">yield</span> lastRand<span class="opt">:</span> <span class="kwb">real</span> <span class="opt">/</span> IM<span class="opt">;</span>
+  <span class="opt">}</span>
+<span class="opt">}</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

@@ -17,6 +17,124 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc">--</span>
+<span class="slc">-- The Computer Language Benchmarks Game</span>
+<span class="slc">-- https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">--</span>
+<span class="slc">-- Modified by Gabriel Gonzalez</span>
+<span class="slc">-- Modified by Ryan Trinkle: 1) change from divInt# to uncheckedIShiftRA#</span>
+<span class="slc">--                           2) changed -optc-O to -optc-O3</span>
+<span class="slc">--                           3) added -optc-ffast-math</span>
+<span class="slc">-- Translation from Clean by Don Stewart</span>
+<span class="slc">-- Parallelized by Louis Wasserman</span>
+<span class="slc">--</span>
+<span class="slc">-- Should be compiled with:</span>
+<span class="slc">-- 	-threaded -funbox-strict-fields -O2 -fvia-c -optc-O3 </span>
+<span class="slc">-- 	-fexcess-precision -optc-ffast-math </span>
+<span class="slc">-- Should be run with:</span>
+<span class="slc">-- 	+RTS -N&lt;number of cores&gt;</span>
+
+<span class="kwd">import</span> System<span class="opt">.</span>Environment
+<span class="kwd">import</span> Foreign<span class="opt">.</span>Marshal<span class="opt">.</span><span class="kwb">Array</span>
+<span class="kwd">import</span> Foreign
+<span class="kwd">import</span> Text<span class="opt">.</span>Printf
+<span class="kwd">import</span> Control<span class="opt">.</span>Concurrent
+<span class="kwd">import</span> Control<span class="opt">.</span>Monad
+<span class="kwd">import</span> GHC<span class="opt">.</span>Base
+<span class="kwd">import</span> GHC<span class="opt">.</span>Conc
+
+<span class="kwd">type</span> Reals <span class="opt">=</span> Ptr <span class="kwb">Double</span>
+
+main <span class="opt">=</span> <span class="kwd">do</span>
+    n <span class="opt">&lt;-</span> <span class="kwc">getArgs</span> <span class="opt">&gt;&gt;=</span> <span class="kwc">readIO</span> <span class="opt">.</span> <span class="kwc">head</span>
+    allocaArray n <span class="opt">$ \</span> u <span class="opt">-&gt;</span> allocaArray n <span class="opt">$ \</span> v <span class="opt">-&gt;</span> <span class="kwd">do</span>
+      forM_ <span class="opt">[</span><span class="num">0</span><span class="opt">..</span>n<span class="opt">-</span><span class="num">1</span><span class="opt">] $ \</span>i <span class="opt">-&gt;</span> pokeElemOff u i <span class="num">1</span> <span class="opt">&gt;&gt;</span> pokeElemOff v i <span class="num">0</span>
+
+      powerMethod <span class="num">10</span> n u v
+      printf <span class="str">&quot;%.9f</span><span class="esc">\n</span><span class="str">&quot;</span> <span class="opt">=&lt;&lt;</span> eigenvalue n u v <span class="num">0 0 0</span>
+
+<span class="slc">------------------------------------------------------------------------</span>
+
+eigenvalue <span class="opt">::</span> <span class="kwb">Int</span> <span class="opt">-&gt;</span> Reals <span class="opt">-&gt;</span> Reals <span class="opt">-&gt;</span> <span class="kwb">Int</span> <span class="opt">-&gt;</span> <span class="kwb">Double</span> <span class="opt">-&gt;</span> <span class="kwb">Double</span> <span class="opt">-&gt;</span> <span class="kwb">IO Double</span>
+eigenvalue <span class="opt">!</span>n <span class="opt">!</span>u <span class="opt">!</span>v <span class="opt">!</span>i <span class="opt">!</span>vBv <span class="opt">!</span>vv
+    | i <span class="opt">&lt;</span> n     <span class="opt">=</span> <span class="kwd">do</span>	ui <span class="opt">&lt;-</span> peekElemOff u i
+			vi <span class="opt">&lt;-</span> peekElemOff v i
+			eigenvalue n u v <span class="opt">(</span>i<span class="opt">+</span><span class="num">1</span><span class="opt">) (</span>vBv <span class="opt">+</span> ui <span class="opt">*</span> vi<span class="opt">) (</span>vv <span class="opt">+</span> vi <span class="opt">*</span> vi<span class="opt">)</span>
+    | <span class="kwc">otherwise</span> <span class="opt">=</span> <span class="kwc">return</span> <span class="opt">$!</span> <span class="kwc">sqrt</span> <span class="opt">$!</span> vBv <span class="opt">/</span> vv
+
+<span class="slc">------------------------------------------------------------------------</span>
+
+<span class="slc">-- Essentially borrowed from the Java implementation.</span>
+<span class="kwd">data</span> CyclicBarrier <span class="opt">=</span> Cyclic <span class="opt">!</span><span class="kwb">Int</span> <span class="opt">!(</span>MVar <span class="opt">(</span><span class="kwb">Int</span><span class="opt">, [</span>MVar <span class="opt">()]))</span>
+
+await <span class="opt">::</span> CyclicBarrier <span class="opt">-&gt;</span> <span class="kwb">IO</span> <span class="opt">()</span>
+await <span class="opt">(</span>Cyclic k waitsVar<span class="opt">) =</span> <span class="kwd">do</span>
+	<span class="opt">(</span>x<span class="opt">,</span> waits<span class="opt">) &lt;-</span> takeMVar waitsVar
+	<span class="kwd">if</span> x <span class="opt">&lt;=</span> <span class="num">1</span> <span class="kwd">then do</span>
+		<span class="kwc">mapM_</span> <span class="opt">(</span>`putMVar` <span class="opt">())</span> waits
+		putMVar waitsVar <span class="opt">(</span>k<span class="opt">, [])</span>
+	  <span class="kwd">else do</span>
+	  	var <span class="opt">&lt;-</span> newEmptyMVar
+	  	putMVar waitsVar <span class="opt">(</span>x<span class="opt">-</span><span class="num">1</span><span class="opt">,</span>var<span class="opt">:</span>waits<span class="opt">)</span>
+	  	takeMVar var
+
+newCyclicBarrier <span class="opt">::</span> <span class="kwb">Int</span> <span class="opt">-&gt;</span> <span class="kwb">IO</span> CyclicBarrier
+newCyclicBarrier k <span class="opt">=</span> <span class="kwc">liftM</span> <span class="opt">(</span>Cyclic k<span class="opt">) (</span>newMVar <span class="opt">(</span>k<span class="opt">, []))</span>
+
+powerMethod <span class="opt">::</span> <span class="kwb">Int</span> <span class="opt">-&gt;</span> <span class="kwb">Int</span> <span class="opt">-&gt;</span> Reals <span class="opt">-&gt;</span> Reals <span class="opt">-&gt;</span> <span class="kwb">IO</span> <span class="opt">()</span>
+powerMethod z n u v <span class="opt">=</span> allocaArray n <span class="opt">$ \ !</span>t <span class="opt">-&gt;</span> <span class="kwd">do</span>
+	<span class="kwd">let</span> chunk <span class="opt">= (</span>n <span class="opt">+</span> numCapabilities <span class="opt">-</span> <span class="num">1</span><span class="opt">)</span> `quotInt` numCapabilities
+	<span class="opt">!</span>barrier <span class="opt">&lt;-</span> newCyclicBarrier <span class="opt">$! (</span>n <span class="opt">+</span> chunk <span class="opt">-</span> <span class="num">1</span><span class="opt">)</span> `quotInt` chunk
+	<span class="kwd">let</span> timesAtAv <span class="opt">!</span>s <span class="opt">!</span>d l r <span class="opt">=</span> <span class="kwd">do</span>
+		timesAv n s t l r
+		await barrier
+		timesAtv n t d l r
+		await barrier
+	<span class="kwd">let</span> thread <span class="opt">!</span>l <span class="opt">!</span>r <span class="opt">=</span> GHC<span class="opt">.</span>Base<span class="opt">.</span><span class="kwc">foldr</span> <span class="opt">(&gt;&gt;) (</span><span class="kwc">return</span> <span class="opt">()) $</span> <span class="kwc">replicate</span> z <span class="opt">$</span> <span class="kwd">do</span>
+		timesAtAv u v l r
+		timesAtAv v u l r
+	<span class="kwd">let</span> go l <span class="opt">=</span> <span class="kwd">case</span> l <span class="opt">+</span> chunk <span class="kwd">of</span>
+		r | r <span class="opt">&lt;</span> n	<span class="opt">-&gt;</span> forkIO <span class="opt">(</span>thread l r<span class="opt">) &gt;&gt;</span> go r
+		  | <span class="kwc">otherwise</span>	<span class="opt">-&gt;</span> thread l n
+	go <span class="num">0</span>
+
+timesAv <span class="opt">::</span> <span class="kwb">Int</span> <span class="opt">-&gt;</span> Reals <span class="opt">-&gt;</span> Reals <span class="opt">-&gt;</span> <span class="kwb">Int</span> <span class="opt">-&gt;</span> <span class="kwb">Int</span> <span class="opt">-&gt;</span> <span class="kwb">IO</span> <span class="opt">()</span>
+timesAv <span class="opt">!</span>n <span class="opt">!</span>u <span class="opt">!</span>au <span class="opt">!</span>l <span class="opt">!</span>r <span class="opt">=</span> go l <span class="kwd">where</span>
+    go <span class="opt">::</span> <span class="kwb">Int</span> <span class="opt">-&gt;</span> <span class="kwb">IO</span> <span class="opt">()</span>
+    go <span class="opt">!</span>i <span class="opt">=</span> <span class="kwc">when</span> <span class="opt">(</span>i <span class="opt">&lt;</span> r<span class="opt">) $</span> <span class="kwd">do</span>
+	<span class="kwd">let</span> avsum <span class="opt">!</span>j <span class="opt">!</span>acc
+		| j <span class="opt">&lt;</span> n <span class="opt">=</span> <span class="kwd">do</span>
+			<span class="opt">!</span>uj <span class="opt">&lt;-</span> peekElemOff u j
+			avsum <span class="opt">(</span>j<span class="opt">+</span><span class="num">1</span><span class="opt">) (</span>acc <span class="opt">+ ((</span>aij i j<span class="opt">) *</span> uj<span class="opt">))</span>
+		| <span class="kwc">otherwise</span> <span class="opt">=</span> pokeElemOff au i acc <span class="opt">&gt;&gt;</span> go <span class="opt">(</span>i<span class="opt">+</span><span class="num">1</span><span class="opt">)</span>
+	avsum <span class="num">0 0</span>
+
+timesAtv <span class="opt">::</span> <span class="kwb">Int</span> <span class="opt">-&gt;</span> Reals <span class="opt">-&gt;</span> Reals <span class="opt">-&gt;</span> <span class="kwb">Int</span> <span class="opt">-&gt;</span> <span class="kwb">Int</span> <span class="opt">-&gt;</span> <span class="kwb">IO</span> <span class="opt">()</span>
+timesAtv <span class="opt">!</span>n <span class="opt">!</span>u <span class="opt">!</span>a <span class="opt">!</span>l <span class="opt">!</span>r <span class="opt">=</span> go l
+  <span class="kwd">where</span>
+    go <span class="opt">::</span> <span class="kwb">Int</span> <span class="opt">-&gt;</span> <span class="kwb">IO</span> <span class="opt">()</span>
+    go <span class="opt">!</span>i <span class="opt">=</span> <span class="kwc">when</span> <span class="opt">(</span>i <span class="opt">&lt;</span> r<span class="opt">) $</span> <span class="kwd">do</span>
+	<span class="kwd">let</span> atvsum <span class="opt">!</span>j <span class="opt">!</span>acc 
+		| j <span class="opt">&lt;</span> n	<span class="opt">=</span> <span class="kwd">do</span>	<span class="opt">!</span>uj <span class="opt">&lt;-</span> peekElemOff u j
+				atvsum <span class="opt">(</span>j<span class="opt">+</span><span class="num">1</span><span class="opt">) (</span>acc <span class="opt">+ ((</span>aij j i<span class="opt">) *</span> uj<span class="opt">))</span>
+		| <span class="kwc">otherwise</span> <span class="opt">=</span> pokeElemOff a i acc <span class="opt">&gt;&gt;</span> go <span class="opt">(</span>i<span class="opt">+</span><span class="num">1</span><span class="opt">)</span>
+	atvsum <span class="num">0 0</span>
+
+<span class="slc">--</span>
+<span class="slc">-- manually unbox the inner loop:</span>
+<span class="slc">-- aij i j = 1 / fromIntegral ((i+j) * (i+j+1) `div` 2 + i + 1)</span>
+<span class="slc">--</span>
+aij <span class="opt">(</span>I<span class="opt">#</span> i<span class="opt">) (</span>I<span class="opt">#</span> j<span class="opt">) =</span> D<span class="opt"># (</span>
+    <span class="kwd">case</span> i <span class="opt">+#</span> j <span class="kwd">of</span>
+        n <span class="opt">-&gt;</span> <span class="num">1.0</span><span class="opt">## /##</span> int2Double<span class="opt">#</span> 
+        	<span class="opt">(((</span>n <span class="opt">*# (</span>n<span class="opt">+#</span><span class="num">1</span><span class="opt">#))</span> `uncheckedIShiftRA<span class="opt">#</span>` <span class="num">1</span><span class="opt">#) +# (</span>i <span class="opt">+#</span> <span class="num">1</span><span class="opt">#)))</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

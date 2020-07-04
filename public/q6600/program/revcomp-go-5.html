@@ -17,6 +17,158 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="com">/* The Computer Language Benchmarks Game</span>
+<span class="com"> * https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="com"> *</span>
+<span class="com"> * contributed by Сергей Фролкин.</span>
+<span class="com"> */</span>
+
+<span class="kwa">package</span> main
+
+<span class="kwa">import</span> <span class="opt">(</span>
+   <span class="str">&quot;bufio&quot;</span>
+   <span class="str">&quot;bytes&quot;</span>
+   <span class="str">&quot;container/list&quot;</span>
+   <span class="str">&quot;io&quot;</span>
+   <span class="str">&quot;os&quot;</span>
+<span class="opt">)</span>
+
+<span class="kwa">const</span> <span class="opt">(</span>
+   BUF_SIZE <span class="opt">=</span> <span class="num">24</span> <span class="opt">*</span> <span class="num">1024</span> <span class="opt">*</span> <span class="num">1024</span>
+   BEG_SEQ  <span class="opt">=</span> <span class="str">&apos;&gt;&apos;</span>
+   EOL      <span class="opt">=</span> <span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span>
+   WORKERS  <span class="opt">=</span> <span class="num">100</span>
+<span class="opt">)</span>
+
+<span class="kwa">var</span> complement <span class="opt">= [</span><span class="num">256</span><span class="opt">]</span><span class="kwb">byte</span><span class="opt">{</span>
+   <span class="str">&apos;A&apos;</span><span class="opt">:</span> <span class="str">&apos;T&apos;</span><span class="opt">,</span> <span class="str">&apos;a&apos;</span><span class="opt">:</span> <span class="str">&apos;T&apos;</span><span class="opt">,</span>
+   <span class="str">&apos;C&apos;</span><span class="opt">:</span> <span class="str">&apos;G&apos;</span><span class="opt">,</span> <span class="str">&apos;c&apos;</span><span class="opt">:</span> <span class="str">&apos;G&apos;</span><span class="opt">,</span>
+   <span class="str">&apos;G&apos;</span><span class="opt">:</span> <span class="str">&apos;C&apos;</span><span class="opt">,</span> <span class="str">&apos;g&apos;</span><span class="opt">:</span> <span class="str">&apos;C&apos;</span><span class="opt">,</span>
+   <span class="str">&apos;T&apos;</span><span class="opt">:</span> <span class="str">&apos;A&apos;</span><span class="opt">,</span> <span class="str">&apos;t&apos;</span><span class="opt">:</span> <span class="str">&apos;A&apos;</span><span class="opt">,</span>
+   <span class="str">&apos;U&apos;</span><span class="opt">:</span> <span class="str">&apos;A&apos;</span><span class="opt">,</span> <span class="str">&apos;u&apos;</span><span class="opt">:</span> <span class="str">&apos;A&apos;</span><span class="opt">,</span>
+   <span class="str">&apos;M&apos;</span><span class="opt">:</span> <span class="str">&apos;K&apos;</span><span class="opt">,</span> <span class="str">&apos;m&apos;</span><span class="opt">:</span> <span class="str">&apos;K&apos;</span><span class="opt">,</span>
+   <span class="str">&apos;R&apos;</span><span class="opt">:</span> <span class="str">&apos;Y&apos;</span><span class="opt">,</span> <span class="str">&apos;r&apos;</span><span class="opt">:</span> <span class="str">&apos;Y&apos;</span><span class="opt">,</span>
+   <span class="str">&apos;W&apos;</span><span class="opt">:</span> <span class="str">&apos;W&apos;</span><span class="opt">,</span> <span class="str">&apos;w&apos;</span><span class="opt">:</span> <span class="str">&apos;W&apos;</span><span class="opt">,</span>
+   <span class="str">&apos;S&apos;</span><span class="opt">:</span> <span class="str">&apos;S&apos;</span><span class="opt">,</span> <span class="str">&apos;s&apos;</span><span class="opt">:</span> <span class="str">&apos;S&apos;</span><span class="opt">,</span>
+   <span class="str">&apos;Y&apos;</span><span class="opt">:</span> <span class="str">&apos;R&apos;</span><span class="opt">,</span> <span class="str">&apos;y&apos;</span><span class="opt">:</span> <span class="str">&apos;R&apos;</span><span class="opt">,</span>
+   <span class="str">&apos;K&apos;</span><span class="opt">:</span> <span class="str">&apos;M&apos;</span><span class="opt">,</span> <span class="str">&apos;k&apos;</span><span class="opt">:</span> <span class="str">&apos;M&apos;</span><span class="opt">,</span>
+   <span class="str">&apos;V&apos;</span><span class="opt">:</span> <span class="str">&apos;B&apos;</span><span class="opt">,</span> <span class="str">&apos;v&apos;</span><span class="opt">:</span> <span class="str">&apos;B&apos;</span><span class="opt">,</span>
+   <span class="str">&apos;H&apos;</span><span class="opt">:</span> <span class="str">&apos;D&apos;</span><span class="opt">,</span> <span class="str">&apos;h&apos;</span><span class="opt">:</span> <span class="str">&apos;D&apos;</span><span class="opt">,</span>
+   <span class="str">&apos;D&apos;</span><span class="opt">:</span> <span class="str">&apos;H&apos;</span><span class="opt">,</span> <span class="str">&apos;d&apos;</span><span class="opt">:</span> <span class="str">&apos;H&apos;</span><span class="opt">,</span>
+   <span class="str">&apos;B&apos;</span><span class="opt">:</span> <span class="str">&apos;V&apos;</span><span class="opt">,</span> <span class="str">&apos;b&apos;</span><span class="opt">:</span> <span class="str">&apos;V&apos;</span><span class="opt">,</span>
+   <span class="str">&apos;N&apos;</span><span class="opt">:</span> <span class="str">&apos;N&apos;</span><span class="opt">,</span> <span class="str">&apos;n&apos;</span><span class="opt">:</span> <span class="str">&apos;N&apos;</span><span class="opt">,</span>
+<span class="opt">}</span>
+
+<span class="kwa">type</span> Task <span class="kwa">struct</span> <span class="opt">{</span>
+   buf  <span class="opt">[]</span><span class="kwb">byte</span>
+   num  <span class="kwb">int</span>
+   last <span class="kwb">bool</span>
+<span class="opt">}</span>
+
+<span class="kwa">var</span> <span class="opt">(</span>
+   code_chan  <span class="opt">=</span> <span class="kwb">make</span><span class="opt">(</span><span class="kwa">chan</span> Task<span class="opt">)</span>
+   print_chan <span class="opt">=</span> <span class="kwb">make</span><span class="opt">(</span><span class="kwa">chan</span> Task<span class="opt">)</span>
+   done       <span class="opt">=</span> <span class="kwb">make</span><span class="opt">(</span><span class="kwa">chan</span> <span class="kwb">bool</span><span class="opt">)</span>
+<span class="opt">)</span>
+
+<span class="kwa">func</span> <span class="kwd">print_worker</span><span class="opt">(</span>wr io<span class="opt">.</span>Writer<span class="opt">) {</span>
+   expect_num <span class="opt">:=</span> <span class="num">0</span>
+   buffer <span class="opt">:=</span> list<span class="opt">.</span><span class="kwd">New</span><span class="opt">()</span>
+   <span class="kwb">print</span> <span class="opt">:=</span> <span class="kwa">func</span><span class="opt">(</span>task Task<span class="opt">) {</span>
+      wr<span class="opt">.</span><span class="kwd">Write</span><span class="opt">(</span>task<span class="opt">.</span>buf<span class="opt">)</span>
+      expect_num<span class="opt">++</span>
+      <span class="kwa">if</span> task<span class="opt">.</span>last <span class="opt">{</span>
+         done <span class="opt">&lt;-</span> <span class="kwb">true</span>
+      <span class="opt">}</span>
+   <span class="opt">}</span>
+TaskLoop<span class="opt">:</span>
+   <span class="kwa">for</span> task <span class="opt">:=</span> <span class="kwa">range</span> print_chan <span class="opt">{</span>
+      <span class="kwa">if</span> task<span class="opt">.</span>num <span class="opt">==</span> expect_num <span class="opt">{</span>
+         <span class="kwb">print</span><span class="opt">(</span>task<span class="opt">)</span>
+         <span class="kwa">var</span> next <span class="opt">*</span>list<span class="opt">.</span>Element
+         <span class="kwa">for</span> b <span class="opt">:=</span> buffer<span class="opt">.</span><span class="kwd">Front</span><span class="opt">();</span> b <span class="opt">!=</span> <span class="kwb">nil</span><span class="opt">;</span> b <span class="opt">=</span> next <span class="opt">{</span>
+            <span class="kwa">if</span> b<span class="opt">.</span>Value<span class="opt">.(</span>Task<span class="opt">).</span>num <span class="opt">==</span> expect_num <span class="opt">{</span>
+               <span class="kwb">print</span><span class="opt">(</span>b<span class="opt">.</span>Value<span class="opt">.(</span>Task<span class="opt">))</span>
+               next <span class="opt">=</span> b<span class="opt">.</span><span class="kwd">Next</span><span class="opt">()</span>
+               buffer<span class="opt">.</span><span class="kwd">Remove</span><span class="opt">(</span>b<span class="opt">)</span>
+            <span class="opt">}</span> <span class="kwa">else</span> <span class="opt">{</span>
+               <span class="kwa">break</span>
+            <span class="opt">}</span>
+         <span class="opt">}</span>
+      <span class="opt">}</span> <span class="kwa">else</span> <span class="opt">{</span>
+         <span class="kwa">for</span> b <span class="opt">:=</span> buffer<span class="opt">.</span><span class="kwd">Front</span><span class="opt">();</span> b <span class="opt">!=</span> <span class="kwb">nil</span><span class="opt">;</span> b <span class="opt">=</span> b<span class="opt">.</span><span class="kwd">Next</span><span class="opt">() {</span>
+            <span class="kwa">if</span> task<span class="opt">.</span>num <span class="opt">&lt;</span> b<span class="opt">.</span>Value<span class="opt">.(</span>Task<span class="opt">).</span>num <span class="opt">{</span>
+               buffer<span class="opt">.</span><span class="kwd">InsertBefore</span><span class="opt">(</span>task<span class="opt">,</span> b<span class="opt">)</span>
+               <span class="kwa">continue</span> TaskLoop
+            <span class="opt">}</span>
+         <span class="opt">}</span>
+         buffer<span class="opt">.</span><span class="kwd">PushBack</span><span class="opt">(</span>task<span class="opt">)</span>
+      <span class="opt">}</span>
+   <span class="opt">}</span>
+<span class="opt">}</span>
+
+<span class="kwa">func</span> <span class="kwd">Reverse</span><span class="opt">(</span>buf <span class="opt">[]</span><span class="kwb">byte</span><span class="opt">,</span> i<span class="opt">,</span> j <span class="kwb">int</span><span class="opt">) {</span>
+   <span class="kwa">for</span> i <span class="opt">&lt;</span> j <span class="opt">{</span>
+      ci <span class="opt">:=</span> buf<span class="opt">[</span>i<span class="opt">]</span>
+      <span class="kwa">if</span> ci <span class="opt">==</span> EOL <span class="opt">{</span>
+         i<span class="opt">++</span>
+         ci <span class="opt">=</span> buf<span class="opt">[</span>i<span class="opt">]</span>
+      <span class="opt">}</span>
+      cj <span class="opt">:=</span> buf<span class="opt">[</span>j<span class="opt">]</span>
+      <span class="kwa">if</span> cj <span class="opt">==</span> EOL <span class="opt">{</span>
+         j<span class="opt">--</span>
+         cj <span class="opt">=</span> buf<span class="opt">[</span>j<span class="opt">]</span>
+      <span class="opt">}</span>
+      buf<span class="opt">[</span>i<span class="opt">] =</span> complement<span class="opt">[</span>cj<span class="opt">]</span>
+      buf<span class="opt">[</span>j<span class="opt">] =</span> complement<span class="opt">[</span>ci<span class="opt">]</span>
+      i<span class="opt">++</span>
+      j<span class="opt">--</span>
+   <span class="opt">}</span>
+<span class="opt">}</span>
+
+<span class="kwa">func</span> <span class="kwd">code_worker</span><span class="opt">() {</span>
+   <span class="kwa">for</span> task <span class="opt">:=</span> <span class="kwa">range</span> code_chan <span class="opt">{</span>
+      start <span class="opt">:=</span> bytes<span class="opt">.</span><span class="kwd">IndexByte</span><span class="opt">(</span>task<span class="opt">.</span>buf<span class="opt">,</span> EOL<span class="opt">)</span>
+      <span class="kwa">if</span> start <span class="opt">&gt;=</span> <span class="num">0</span> <span class="opt">{</span>
+         end <span class="opt">:=</span> <span class="kwb">len</span><span class="opt">(</span>task<span class="opt">.</span>buf<span class="opt">)</span>
+         <span class="kwa">if</span> <span class="opt">!</span>task<span class="opt">.</span>last <span class="opt">{</span>
+            end<span class="opt">--</span>
+         <span class="opt">}</span>
+         <span class="kwd">Reverse</span><span class="opt">(</span>task<span class="opt">.</span>buf<span class="opt">,</span> start<span class="opt">+</span><span class="num">1</span><span class="opt">,</span> end<span class="opt">-</span><span class="num">1</span><span class="opt">)</span>
+      <span class="opt">}</span>
+      print_chan <span class="opt">&lt;-</span> task
+   <span class="opt">}</span>
+<span class="opt">}</span>
+
+<span class="kwa">func</span> <span class="kwd">main</span><span class="opt">() {</span>
+   <span class="kwa">for</span> i <span class="opt">:=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> WORKERS<span class="opt">;</span> i<span class="opt">++ {</span>
+      <span class="kwa">go</span> <span class="kwd">code_worker</span><span class="opt">()</span>
+   <span class="opt">}</span>
+   <span class="kwa">go</span> <span class="kwd">print_worker</span><span class="opt">(</span>os<span class="opt">.</span>Stdout<span class="opt">)</span>
+
+   brd <span class="opt">:=</span> bufio<span class="opt">.</span><span class="kwd">NewReaderSize</span><span class="opt">(</span>os<span class="opt">.</span>Stdin<span class="opt">,</span> BUF_SIZE<span class="opt">)</span>
+   num <span class="opt">:=</span> <span class="num">0</span>
+   <span class="kwa">for</span> <span class="opt">{</span>
+      buf<span class="opt">,</span> err <span class="opt">:=</span> brd<span class="opt">.</span><span class="kwd">ReadBytes</span><span class="opt">(</span>BEG_SEQ<span class="opt">)</span>
+      <span class="kwa">if</span> err <span class="opt">!=</span> <span class="kwb">nil</span> <span class="opt">&amp;&amp;</span> err <span class="opt">!=</span> io<span class="opt">.</span>EOF <span class="opt">{</span>
+         <span class="kwb">panic</span><span class="opt">(</span>err<span class="opt">)</span>
+      <span class="opt">}</span>
+      code_chan <span class="opt">&lt;-</span> Task<span class="opt">{</span>buf<span class="opt">,</span> num<span class="opt">,</span> err <span class="opt">==</span> io<span class="opt">.</span>EOF<span class="opt">}</span>
+      num<span class="opt">++</span>
+      <span class="kwa">if</span> err <span class="opt">==</span> io<span class="opt">.</span>EOF <span class="opt">{</span>
+         <span class="kwa">break</span>
+      <span class="opt">}</span>
+   <span class="opt">}</span>
+
+   <span class="opt">&lt;-</span>done
+<span class="opt">}</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

@@ -17,6 +17,78 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="com">/* The Computer Language Benchmarks Game</span>
+<span class="com"> * https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="com"> *</span>
+<span class="com"> * Contributed by Mr Ledrug</span>
+<span class="com">*/</span>
+
+<span class="ppc">#include &lt;stdio.h&gt;</span>
+<span class="ppc">#include &lt;stdlib.h&gt;</span>
+<span class="ppc">#include &lt;gmp.h&gt;</span>
+
+mpz_t tmp1<span class="opt">,</span> tmp2<span class="opt">,</span> acc<span class="opt">,</span> den<span class="opt">,</span> num<span class="opt">;</span>
+<span class="kwc">typedef</span> <span class="kwb">unsigned int</span> ui<span class="opt">;</span>
+
+ui <span class="kwd">extract_digit</span><span class="opt">(</span>ui nth<span class="opt">) {</span>
+   <span class="slc">// joggling between tmp1 and tmp2, so GMP won&apos;t have to use temp buffers</span>
+   <span class="kwd">mpz_mul_ui</span><span class="opt">(</span>tmp1<span class="opt">,</span> num<span class="opt">,</span> nth<span class="opt">);</span>
+   <span class="kwd">mpz_add</span><span class="opt">(</span>tmp2<span class="opt">,</span> tmp1<span class="opt">,</span> acc<span class="opt">);</span>
+   <span class="kwd">mpz_tdiv_q</span><span class="opt">(</span>tmp1<span class="opt">,</span> tmp2<span class="opt">,</span> den<span class="opt">);</span>
+
+   <span class="kwa">return</span> <span class="kwd">mpz_get_ui</span><span class="opt">(</span>tmp1<span class="opt">);</span>
+<span class="opt">}</span>
+
+<span class="kwb">void</span> <span class="kwd">eliminate_digit</span><span class="opt">(</span>ui d<span class="opt">) {</span>
+   <span class="kwd">mpz_submul_ui</span><span class="opt">(</span>acc<span class="opt">,</span> den<span class="opt">,</span> d<span class="opt">);</span>
+   <span class="kwd">mpz_mul_ui</span><span class="opt">(</span>acc<span class="opt">,</span> acc<span class="opt">,</span> <span class="num">10</span><span class="opt">);</span>
+   <span class="kwd">mpz_mul_ui</span><span class="opt">(</span>num<span class="opt">,</span> num<span class="opt">,</span> <span class="num">10</span><span class="opt">);</span>
+<span class="opt">}</span>
+
+<span class="kwb">void</span> <span class="kwd">next_term</span><span class="opt">(</span>ui k<span class="opt">) {</span>
+   ui k2 <span class="opt">=</span> k <span class="opt">*</span> <span class="num">2U</span> <span class="opt">+</span> <span class="num">1U</span><span class="opt">;</span>
+
+   <span class="kwd">mpz_addmul_ui</span><span class="opt">(</span>acc<span class="opt">,</span> num<span class="opt">,</span> <span class="num">2U</span><span class="opt">);</span>
+   <span class="kwd">mpz_mul_ui</span><span class="opt">(</span>acc<span class="opt">,</span> acc<span class="opt">,</span> k2<span class="opt">);</span>
+   <span class="kwd">mpz_mul_ui</span><span class="opt">(</span>den<span class="opt">,</span> den<span class="opt">,</span> k2<span class="opt">);</span>
+   <span class="kwd">mpz_mul_ui</span><span class="opt">(</span>num<span class="opt">,</span> num<span class="opt">,</span> k<span class="opt">);</span>
+<span class="opt">}</span>
+
+<span class="kwb">int</span> <span class="kwd">main</span><span class="opt">(</span><span class="kwb">int</span> argc<span class="opt">,</span> <span class="kwb">char</span> <span class="opt">**</span>argv<span class="opt">) {</span>
+   ui d<span class="opt">,</span> k<span class="opt">,</span> i<span class="opt">;</span>
+   <span class="kwb">int</span> n <span class="opt">=</span> <span class="kwd">atoi</span><span class="opt">(</span>argv<span class="opt">[</span><span class="num">1</span><span class="opt">]);</span>
+
+   <span class="kwd">mpz_init</span><span class="opt">(</span>tmp1<span class="opt">);</span>
+   <span class="kwd">mpz_init</span><span class="opt">(</span>tmp2<span class="opt">);</span>
+
+   <span class="kwd">mpz_init_set_ui</span><span class="opt">(</span>acc<span class="opt">,</span> <span class="num">0</span><span class="opt">);</span>
+   <span class="kwd">mpz_init_set_ui</span><span class="opt">(</span>den<span class="opt">,</span> <span class="num">1</span><span class="opt">);</span>
+   <span class="kwd">mpz_init_set_ui</span><span class="opt">(</span>num<span class="opt">,</span> <span class="num">1</span><span class="opt">);</span>
+
+   <span class="kwa">for</span> <span class="opt">(</span>i <span class="opt">=</span> k <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> n<span class="opt">;) {</span>
+      <span class="kwd">next_term</span><span class="opt">(++</span>k<span class="opt">);</span>
+      <span class="kwa">if</span> <span class="opt">(</span><span class="kwd">mpz_cmp</span><span class="opt">(</span>num<span class="opt">,</span> acc<span class="opt">) &gt;</span> <span class="num">0</span><span class="opt">)</span>
+         <span class="kwa">continue</span><span class="opt">;</span>
+
+      d <span class="opt">=</span> <span class="kwd">extract_digit</span><span class="opt">(</span><span class="num">3</span><span class="opt">);</span>
+      <span class="kwa">if</span> <span class="opt">(</span>d <span class="opt">!=</span> <span class="kwd">extract_digit</span><span class="opt">(</span><span class="num">4</span><span class="opt">))</span>
+         <span class="kwa">continue</span><span class="opt">;</span>
+
+      <span class="kwd">putchar</span><span class="opt">(</span><span class="str">&apos;0&apos;</span> <span class="opt">+</span> d<span class="opt">);</span>
+      <span class="kwa">if</span> <span class="opt">(++</span>i <span class="opt">%</span> <span class="num">10</span> <span class="opt">==</span> <span class="num">0</span><span class="opt">)</span>
+         <span class="kwd">printf</span><span class="opt">(</span><span class="str">&quot;</span><span class="esc">\t</span><span class="str">:%u</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span> i<span class="opt">);</span>
+      <span class="kwd">eliminate_digit</span><span class="opt">(</span>d<span class="opt">);</span>
+   <span class="opt">}</span>
+
+   <span class="kwa">return</span> <span class="num">0</span><span class="opt">;</span>
+<span class="opt">}</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

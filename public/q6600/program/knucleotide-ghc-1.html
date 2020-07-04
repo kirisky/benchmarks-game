@@ -17,6 +17,105 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc">-- The Computer Language Benchmarks Game</span>
+<span class="slc">-- https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">--</span>
+<span class="slc">-- Contributed by Branimir Maksimovic</span>
+
+<span class="kwd">import qualified</span> Data<span class="opt">.</span>ByteString<span class="opt">.</span>Char8 <span class="kwd">as</span> S
+<span class="kwd">import qualified</span> Data<span class="opt">.</span>HashTable<span class="opt">.</span><span class="kwb">IO</span> <span class="kwd">as</span> H
+<span class="kwd">import qualified</span> Data<span class="opt">.</span>Map <span class="kwd">as</span> M
+<span class="kwd">import</span> Text<span class="opt">.</span>Printf
+<span class="kwd">import</span> Data<span class="opt">.</span>List
+<span class="kwd">import</span> Data<span class="opt">.</span><span class="kwb">Maybe</span>
+<span class="kwd">import</span> Data<span class="opt">.</span><span class="kwb">Char</span>
+<span class="kwd">import</span> Data<span class="opt">.</span>IORef
+<span class="kwd">import</span> Control<span class="opt">.</span>Concurrent
+
+main <span class="opt">=</span> <span class="kwd">do</span>
+    <span class="kwd">let</span> skip <span class="opt">=</span> <span class="kwd">do</span>
+            l <span class="opt">&lt;-</span> S<span class="opt">.</span><span class="kwc">getLine</span>
+            <span class="kwd">if</span> S<span class="opt">.</span><span class="kwc">isPrefixOf</span> <span class="opt">(</span>S<span class="opt">.</span>pack <span class="str">&quot;&gt;THREE&quot;</span><span class="opt">)</span> l
+                <span class="kwd">then</span> <span class="kwc">return</span> <span class="opt">()</span>
+                <span class="kwd">else</span> skip
+    skip
+    s <span class="opt">&lt;-</span> S<span class="opt">.</span><span class="kwc">getContents</span>
+    <span class="kwd">let</span> content <span class="opt">=</span> S<span class="opt">.</span><span class="kwc">map toUpper</span> <span class="opt">$</span> S<span class="opt">.</span><span class="kwc">filter</span> <span class="opt">((/=) &apos;</span><span class="esc">\n</span><span class="opt">&apos;)</span> s<span class="opt">;</span>
+    <span class="kwc">mapM_</span> <span class="opt">(</span>execute content<span class="opt">)</span> actions
+    
+<span class="kwd">data</span> Actions <span class="opt">=</span> I <span class="kwb">Int</span> | S <span class="kwb">String</span>
+actions <span class="opt">= [</span>I <span class="num">1</span><span class="opt">,</span>I <span class="num">2</span><span class="opt">,</span>
+           S <span class="str">&quot;GGT&quot;</span><span class="opt">,</span>S <span class="str">&quot;GGTA&quot;</span><span class="opt">,</span>S <span class="str">&quot;GGTATT&quot;</span><span class="opt">,</span>S <span class="str">&quot;GGTATTTTAATT&quot;</span><span class="opt">,</span>S <span class="str">&quot;GGTATTTTAATTTATAGT&quot;</span><span class="opt">]</span>
+execute content <span class="opt">(</span>I i<span class="opt">) =</span> writeFrequencies content i
+execute content <span class="opt">(</span>S s<span class="opt">) =</span> writeCount content s
+
+writeFrequencies <span class="opt">::</span> S<span class="opt">.</span>ByteString <span class="opt">-&gt;</span> <span class="kwb">Int</span> <span class="opt">-&gt;</span> <span class="kwb">IO</span> <span class="opt">()</span>
+writeFrequencies input size <span class="opt">=</span> <span class="kwd">do</span>
+    mp <span class="opt">&lt;-</span> tcalculate input size
+    <span class="kwd">let</span> sorted <span class="opt">=</span> <span class="kwc">sortBy</span> <span class="opt">(\(</span>_<span class="opt">,</span>x<span class="opt">) (</span>_<span class="opt">,</span>y<span class="opt">) -&gt;</span> y `<span class="kwc">compare</span>` x<span class="opt">) $</span> M<span class="opt">.</span>toList mp
+        <span class="kwa">sum</span> <span class="opt">=</span> <span class="kwc">fromIntegral</span> <span class="opt">((</span>S<span class="opt">.</span><span class="kwa">length</span> input<span class="opt">) +</span> <span class="num">1</span> <span class="opt">-</span> size<span class="opt">)</span>
+    <span class="kwc">mapM_</span> <span class="opt">(\(</span>k<span class="opt">,</span>v<span class="opt">)-&gt;</span> <span class="kwd">do</span>
+        printf <span class="str">&quot;</span><span class="ipl">%s</span> <span class="str">%.3f</span><span class="esc">\n</span><span class="str">&quot;</span> 
+            <span class="opt">(</span>S<span class="opt">.</span>unpack k<span class="opt">) ((</span><span class="num">100</span> <span class="opt">* (</span><span class="kwc">fromIntegral</span> v<span class="opt">)/</span><span class="kwa">sum</span><span class="opt">)::</span><span class="kwb">Double</span><span class="opt">))</span> sorted
+    <span class="kwc">putChar</span> <span class="opt">&apos;</span><span class="esc">\n</span><span class="opt">&apos;</span>
+
+writeCount <span class="opt">::</span> S<span class="opt">.</span>ByteString <span class="opt">-&gt;</span> <span class="kwb">String</span> <span class="opt">-&gt;</span> <span class="kwb">IO</span> <span class="opt">()</span>
+writeCount input <span class="kwa">string</span> <span class="opt">=</span> <span class="kwd">do</span>
+    <span class="kwd">let</span> size <span class="opt">=</span> <span class="kwa">length string</span>
+    mp <span class="opt">&lt;-</span> tcalculate input size
+    <span class="kwd">let</span> v <span class="opt">=</span> <span class="kwc">fromJust</span> <span class="opt">$</span> M<span class="opt">.</span><span class="kwc">lookup</span> <span class="opt">(</span>S<span class="opt">.</span>pack <span class="kwa">string</span><span class="opt">)</span> mp
+    printf <span class="str">&quot;</span><span class="ipl">%d</span><span class="str"></span><span class="esc">\t</span><span class="str"></span><span class="ipl">%s</span><span class="str"></span><span class="esc">\n</span><span class="str">&quot;</span> v <span class="kwa">string</span>
+
+tcalculate <span class="opt">::</span> S<span class="opt">.</span>ByteString <span class="opt">-&gt;</span> <span class="kwb">Int</span> <span class="opt">-&gt;</span> <span class="kwb">IO</span> <span class="opt">(</span>M<span class="opt">.</span>Map S<span class="opt">.</span>ByteString <span class="kwb">Int</span><span class="opt">)</span> 
+tcalculate input size <span class="opt">=</span> <span class="kwd">do</span>
+    <span class="kwd">let</span> 
+        l <span class="opt">= [</span><span class="num">0</span><span class="opt">.</span><span class="num">.63</span><span class="opt">]</span>
+        actions <span class="opt">=</span> <span class="kwc">map</span> <span class="opt">(\</span>i <span class="opt">-&gt;</span> calculate input i size <span class="opt">(</span><span class="kwa">length</span> l<span class="opt">))</span> l
+    vars <span class="opt">&lt;-</span> <span class="kwc">mapM</span> <span class="opt">(</span><span class="esc">\a</span>ction <span class="opt">-&gt;</span> <span class="kwd">do</span>
+                    var <span class="opt">&lt;-</span> newEmptyMVar
+                    forkIO <span class="opt">$</span> <span class="kwd">do</span>
+                        answer <span class="opt">&lt;-</span> action
+                        putMVar var answer
+                    <span class="kwc">return</span> var<span class="opt">)</span> actions
+    <span class="kwd">let</span> result <span class="opt">=</span> M<span class="opt">.</span><span class="kwa">empty</span>
+    results <span class="opt">&lt;-</span> <span class="kwc">mapM</span> takeMVar vars
+    <span class="kwc">return</span> <span class="opt">$</span> <span class="kwc">foldl</span> <span class="opt">(</span><span class="esc">\r</span>es m <span class="opt">-&gt;</span> <span class="kwc">foldl</span> 
+                               <span class="opt">(\</span>m <span class="opt">(</span>k<span class="opt">,</span>v<span class="opt">)-&gt;</span>M<span class="opt">.</span>insertWith <span class="opt">(+)</span> k v m<span class="opt">)</span>
+                                res m<span class="opt">)</span>
+                   result results
+
+calculate <span class="opt">::</span> S<span class="opt">.</span>ByteString <span class="opt">-&gt;</span> <span class="kwb">Int</span> <span class="opt">-&gt;</span> <span class="kwb">Int</span> <span class="opt">-&gt;</span> <span class="kwb">Int</span> <span class="opt">-&gt;</span> <span class="kwb">IO</span> <span class="opt">[(</span>S<span class="opt">.</span>ByteString<span class="opt">,</span><span class="kwb">Int</span><span class="opt">)]</span>
+calculate input beg size incr <span class="opt">=</span> <span class="kwd">do</span>
+    <span class="kwd">let</span> updateMap freqmap word <span class="opt">=</span> <span class="kwd">do</span>
+           lu <span class="opt">&lt;-</span> H<span class="opt">.</span><span class="kwc">lookup</span> freqmap word
+           <span class="kwd">case</span> lu <span class="kwd">of</span> 
+            Nothing <span class="opt">-&gt;</span> <span class="kwd">do</span>
+                ref <span class="opt">&lt;-</span> newIORef <span class="num">1</span>
+                H<span class="opt">.</span><span class="kwc">insert</span> freqmap word ref
+            Just x <span class="opt">-&gt;</span> modifyIORef<span class="opt">&apos;</span> x <span class="opt">(+</span><span class="num">1</span><span class="opt">)</span>
+           <span class="kwc">return</span> freqmap
+        word inp pos sz <span class="opt">=</span> S<span class="opt">.</span><span class="kwc">take</span> size <span class="opt">$</span> S<span class="opt">.</span><span class="kwc">drop</span> pos inp
+        calculate<span class="opt">&apos;</span> freqmap i
+            | i <span class="opt">&gt;= ((</span>S<span class="opt">.</span><span class="kwa">length</span> input<span class="opt">)+</span><span class="num">1</span> <span class="opt">-</span> size<span class="opt">) =</span> <span class="kwc">return</span> <span class="opt">()</span>
+            | <span class="kwc">otherwise</span> <span class="opt">=</span> <span class="kwd">do</span>
+                ht <span class="opt">&lt;-</span> updateMap freqmap <span class="opt">$</span> word input i size
+                calculate<span class="opt">&apos;</span> ht <span class="opt">(</span>i<span class="opt">+</span>incr<span class="opt">)</span>
+    freqmap <span class="opt">&lt;-</span> H<span class="opt">.</span>new <span class="opt">::</span> <span class="kwb">IO</span> <span class="opt">(</span>HashTable S<span class="opt">.</span>ByteString <span class="opt">(</span>IORef <span class="kwb">Int</span><span class="opt">))</span>
+    calculate<span class="opt">&apos;</span> freqmap beg
+    lst <span class="opt">&lt;-</span> H<span class="opt">.</span>toList freqmap
+    <span class="kwc">mapM</span> <span class="opt">(\(</span>x<span class="opt">,</span>y<span class="opt">)-&gt;</span> <span class="kwd">do</span>
+            v <span class="opt">&lt;-</span> readIORef y
+            <span class="kwc">return</span> <span class="opt">(</span>x<span class="opt">,</span>v<span class="opt">))</span> lst
+    
+
+<span class="kwd">type</span> HashTable k v <span class="opt">=</span> H<span class="opt">.</span>BasicHashTable k v
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

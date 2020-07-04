@@ -17,6 +17,103 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc">// The Computer Language Benchmarks Game</span>
+<span class="slc">// https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">//</span>
+<span class="slc">// Contributed by Jeremy Zerfas</span>
+
+<span class="slc">// This is the square of the limit that pixels will need to exceed in order to</span>
+<span class="slc">// escape from the Mandelbrot set.</span>
+<span class="ppc">#define LIMIT_SQUARED      4.0</span>
+<span class="slc">// This controls the maximum amount of iterations that are done for each pixel.</span>
+<span class="ppc">#define MAXIMUM_ITERATIONS   50</span>
+
+<span class="ppc">#include &lt;stdint.h&gt;</span>
+<span class="ppc">#include &lt;stdlib.h&gt;</span>
+<span class="ppc">#include &lt;stdio.h&gt;</span>
+
+<span class="slc">// intptr_t should be the native integer type on most sane systems.</span>
+<span class="kwc">typedef</span> <span class="kwb">intptr_t</span> intnative_t<span class="opt">;</span>
+
+<span class="kwb">int</span> <span class="kwd">main</span><span class="opt">(</span><span class="kwb">int</span> argc<span class="opt">,</span> <span class="kwb">char</span> <span class="opt">**</span> argv<span class="opt">){</span>
+   <span class="slc">// Ensure image_Width_And_Height are multiples of 8.</span>
+   <span class="kwb">const</span> intnative_t image_Width_And_Height<span class="opt">=(</span><span class="kwd">atoi</span><span class="opt">(</span>argv<span class="opt">[</span><span class="num">1</span><span class="opt">])+</span><span class="num">7</span><span class="opt">)/</span><span class="num">8</span><span class="opt">*</span><span class="num">8</span><span class="opt">;</span>
+
+   <span class="slc">// The image will be black and white with one bit for each pixel. Bits with</span>
+   <span class="slc">// a value of zero are white pixels which are the ones that &quot;escape&quot; from</span>
+   <span class="slc">// the Mandelbrot set. We&apos;ll be working on one line at a time and each line</span>
+   <span class="slc">// will be made up of pixel groups that are eight pixels in size so each</span>
+   <span class="slc">// pixel group will be one byte. This allows for some more optimizations to</span>
+   <span class="slc">// be done.</span>
+   <span class="kwb">uint8_t</span> <span class="opt">*</span> <span class="kwb">const</span> pixels<span class="opt">=</span><span class="kwd">malloc</span><span class="opt">(</span>image_Width_And_Height<span class="opt">*</span>
+     image_Width_And_Height<span class="opt">/</span><span class="num">8</span><span class="opt">);</span>
+
+   <span class="slc">// Precompute the initial real and imaginary values for each x and y</span>
+   <span class="slc">// coordinate in the image.</span>
+   <span class="kwb">double</span> initial_r<span class="opt">[</span>image_Width_And_Height<span class="opt">],</span> initial_i<span class="opt">[</span>image_Width_And_Height<span class="opt">];</span>
+   <span class="ppc">#pragma omp parallel for</span>
+   <span class="kwa">for</span><span class="opt">(</span>intnative_t xy<span class="opt">=</span><span class="num">0</span><span class="opt">;</span> xy<span class="opt">&lt;</span>image_Width_And_Height<span class="opt">;</span> xy<span class="opt">++){</span>
+      initial_r<span class="opt">[</span>xy<span class="opt">]=</span><span class="num">2.0</span><span class="opt">/</span>image_Width_And_Height<span class="opt">*</span>xy <span class="opt">-</span> <span class="num">1.5</span><span class="opt">;</span>
+      initial_i<span class="opt">[</span>xy<span class="opt">]=</span><span class="num">2.0</span><span class="opt">/</span>image_Width_And_Height<span class="opt">*</span>xy <span class="opt">-</span> <span class="num">1.0</span><span class="opt">;</span>
+   <span class="opt">}</span>
+
+   <span class="ppc">#pragma omp parallel for schedule(guided)</span>
+   <span class="kwa">for</span><span class="opt">(</span>intnative_t y<span class="opt">=</span><span class="num">0</span><span class="opt">;</span> y<span class="opt">&lt;</span>image_Width_And_Height<span class="opt">;</span> y<span class="opt">++){</span>
+      <span class="kwb">const double</span> prefetched_Initial_i<span class="opt">=</span>initial_i<span class="opt">[</span>y<span class="opt">];</span>
+      <span class="kwa">for</span><span class="opt">(</span>intnative_t x_Major<span class="opt">=</span><span class="num">0</span><span class="opt">;</span> x_Major<span class="opt">&lt;</span>image_Width_And_Height<span class="opt">;</span> x_Major<span class="opt">+=</span><span class="num">8</span><span class="opt">){</span>
+
+         <span class="slc">// pixel_Group_r and pixel_Group_i will store real and imaginary</span>
+         <span class="slc">// values for each pixel in the current pixel group as we perform</span>
+         <span class="slc">// iterations. Set their initial values here.</span>
+         <span class="kwb">double</span> pixel_Group_r<span class="opt">[</span><span class="num">8</span><span class="opt">],</span> pixel_Group_i<span class="opt">[</span><span class="num">8</span><span class="opt">];</span>
+         <span class="kwa">for</span><span class="opt">(</span>intnative_t x_Minor<span class="opt">=</span><span class="num">0</span><span class="opt">;</span> x_Minor<span class="opt">&lt;</span><span class="num">8</span><span class="opt">;</span> x_Minor<span class="opt">++){</span>
+            pixel_Group_r<span class="opt">[</span>x_Minor<span class="opt">]=</span>initial_r<span class="opt">[</span>x_Major<span class="opt">+</span>x_Minor<span class="opt">];</span>
+            pixel_Group_i<span class="opt">[</span>x_Minor<span class="opt">]=</span>prefetched_Initial_i<span class="opt">;</span>
+         <span class="opt">}</span>
+
+         <span class="slc">// Assume all pixels are in the Mandelbrot set initially.</span>
+         <span class="kwb">uint8_t</span> eight_Pixels<span class="opt">=</span><span class="num">0xff</span><span class="opt">;</span>
+
+         intnative_t iteration<span class="opt">=</span>MAXIMUM_ITERATIONS<span class="opt">;</span>
+         <span class="kwa">do</span><span class="opt">{</span>
+            <span class="kwb">uint8_t</span> current_Pixel_Bitmask<span class="opt">=</span><span class="num">0x80</span><span class="opt">;</span>
+            <span class="kwa">for</span><span class="opt">(</span>intnative_t x_Minor<span class="opt">=</span><span class="num">0</span><span class="opt">;</span> x_Minor<span class="opt">&lt;</span><span class="num">8</span><span class="opt">;</span> x_Minor<span class="opt">++){</span>
+               <span class="kwb">const double</span> r<span class="opt">=</span>pixel_Group_r<span class="opt">[</span>x_Minor<span class="opt">];</span>
+               <span class="kwb">const double</span> i<span class="opt">=</span>pixel_Group_i<span class="opt">[</span>x_Minor<span class="opt">];</span>
+
+               pixel_Group_r<span class="opt">[</span>x_Minor<span class="opt">]=</span>r<span class="opt">*</span>r <span class="opt">-</span> i<span class="opt">*</span>i <span class="opt">+</span>
+                 initial_r<span class="opt">[</span>x_Major<span class="opt">+</span>x_Minor<span class="opt">];</span>
+               pixel_Group_i<span class="opt">[</span>x_Minor<span class="opt">]=</span><span class="num">2.0</span><span class="opt">*</span>r<span class="opt">*</span>i <span class="opt">+</span> prefetched_Initial_i<span class="opt">;</span>
+
+               <span class="slc">// Clear the bit for the pixel if it escapes from the</span>
+               <span class="slc">// Mandelbrot set.</span>
+               <span class="kwa">if</span><span class="opt">(</span>r<span class="opt">*</span>r <span class="opt">+</span> i<span class="opt">*</span>i<span class="opt">&gt;</span>LIMIT_SQUARED<span class="opt">)</span>
+                  eight_Pixels<span class="opt">&amp;=~</span>current_Pixel_Bitmask<span class="opt">;</span>
+
+               current_Pixel_Bitmask<span class="opt">&gt;&gt;=</span><span class="num">1</span><span class="opt">;</span>
+            <span class="opt">}</span>
+         <span class="opt">}</span><span class="kwa">while</span><span class="opt">(</span>eight_Pixels <span class="opt">&amp;&amp; --</span>iteration<span class="opt">);</span>
+
+         pixels<span class="opt">[</span>y<span class="opt">*</span>image_Width_And_Height<span class="opt">/</span><span class="num">8</span> <span class="opt">+</span> x_Major<span class="opt">/</span><span class="num">8</span><span class="opt">]=</span>eight_Pixels<span class="opt">;</span>
+      <span class="opt">}</span>
+   <span class="opt">}</span>
+
+   <span class="slc">// Output the image to stdout.</span>
+   <span class="kwd">fprintf</span><span class="opt">(</span>stdout<span class="opt">,</span> <span class="str">&quot;P4</span><span class="esc">\n</span><span class="str">%jd %jd</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">, (</span><span class="kwb">intmax_t</span><span class="opt">)</span>image_Width_And_Height<span class="opt">,</span>
+     <span class="opt">(</span><span class="kwb">intmax_t</span><span class="opt">)</span>image_Width_And_Height<span class="opt">);</span>
+   <span class="kwd">fwrite</span><span class="opt">(</span>pixels<span class="opt">,</span> image_Width_And_Height<span class="opt">*</span>image_Width_And_Height<span class="opt">/</span><span class="num">8</span><span class="opt">,</span> <span class="num">1</span><span class="opt">,</span> stdout<span class="opt">);</span>
+
+   <span class="kwd">free</span><span class="opt">(</span>pixels<span class="opt">);</span>
+
+   <span class="kwa">return</span> <span class="num">0</span><span class="opt">;</span>
+<span class="opt">}</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

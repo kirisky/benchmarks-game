@@ -17,6 +17,104 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc">! The Computer Language Benchmarks Game</span>
+<span class="slc">! https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">!</span>
+<span class="slc">! contributed by Steve Decker, modified from the version by Simon Geard</span>
+<span class="slc">! compilation:</span>
+<span class="slc">!   g95 -O3 reverse.f90</span>
+<span class="slc">!   ifort -ipo -O3 -static reverse.f90</span>
+
+<span class="kwa">program</span> revcomp
+  <span class="kwa">implicit none</span>
+
+  <span class="kwa">character</span><span class="opt">,</span> <span class="kwa">parameter</span> <span class="opt">::</span> EndStr <span class="opt">=</span> <span class="str">&quot;&gt;&quot;</span>
+  <span class="kwa">integer</span><span class="opt">,</span>   <span class="kwa">parameter</span> <span class="opt">::</span> LineWidth <span class="opt">=</span> <span class="num">60</span>
+
+  <span class="kwa">character</span><span class="opt">(</span>len<span class="opt">=</span>LineWidth<span class="opt">),</span> <span class="kwa">dimension</span><span class="opt">(:),</span> allocatable <span class="opt">::</span> <span class="kwa">data</span><span class="opt">,</span> w
+  <span class="kwa">logical</span>                  <span class="opt">::</span> insection <span class="opt">= .</span>false<span class="opt">.</span>
+  <span class="kwa">integer</span>                  <span class="opt">::</span> stat<span class="opt">,</span> bcount
+  <span class="kwa">character</span><span class="opt">(</span>len<span class="opt">=</span>LineWidth<span class="opt">) ::</span> line<span class="opt">,</span> title
+
+  <span class="slc">! Read and process</span>
+  <span class="kwd">allocate</span><span class="opt">(</span><span class="kwa">data</span><span class="opt">(</span><span class="num">100</span><span class="opt">))</span>  <span class="slc">! Allocate enough lines so that we don&apos;t have to grow the array for the test</span>
+  readFile<span class="opt">:</span> <span class="kwa">do</span>
+     <span class="kwa">read</span><span class="opt">(*,</span> <span class="str">&quot;(a)&quot;</span><span class="opt">,</span> iostat<span class="opt">=</span>stat<span class="opt">)</span> line
+     <span class="kwa">if</span> <span class="opt">(</span>stat <span class="opt">/=</span> <span class="num">0</span><span class="opt">)</span> exit readFile
+     <span class="kwa">if</span> <span class="opt">(</span><span class="kwd">line</span><span class="opt">(</span><span class="num">1</span><span class="opt">:</span><span class="num">1</span><span class="opt">) ==</span> EndStr<span class="opt">)</span> <span class="kwa">then</span>
+        <span class="kwa">if</span> <span class="opt">(</span>insection<span class="opt">)</span> <span class="kwa">then</span>
+           <span class="kwa">write</span><span class="opt">(*,</span> <span class="str">&quot;(a)&quot;</span><span class="opt">)</span> <span class="kwd">trim</span><span class="opt">(</span>title<span class="opt">)</span>
+           <span class="kwa">call</span> printReverseFasta
+        <span class="kwa">else</span>
+           insection <span class="opt">= .</span>true<span class="opt">.</span>
+        <span class="kwa">end if</span>
+        title <span class="opt">=</span> line
+        bcount <span class="opt">=</span> <span class="num">0</span>
+        cycle readFile
+     <span class="kwa">end if</span>
+     bcount <span class="opt">=</span> bcount <span class="opt">+</span> <span class="num">1</span>
+     <span class="kwa">if</span> <span class="opt">(</span>bcount <span class="opt">&gt;</span> <span class="kwd">size</span><span class="opt">(</span><span class="kwa">data</span><span class="opt">))</span> <span class="kwa">then</span> <span class="slc">! Included for completeness - it shouldn&apos;t be called in the test</span>
+        <span class="kwd">allocate</span><span class="opt">(</span><span class="kwd">w</span><span class="opt">(</span><span class="kwd">size</span><span class="opt">(</span><span class="kwa">data</span><span class="opt">)))</span>
+        w <span class="opt">=</span> <span class="kwa">data</span>
+        <span class="kwd">deallocate</span><span class="opt">(</span><span class="kwa">data</span><span class="opt">)</span>
+        <span class="kwd">allocate</span><span class="opt">(</span><span class="kwa">data</span><span class="opt">(</span><span class="num">2</span><span class="opt">*</span><span class="kwd">size</span><span class="opt">(</span>w<span class="opt">)))</span>
+        <span class="kwa">data</span><span class="opt">(</span><span class="num">1</span><span class="opt">:</span><span class="kwd">size</span><span class="opt">(</span>w<span class="opt">)) =</span> w
+        <span class="kwd">deallocate</span><span class="opt">(</span>w<span class="opt">)</span>
+     <span class="kwa">end if</span>
+     <span class="kwa">data</span><span class="opt">(</span>bcount<span class="opt">) =</span> line
+  <span class="kwa">end do</span> readFile
+
+  <span class="kwa">write</span><span class="opt">(*,</span> <span class="str">&quot;(a)&quot;</span><span class="opt">)</span> <span class="kwd">trim</span><span class="opt">(</span>title<span class="opt">)</span>
+  <span class="kwa">call</span> printReverseFasta
+  
+<span class="kwa">contains</span>
+
+  <span class="kwa">subroutine</span> printReverseFasta
+    <span class="slc">! Output the data in reverse order and with the complement</span>
+    <span class="kwa">character</span><span class="opt">,</span> <span class="kwa">dimension</span><span class="opt">(</span><span class="num">65</span><span class="opt">:</span><span class="num">121</span><span class="opt">),</span> <span class="kwa">parameter</span> <span class="opt">::</span> Complement <span class="opt">= (/</span> <span class="str">&quot;T&quot;</span><span class="opt">,</span> <span class="str">&quot;V&quot;</span><span class="opt">,</span> <span class="str">&quot;G&quot;</span><span class="opt">, &amp;</span>
+         <span class="str">&quot;H&quot;</span><span class="opt">,</span> <span class="str">&quot;E&quot;</span><span class="opt">,</span> <span class="str">&quot;F&quot;</span><span class="opt">,</span> <span class="str">&quot;C&quot;</span><span class="opt">,</span> <span class="str">&quot;D&quot;</span><span class="opt">,</span> <span class="str">&quot;I&quot;</span><span class="opt">,</span> <span class="str">&quot;J&quot;</span><span class="opt">,</span> <span class="str">&quot;M&quot;</span><span class="opt">,</span> <span class="str">&quot;L&quot;</span><span class="opt">,</span> <span class="str">&quot;K&quot;</span><span class="opt">,</span> <span class="str">&quot;N&quot;</span><span class="opt">,</span> <span class="str">&quot;O&quot;</span><span class="opt">,</span> <span class="str">&quot;P&quot;</span><span class="opt">,  &amp;</span>
+         <span class="str">&quot;Q&quot;</span><span class="opt">,</span> <span class="str">&quot;Y&quot;</span><span class="opt">,</span> <span class="str">&quot;S&quot;</span><span class="opt">,</span> <span class="str">&quot;A&quot;</span><span class="opt">,</span> <span class="str">&quot;A&quot;</span><span class="opt">,</span> <span class="str">&quot;B&quot;</span><span class="opt">,</span> <span class="str">&quot;W&quot;</span><span class="opt">,</span> <span class="str">&quot;X&quot;</span><span class="opt">,</span> <span class="str">&quot;R&quot;</span><span class="opt">, (</span><span class="str">&quot; &quot;</span><span class="opt">,</span> stat <span class="opt">=</span> <span class="num">90</span><span class="opt">,</span> <span class="num">96</span><span class="opt">),  &amp;</span>
+         <span class="str">&quot;T&quot;</span><span class="opt">,</span> <span class="str">&quot;V&quot;</span><span class="opt">,</span> <span class="str">&quot;G&quot;</span><span class="opt">,</span> <span class="str">&quot;H&quot;</span><span class="opt">,</span> <span class="str">&quot;E&quot;</span><span class="opt">,</span> <span class="str">&quot;F&quot;</span><span class="opt">,</span> <span class="str">&quot;C&quot;</span><span class="opt">,</span> <span class="str">&quot;D&quot;</span><span class="opt">,</span> <span class="str">&quot;I&quot;</span><span class="opt">,</span> <span class="str">&quot;J&quot;</span><span class="opt">,</span> <span class="str">&quot;M&quot;</span><span class="opt">,</span> <span class="str">&quot;L&quot;</span><span class="opt">,</span> <span class="str">&quot;K&quot;</span><span class="opt">,  &amp;</span>
+         <span class="str">&quot;N&quot;</span><span class="opt">,</span> <span class="str">&quot;O&quot;</span><span class="opt">,</span> <span class="str">&quot;P&quot;</span><span class="opt">,</span> <span class="str">&quot;Q&quot;</span><span class="opt">,</span> <span class="str">&quot;Y&quot;</span><span class="opt">,</span> <span class="str">&quot;S&quot;</span><span class="opt">,</span> <span class="str">&quot;A&quot;</span><span class="opt">,</span> <span class="str">&quot;A&quot;</span><span class="opt">,</span> <span class="str">&quot;B&quot;</span><span class="opt">,</span> <span class="str">&quot;W&quot;</span><span class="opt">,</span> <span class="str">&quot;X&quot;</span><span class="opt">,</span> <span class="str">&quot;R&quot;</span> <span class="opt">/)</span>
+
+    <span class="kwa">integer</span> <span class="opt">::</span> fLine<span class="opt">,</span> fChar<span class="opt">,</span> bLine<span class="opt">,</span> bChar
+    <span class="kwa">character</span> <span class="opt">::</span> c
+
+    fLine <span class="opt">=</span> <span class="num">1</span>
+    fChar <span class="opt">=</span> <span class="num">1</span>
+    bLine <span class="opt">=</span> bcount
+    bChar <span class="opt">=</span> <span class="kwd">len_trim</span><span class="opt">(</span><span class="kwa">data</span><span class="opt">(</span>bLine<span class="opt">))</span>
+    <span class="kwa">do</span>
+       <span class="kwa">if</span> <span class="opt">(</span>fLine <span class="opt">&gt;</span> bLine <span class="opt">.</span>or<span class="opt">.</span> fLine <span class="opt">==</span> bLine <span class="opt">.</span>and<span class="opt">.</span> fChar <span class="opt">&gt;=</span> bChar<span class="opt">)</span> exit
+       c <span class="opt">=</span> <span class="kwa">data</span><span class="opt">(</span>fLine<span class="opt">)(</span>fChar<span class="opt">:</span>fChar<span class="opt">)</span>
+       <span class="kwa">data</span><span class="opt">(</span>fLine<span class="opt">)(</span>fChar<span class="opt">:</span>fChar<span class="opt">) =</span> <span class="kwd">Complement</span><span class="opt">(</span><span class="kwd">iachar</span><span class="opt">(</span><span class="kwa">data</span><span class="opt">(</span>bLine<span class="opt">)(</span>bChar<span class="opt">:</span>bChar<span class="opt">)))</span>
+       <span class="kwa">data</span><span class="opt">(</span>bLine<span class="opt">)(</span>bChar<span class="opt">:</span>bChar<span class="opt">) =</span> <span class="kwd">Complement</span><span class="opt">(</span><span class="kwd">iachar</span><span class="opt">(</span>c<span class="opt">))</span>
+       fChar <span class="opt">=</span> fChar <span class="opt">+</span> <span class="num">1</span>
+       <span class="kwa">if</span> <span class="opt">(</span>fChar <span class="opt">&gt;</span> LineWidth<span class="opt">)</span> <span class="kwa">then</span>
+          fChar <span class="opt">=</span> <span class="num">1</span>
+          fLine <span class="opt">=</span> fLine <span class="opt">+</span> <span class="num">1</span>
+       <span class="kwa">end if</span>
+       bChar <span class="opt">=</span> bChar <span class="opt">-</span> <span class="num">1</span>
+       <span class="kwa">if</span> <span class="opt">(</span>bChar <span class="opt">==</span> <span class="num">0</span><span class="opt">)</span> <span class="kwa">then</span>
+          bChar <span class="opt">=</span> LineWidth
+          bLine <span class="opt">=</span> bLine <span class="opt">-</span> <span class="num">1</span>
+       <span class="kwa">end if</span>
+    <span class="kwa">end do</span>
+    <span class="kwa">if</span> <span class="opt">(</span>fLine <span class="opt">==</span> bLine <span class="opt">.</span>and<span class="opt">.</span> fChar <span class="opt">==</span> bChar<span class="opt">)  &amp;</span>
+         <span class="kwa">data</span><span class="opt">(</span>fLine<span class="opt">)(</span>fChar<span class="opt">:</span>fChar<span class="opt">) =</span> <span class="kwd">Complement</span><span class="opt">(</span><span class="kwd">iachar</span><span class="opt">(</span><span class="kwa">data</span><span class="opt">(</span>fLine<span class="opt">)(</span>fChar<span class="opt">:</span>fChar<span class="opt">)))</span>
+    <span class="kwa">do</span> fLine <span class="opt">=</span> <span class="num">1</span><span class="opt">,</span> bcount<span class="opt">-</span><span class="num">1</span>
+       <span class="kwa">write</span><span class="opt">(*,</span> <span class="str">&quot;(a)&quot;</span><span class="opt">)</span> <span class="kwa">data</span><span class="opt">(</span>fLine<span class="opt">)</span>
+    <span class="kwa">end do</span>
+    <span class="kwa">write</span><span class="opt">(*,</span> <span class="str">&quot;(a)&quot;</span><span class="opt">)</span> <span class="kwd">trim</span><span class="opt">(</span><span class="kwa">data</span><span class="opt">(</span>bcount<span class="opt">))</span>
+  <span class="kwa">end subroutine</span> printReverseFasta
+<span class="kwa">end program</span> revcomp
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

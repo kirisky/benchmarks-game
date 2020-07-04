@@ -17,6 +17,89 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc">-- The Computer Language Benchmarks Game</span>
+<span class="slc">-- https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">--</span>
+<span class="slc">-- Contributed by Jeremy Zerfas.</span>
+<span class="slc">--</span>
+<span class="slc">-- WARNING: I normally do my programming in other languages. This may not be an</span>
+<span class="slc">-- optimal Lua program. Please contribute a better program if you can make a</span>
+<span class="slc">-- better program.</span>
+
+<span class="slc">-- We&apos;ll be using the PCRE2 flavor of Lrexlib for our regular expression needs</span>
+<span class="slc">-- instead of using Lua&apos;s built in pattern matching engine. Lua&apos;s pattern</span>
+<span class="slc">-- matching engine is a bit basic and lacks some functionality of other regular</span>
+<span class="slc">-- expression engines, in particular it doesn&apos;t support alternation (e.g. you</span>
+<span class="slc">-- can&apos;t use a pattern like &quot;cat|dog&quot; to search for &quot;cat&quot; or &quot;dog&quot;). It is</span>
+<span class="slc">-- possible to work around this issue by splitting up the regular expressions</span>
+<span class="slc">-- into multiple smaller patterns but this could possibly be considered as using</span>
+<span class="slc">-- a different algorithm and it can result in a faster performing program.</span>
+<span class="slc">-- Additionally PCRE2 is significantly faster than Lua&apos;s pattern matching engine</span>
+<span class="slc">-- anyway.</span>
+Lrexlib_PCRE2<span class="opt">=</span><span class="kwd">require</span><span class="opt">(</span><span class="str">&quot;rex_pcre2&quot;</span><span class="opt">)</span>
+
+
+<span class="slc">-- Read in input from stdin and also get the input_Length.</span>
+input<span class="opt">=</span>io<span class="opt">.</span><span class="kwb">read</span><span class="opt">(</span><span class="str">&quot;*all&quot;</span><span class="opt">)</span>
+input_Length<span class="opt">=#</span>input
+
+
+<span class="slc">-- Find all sequence descriptions and new lines in input, replace them with</span>
+<span class="slc">-- empty strings, and store the result in the sequences string.</span>
+regex<span class="opt">=</span>Lrexlib_PCRE2<span class="opt">.</span><span class="kwd">new</span><span class="opt">(</span><span class="str">&quot;&gt;.*</span><span class="esc">\\</span><span class="str">n|</span><span class="esc">\\</span><span class="str">n&quot;</span><span class="opt">)</span>
+regex<span class="opt">:</span><span class="kwd">jit_compile</span><span class="opt">()</span>
+sequences<span class="opt">=</span>Lrexlib_PCRE2<span class="opt">.</span><span class="kwb">gsub</span><span class="opt">(</span>input<span class="opt">,</span> regex<span class="opt">,</span> <span class="str">&quot;&quot;</span><span class="opt">)</span>
+sequences_Length<span class="opt">=#</span>sequences
+
+
+<span class="slc">-- Iterate through all the count patterns and output the results for each one.</span>
+<span class="kwa">for</span> _<span class="opt">,</span> pattern <span class="kwa">in</span> <span class="kwd">ipairs</span><span class="opt">({</span>
+    <span class="str">&quot;agggtaaa|tttaccct&quot;</span><span class="opt">,</span>
+    <span class="str">&quot;[cgt]gggtaaa|tttaccc[acg]&quot;</span><span class="opt">,</span>
+    <span class="str">&quot;a[act]ggtaaa|tttacc[agt]t&quot;</span><span class="opt">,</span>
+    <span class="str">&quot;ag[act]gtaaa|tttac[agt]ct&quot;</span><span class="opt">,</span>
+    <span class="str">&quot;agg[act]taaa|ttta[agt]cct&quot;</span><span class="opt">,</span>
+    <span class="str">&quot;aggg[acg]aaa|ttt[cgt]ccct&quot;</span><span class="opt">,</span>
+    <span class="str">&quot;agggt[cgt]aa|tt[acg]accct&quot;</span><span class="opt">,</span>
+    <span class="str">&quot;agggta[cgt]a|t[acg]taccct&quot;</span><span class="opt">,</span>
+    <span class="str">&quot;agggtaa[cgt]|[acg]ttaccct&quot;</span><span class="opt">,</span>
+  <span class="opt">})</span> <span class="kwa">do</span>
+	regex<span class="opt">=</span>Lrexlib_PCRE2<span class="opt">.</span><span class="kwd">new</span><span class="opt">(</span>pattern<span class="opt">)</span>
+	regex<span class="opt">:</span><span class="kwd">jit_compile</span><span class="opt">()</span>
+	io<span class="opt">.</span><span class="kwb">write</span><span class="opt">(</span><span class="kwb">string</span><span class="opt">.</span><span class="kwb">format</span><span class="opt">(</span><span class="str">&quot;%s %d</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span> pattern<span class="opt">,</span> Lrexlib_PCRE2<span class="opt">.</span><span class="kwd">count</span><span class="opt">(</span>sequences<span class="opt">,</span>
+	  regex<span class="opt">)))</span>
+<span class="kwa">end</span>
+
+
+<span class="slc">-- Copy sequences to postreplace_Sequences and then iterate through all the</span>
+<span class="slc">-- replacement pairs applying all the replacements to postreplace_Sequences.</span>
+postreplace_Sequences<span class="opt">=</span>sequences
+<span class="kwa">for</span> _<span class="opt">,</span> pattern_Replacement_Pair <span class="kwa">in</span> <span class="kwd">ipairs</span><span class="opt">({</span>
+    <span class="opt">{</span><span class="str">&quot;tHa[Nt]&quot;</span><span class="opt">,</span> <span class="str">&quot;&lt;4&gt;&quot;</span><span class="opt">},</span>
+    <span class="opt">{</span><span class="str">&quot;aND|caN|Ha[DS]|WaS&quot;</span><span class="opt">,</span> <span class="str">&quot;&lt;3&gt;&quot;</span><span class="opt">},</span>
+    <span class="opt">{</span><span class="str">&quot;a[NSt]|BY&quot;</span><span class="opt">,</span> <span class="str">&quot;&lt;2&gt;&quot;</span><span class="opt">},</span>
+    <span class="opt">{</span><span class="str">&quot;&lt;[^&gt;]*&gt;&quot;</span><span class="opt">,</span> <span class="str">&quot;|&quot;</span><span class="opt">},</span>
+    <span class="opt">{</span><span class="str">&quot;</span><span class="esc">\\</span><span class="str">|[^|][^|]*</span><span class="esc">\\</span><span class="str">|&quot;</span><span class="opt">,</span> <span class="str">&quot;-&quot;</span><span class="opt">},</span>
+  <span class="opt">})</span> <span class="kwa">do</span>
+	regex<span class="opt">=</span>Lrexlib_PCRE2<span class="opt">.</span><span class="kwd">new</span><span class="opt">(</span>pattern_Replacement_Pair<span class="opt">[</span><span class="num">1</span><span class="opt">])</span>
+	regex<span class="opt">:</span><span class="kwd">jit_compile</span><span class="opt">()</span>
+	postreplace_Sequences<span class="opt">=</span>Lrexlib_PCRE2<span class="opt">.</span><span class="kwb">gsub</span><span class="opt">(</span>postreplace_Sequences<span class="opt">,</span> regex<span class="opt">,</span>
+	  pattern_Replacement_Pair<span class="opt">[</span><span class="num">2</span><span class="opt">])</span>
+<span class="kwa">end</span>
+
+
+<span class="slc">-- Print the size of the original input, the size of the input without the</span>
+<span class="slc">-- sequence descriptions &amp; new lines, and the size after having made all the</span>
+<span class="slc">-- replacements.</span>
+io<span class="opt">.</span><span class="kwb">write</span><span class="opt">(</span><span class="kwb">string</span><span class="opt">.</span><span class="kwb">format</span><span class="opt">(</span><span class="str">&quot;</span><span class="esc">\n</span><span class="str">%d</span><span class="esc">\n</span><span class="str">%d</span><span class="esc">\n</span><span class="str">%d</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span> input_Length<span class="opt">,</span> sequences_Length<span class="opt">,</span>
+  <span class="opt">#</span>postreplace_Sequences<span class="opt">))</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

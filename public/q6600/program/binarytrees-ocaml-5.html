@@ -17,6 +17,57 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="com">(* The Computer Language Benchmarks Game</span>
+<span class="com"> * https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="com"> *</span>
+<span class="com"> * Contributed by Troestler Christophe</span>
+<span class="com"> * Modified by Fabrice Le Fessant</span>
+<span class="com"> * *reset*</span>
+<span class="com"> *)</span>
+
+<span class="kwa">type</span> &apos;a tree <span class="opt">=</span> Empty <span class="opt">|</span> Node <span class="kwa">of</span> &apos;a tree <span class="opt">*</span> &apos;a tree
+
+<span class="kwa">let rec</span> <span class="kwd">make</span> d <span class="opt">=</span>
+<span class="com">(* if d = 0 then Empty *)</span>
+  <span class="kwa">if</span> d <span class="opt">=</span> <span class="num">0</span> <span class="kwa">then</span> Node<span class="opt">(</span>Empty<span class="opt">,</span> Empty<span class="opt">)</span>
+  <span class="kwa">else let</span> <span class="kwd">d</span> <span class="opt">=</span> <span class="kwd">d</span> <span class="opt">-</span> <span class="num">1</span> <span class="kwa">in</span> Node<span class="opt">(</span><span class="kwd">make d</span><span class="opt">,</span> <span class="kwd">make d</span><span class="opt">)</span>
+
+<span class="kwa">let rec</span> <span class="kwd">check</span> <span class="opt">=</span> <span class="kwa">function</span> Empty <span class="opt">-&gt;</span> <span class="num">0</span> <span class="opt">|</span> Node<span class="opt">(</span>l<span class="opt">,</span> r<span class="opt">) -&gt;</span> <span class="num">1</span> <span class="opt">+</span> <span class="kwd">check</span> l <span class="opt">+</span> <span class="kwd">check</span> r
+
+<span class="kwa">let</span> <span class="kwd">min_depth</span> <span class="opt">=</span> <span class="num">4</span>
+<span class="kwa">let</span> <span class="kwd">max_depth</span> <span class="opt">= (</span><span class="kwa">let</span> <span class="kwd">n</span> <span class="opt">=</span> <span class="kwa">try</span> int_of_string<span class="opt">(</span><span class="kwc">Array</span><span class="opt">.</span>get <span class="kwc">Sys</span><span class="opt">.</span>argv <span class="num">1</span><span class="opt">)</span> <span class="kwa">with</span> _ <span class="opt">-&gt;</span> <span class="num">10</span> <span class="kwa">in</span>
+                 max <span class="opt">(</span><span class="kwd">min_depth</span> <span class="opt">+</span> <span class="num">2</span><span class="opt">)</span> <span class="kwd">n</span><span class="opt">)</span>
+<span class="kwa">let</span> <span class="kwd">stretch_depth</span> <span class="opt">=</span> <span class="kwd">max_depth</span> <span class="opt">+</span> <span class="num">1</span>
+
+<span class="kwa">let</span> <span class="opt">() =</span>
+  <span class="com">(* Gc.set { (Gc.get()) with Gc.minor_heap_size = 1024 * 1024; max_overhead = -1; }; *)</span>
+  <span class="kwa">let</span> <span class="kwd">c</span> <span class="opt">=</span> <span class="kwd">check</span> <span class="opt">(</span><span class="kwd">make stretch_depth</span><span class="opt">)</span> <span class="kwa">in</span>
+  <span class="kwc">Printf</span><span class="opt">.</span>printf <span class="str">&quot;stretch tree of depth</span> <span class="ipl">%i</span><span class="str"></span><span class="esc">\t</span> <span class="str">check:</span> <span class="ipl">%i</span><span class="str"></span><span class="esc">\n</span><span class="str">&quot;</span> <span class="kwd">stretch_depth c</span>
+
+<span class="kwa">let</span> <span class="kwd">long_lived_tree</span> <span class="opt">=</span> <span class="kwd">make max_depth</span>
+
+<span class="kwa">let rec</span> <span class="kwd">loop_depths d</span> <span class="opt">=</span>
+  <span class="kwa">for</span> i <span class="opt">=</span> <span class="num">0</span> <span class="kwa">to</span>  <span class="opt">((</span><span class="kwd">max_depth</span> <span class="opt">-</span> <span class="kwd">d</span><span class="opt">) /</span> <span class="num">2</span> <span class="opt">+</span> <span class="num">1</span><span class="opt">) -</span> <span class="num">1</span> <span class="kwa">do</span>
+    <span class="kwa">let</span> <span class="kwd">d</span> <span class="opt">=</span> <span class="kwd">d</span> <span class="opt">+</span> i <span class="opt">*</span> <span class="num">2</span> <span class="kwa">in</span>
+    <span class="kwa">let</span> <span class="kwd">niter</span> <span class="opt">=</span> <span class="num">1</span> <span class="kwa">lsl</span> <span class="opt">(</span><span class="kwd">max_depth</span> <span class="opt">-</span> <span class="kwd">d</span> <span class="opt">+</span> <span class="kwd">min_depth</span><span class="opt">)</span> <span class="kwa">in</span>
+    <span class="kwa">let</span> <span class="kwd">c</span> <span class="opt">=</span> <span class="kwb">ref</span> <span class="num">0</span> <span class="kwa">in</span>
+      <span class="kwa">for</span> i <span class="opt">=</span> <span class="num">1</span> <span class="kwa">to</span> <span class="kwd">niter</span> <span class="kwa">do</span> <span class="kwd">c</span> <span class="opt">:= !</span><span class="kwd">c</span> <span class="opt">+</span> <span class="kwd">check</span><span class="opt">(</span><span class="kwd">make d</span><span class="opt">)</span> <span class="kwa">done</span><span class="opt">;</span>
+      <span class="kwc">Printf</span><span class="opt">.</span>printf <span class="str">&quot;</span><span class="ipl">%i</span><span class="str"></span><span class="esc">\t</span> <span class="str">trees of depth</span> <span class="ipl">%i</span><span class="str"></span><span class="esc">\t</span> <span class="str">check:</span> <span class="ipl">%i</span><span class="str"></span><span class="esc">\n</span><span class="str">&quot;</span> <span class="kwd">niter d</span> <span class="opt">!</span><span class="kwd">c</span><span class="opt">;</span>
+  <span class="kwa">done</span>
+
+<span class="kwa">let</span> <span class="opt">() =</span>
+  flush stdout<span class="opt">;</span>
+  <span class="kwd">loop_depths min_depth</span><span class="opt">;</span>
+  <span class="kwc">Printf</span><span class="opt">.</span>printf <span class="str">&quot;long lived tree of depth</span> <span class="ipl">%i</span><span class="str"></span><span class="esc">\t</span> <span class="str">check:</span> <span class="ipl">%i</span><span class="str"></span><span class="esc">\n</span><span class="str">&quot;</span>
+    <span class="kwd">max_depth</span> <span class="opt">(</span><span class="kwd">check long_lived_tree</span><span class="opt">)</span>
+
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

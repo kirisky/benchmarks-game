@@ -17,6 +17,69 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="opt">#</span>lang racket<span class="opt">/</span>base
+
+<span class="slc">;;; The Computer Language Benchmarks Game</span>
+<span class="slc">;;; https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+
+<span class="slc">;;; Derived from the Chicken variant by Sven Hartrumpf</span>
+<span class="slc">;;; contributed by Matthew Flatt</span>
+<span class="slc">;;; *reset*</span>
+
+<span class="opt">(</span><span class="kwa">require</span> racket<span class="opt">/</span>cmdline<span class="opt">)</span>
+
+<span class="opt">(</span><span class="kwa">struct</span> node <span class="opt">(</span><span class="kwa">left</span> val right<span class="opt">))</span>
+
+<span class="slc">;; Instead of (define-struct leaf (val)):</span>
+<span class="opt">(</span><span class="kwa">define</span> <span class="opt">(</span><span class="kwa">leaf</span> val<span class="opt">) (</span><span class="kwa">node</span> <span class="opt">#</span>f val <span class="opt">#</span>f<span class="opt">))</span>
+<span class="opt">(</span><span class="kwa">define</span> <span class="opt">(</span><span class="kwa">leaf</span>? l<span class="opt">) (</span><span class="kwa">not</span> <span class="opt">(</span><span class="kwa">node-left</span> l<span class="opt">)))</span>
+<span class="opt">(</span><span class="kwa">define</span> <span class="opt">(</span><span class="kwa">leaf-val</span> l<span class="opt">) (</span><span class="kwa">node-val</span> l<span class="opt">))</span>
+
+<span class="opt">(</span><span class="kwa">define</span> <span class="opt">(</span><span class="kwa">make</span> item d<span class="opt">)</span>
+  <span class="opt">(</span><span class="kwa">if</span> <span class="opt">(=</span> d <span class="num">0</span><span class="opt">)</span>
+      <span class="opt">(</span><span class="kwa">leaf</span> item<span class="opt">)</span>
+      <span class="opt">(</span><span class="kwa">let</span> <span class="opt">((</span><span class="kwa">item2</span> <span class="opt">(*</span> item <span class="num">2</span><span class="opt">))</span>
+            <span class="opt">(</span><span class="kwa">d2</span> <span class="opt">(</span><span class="kwa">-</span> d <span class="num">1</span><span class="opt">)))</span>
+        <span class="opt">(</span><span class="kwa">node</span> <span class="opt">(</span><span class="kwa">make</span> <span class="opt">(</span><span class="kwa">-</span> item2 <span class="num">1</span><span class="opt">)</span> d2<span class="opt">)</span> 
+              item 
+              <span class="opt">(</span><span class="kwa">make</span> item2 d2<span class="opt">)))))</span>
+
+<span class="opt">(</span><span class="kwa">define</span> <span class="opt">(</span><span class="kwa">check</span> t<span class="opt">)</span>
+  <span class="opt">(</span><span class="kwa">if</span> <span class="opt">(</span><span class="kwa">leaf</span>? t<span class="opt">)</span>
+      <span class="num">1</span>
+      <span class="opt">(+</span> <span class="num">1</span> <span class="opt">(+ (</span><span class="kwa">check</span> <span class="opt">(</span><span class="kwa">node-left</span> t<span class="opt">))</span> 
+                         <span class="opt">(</span><span class="kwa">check</span> <span class="opt">(</span><span class="kwa">node-right</span> t<span class="opt">))))))</span>
+
+<span class="opt">(</span><span class="kwa">define</span> <span class="opt">(</span><span class="kwa">main</span> n<span class="opt">)</span>
+  <span class="opt">(</span><span class="kwa">let</span><span class="opt">* ((</span><span class="kwa">min-depth</span> <span class="num">4</span><span class="opt">)</span>
+         <span class="opt">(</span><span class="kwa">max-depth</span> <span class="opt">(</span><span class="kwa">max</span> <span class="opt">(+</span> min-depth <span class="num">2</span><span class="opt">)</span> n<span class="opt">)))</span>
+    <span class="opt">(</span><span class="kwa">let</span> <span class="opt">((</span><span class="kwa">stretch-depth</span> <span class="opt">(+</span> max-depth <span class="num">1</span><span class="opt">)))</span>
+      <span class="opt">(</span><span class="kwa">printf</span> <span class="str">&quot;stretch tree of depth ~a</span><span class="esc">\t</span> <span class="str">check: ~a</span><span class="esc">\n</span><span class="str">&quot;</span>
+              stretch-depth
+              <span class="opt">(</span><span class="kwa">check</span> <span class="opt">(</span><span class="kwa">make</span> <span class="num">0</span> stretch-depth<span class="opt">))))</span>
+    <span class="opt">(</span><span class="kwa">let</span> <span class="opt">((</span><span class="kwa">long-lived-tree</span> <span class="opt">(</span><span class="kwa">make</span> <span class="num">0</span> max-depth<span class="opt">)))</span>
+      <span class="opt">(</span><span class="kwa">for</span> <span class="opt">((</span><span class="kwa">d</span> <span class="opt">(</span><span class="kwa">in-range</span> <span class="num">4</span> <span class="opt">(</span><span class="kwa">add1</span> max-depth<span class="opt">)</span> <span class="num">2</span><span class="opt">)))</span>
+        <span class="opt">(</span><span class="kwa">let</span> <span class="opt">((</span><span class="kwa">iterations</span> <span class="opt">(</span><span class="kwa">arithmetic-shift</span> <span class="num">1</span> <span class="opt">(+ (</span><span class="kwa">-</span> max-depth d<span class="opt">)</span> min-depth<span class="opt">))))</span>
+          <span class="opt">(</span><span class="kwa">printf</span> <span class="str">&quot;~a</span><span class="esc">\t</span> <span class="str">trees of depth ~a</span><span class="esc">\t</span> <span class="str">check: ~a</span><span class="esc">\n</span><span class="str">&quot;</span>
+                  iterations
+                  d
+                  <span class="opt">(</span><span class="kwa">for</span><span class="opt">/</span>fold <span class="opt">([</span>c <span class="num">0</span><span class="opt">])</span>
+                            <span class="opt">([</span>i <span class="opt">(</span><span class="kwa">in-range</span> iterations<span class="opt">)])</span>
+                    <span class="opt">(+</span> c 
+                       <span class="opt">(</span><span class="kwa">check</span> <span class="opt">(</span><span class="kwa">make</span> i d<span class="opt">)) )))))</span>
+      <span class="opt">(</span><span class="kwa">printf</span> <span class="str">&quot;long lived tree of depth ~a</span><span class="esc">\t</span> <span class="str">check: ~a</span><span class="esc">\n</span><span class="str">&quot;</span>
+              max-depth
+              <span class="opt">(</span><span class="kwa">check</span> long-lived-tree<span class="opt">)))))</span>
+
+<span class="opt">(</span><span class="kwa">command-line</span> <span class="opt">#:</span>args <span class="opt">(</span><span class="kwa">n</span><span class="opt">)</span> 
+              <span class="opt">(</span><span class="kwa">main</span> <span class="opt">(</span><span class="kwa">string-</span><span class="opt">&gt;</span>number n<span class="opt">)))</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

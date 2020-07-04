@@ -17,6 +17,65 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="opt">#</span>lang racket<span class="opt">/</span>base
+
+<span class="slc">;;; The Computer Language Benchmarks Game</span>
+<span class="slc">;;; https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+
+<span class="slc">;;; contributed by Matthew Flatt</span>
+
+<span class="opt">(</span><span class="kwa">define</span> <span class="opt">(</span><span class="kwa">all-counts</span> len dna<span class="opt">)</span>
+  <span class="opt">(</span><span class="kwa">let</span> <span class="opt">([</span>table <span class="opt">(</span><span class="kwa">make-hasheq</span><span class="opt">)]</span>
+        <span class="opt">[</span>seq <span class="opt">(</span><span class="kwa">make-string</span> len<span class="opt">)])</span>
+    <span class="opt">(</span><span class="kwa">for</span> <span class="opt">([</span>s <span class="opt">(</span><span class="kwa">in-range</span> <span class="opt">(</span><span class="kwa">-</span> <span class="opt">(</span><span class="kwa">string-length</span> dna<span class="opt">)</span> len<span class="opt">)</span> -<span class="num">1</span> -<span class="num">1</span><span class="opt">)])</span>
+      <span class="opt">(</span><span class="kwa">string-copy</span><span class="opt">!</span> seq <span class="num">0</span> dna s <span class="opt">(+</span> s len<span class="opt">))</span>
+      <span class="opt">(</span><span class="kwa">let</span> <span class="opt">([</span>key <span class="opt">(</span><span class="kwa">string-</span><span class="opt">&gt;</span>symbol seq<span class="opt">)])</span>
+        <span class="opt">(</span><span class="kwa">let</span> <span class="opt">([</span>cnt <span class="opt">(</span><span class="kwa">hash-ref</span> table key <span class="num">0</span><span class="opt">)])</span>
+          <span class="opt">(</span><span class="kwa">hash-set</span><span class="opt">!</span> table key <span class="opt">(</span><span class="kwa">add1</span> cnt<span class="opt">)))))</span>
+    table<span class="opt">))</span>
+
+<span class="opt">(</span><span class="kwa">define</span> <span class="opt">(</span><span class="kwa">write-freqs</span> table<span class="opt">)</span>
+  <span class="opt">(</span><span class="kwa">let</span><span class="opt">* ([</span>content <span class="opt">(</span><span class="kwa">hash-map</span> table cons<span class="opt">)]</span>
+         <span class="opt">[</span>total <span class="opt">(</span><span class="kwa">exact-</span><span class="opt">&gt;</span>inexact <span class="opt">(</span><span class="kwa">apply</span> <span class="opt">+ (</span><span class="kwa">map</span> cdr content<span class="opt">)))])</span>
+    <span class="opt">(</span><span class="kwa">for</span> <span class="opt">([</span>a <span class="opt">(</span><span class="kwa">sort</span> content <span class="opt">&gt; #:</span>key cdr<span class="opt">)])</span>
+      <span class="opt">(</span><span class="kwa">printf</span> <span class="str">&quot;~a ~a</span><span class="esc">\n</span><span class="str">&quot;</span> 
+              <span class="opt">(</span><span class="kwa">car</span> a<span class="opt">)</span> 
+              <span class="opt">(</span><span class="kwa">real-</span><span class="opt">&gt;</span>decimal-string <span class="opt">(*</span> <span class="num">100</span> <span class="opt">(/ (</span><span class="kwa">cdr</span> a<span class="opt">)</span> total<span class="opt">))</span> <span class="num">3</span><span class="opt">)))))</span>
+
+<span class="opt">(</span><span class="kwa">define</span> <span class="opt">(</span><span class="kwa">write-one-freq</span> table key<span class="opt">)</span>
+  <span class="opt">(</span><span class="kwa">let</span> <span class="opt">([</span>cnt <span class="opt">(</span><span class="kwa">hash-ref</span> table key <span class="num">0</span><span class="opt">)])</span>
+    <span class="opt">(</span><span class="kwa">printf</span> <span class="str">&quot;~a</span><span class="esc">\t</span><span class="str">~a</span><span class="esc">\n</span><span class="str">&quot;</span> cnt key<span class="opt">)))</span>
+
+<span class="opt">(</span><span class="kwa">define</span> dna
+  <span class="opt">(</span><span class="kwa">let</span> <span class="opt">([</span>in <span class="opt">(</span><span class="kwa">current-input-port</span><span class="opt">)])</span>
+    <span class="slc">;; Skip to &quot;&gt;THREE ...&quot;</span>
+    <span class="opt">(</span><span class="kwa">regexp-match</span> <span class="opt">#</span>rx<span class="opt">#</span><span class="str">&quot;(?m:^&gt;THREE.*$)&quot;</span> in<span class="opt">)</span>
+    <span class="opt">(</span><span class="kwa">let</span> <span class="opt">([</span>s <span class="opt">(</span><span class="kwa">open-output-string</span><span class="opt">)])</span>
+      <span class="slc">;; Copy everything but newlines to s:</span>
+      <span class="opt">(</span><span class="kwa">for</span> <span class="opt">([</span>l <span class="opt">(</span><span class="kwa">in-bytes-lines</span> in<span class="opt">)])</span>
+        <span class="opt">(</span><span class="kwa">write-bytes</span> l s<span class="opt">))</span>
+      <span class="slc">;; Extract the string from s:</span>
+      <span class="opt">(</span><span class="kwa">string-upcase</span> <span class="opt">(</span><span class="kwa">get-output-string</span> s<span class="opt">)))))</span>
+
+<span class="slc">;; 1-nucleotide counts:</span>
+<span class="opt">(</span><span class="kwa">write-freqs</span> <span class="opt">(</span><span class="kwa">all-counts</span> <span class="num">1</span> dna<span class="opt">))</span>
+<span class="opt">(</span><span class="kwa">newline</span><span class="opt">)</span>
+
+<span class="slc">;; 2-nucleotide counts:</span>
+<span class="opt">(</span><span class="kwa">write-freqs</span> <span class="opt">(</span><span class="kwa">all-counts</span> <span class="num">2</span> dna<span class="opt">))</span>
+<span class="opt">(</span><span class="kwa">newline</span><span class="opt">)</span>
+
+<span class="slc">;; Specific sequences:</span>
+<span class="opt">(</span><span class="kwa">for</span> <span class="opt">([</span>seq <span class="opt">&apos;(</span><span class="str">&quot;GGT&quot;</span> <span class="str">&quot;GGTA&quot;</span> <span class="str">&quot;GGTATT&quot;</span> <span class="str">&quot;GGTATTTTAATT&quot;</span> <span class="str">&quot;GGTATTTTAATTTATAGT&quot;</span><span class="opt">)])</span> 
+  <span class="opt">(</span><span class="kwa">write-one-freq</span> <span class="opt">(</span><span class="kwa">all-counts</span> <span class="opt">(</span><span class="kwa">string-length</span> seq<span class="opt">)</span> dna<span class="opt">)</span>
+                  <span class="opt">(</span><span class="kwa">string-</span><span class="opt">&gt;</span>symbol seq<span class="opt">)))</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

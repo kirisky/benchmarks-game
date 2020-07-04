@@ -17,6 +17,68 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc"># The Computer Language Benchmarks Game</span>
+<span class="slc"># https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">#</span>
+<span class="slc"># regex-dna program contributed by Dominique Wahli</span>
+<span class="slc"># 2to3</span>
+<span class="slc"># mp by Ahmad Syukri</span>
+<span class="slc"># modified by Justin Peel</span>
+<span class="slc"># converted from regex-dna program</span>
+
+<span class="kwa">from</span> sys <span class="kwa">import</span> stdin
+<span class="kwa">from</span> re <span class="kwa">import</span> sub<span class="opt">,</span> findall
+<span class="kwa">from</span> multiprocessing <span class="kwa">import</span> Pool
+
+<span class="kwa">def</span> <span class="kwd">init</span><span class="opt">(</span>arg<span class="opt">):</span>
+    <span class="kwa">global</span> seq
+    seq <span class="opt">=</span> arg
+
+<span class="kwa">def</span> <span class="kwd">var_find</span><span class="opt">(</span>f<span class="opt">):</span>
+    <span class="kwa">return</span> <span class="kwb">len</span><span class="opt">(</span><span class="kwd">findall</span><span class="opt">(</span>f<span class="opt">,</span> seq<span class="opt">))</span>
+
+<span class="kwa">def</span> <span class="kwd">main</span><span class="opt">():</span>
+    seq <span class="opt">=</span> stdin<span class="opt">.</span><span class="kwd">read</span><span class="opt">()</span>
+    ilen <span class="opt">=</span> <span class="kwb">len</span><span class="opt">(</span>seq<span class="opt">)</span>
+
+    seq <span class="opt">=</span> <span class="kwd">sub</span><span class="opt">(</span><span class="str">&apos;&gt;.*</span><span class="esc">\n</span><span class="str">|</span><span class="esc">\n</span><span class="str">&apos;</span><span class="opt">,</span> <span class="str">&apos;&apos;</span><span class="opt">,</span> seq<span class="opt">)</span>
+    clen <span class="opt">=</span> <span class="kwb">len</span><span class="opt">(</span>seq<span class="opt">)</span>
+
+    pool <span class="opt">=</span> <span class="kwd">Pool</span><span class="opt">(</span>initializer <span class="opt">=</span> init<span class="opt">,</span> initargs <span class="opt">= (</span>seq<span class="opt">,))</span>
+
+    variants <span class="opt">= (</span>
+          <span class="str">&apos;agggtaaa|tttaccct&apos;</span><span class="opt">,</span>
+          <span class="str">&apos;[cgt]gggtaaa|tttaccc[acg]&apos;</span><span class="opt">,</span>
+          <span class="str">&apos;a[act]ggtaaa|tttacc[agt]t&apos;</span><span class="opt">,</span>
+          <span class="str">&apos;ag[act]gtaaa|tttac[agt]ct&apos;</span><span class="opt">,</span>
+          <span class="str">&apos;agg[act]taaa|ttta[agt]cct&apos;</span><span class="opt">,</span>
+          <span class="str">&apos;aggg[acg]aaa|ttt[cgt]ccct&apos;</span><span class="opt">,</span>
+          <span class="str">&apos;agggt[cgt]aa|tt[acg]accct&apos;</span><span class="opt">,</span>
+          <span class="str">&apos;agggta[cgt]a|t[acg]taccct&apos;</span><span class="opt">,</span>
+          <span class="str">&apos;agggtaa[cgt]|[acg]ttaccct&apos;</span><span class="opt">)</span>
+    <span class="kwa">for</span> f <span class="kwa">in</span> <span class="kwb">zip</span><span class="opt">(</span>variants<span class="opt">,</span> pool<span class="opt">.</span><span class="kwd">imap</span><span class="opt">(</span>var_find<span class="opt">,</span> variants<span class="opt">)):</span>
+        <span class="kwa">print</span><span class="opt">(</span>f<span class="opt">[</span><span class="num">0</span><span class="opt">],</span> f<span class="opt">[</span><span class="num">1</span><span class="opt">])</span>
+
+    subst <span class="opt">= {</span>
+          <span class="str">&apos;tHa[Nt]&apos;</span> <span class="opt">:</span> <span class="str">&apos;&lt;4&gt;&apos;</span><span class="opt">,</span> <span class="str">&apos;aND|caN|Ha[DS]|WaS&apos;</span> <span class="opt">:</span> <span class="str">&apos;&lt;3&gt;&apos;</span><span class="opt">,</span> <span class="str">&apos;a[NSt]|BY&apos;</span> <span class="opt">:</span> <span class="str">&apos;&lt;2&gt;&apos;</span><span class="opt">,</span>
+          <span class="str">&apos;&lt;[^&gt;]*&gt;&apos;</span> <span class="opt">:</span> <span class="str">&apos;|&apos;</span><span class="opt">,</span> <span class="str">&apos;</span><span class="esc">\\</span><span class="str">|[^|][^|]*</span><span class="esc">\\</span><span class="str">|&apos;</span> <span class="opt">:</span> <span class="str">&apos;-&apos;</span><span class="opt">}</span>
+    <span class="kwa">for</span> f<span class="opt">,</span> r <span class="kwa">in</span> <span class="kwb">list</span><span class="opt">(</span>subst<span class="opt">.</span><span class="kwd">items</span><span class="opt">()):</span>
+        seq <span class="opt">=</span> <span class="kwd">sub</span><span class="opt">(</span>f<span class="opt">,</span> r<span class="opt">,</span> seq<span class="opt">)</span>
+
+    <span class="kwa">print</span><span class="opt">()</span>
+    <span class="kwa">print</span><span class="opt">(</span>ilen<span class="opt">)</span>
+    <span class="kwa">print</span><span class="opt">(</span>clen<span class="opt">)</span>
+    <span class="kwa">print</span><span class="opt">(</span><span class="kwb">len</span><span class="opt">(</span>seq<span class="opt">))</span>
+
+<span class="kwa">if</span> __name__<span class="opt">==</span><span class="str">&quot;__main__&quot;</span><span class="opt">:</span>
+    <span class="kwd">main</span><span class="opt">()</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

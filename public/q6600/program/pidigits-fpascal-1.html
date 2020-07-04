@@ -17,6 +17,541 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="com">{ The Computer Language Benchmarks Game</span>
+<span class="com">  https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="com"></span>
+<span class="com">  contributed by Vincent Snijders</span>
+<span class="com">}</span>
+
+<span class="ppc">{$mode objfpc}</span>
+
+
+<span class="kwa">program</span> pidigits<span class="opt">;</span>
+
+<span class="kwa">type</span>
+  <span class="com">{ TBigInt }</span>
+
+  PBigInt <span class="opt">= ^</span>TBigInt<span class="opt">;</span>
+
+  <span class="com">{ TBigInt }</span>
+
+  TBigInt <span class="opt">=</span> <span class="kwa">class</span>
+  <span class="kwa">private</span>
+    Digit<span class="opt">:</span> pdword<span class="opt">;</span>
+    FSize<span class="opt">:</span> <span class="kwb">integer</span><span class="opt">;</span>
+    Capacity<span class="opt">:</span> <span class="kwb">integer</span><span class="opt">;</span>
+    FNextFree<span class="opt">:</span> TBigInt<span class="opt">;</span> <span class="slc">// used to maintain the freelist</span>
+    <span class="kwa">procedure</span> Clear<span class="opt">;</span>
+    <span class="kwa">procedure</span> <span class="kwd">Resize</span><span class="opt">(</span>NewSize<span class="opt">:</span> <span class="kwb">integer</span><span class="opt">);</span>
+    <span class="kwa">function</span> IsNegative<span class="opt">:</span> <span class="kwb">boolean</span><span class="opt">;</span> <span class="kwa">inline</span><span class="opt">;</span>
+    <span class="kwa">function</span> IsZero<span class="opt">:</span> <span class="kwb">boolean</span><span class="opt">;</span> <span class="kwa">inline</span><span class="opt">;</span>
+    <span class="kwa">procedure</span> Negate<span class="opt">;</span>
+  <span class="kwa">public</span>
+    <span class="kwa">constructor</span> <span class="kwd">Create</span><span class="opt">(</span>InitialSize<span class="opt">:</span> <span class="kwb">integer</span><span class="opt">);</span>
+    <span class="kwa">destructor</span> Destroy<span class="opt">;</span> <span class="kwa">override</span><span class="opt">;</span>
+    <span class="kwa">function</span> <span class="kwd">GetDigit</span><span class="opt">(</span>i<span class="opt">:</span> <span class="kwb">integer</span><span class="opt">) :</span> DWord<span class="opt">;</span> <span class="kwa">inline</span><span class="opt">;</span>
+  <span class="kwa">end</span><span class="opt">;</span>
+
+<span class="kwa">type</span>
+  TBigMatrix <span class="opt">=</span> <span class="kwa">array</span><span class="opt">[</span><span class="num">1</span><span class="opt">.</span><span class="num">.2</span><span class="opt">,</span><span class="num">1</span><span class="opt">.</span><span class="num">.2</span><span class="opt">]</span> <span class="kwa">of</span> TBigInt<span class="opt">;</span>
+  TIntMatrix <span class="opt">=</span> <span class="kwa">array</span><span class="opt">[</span><span class="num">1</span><span class="opt">.</span><span class="num">.2</span><span class="opt">,</span><span class="num">1</span><span class="opt">.</span><span class="num">.2</span><span class="opt">]</span> <span class="kwa">of</span> <span class="kwb">integer</span><span class="opt">;</span>
+
+<span class="kwa">var</span>
+  BigIntStack<span class="opt">:</span> PBigInt<span class="opt">;</span>
+  BigIntStackLen<span class="opt">:</span> <span class="kwb">integer</span><span class="opt">;</span>
+  BigIntTop<span class="opt">:</span> <span class="kwb">integer</span><span class="opt">;</span>
+  FirstFreeBigInt<span class="opt">:</span> TBigInt<span class="opt">;</span>
+
+<span class="com">{ BigInt memory management }</span>
+
+<span class="kwa">procedure</span> FreeBigInts<span class="opt">;</span>
+<span class="kwa">var</span>
+  Next<span class="opt">:</span> TBigInt<span class="opt">;</span>
+<span class="kwa">begin</span>
+  <span class="kwa">while</span> <span class="kwd">assigned</span><span class="opt">(</span>FirstFreeBigInt<span class="opt">)</span> <span class="kwa">do begin</span>
+    Next <span class="opt">:=</span> FirstFreeBigInt<span class="opt">.</span>FNextFree<span class="opt">;</span>
+    FirstFreeBigInt<span class="opt">.</span>Free<span class="opt">;</span>
+    FirstFreeBigInt <span class="opt">:=</span> Next<span class="opt">;</span>
+  <span class="kwa">end</span><span class="opt">;</span>
+<span class="kwa">end</span><span class="opt">;</span>
+
+<span class="kwa">function</span> <span class="kwd">GetBigInt</span><span class="opt">(</span>Size<span class="opt">:</span> <span class="kwb">integer</span><span class="opt">;</span> DoClear<span class="opt">:</span> <span class="kwb">boolean</span> <span class="opt">=</span> <span class="kwb">true</span><span class="opt">) :</span> TBigInt<span class="opt">;</span>
+<span class="kwa">var</span>
+  Current<span class="opt">,</span> Previous<span class="opt">:</span> TBigInt<span class="opt">;</span>
+<span class="kwa">begin</span>
+  <span class="kwa">if</span> <span class="kwd">assigned</span><span class="opt">(</span>FirstFreeBigInt<span class="opt">)</span> <span class="kwa">then begin</span>
+    Previous <span class="opt">:=</span> <span class="kwa">nil</span><span class="opt">;</span>
+    Current <span class="opt">:=</span> FirstFreeBigInt<span class="opt">;</span>
+    <span class="kwa">repeat</span>
+      <span class="kwa">if</span> <span class="opt">(</span>Current<span class="opt">.</span>Capacity<span class="opt">&gt;=</span>Size<span class="opt">)</span> <span class="kwa">then begin</span>
+        Result<span class="opt">:=</span>Current<span class="opt">;</span>
+        Result<span class="opt">.</span>FSize<span class="opt">:=</span> Size<span class="opt">;</span>
+        <span class="kwa">if</span> DoClear <span class="kwa">then</span>
+          Result<span class="opt">.</span>Clear<span class="opt">;</span>
+        <span class="kwa">if</span> <span class="kwd">assigned</span><span class="opt">(</span>previous<span class="opt">)</span> <span class="kwa">then</span>
+          Previous<span class="opt">.</span>FNextFree <span class="opt">:=</span> Current<span class="opt">.</span>FNextFree
+        <span class="kwa">else</span>
+          FirstFreeBigInt <span class="opt">:=</span> Current<span class="opt">.</span>FNextFree<span class="opt">;</span>
+        exit<span class="opt">;</span>
+      <span class="kwa">end</span><span class="opt">;</span>
+      Previous <span class="opt">:=</span> Current<span class="opt">;</span>
+      Current <span class="opt">:=</span> Current<span class="opt">.</span>FNextFree<span class="opt">;</span>
+    <span class="kwa">until</span> Current<span class="opt">=</span><span class="kwa">nil</span><span class="opt">;</span>
+    Result <span class="opt">:=</span> FirstFreeBigInt<span class="opt">;</span>
+    Result<span class="opt">.</span><span class="kwd">Resize</span><span class="opt">(</span>Size<span class="opt">);</span>
+    FirstFreeBigInt <span class="opt">:=</span> FirstFreeBigInt<span class="opt">.</span>FNextFree<span class="opt">;</span>
+  <span class="kwa">end</span>
+  <span class="kwa">else</span> result <span class="opt">:=</span> TBigInt<span class="opt">.</span><span class="kwd">Create</span><span class="opt">(</span>Size<span class="opt">);</span>
+<span class="kwa">end</span><span class="opt">;</span>
+
+<span class="kwa">function</span> <span class="kwd">GetBigInt</span><span class="opt">(</span>bi<span class="opt">:</span> TBigInt<span class="opt">) :</span> TBigInt<span class="opt">;</span> <span class="kwa">inline</span><span class="opt">;</span>
+<span class="kwa">begin</span>
+  result <span class="opt">:=</span> <span class="kwd">GetBigInt</span><span class="opt">(</span>bi<span class="opt">.</span>FSize<span class="opt">,</span> <span class="kwb">false</span><span class="opt">);</span>
+  <span class="kwd">Move</span><span class="opt">(</span>bi<span class="opt">.</span>Digit<span class="opt">^,</span> Result<span class="opt">.</span>Digit<span class="opt">^,</span> bi<span class="opt">.</span>FSize<span class="opt">*</span><span class="kwd">sizeof</span><span class="opt">(</span>dword<span class="opt">));</span>
+<span class="kwa">end</span><span class="opt">;</span>
+
+<span class="kwa">procedure</span> <span class="kwd">FreeBigInt</span><span class="opt">(</span>bi<span class="opt">:</span> TBigInt<span class="opt">);</span>
+<span class="kwa">begin</span>
+  bi<span class="opt">.</span>FNextFree <span class="opt">:=</span> FirstFreeBigInt<span class="opt">;</span>
+  FirstFreeBigInt <span class="opt">:=</span> bi<span class="opt">;</span>
+<span class="kwa">end</span><span class="opt">;</span>
+
+<span class="com">{ TBigInt }</span>
+
+operator <span class="opt">:= (</span>i<span class="opt">:</span> <span class="kwb">integer</span><span class="opt">) :</span> TBigInt<span class="opt">;</span> <span class="kwa">inline</span><span class="opt">;</span>
+<span class="kwa">begin</span>
+  Result <span class="opt">:=</span> <span class="kwd">GetBigInt</span><span class="opt">(</span><span class="num">1</span><span class="opt">);</span>
+  Result<span class="opt">.</span>Digit<span class="opt">[</span><span class="num">0</span><span class="opt">] :=</span> <span class="kwd">dword</span><span class="opt">(</span>i<span class="opt">);</span>
+<span class="kwa">end</span><span class="opt">;</span>
+
+<span class="kwa">constructor</span> TBigInt<span class="opt">.</span><span class="kwd">Create</span><span class="opt">(</span>InitialSize<span class="opt">:</span> <span class="kwb">integer</span><span class="opt">);</span>
+<span class="kwa">begin</span>
+  FSize<span class="opt">:=</span> InitialSize<span class="opt">;</span>
+  Capacity<span class="opt">:=</span> <span class="num">2</span><span class="opt">*</span>FSize<span class="opt">;</span>
+  <span class="kwd">GetMem</span><span class="opt">(</span>Digit<span class="opt">,</span> Capacity<span class="opt">*</span><span class="kwd">sizeof</span><span class="opt">(</span>DWord<span class="opt">));</span>
+  Clear<span class="opt">;</span>
+<span class="kwa">end</span><span class="opt">;</span>
+
+<span class="kwa">destructor</span> TBigInt<span class="opt">.</span>Destroy<span class="opt">;</span>
+<span class="kwa">begin</span>
+  <span class="kwd">FreeMem</span><span class="opt">(</span>Digit<span class="opt">);</span>
+  <span class="kwa">inherited</span> Destroy<span class="opt">;</span>
+<span class="kwa">end</span><span class="opt">;</span>
+
+<span class="kwa">procedure</span> TBigInt<span class="opt">.</span>Clear<span class="opt">;</span>
+<span class="kwa">begin</span>
+  <span class="kwd">FillChar</span><span class="opt">(</span>Digit<span class="opt">[</span><span class="num">0</span><span class="opt">],</span> FSize<span class="opt">*</span><span class="kwd">sizeof</span><span class="opt">(</span>DWord<span class="opt">),</span> <span class="num">0</span><span class="opt">);</span>
+<span class="kwa">end</span><span class="opt">;</span>
+
+<span class="kwa">procedure</span> TBigInt<span class="opt">.</span><span class="kwd">Resize</span><span class="opt">(</span>NewSize<span class="opt">:</span> <span class="kwb">integer</span><span class="opt">);</span>
+<span class="kwa">begin</span>
+  <span class="kwd">FreeMem</span><span class="opt">(</span>Digit<span class="opt">);</span>
+  FSize<span class="opt">:=</span> NewSize<span class="opt">;</span>
+  Capacity<span class="opt">:=</span> <span class="num">2</span><span class="opt">*</span>FSize<span class="opt">;</span>
+  <span class="kwd">GetMem</span><span class="opt">(</span>Digit<span class="opt">,</span> Capacity<span class="opt">*</span><span class="kwd">sizeof</span><span class="opt">(</span>DWord<span class="opt">));</span>
+  Clear<span class="opt">;</span>
+<span class="kwa">end</span><span class="opt">;</span>
+
+<span class="kwa">function</span> TBigInt<span class="opt">.</span>IsNegative<span class="opt">:</span> <span class="kwb">boolean</span><span class="opt">;</span> <span class="kwa">inline</span><span class="opt">;</span>
+<span class="kwa">begin</span>
+  result <span class="opt">:= (</span>Digit<span class="opt">[</span>FSize<span class="opt">-</span><span class="num">1</span><span class="opt">]</span> <span class="kwa">and</span> <span class="num">$80000000</span><span class="opt">)&gt;</span><span class="num">0</span><span class="opt">;</span>
+<span class="kwa">end</span><span class="opt">;</span>
+
+<span class="kwa">function</span> TBigInt<span class="opt">.</span>IsZero<span class="opt">:</span><span class="kwb">boolean</span><span class="opt">;</span><span class="kwa">inline</span><span class="opt">;</span>
+<span class="kwa">begin</span>
+  result <span class="opt">:= (</span>FSize<span class="opt">=</span><span class="num">1</span><span class="opt">)</span> <span class="kwa">and</span> <span class="opt">(</span>Digit<span class="opt">^=</span><span class="num">0</span><span class="opt">);</span>
+<span class="kwa">end</span><span class="opt">;</span>
+
+<span class="kwa">procedure</span> TBigInt<span class="opt">.</span>Negate<span class="opt">;</span>
+<span class="kwa">var</span>
+  value<span class="opt">:</span> <span class="kwb">int64</span><span class="opt">;</span>
+  valueparts <span class="opt">:</span> <span class="kwa">array</span><span class="opt">[</span><span class="num">0</span><span class="opt">.</span><span class="num">.1</span><span class="opt">]</span> <span class="kwa">of</span> dword <span class="kwa">absolute</span> value<span class="opt">;</span>
+  carry<span class="opt">:</span> <span class="kwb">integer</span><span class="opt">;</span>
+  CurDigit<span class="opt">:</span> PDWord<span class="opt">;</span>
+<span class="kwa">begin</span>
+  <span class="kwa">if</span> IsZero <span class="kwa">then</span> exit<span class="opt">;</span>
+  CurDigit<span class="opt">:= &#64;</span>Digit<span class="opt">[</span>FSize<span class="opt">-</span><span class="num">1</span><span class="opt">];</span>
+  <span class="kwa">repeat</span>
+    CurDigit<span class="opt">^:=</span> <span class="kwa">not</span> CurDigit<span class="opt">^;</span>
+    <span class="kwd">dec</span><span class="opt">(</span>CurDigit<span class="opt">);</span>
+  <span class="kwa">until</span> CurDigit<span class="opt">&lt;</span>Digit<span class="opt">;</span>
+  carry <span class="opt">:=</span> <span class="num">1</span><span class="opt">;</span>
+  CurDigit<span class="opt">:=</span>Digit<span class="opt">;</span>
+  <span class="kwa">while</span> <span class="opt">(</span>carry<span class="opt">&gt;</span><span class="num">0</span><span class="opt">)</span> <span class="kwa">do begin</span>
+    value <span class="opt">:=</span> CurDigit<span class="opt">^;</span>
+    <span class="kwd">inc</span><span class="opt">(</span>value<span class="opt">);</span>
+    CurDigit<span class="opt">^ :=</span> valueparts<span class="opt">[</span><span class="num">0</span><span class="opt">];</span>
+    carry <span class="opt">:=</span> valueparts<span class="opt">[</span><span class="num">1</span><span class="opt">];</span>
+    <span class="kwd">inc</span><span class="opt">(</span>CurDigit<span class="opt">);</span>
+  <span class="kwa">end</span><span class="opt">;</span>
+<span class="kwa">end</span><span class="opt">;</span>
+
+<span class="kwa">function</span> TBigInt<span class="opt">.</span><span class="kwd">GetDigit</span><span class="opt">(</span>i<span class="opt">:</span> <span class="kwb">integer</span><span class="opt">):</span> DWord<span class="opt">;</span> <span class="kwa">inline</span><span class="opt">;</span>
+<span class="kwa">begin</span>
+  <span class="kwa">if</span> <span class="opt">(</span>i<span class="opt">&lt;</span>FSize<span class="opt">)</span> <span class="kwa">then</span>
+    result <span class="opt">:=</span> Digit<span class="opt">[</span>i<span class="opt">]</span>
+  <span class="kwa">else if</span> IsNegative <span class="kwa">then</span>
+    result <span class="opt">:=</span> <span class="num">$FFFFFFFF</span>
+  <span class="kwa">else</span>
+    result <span class="opt">:=</span> <span class="num">0</span><span class="opt">;</span>
+<span class="kwa">end</span><span class="opt">;</span>
+
+<span class="com">{ BigInt Calculation }</span>
+
+<span class="kwa">procedure</span> <span class="kwd">PushBigInt</span><span class="opt">(</span>bi<span class="opt">:</span> TBigInt<span class="opt">);</span>
+<span class="kwa">begin</span>
+  <span class="kwd">inc</span><span class="opt">(</span>BigIntTop<span class="opt">);</span>
+  <span class="kwa">if</span> <span class="opt">(</span>BigIntTop<span class="opt">=</span>BigIntStackLen<span class="opt">)</span> <span class="kwa">then</span>
+    <span class="kwd">RunError</span><span class="opt">(</span><span class="num">1025</span><span class="opt">);</span> <span class="slc">// not implemented, too complicated calculation</span>
+  BigIntStack<span class="opt">[</span>BigIntTop<span class="opt">]:=</span>bi<span class="opt">;</span>
+<span class="kwa">end</span><span class="opt">;</span>
+
+<span class="kwa">procedure</span> <span class="kwd">PushBigIntByValue</span><span class="opt">(</span>bi<span class="opt">:</span> TBigInt<span class="opt">);</span>
+<span class="kwa">begin</span>
+  <span class="kwd">inc</span><span class="opt">(</span>BigIntTop<span class="opt">);</span>
+  <span class="kwa">if</span> <span class="opt">(</span>BigIntTop<span class="opt">=</span>BigIntStackLen<span class="opt">)</span> <span class="kwa">then</span>
+    <span class="kwd">RunError</span><span class="opt">(</span><span class="num">1025</span><span class="opt">);</span> <span class="slc">// not implemented, too complicated calculation</span>
+  BigIntStack<span class="opt">[</span>BigIntTop<span class="opt">]:=</span> <span class="kwd">GetBigInt</span><span class="opt">(</span>bi<span class="opt">);</span>
+<span class="kwa">end</span><span class="opt">;</span>
+
+<span class="kwa">function</span> PopBigInt<span class="opt">:</span> TBigInt<span class="opt">;</span>
+<span class="kwa">begin</span>
+  result<span class="opt">:=</span>BigIntStack<span class="opt">[</span>BigIntTop<span class="opt">];</span>
+  <span class="kwd">dec</span><span class="opt">(</span>BigIntTop<span class="opt">);</span>
+<span class="kwa">end</span><span class="opt">;</span>
+
+<span class="kwa">procedure</span> BigIntAdd<span class="opt">;</span>
+<span class="kwa">var</span>
+  a<span class="opt">,</span> b<span class="opt">:</span> TBigInt<span class="opt">;</span>
+  bSignExtend<span class="opt">:</span> dword<span class="opt">;</span>
+  Result<span class="opt">:</span> TBigInt<span class="opt">;</span>
+  carry<span class="opt">:</span> <span class="kwb">integer</span><span class="opt">;</span>
+  sum<span class="opt">:</span> <span class="kwb">int64</span><span class="opt">;</span>
+  maxsize<span class="opt">,</span> minsize<span class="opt">,</span> i<span class="opt">:</span> <span class="kwb">integer</span><span class="opt">;</span>
+  sumparts <span class="opt">:</span> <span class="kwa">array</span><span class="opt">[</span><span class="num">0</span><span class="opt">.</span><span class="num">.1</span><span class="opt">]</span> <span class="kwa">of</span> <span class="kwb">integer</span> <span class="kwa">absolute</span> sum<span class="opt">;</span>
+  aDigit<span class="opt">,</span> bDigit<span class="opt">,</span> ResultDigit<span class="opt">:</span> PDWord<span class="opt">;</span>
+<span class="kwa">begin</span>
+  <span class="kwa">if</span> BigIntStack<span class="opt">[</span>BigIntTop<span class="opt">-</span><span class="num">1</span><span class="opt">].</span>FSize<span class="opt">&lt;</span>BigIntStack<span class="opt">[</span>BigIntTop<span class="opt">].</span>FSize <span class="kwa">then begin</span>
+    a<span class="opt">:=</span> BigIntStack<span class="opt">[</span>BigIntTop<span class="opt">];</span>
+    b<span class="opt">:=</span> BigIntStack<span class="opt">[</span>BigIntTop<span class="opt">-</span><span class="num">1</span><span class="opt">];</span>
+  <span class="kwa">end</span>
+  <span class="kwa">else begin</span>
+    a<span class="opt">:=</span> BigIntStack<span class="opt">[</span>BigIntTop<span class="opt">-</span><span class="num">1</span><span class="opt">];</span>
+    b<span class="opt">:=</span> BigIntStack<span class="opt">[</span>BigIntTop<span class="opt">];</span>
+  <span class="kwa">end</span><span class="opt">;</span>
+  <span class="kwa">if</span> b<span class="opt">.</span>IsZero <span class="kwa">then</span>
+    Result <span class="opt">:=</span> a
+  <span class="kwa">else begin</span>
+    maxsize<span class="opt">:=</span>a<span class="opt">.</span>FSize<span class="opt">;</span>
+    minsize<span class="opt">:=</span>b<span class="opt">.</span>FSize<span class="opt">;</span>
+    Result <span class="opt">:=</span> <span class="kwd">GetBigInt</span><span class="opt">(</span>maxsize<span class="opt">+</span><span class="num">1</span><span class="opt">);</span>
+    carry <span class="opt">:=</span> <span class="num">0</span><span class="opt">;</span>
+    aDigit<span class="opt">:=</span> a<span class="opt">.</span>Digit<span class="opt">;</span> bDigit<span class="opt">:=</span> b<span class="opt">.</span>Digit<span class="opt">;</span> ResultDigit<span class="opt">:=</span> Result<span class="opt">.</span>Digit<span class="opt">;</span>
+    <span class="kwa">for</span> i<span class="opt">:=</span> <span class="num">0</span> <span class="kwa">to</span> minsize<span class="opt">-</span><span class="num">1</span> <span class="kwa">do begin</span>
+      sum <span class="opt">:=</span> <span class="kwb">int64</span><span class="opt">(</span>aDigit<span class="opt">^) +</span> <span class="kwb">int64</span><span class="opt">(</span>bDigit<span class="opt">^) +</span> carry<span class="opt">;</span>
+      carry <span class="opt">:=</span> sumparts<span class="opt">[</span><span class="num">1</span><span class="opt">];</span>
+      ResultDigit<span class="opt">^ :=</span> sumparts<span class="opt">[</span><span class="num">0</span><span class="opt">];</span>
+      <span class="kwd">inc</span><span class="opt">(</span>aDigit<span class="opt">);</span> <span class="kwd">inc</span><span class="opt">(</span>bDigit<span class="opt">);</span> <span class="kwd">inc</span><span class="opt">(</span>ResultDigit<span class="opt">);</span>
+    <span class="kwa">end</span><span class="opt">;</span>
+    <span class="kwa">if</span> b<span class="opt">.</span>IsNegative <span class="kwa">then</span>
+      bSignExtend <span class="opt">:=</span> <span class="num">$FFFFFFFF</span>
+    <span class="kwa">else</span>
+      bSignExtend <span class="opt">:=</span> <span class="num">0</span><span class="opt">;</span>
+    <span class="kwa">for</span> i<span class="opt">:=</span> minsize <span class="kwa">to</span> maxsize <span class="kwa">do begin</span>
+      sum <span class="opt">:=</span> <span class="kwb">int64</span><span class="opt">(</span>a<span class="opt">.</span><span class="kwd">GetDigit</span><span class="opt">(</span>i<span class="opt">)) +</span> bSignExtend <span class="opt">+</span> carry<span class="opt">;</span>
+      carry <span class="opt">:=</span> sumparts<span class="opt">[</span><span class="num">1</span><span class="opt">];</span>
+      ResultDigit<span class="opt">^ :=</span> sumparts<span class="opt">[</span><span class="num">0</span><span class="opt">];</span>
+      <span class="kwd">inc</span><span class="opt">(</span>ResultDigit<span class="opt">);</span>
+    <span class="kwa">end</span><span class="opt">;</span>
+    <span class="kwa">while</span> <span class="opt">(</span>Result<span class="opt">.</span>FSize<span class="opt">&gt;</span><span class="num">1</span><span class="opt">)</span> <span class="kwa">and</span> <span class="opt">(</span>Result<span class="opt">.</span>Digit<span class="opt">[</span>Result<span class="opt">.</span>FSize<span class="opt">-</span><span class="num">1</span><span class="opt">]=</span><span class="num">0</span><span class="opt">)</span>
+      <span class="kwa">and</span> <span class="opt">(</span>Result<span class="opt">.</span>Digit<span class="opt">[</span>Result<span class="opt">.</span>FSize<span class="opt">-</span><span class="num">2</span><span class="opt">]</span> <span class="kwa">and</span> <span class="num">$80000000</span><span class="opt">=</span><span class="num">0</span><span class="opt">)</span> <span class="kwa">do</span>
+      <span class="kwd">dec</span><span class="opt">(</span>Result<span class="opt">.</span>FSize<span class="opt">);</span>
+    <span class="kwa">while</span> <span class="opt">(</span>Result<span class="opt">.</span>FSize<span class="opt">&gt;</span><span class="num">1</span><span class="opt">)</span> <span class="kwa">and</span>
+       <span class="opt">(</span>Result<span class="opt">.</span>Digit<span class="opt">[</span>Result<span class="opt">.</span>FSize<span class="opt">-</span><span class="num">1</span><span class="opt">]=</span><span class="num">$FFFFFFFF</span><span class="opt">)</span> <span class="kwa">and</span>
+       <span class="opt">(</span>Result<span class="opt">.</span>Digit<span class="opt">[</span>Result<span class="opt">.</span>FSize<span class="opt">-</span><span class="num">2</span><span class="opt">]</span> <span class="kwa">and</span> <span class="num">$80000000</span><span class="opt">&gt;</span><span class="num">0</span><span class="opt">)</span> <span class="kwa">do</span>
+      <span class="kwd">dec</span><span class="opt">(</span>Result<span class="opt">.</span>FSize<span class="opt">);</span>
+    <span class="kwd">FreeBigInt</span><span class="opt">(</span>a<span class="opt">);</span>
+  <span class="kwa">end</span><span class="opt">;</span>
+  <span class="kwd">FreeBigInt</span><span class="opt">(</span>b<span class="opt">);</span>
+  <span class="kwd">dec</span><span class="opt">(</span>BigIntTop<span class="opt">);</span>
+  BigIntStack<span class="opt">[</span>BigIntTop<span class="opt">]:=</span>Result<span class="opt">;</span>
+<span class="kwa">end</span><span class="opt">;</span>
+
+<span class="kwa">procedure</span> <span class="kwd">BigIntMulInt</span><span class="opt">(</span>int<span class="opt">:</span> <span class="kwb">integer</span><span class="opt">);</span>
+<span class="kwa">type</span>
+  TWordPart <span class="opt">=</span> <span class="kwa">record</span>
+    w1<span class="opt">,</span> w2<span class="opt">:</span> <span class="kwb">word</span><span class="opt">;</span>
+  <span class="kwa">end</span><span class="opt">;</span>
+<span class="kwa">var</span>
+  mcarry<span class="opt">:</span> dword<span class="opt">;</span>
+  value<span class="opt">:</span> qword<span class="opt">;</span>
+  valueparts <span class="opt">:</span> <span class="kwa">array</span><span class="opt">[</span><span class="num">0</span><span class="opt">.</span><span class="num">.1</span><span class="opt">]</span> <span class="kwa">of</span> dword <span class="kwa">absolute</span> value<span class="opt">;</span>
+  BiNeg<span class="opt">,</span> IntNeg<span class="opt">:</span> <span class="kwb">boolean</span><span class="opt">;</span>
+  i<span class="opt">:</span><span class="kwb">Integer</span><span class="opt">;</span>
+  TopBi<span class="opt">,</span> Result<span class="opt">:</span> TBigInt<span class="opt">;</span>
+  TopBiDigit<span class="opt">,</span> ResultDigit<span class="opt">:</span> PDWord<span class="opt">;</span>
+<span class="kwa">begin</span>
+  TopBi <span class="opt">:=</span> BigIntStack<span class="opt">[</span>BigIntTop<span class="opt">];</span>
+  <span class="kwa">if</span> <span class="opt">(</span>int<span class="opt">=</span><span class="num">0</span><span class="opt">)</span> <span class="kwa">or</span> <span class="opt">(</span>TopBi<span class="opt">.</span>IsZero<span class="opt">)</span> <span class="kwa">then begin</span>
+    TopBi<span class="opt">.</span>FSize <span class="opt">:=</span> <span class="num">1</span><span class="opt">;</span>
+    TopBi<span class="opt">.</span>Digit<span class="opt">[</span><span class="num">0</span><span class="opt">]:=</span><span class="num">0</span><span class="opt">;</span>
+  <span class="kwa">end</span>
+  <span class="kwa">else begin</span>
+    BiNeg <span class="opt">:=</span> TopBi<span class="opt">.</span>IsNegative<span class="opt">;</span>
+    <span class="kwa">if</span> BiNeg <span class="kwa">then</span>
+      TopBi<span class="opt">.</span>Negate<span class="opt">;</span>
+    IntNeg <span class="opt">:=</span> int<span class="opt">&lt;</span><span class="num">0</span><span class="opt">;</span>
+    <span class="kwa">if</span> IntNeg <span class="kwa">then</span>
+      int <span class="opt">:= -</span>int<span class="opt">;</span>
+    Result <span class="opt">:=</span> <span class="kwd">GetBigInt</span><span class="opt">(</span>TopBi<span class="opt">.</span>FSize<span class="opt">+</span><span class="num">1</span><span class="opt">,</span> <span class="kwb">false</span><span class="opt">);</span>
+    mcarry <span class="opt">:=</span> <span class="num">0</span><span class="opt">;</span>
+    TopBiDigit <span class="opt">:=</span> TopBi<span class="opt">.</span>Digit<span class="opt">;</span>
+    ResultDigit <span class="opt">:=</span> Result<span class="opt">.</span>Digit<span class="opt">;</span>
+    <span class="kwa">if</span> <span class="opt">(</span>int <span class="kwa">and</span> <span class="num">$FFFF0000</span><span class="opt">)=</span><span class="num">0</span> <span class="kwa">then</span>
+      <span class="kwa">for</span> i<span class="opt">:=</span> <span class="num">0</span> <span class="kwa">to</span> Result<span class="opt">.</span>FSize<span class="opt">-</span><span class="num">2</span> <span class="kwa">do begin</span>
+        <span class="com">{this is what I want to do, but to get to the carry fpc compiles it into</span>
+<span class="com">        an expensive qword*qword mulitplication:   }</span>
+        <span class="com">{value := qword(TopBiDigit^) * int + mcarry;}</span>
+        value <span class="opt">:=</span> <span class="kwd">TWordPart</span><span class="opt">(</span>TopBiDigit<span class="opt">^).</span>w1 <span class="opt">*</span> <span class="kwb">word</span><span class="opt">(</span>int<span class="opt">) +</span>
+          <span class="kwd">qword</span><span class="opt">(</span><span class="kwd">TWordPart</span><span class="opt">(</span>TopBiDigit<span class="opt">^).</span>w2 <span class="opt">*</span> <span class="kwb">word</span><span class="opt">(</span>int<span class="opt">))</span> <span class="kwa">shl</span> <span class="num">16</span> <span class="opt">+</span> mcarry<span class="opt">;</span>
+        ResultDigit<span class="opt">^ :=</span> valueparts<span class="opt">[</span><span class="num">0</span><span class="opt">];</span>
+        mcarry <span class="opt">:=</span> valueparts<span class="opt">[</span><span class="num">1</span><span class="opt">];</span>
+        <span class="kwd">inc</span><span class="opt">(</span>TopBiDigit<span class="opt">);</span> <span class="kwd">inc</span><span class="opt">(</span>ResultDigit<span class="opt">);</span>
+      <span class="kwa">end</span>
+    <span class="kwa">else</span>
+    <span class="slc">// this branch is less often taken, so no hand code dword * dword multiplication</span>
+      <span class="kwa">for</span> i<span class="opt">:=</span> <span class="num">0</span> <span class="kwa">to</span> Result<span class="opt">.</span>FSize<span class="opt">-</span><span class="num">2</span> <span class="kwa">do begin</span>
+        value <span class="opt">:=</span> <span class="kwd">qword</span><span class="opt">(</span>TopBiDigit<span class="opt">^) *</span> int <span class="opt">+</span> mcarry<span class="opt">;</span>
+        ResultDigit<span class="opt">^ :=</span> valueparts<span class="opt">[</span><span class="num">0</span><span class="opt">];</span>
+        mcarry <span class="opt">:=</span> valueparts<span class="opt">[</span><span class="num">1</span><span class="opt">];</span>
+        <span class="kwd">inc</span><span class="opt">(</span>TopBiDigit<span class="opt">);</span> <span class="kwd">inc</span><span class="opt">(</span>ResultDigit<span class="opt">);</span>
+      <span class="kwa">end</span><span class="opt">;</span>
+    ResultDigit<span class="opt">^ :=</span> mcarry<span class="opt">;</span>
+    <span class="kwa">while</span> <span class="opt">(</span>Result<span class="opt">.</span>FSize<span class="opt">&gt;</span><span class="num">1</span><span class="opt">)</span> <span class="kwa">and</span> <span class="opt">(</span>Result<span class="opt">.</span>Digit<span class="opt">[</span>Result<span class="opt">.</span>FSize<span class="opt">-</span><span class="num">1</span><span class="opt">]=</span><span class="num">0</span><span class="opt">)</span> <span class="kwa">and</span>
+      <span class="opt">((</span>Result<span class="opt">.</span>Digit<span class="opt">[</span>Result<span class="opt">.</span>FSize<span class="opt">-</span><span class="num">2</span><span class="opt">]</span> <span class="kwa">and</span> <span class="num">$80000000</span><span class="opt">)=</span><span class="num">0</span><span class="opt">)</span> <span class="kwa">do</span>
+      <span class="kwd">dec</span><span class="opt">(</span>Result<span class="opt">.</span>FSize<span class="opt">);</span>
+    <span class="kwa">if</span> <span class="opt">(</span>BiNeg<span class="opt">&lt;&gt;</span>IntNeg<span class="opt">)</span> <span class="kwa">then</span>
+      Result<span class="opt">.</span>Negate<span class="opt">;</span>
+    <span class="kwd">FreeBigInt</span><span class="opt">(</span>TopBi<span class="opt">);</span>
+    BigIntStack<span class="opt">[</span>BigIntTop<span class="opt">]:=</span>Result<span class="opt">;</span>
+  <span class="kwa">end</span><span class="opt">;</span>
+<span class="kwa">end</span><span class="opt">;</span>
+
+<span class="kwa">function</span> BigIntDivIntResult<span class="opt">:</span> <span class="kwb">integer</span><span class="opt">;</span>
+<span class="kwa">var</span>
+  dividend<span class="opt">:</span> TBigInt<span class="opt">;</span>
+  divisor<span class="opt">:</span> TBigInt<span class="opt">;</span>
+  carry<span class="opt">:</span> dword<span class="opt">;</span>
+  diff<span class="opt">:</span> <span class="kwb">int64</span><span class="opt">;</span>
+  diffparts<span class="opt">:</span> <span class="kwa">array</span><span class="opt">[</span><span class="num">0</span><span class="opt">.</span><span class="num">.1</span><span class="opt">]</span> <span class="kwa">of</span> dword <span class="kwa">absolute</span> diff<span class="opt">;</span>
+  i<span class="opt">:</span> <span class="kwb">integer</span><span class="opt">;</span>
+  DividendDigit<span class="opt">:</span> PDWord<span class="opt">;</span>
+  DivisorDigit<span class="opt">:</span> PDWord<span class="opt">;</span>
+
+  <span class="kwa">function</span> DividendIsSmallerThanDivisor <span class="opt">:</span> <span class="kwb">boolean</span><span class="opt">;</span> <span class="kwa">inline</span><span class="opt">;</span>
+  <span class="kwa">var</span>
+    i<span class="opt">:</span> <span class="kwb">integer</span><span class="opt">;</span>
+  <span class="kwa">begin</span>
+    <span class="kwa">while</span> <span class="opt">(</span>Dividend<span class="opt">.</span>FSize<span class="opt">&gt;</span><span class="num">1</span><span class="opt">)</span> <span class="kwa">and</span> <span class="opt">(</span>Dividend<span class="opt">.</span>Digit<span class="opt">[</span>Dividend<span class="opt">.</span>FSize<span class="opt">-</span><span class="num">1</span><span class="opt">]=</span><span class="num">0</span><span class="opt">)</span>
+      <span class="kwa">and</span> <span class="opt">(</span>Dividend<span class="opt">.</span>Digit<span class="opt">[</span>Dividend<span class="opt">.</span>FSize<span class="opt">-</span><span class="num">2</span><span class="opt">]</span> <span class="kwa">and</span> <span class="num">$80000000</span><span class="opt">=</span><span class="num">0</span><span class="opt">)</span> <span class="kwa">do</span>
+      <span class="kwd">dec</span><span class="opt">(</span>Dividend<span class="opt">.</span>FSize<span class="opt">);</span>
+    <span class="kwa">if</span> dividend<span class="opt">.</span>FSize<span class="opt">=</span>divisor<span class="opt">.</span>FSize <span class="kwa">then begin</span>
+      i <span class="opt">:=</span> dividend<span class="opt">.</span>FSize<span class="opt">-</span><span class="num">1</span><span class="opt">;</span>
+      <span class="kwa">while</span> <span class="opt">(</span>i<span class="opt">&gt;=</span><span class="num">0</span><span class="opt">)</span> <span class="kwa">and</span> <span class="opt">(</span>dividend<span class="opt">.</span>Digit<span class="opt">[</span>i<span class="opt">]=</span>divisor<span class="opt">.</span>Digit<span class="opt">[</span>i<span class="opt">])</span> <span class="kwa">do</span>
+        <span class="kwd">dec</span><span class="opt">(</span>i<span class="opt">);</span>
+      Result<span class="opt">:= (</span>i<span class="opt">&gt;=</span><span class="num">0</span><span class="opt">)</span> <span class="kwa">and</span> <span class="opt">(</span>dividend<span class="opt">.</span>Digit<span class="opt">[</span>i<span class="opt">]&lt;</span>divisor<span class="opt">.</span>Digit<span class="opt">[</span>i<span class="opt">]);</span>
+    <span class="kwa">end</span>
+    <span class="kwa">else</span>
+      Result<span class="opt">:=</span>dividend<span class="opt">.</span>FSize<span class="opt">&lt;</span>divisor<span class="opt">.</span>FSize<span class="opt">;</span>
+  <span class="kwa">end</span><span class="opt">;</span>
+
+<span class="kwa">begin</span>
+  dividend <span class="opt">:=</span> BigIntStack<span class="opt">[</span>BigIntTop<span class="opt">-</span><span class="num">1</span><span class="opt">];</span>
+  divisor <span class="opt">:=</span> BigIntStack<span class="opt">[</span>BigIntTop<span class="opt">];</span>
+  Result<span class="opt">:=</span><span class="num">0</span><span class="opt">;</span>
+  <span class="kwa">while not</span> DividendIsSmallerThanDivisor <span class="kwa">do begin</span>
+    <span class="kwd">inc</span><span class="opt">(</span>Result<span class="opt">);</span>
+    carry <span class="opt">:=</span> <span class="num">0</span><span class="opt">;</span>
+    DividendDigit <span class="opt">:=</span> Dividend<span class="opt">.</span>Digit<span class="opt">;</span>
+    DivisorDigit <span class="opt">:=</span> Divisor<span class="opt">.</span>Digit<span class="opt">;</span>
+    <span class="kwa">for</span> i<span class="opt">:=</span> <span class="num">0</span> <span class="kwa">to</span> divisor<span class="opt">.</span>FSize<span class="opt">-</span><span class="num">1</span> <span class="kwa">do begin</span>
+      diff <span class="opt">:=</span> <span class="kwb">int64</span><span class="opt">(</span>dividendDigit<span class="opt">^) - (</span>divisorDigit<span class="opt">^ +</span> carry<span class="opt">);</span>
+      carry <span class="opt">:=</span> diffparts<span class="opt">[</span><span class="num">1</span><span class="opt">]</span> <span class="kwa">and</span> <span class="num">$1</span><span class="opt">;</span>
+      dividendDigit<span class="opt">^ :=</span> diffparts<span class="opt">[</span><span class="num">0</span><span class="opt">];</span>
+      <span class="kwd">inc</span><span class="opt">(</span>DividendDigit<span class="opt">);</span> <span class="kwd">inc</span><span class="opt">(</span>DivisorDigit<span class="opt">);</span>
+    <span class="kwa">end</span><span class="opt">;</span>
+    <span class="kwa">for</span> i<span class="opt">:=</span> divisor<span class="opt">.</span>FSize <span class="kwa">to</span> dividend<span class="opt">.</span>FSize<span class="opt">-</span><span class="num">1</span> <span class="kwa">do begin</span>
+      diff <span class="opt">:=</span> <span class="kwb">int64</span><span class="opt">(</span>dividendDigit<span class="opt">^) - (</span>divisor<span class="opt">.</span><span class="kwd">GetDigit</span><span class="opt">(</span>i<span class="opt">) +</span> carry<span class="opt">);</span>
+      carry <span class="opt">:=</span> diffparts<span class="opt">[</span><span class="num">1</span><span class="opt">]</span> <span class="kwa">and</span> <span class="num">$1</span><span class="opt">;</span>
+      dividendDigit<span class="opt">^ :=</span> diffparts<span class="opt">[</span><span class="num">0</span><span class="opt">];</span>
+      dividend<span class="opt">.</span>Digit<span class="opt">[</span>i<span class="opt">] :=</span> diffparts<span class="opt">[</span><span class="num">0</span><span class="opt">];</span>
+      <span class="kwd">inc</span><span class="opt">(</span>DividendDigit<span class="opt">);</span>
+    <span class="kwa">end</span><span class="opt">;</span>
+  <span class="kwa">end</span><span class="opt">;</span>
+  <span class="kwd">FreeBigInt</span><span class="opt">(</span>dividend<span class="opt">);</span>
+  <span class="kwd">FreeBigInt</span><span class="opt">(</span>divisor<span class="opt">);</span>
+  <span class="kwd">dec</span><span class="opt">(</span>BigIntTop<span class="opt">,</span><span class="num">2</span><span class="opt">);</span>
+<span class="kwa">end</span><span class="opt">;</span>
+
+<span class="kwa">procedure</span> Init<span class="opt">;</span>
+<span class="kwa">begin</span>
+  BigIntStackLen <span class="opt">:=</span> <span class="num">8</span><span class="opt">;</span>
+  <span class="kwd">GetMem</span><span class="opt">(</span>BigIntStack<span class="opt">,</span> BigIntStackLen <span class="opt">*</span> <span class="kwd">sizeof</span><span class="opt">(</span>TBigInt<span class="opt">));</span>
+  BigIntTop <span class="opt">:= -</span><span class="num">1</span><span class="opt">;</span>
+  FirstFreeBigInt <span class="opt">:=</span> <span class="kwa">nil</span><span class="opt">;</span>
+<span class="kwa">end</span><span class="opt">;</span>
+
+<span class="kwa">procedure</span> Finalize<span class="opt">;</span>
+<span class="kwa">begin</span>
+  <span class="kwd">Freemem</span><span class="opt">(</span>BigIntStack<span class="opt">);</span>
+  FreeBigInts<span class="opt">;</span>
+<span class="kwa">end</span><span class="opt">;</span>
+
+<span class="com">{ Matrix manipulation }</span>
+
+<span class="kwa">procedure</span> <span class="kwd">FreeBigIntMatrix</span><span class="opt">(</span>a<span class="opt">:</span> TBigMatrix<span class="opt">);</span> <span class="kwa">inline</span><span class="opt">;</span>
+<span class="kwa">begin</span>
+  <span class="kwd">FreeBigInt</span><span class="opt">(</span>a<span class="opt">[</span><span class="num">1</span><span class="opt">,</span><span class="num">1</span><span class="opt">]);</span>
+  <span class="kwd">FreeBigInt</span><span class="opt">(</span>a<span class="opt">[</span><span class="num">1</span><span class="opt">,</span><span class="num">2</span><span class="opt">]);</span>
+  <span class="kwd">FreeBigInt</span><span class="opt">(</span>a<span class="opt">[</span><span class="num">2</span><span class="opt">,</span><span class="num">1</span><span class="opt">]);</span>
+  <span class="kwd">FreeBigInt</span><span class="opt">(</span>a<span class="opt">[</span><span class="num">2</span><span class="opt">,</span><span class="num">2</span><span class="opt">]);</span>
+<span class="kwa">end</span><span class="opt">;</span>
+
+<span class="kwa">function</span> <span class="kwd">DotProduct</span><span class="opt">(</span>a1<span class="opt">,</span>a2<span class="opt">:</span> TBigInt<span class="opt">;</span> b1<span class="opt">,</span>b2<span class="opt">:</span> <span class="kwb">integer</span><span class="opt">;</span> FreeBigInt<span class="opt">:</span> <span class="kwb">boolean</span><span class="opt">) :</span> TBigInt<span class="opt">;</span> <span class="kwa">inline</span><span class="opt">;</span>
+<span class="kwa">begin</span>
+  <span class="kwa">if</span> FreeBigInt <span class="kwa">then</span>
+    <span class="kwd">PushBigInt</span><span class="opt">(</span>a1<span class="opt">)</span>
+  <span class="kwa">else</span>
+    <span class="kwd">PushBigIntByValue</span><span class="opt">(</span>a1<span class="opt">);</span>
+  <span class="kwd">BigIntMulInt</span><span class="opt">(</span>b1<span class="opt">);</span>
+  <span class="kwa">if</span> FreeBigInt <span class="kwa">then</span>
+    <span class="kwd">PushBigInt</span><span class="opt">(</span>a2<span class="opt">)</span>
+  <span class="kwa">else</span>
+    <span class="kwd">PushBigIntByValue</span><span class="opt">(</span>a2<span class="opt">);</span>
+  <span class="kwd">BigIntMulInt</span><span class="opt">(</span>b2<span class="opt">);</span>
+  BigIntAdd<span class="opt">;</span>
+  Result<span class="opt">:=</span> PopBigInt<span class="opt">;</span>
+<span class="kwa">end</span><span class="opt">;</span>
+
+operator <span class="opt">* (</span>a<span class="opt">:</span> TBigMatrix<span class="opt">;</span> b <span class="opt">:</span> TIntMatrix<span class="opt">) :</span> TBigMatrix<span class="opt">;</span>
+<span class="kwa">begin</span>
+  result<span class="opt">[</span><span class="num">1</span><span class="opt">,</span><span class="num">1</span><span class="opt">] :=</span> <span class="kwd">DotProduct</span><span class="opt">(</span>a<span class="opt">[</span><span class="num">1</span><span class="opt">,</span><span class="num">1</span><span class="opt">],</span>a<span class="opt">[</span><span class="num">1</span><span class="opt">,</span><span class="num">2</span><span class="opt">],</span> b<span class="opt">[</span><span class="num">1</span><span class="opt">,</span><span class="num">1</span><span class="opt">],</span> b<span class="opt">[</span><span class="num">2</span><span class="opt">,</span><span class="num">1</span><span class="opt">],</span> <span class="kwb">false</span><span class="opt">);</span>
+  result<span class="opt">[</span><span class="num">1</span><span class="opt">,</span><span class="num">2</span><span class="opt">] :=</span> <span class="kwd">DotProduct</span><span class="opt">(</span>a<span class="opt">[</span><span class="num">1</span><span class="opt">,</span><span class="num">1</span><span class="opt">],</span>a<span class="opt">[</span><span class="num">1</span><span class="opt">,</span><span class="num">2</span><span class="opt">],</span> b<span class="opt">[</span><span class="num">1</span><span class="opt">,</span><span class="num">2</span><span class="opt">],</span> b<span class="opt">[</span><span class="num">2</span><span class="opt">,</span><span class="num">2</span><span class="opt">],</span> <span class="kwb">true</span><span class="opt">);</span>
+  result<span class="opt">[</span><span class="num">2</span><span class="opt">,</span><span class="num">1</span><span class="opt">] :=</span> <span class="kwd">DotProduct</span><span class="opt">(</span>a<span class="opt">[</span><span class="num">2</span><span class="opt">,</span><span class="num">1</span><span class="opt">],</span>a<span class="opt">[</span><span class="num">2</span><span class="opt">,</span><span class="num">2</span><span class="opt">],</span> b<span class="opt">[</span><span class="num">1</span><span class="opt">,</span><span class="num">1</span><span class="opt">],</span> b<span class="opt">[</span><span class="num">2</span><span class="opt">,</span><span class="num">1</span><span class="opt">],</span> <span class="kwb">false</span><span class="opt">);</span>
+  result<span class="opt">[</span><span class="num">2</span><span class="opt">,</span><span class="num">2</span><span class="opt">] :=</span> <span class="kwd">DotProduct</span><span class="opt">(</span>a<span class="opt">[</span><span class="num">2</span><span class="opt">,</span><span class="num">1</span><span class="opt">],</span>a<span class="opt">[</span><span class="num">2</span><span class="opt">,</span><span class="num">2</span><span class="opt">],</span> b<span class="opt">[</span><span class="num">1</span><span class="opt">,</span><span class="num">2</span><span class="opt">],</span> b<span class="opt">[</span><span class="num">2</span><span class="opt">,</span><span class="num">2</span><span class="opt">],</span> <span class="kwb">true</span><span class="opt">);</span>
+<span class="kwa">end</span><span class="opt">;</span>
+
+operator <span class="opt">* (</span>a<span class="opt">:</span> TIntMatrix<span class="opt">;</span> b <span class="opt">:</span> TBigMatrix<span class="opt">) :</span> TBigMatrix<span class="opt">;</span>
+<span class="kwa">begin</span>
+  result<span class="opt">[</span><span class="num">1</span><span class="opt">,</span><span class="num">1</span><span class="opt">] :=</span> <span class="kwd">DotProduct</span><span class="opt">(</span>b<span class="opt">[</span><span class="num">1</span><span class="opt">,</span><span class="num">1</span><span class="opt">],</span>b<span class="opt">[</span><span class="num">2</span><span class="opt">,</span><span class="num">1</span><span class="opt">],</span>a<span class="opt">[</span><span class="num">1</span><span class="opt">,</span><span class="num">1</span><span class="opt">],</span>a<span class="opt">[</span><span class="num">1</span><span class="opt">,</span><span class="num">2</span><span class="opt">],</span> <span class="kwb">false</span><span class="opt">);</span>
+  result<span class="opt">[</span><span class="num">1</span><span class="opt">,</span><span class="num">2</span><span class="opt">] :=</span> <span class="kwd">DotProduct</span><span class="opt">(</span>b<span class="opt">[</span><span class="num">1</span><span class="opt">,</span><span class="num">2</span><span class="opt">],</span>b<span class="opt">[</span><span class="num">2</span><span class="opt">,</span><span class="num">2</span><span class="opt">],</span>a<span class="opt">[</span><span class="num">1</span><span class="opt">,</span><span class="num">1</span><span class="opt">],</span>a<span class="opt">[</span><span class="num">1</span><span class="opt">,</span><span class="num">2</span><span class="opt">],</span> <span class="kwb">false</span><span class="opt">);</span>
+  result<span class="opt">[</span><span class="num">2</span><span class="opt">,</span><span class="num">1</span><span class="opt">] :=</span> <span class="kwd">DotProduct</span><span class="opt">(</span>b<span class="opt">[</span><span class="num">1</span><span class="opt">,</span><span class="num">1</span><span class="opt">],</span>b<span class="opt">[</span><span class="num">2</span><span class="opt">,</span><span class="num">1</span><span class="opt">],</span>a<span class="opt">[</span><span class="num">2</span><span class="opt">,</span><span class="num">1</span><span class="opt">],</span>a<span class="opt">[</span><span class="num">2</span><span class="opt">,</span><span class="num">2</span><span class="opt">],</span> <span class="kwb">true</span><span class="opt">);</span>
+  result<span class="opt">[</span><span class="num">2</span><span class="opt">,</span><span class="num">2</span><span class="opt">] :=</span> <span class="kwd">DotProduct</span><span class="opt">(</span>b<span class="opt">[</span><span class="num">1</span><span class="opt">,</span><span class="num">2</span><span class="opt">],</span>b<span class="opt">[</span><span class="num">2</span><span class="opt">,</span><span class="num">2</span><span class="opt">],</span>a<span class="opt">[</span><span class="num">2</span><span class="opt">,</span><span class="num">1</span><span class="opt">],</span>a<span class="opt">[</span><span class="num">2</span><span class="opt">,</span><span class="num">2</span><span class="opt">],</span> <span class="kwb">true</span><span class="opt">);</span>
+<span class="kwa">end</span><span class="opt">;</span>
+
+<span class="kwa">function</span> <span class="kwd">InitBigMatrix</span><span class="opt">(</span>a<span class="opt">,</span>b<span class="opt">,</span>c<span class="opt">,</span>d<span class="opt">:</span> <span class="kwb">integer</span><span class="opt">):</span> TBigMatrix<span class="opt">;</span>
+<span class="kwa">begin</span>
+  result<span class="opt">[</span><span class="num">1</span><span class="opt">,</span><span class="num">1</span><span class="opt">] :=</span> a<span class="opt">;</span>
+  result<span class="opt">[</span><span class="num">1</span><span class="opt">,</span><span class="num">2</span><span class="opt">] :=</span> b<span class="opt">;</span>
+  result<span class="opt">[</span><span class="num">2</span><span class="opt">,</span><span class="num">1</span><span class="opt">] :=</span> c<span class="opt">;</span>
+  result<span class="opt">[</span><span class="num">2</span><span class="opt">,</span><span class="num">2</span><span class="opt">] :=</span> d<span class="opt">;</span>
+<span class="kwa">end</span><span class="opt">;</span>
+
+<span class="kwa">function</span> <span class="kwd">InitIntMatrix</span><span class="opt">(</span>a<span class="opt">,</span>b<span class="opt">,</span>c<span class="opt">,</span>d<span class="opt">:</span> <span class="kwb">integer</span><span class="opt">):</span> TIntMatrix<span class="opt">;</span> <span class="kwa">inline</span><span class="opt">;</span>
+<span class="kwa">begin</span>
+  result<span class="opt">[</span><span class="num">1</span><span class="opt">,</span><span class="num">1</span><span class="opt">] :=</span> a<span class="opt">;</span>
+  result<span class="opt">[</span><span class="num">1</span><span class="opt">,</span><span class="num">2</span><span class="opt">] :=</span> b<span class="opt">;</span>
+  result<span class="opt">[</span><span class="num">2</span><span class="opt">,</span><span class="num">1</span><span class="opt">] :=</span> c<span class="opt">;</span>
+  result<span class="opt">[</span><span class="num">2</span><span class="opt">,</span><span class="num">2</span><span class="opt">] :=</span> d<span class="opt">;</span>
+<span class="kwa">end</span><span class="opt">;</span>
+
+<span class="com">{ calculating pidigits}</span>
+
+<span class="kwa">procedure</span> <span class="kwd">PrintPiDigits</span><span class="opt">(</span><span class="kwa">const</span> NumDigits<span class="opt">:</span> <span class="kwb">integer</span><span class="opt">);</span>
+<span class="kwa">var</span>
+  n<span class="opt">:</span> <span class="kwb">integer</span> <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+  k<span class="opt">:</span> <span class="kwb">integer</span> <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+  z<span class="opt">:</span> TBigMatrix<span class="opt">;</span>
+  x<span class="opt">,</span>p<span class="opt">:</span> TIntMatrix<span class="opt">;</span>
+  Digit<span class="opt">:</span> <span class="kwb">integer</span><span class="opt">;</span>
+
+  <span class="kwa">function</span> <span class="kwd">Extract</span><span class="opt">(</span>x<span class="opt">:</span><span class="kwb">integer</span><span class="opt">) :</span> <span class="kwb">integer</span><span class="opt">;</span>
+  <span class="kwa">begin</span>
+    <span class="kwd">PushBigIntByValue</span><span class="opt">(</span>z<span class="opt">[</span><span class="num">1</span><span class="opt">,</span><span class="num">1</span><span class="opt">]);</span>
+    <span class="kwd">BigIntMulInt</span><span class="opt">(</span>x<span class="opt">);</span>
+    <span class="kwd">PushBigIntByValue</span><span class="opt">(</span>z<span class="opt">[</span><span class="num">1</span><span class="opt">,</span><span class="num">2</span><span class="opt">]);</span>
+    BigIntAdd<span class="opt">;</span>
+    <span class="kwd">PushBigIntByValue</span><span class="opt">(</span>z<span class="opt">[</span><span class="num">2</span><span class="opt">,</span><span class="num">1</span><span class="opt">]);</span>
+    <span class="kwd">BigIntMulInt</span><span class="opt">(</span>x<span class="opt">);</span>
+    <span class="kwd">PushBigIntByValue</span><span class="opt">(</span>z<span class="opt">[</span><span class="num">2</span><span class="opt">,</span><span class="num">2</span><span class="opt">]);</span>
+    BigIntAdd<span class="opt">;</span>
+    result <span class="opt">:=</span> BigIntDivIntResult<span class="opt">;</span>
+  <span class="kwa">end</span><span class="opt">;</span>
+  
+  <span class="kwa">function</span> GetDigit <span class="opt">:</span> <span class="kwb">integer</span><span class="opt">;</span>
+  <span class="kwa">begin</span>
+    result <span class="opt">:=</span> <span class="kwd">Extract</span><span class="opt">(</span><span class="num">3</span><span class="opt">);</span>
+  <span class="kwa">end</span><span class="opt">;</span>
+
+  <span class="kwa">function</span> IsSafe <span class="opt">:</span> <span class="kwb">boolean</span><span class="opt">;</span>
+  <span class="kwa">begin</span>
+    result <span class="opt">:=</span> Digit <span class="opt">=</span> <span class="kwd">Extract</span><span class="opt">(</span><span class="num">4</span><span class="opt">);</span>
+  <span class="kwa">end</span><span class="opt">;</span>
+
+  <span class="kwa">procedure</span> Produce<span class="opt">;</span>
+  <span class="kwa">begin</span>
+    p<span class="opt">[</span><span class="num">1</span><span class="opt">,</span><span class="num">2</span><span class="opt">] := -</span><span class="num">10</span> <span class="opt">*</span> digit<span class="opt">;</span>
+    z <span class="opt">:=</span> p <span class="opt">*</span> z<span class="opt">;</span>
+  <span class="kwa">end</span><span class="opt">;</span>
+
+  <span class="kwa">procedure</span> Consume<span class="opt">;</span>
+  <span class="kwa">begin</span>
+    <span class="kwd">inc</span><span class="opt">(</span>k<span class="opt">);</span>
+    x<span class="opt">[</span><span class="num">1</span><span class="opt">,</span><span class="num">1</span><span class="opt">] :=</span> k<span class="opt">;</span>
+    x<span class="opt">[</span><span class="num">1</span><span class="opt">,</span><span class="num">2</span><span class="opt">] :=</span> <span class="num">4</span><span class="opt">*</span>k<span class="opt">+</span><span class="num">2</span><span class="opt">;</span>
+    x<span class="opt">[</span><span class="num">2</span><span class="opt">,</span><span class="num">2</span><span class="opt">] :=</span> <span class="num">2</span><span class="opt">*</span>k<span class="opt">+</span><span class="num">1</span><span class="opt">;</span>
+    z<span class="opt">:=</span> z <span class="opt">*</span> x<span class="opt">;</span>
+  <span class="kwa">end</span><span class="opt">;</span>
+
+<span class="kwa">begin</span>
+  z <span class="opt">:=</span> <span class="kwd">InitBigMatrix</span><span class="opt">(</span><span class="num">1</span><span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> <span class="num">1</span><span class="opt">);</span>
+  p <span class="opt">:=</span> <span class="kwd">InitIntMatrix</span><span class="opt">(</span><span class="num">10</span><span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> <span class="num">1</span><span class="opt">);</span>
+  x<span class="opt">[</span><span class="num">2</span><span class="opt">,</span><span class="num">1</span><span class="opt">] :=</span> <span class="num">0</span><span class="opt">;</span>
+  <span class="kwa">while</span> <span class="opt">(</span>n<span class="opt">&lt;</span>NumDigits<span class="opt">)</span> <span class="kwa">do begin</span>
+    Digit <span class="opt">:=</span> GetDigit<span class="opt">;</span>
+    <span class="kwa">while not</span> IsSafe <span class="kwa">do begin</span>
+      Consume<span class="opt">;</span>
+      Digit<span class="opt">:=</span> GetDigit<span class="opt">;</span>
+    <span class="kwa">end</span><span class="opt">;</span>
+    Produce<span class="opt">;</span>
+    <span class="kwd">write</span><span class="opt">(</span>Digit<span class="opt">);</span>
+    <span class="kwd">inc</span><span class="opt">(</span>n<span class="opt">);</span>
+    <span class="kwa">if</span> <span class="opt">(</span>n <span class="kwa">mod</span> <span class="num">10</span><span class="opt">)=</span><span class="num">0</span> <span class="kwa">then</span>
+      <span class="kwd">writeln</span><span class="opt">(</span><span class="esc">#9</span><span class="str">&apos;:&apos;</span><span class="opt">,</span> n<span class="opt">);</span>
+  <span class="kwa">end</span><span class="opt">;</span>
+  <span class="kwd">FreeBigIntMatrix</span><span class="opt">(</span>z<span class="opt">);</span>
+<span class="kwa">end</span><span class="opt">;</span>
+
+<span class="kwa">var</span>
+  n<span class="opt">:</span> <span class="kwb">integer</span><span class="opt">;</span>
+  errorcode<span class="opt">:</span> <span class="kwb">integer</span><span class="opt">;</span>
+
+<span class="kwa">begin</span>
+  Init<span class="opt">;</span>
+  <span class="kwa">if</span> <span class="opt">(</span>ParamCount<span class="opt">=</span><span class="num">1</span><span class="opt">)</span> <span class="kwa">then begin</span>
+    <span class="kwd">val</span><span class="opt">(</span><span class="kwd">ParamStr</span><span class="opt">(</span><span class="num">1</span><span class="opt">),</span> n<span class="opt">,</span> errorcode<span class="opt">);</span>
+    <span class="kwd">PrintPiDigits</span><span class="opt">(</span>n<span class="opt">);</span>
+  <span class="kwa">end</span><span class="opt">;</span>
+  Finalize<span class="opt">;</span>
+<span class="kwa">end</span><span class="opt">.</span>
+
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

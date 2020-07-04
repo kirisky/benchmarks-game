@@ -17,6 +17,96 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc">// The Computer Language Benchmarks Game</span>
+<span class="slc">// https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">//</span>
+<span class="slc">// contributed by Matt Watson</span>
+<span class="slc">// contributed by TeXitoi</span>
+<span class="slc">// contributed by Volodymyr M. Lisivka</span>
+
+<span class="kwa">extern crate</span> rayon<span class="opt">;</span>
+<span class="kwa">extern crate</span> num_traits<span class="opt">;</span>
+<span class="kwa">extern crate</span> generic_array<span class="opt">;</span>
+<span class="kwa">extern crate</span> numeric_array<span class="opt">;</span>
+
+<span class="kwa">use</span> rayon<span class="opt">::</span>prelude<span class="opt">::*;</span>
+<span class="kwa">use</span> std<span class="opt">::</span>io<span class="opt">::</span>Write<span class="opt">;</span>
+<span class="kwa">use</span> numeric_array<span class="opt">::</span>NumericArray <span class="kwa">as</span> Arr<span class="opt">;</span>
+<span class="kwa">use</span> generic_array<span class="opt">::</span>typenum<span class="opt">::</span>consts<span class="opt">::</span>U8<span class="opt">;</span>
+
+<span class="slc">// [f64;8]</span>
+<span class="kwa">type</span> Vecf64 <span class="opt">=</span> Arr<span class="opt">&lt;</span><span class="kwb">f64</span><span class="opt">,</span> U8<span class="opt">&gt;;</span>
+
+<span class="kwa">const</span> MAX_ITER<span class="opt">:</span> <span class="kwb">usize</span> <span class="opt">=</span> <span class="num">50</span><span class="opt">;</span>
+<span class="kwa">const</span> VLEN<span class="opt">:</span> <span class="kwb">usize</span> <span class="opt">=</span> <span class="num">8</span><span class="opt">;</span>
+
+<span class="kwa">pub fn</span> <span class="kwd">mbrot8</span><span class="opt">(</span>cr<span class="opt">:</span> Vecf64<span class="opt">,</span> ci<span class="opt">:</span> Vecf64<span class="opt">) -&gt;</span> <span class="kwb">u8</span> <span class="opt">{</span>
+    <span class="kwa">let mut</span> zr <span class="opt">=</span> Arr<span class="opt">::</span><span class="kwd">splat</span><span class="opt">(</span><span class="num">0f64</span><span class="opt">);</span>
+    <span class="kwa">let mut</span> zi <span class="opt">=</span> Arr<span class="opt">::</span><span class="kwd">splat</span><span class="opt">(</span><span class="num">0f64</span><span class="opt">);</span>
+    <span class="kwa">let mut</span> tr <span class="opt">=</span> Arr<span class="opt">::</span><span class="kwd">splat</span><span class="opt">(</span><span class="num">0f64</span><span class="opt">);</span>
+    <span class="kwa">let mut</span> ti <span class="opt">=</span> Arr<span class="opt">::</span><span class="kwd">splat</span><span class="opt">(</span><span class="num">0f64</span><span class="opt">);</span>
+    <span class="kwa">let mut</span> absz <span class="opt">=</span> Arr<span class="opt">::</span><span class="kwd">splat</span><span class="opt">(</span><span class="num">0f64</span><span class="opt">);</span>
+
+    <span class="kwa">for</span> _ <span class="kwa">in</span> <span class="num">0</span><span class="opt">..</span>MAX_ITER <span class="opt">/</span> <span class="num">5</span> <span class="opt">{</span>
+        <span class="kwa">for</span> _ <span class="kwa">in</span> <span class="num">0</span><span class="opt">.</span><span class="num">.5</span> <span class="opt">{</span>
+            zi <span class="opt">= (</span>zr <span class="opt">+</span> zr<span class="opt">) *</span> zi <span class="opt">+</span> ci<span class="opt">;</span>
+            zr <span class="opt">=</span> tr <span class="opt">-</span> ti <span class="opt">+</span> cr<span class="opt">;</span>
+            tr <span class="opt">=</span> zr <span class="opt">*</span> zr<span class="opt">;</span>
+            ti <span class="opt">=</span> zi <span class="opt">*</span> zi<span class="opt">;</span>
+        <span class="opt">}</span>
+
+        absz <span class="opt">=</span> tr <span class="opt">+</span> ti<span class="opt">;</span>
+        <span class="kwa">if</span> absz<span class="num">.i</span>ter<span class="opt">().</span><span class="kwd">all</span><span class="opt">(|&amp;</span>t<span class="opt">|</span> t <span class="opt">&gt;</span> <span class="num">4</span><span class="opt">.) {</span>
+            <span class="kwa">return</span> <span class="num">0</span><span class="opt">;</span>
+        <span class="opt">}</span>
+    <span class="opt">}</span>
+
+    absz
+        <span class="num">.i</span>ter<span class="opt">()</span>
+        <span class="opt">.</span><span class="kwd">enumerate</span><span class="opt">()</span>
+        <span class="num">.f</span>old<span class="opt">(</span><span class="num">0</span><span class="opt">, |</span>accu<span class="opt">, (</span>i<span class="opt">, &amp;</span>t<span class="opt">)|</span> accu <span class="opt">|</span> <span class="kwa">if</span> t <span class="opt">&lt;=</span> <span class="num">4</span><span class="opt">. {</span> <span class="num">0x80</span> <span class="opt">&gt;&gt;</span> i <span class="opt">}</span> <span class="kwa">else</span> <span class="opt">{</span> <span class="num">0</span> <span class="opt">})</span>
+<span class="opt">}</span>
+
+<span class="kwa">fn</span> <span class="kwd">main</span><span class="opt">() {</span>
+    <span class="kwa">let</span> size <span class="opt">=</span> std<span class="opt">::</span>env<span class="opt">::</span><span class="kwd">args</span><span class="opt">()</span>
+        <span class="opt">.</span><span class="kwd">nth</span><span class="opt">(</span><span class="num">1</span><span class="opt">)</span>
+        <span class="opt">.</span><span class="kwd">and_then</span><span class="opt">(|</span>n<span class="opt">|</span> n<span class="opt">.</span><span class="kwd">parse</span><span class="opt">().</span><span class="kwd">ok</span><span class="opt">())</span>
+        <span class="num">.u</span>nwrap<span class="num">_</span>or<span class="opt">(</span><span class="num">200</span><span class="opt">);</span>
+    <span class="slc">// Round size to multiple of 8</span>
+    <span class="kwa">let</span> size <span class="opt">=</span> size <span class="opt">/</span> VLEN <span class="opt">*</span> VLEN<span class="opt">;</span>
+
+    <span class="kwa">let</span> inv <span class="opt">=</span> <span class="num">2</span><span class="opt">. /</span> size <span class="kwa">as</span> <span class="kwb">f64</span><span class="opt">;</span>
+
+    <span class="kwa">let mut</span> xloc <span class="opt">=</span> vec<span class="opt">![</span>Arr<span class="opt">::</span><span class="kwd">splat</span><span class="opt">(</span><span class="num">0f64</span><span class="opt">);</span> size <span class="opt">/</span> VLEN<span class="opt">];</span>
+    <span class="kwa">for</span> i <span class="kwa">in</span> <span class="num">0</span><span class="opt">..</span>size <span class="opt">{</span>
+        xloc<span class="opt">[</span>i <span class="opt">/</span> VLEN<span class="opt">][</span>i <span class="opt">%</span> VLEN<span class="opt">] =</span> i <span class="kwa">as</span> <span class="kwb">f64</span> <span class="opt">*</span> inv <span class="opt">-</span> <span class="num">1.5</span><span class="opt">;</span>
+    <span class="opt">}</span>
+
+    <span class="kwa">let</span> stdout_unlocked <span class="opt">=</span> std<span class="opt">::</span>io<span class="opt">::</span><span class="kwd">stdout</span><span class="opt">();</span>
+    <span class="slc">// Main thread only can print to stdout</span>
+    <span class="kwa">let mut</span> stdout <span class="opt">=</span> stdout_unlocked<span class="opt">.</span><span class="kwd">lock</span><span class="opt">();</span>
+
+    println<span class="opt">!(</span><span class="str">&quot;P4</span><span class="esc">\</span><span class="str">n{} {}&quot;</span><span class="opt">,</span> size<span class="opt">,</span> size<span class="opt">);</span>
+
+    <span class="kwa">let</span> rows<span class="opt">:</span> Vec<span class="opt">&lt;</span>Vec<span class="opt">&lt;</span><span class="kwb">u8</span><span class="opt">&gt;&gt; = (</span><span class="num">0</span><span class="opt">..</span>size<span class="opt">)</span>
+        <span class="num">.i</span>nto<span class="num">_</span>par<span class="num">_i</span>ter<span class="opt">()</span>
+        <span class="opt">.</span><span class="kwd">map</span><span class="opt">(|</span>y<span class="opt">| {</span>
+            <span class="kwa">let</span> ci <span class="opt">=</span> Arr<span class="opt">::</span><span class="kwd">splat</span><span class="opt">(</span>y <span class="kwa">as</span> <span class="kwb">f64</span> <span class="opt">*</span> inv <span class="opt">-</span> <span class="num">1</span><span class="opt">.);</span>
+            <span class="opt">(</span><span class="num">0</span><span class="opt">..</span>size <span class="opt">/</span> VLEN<span class="opt">).</span><span class="kwd">map</span><span class="opt">(|</span>x<span class="opt">|</span> <span class="kwd">mbrot8</span><span class="opt">(</span>xloc<span class="opt">[</span>x<span class="opt">],</span> ci<span class="opt">)).</span><span class="kwd">collect</span><span class="opt">()</span>
+        <span class="opt">})</span>
+        <span class="opt">.</span><span class="kwd">collect</span><span class="opt">();</span>
+
+    <span class="kwa">for</span> row <span class="kwa">in</span> rows <span class="opt">{</span>
+        <span class="kwa">let</span> _ <span class="opt">=</span> stdout<span class="opt">.</span><span class="kwd">write_all</span><span class="opt">(&amp;</span>row<span class="opt">);</span>
+    <span class="opt">}</span>
+<span class="opt">}</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

@@ -17,6 +17,120 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc">% The Computer Language Benchmarks Game</span>
+<span class="slc">% https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">%%</span>
+<span class="slc">%% Contributed by : Alkis Gotovos and Maria Christakis, 13 Nov 2010</span>
+
+<span class="opt">-</span><span class="kwd">module</span><span class="opt">(</span>fannkuchredux<span class="opt">).</span>
+
+<span class="opt">-</span><span class="kwd">compile</span><span class="opt">([</span>native<span class="opt">, {</span>hipe<span class="opt">, [</span>o3<span class="opt">]}]).</span>
+
+<span class="opt">-</span><span class="kwd">export</span><span class="opt">([</span>main<span class="opt">/</span><span class="num">1</span><span class="opt">]).</span>
+
+<span class="kwd">main</span><span class="opt">([</span>Arg<span class="opt">]) -&gt;</span>
+    <span class="kwd">main</span><span class="opt">(</span><span class="kwb">list_to_integer</span><span class="opt">(</span>Arg<span class="opt">)),</span>
+    <span class="kwb">halt</span><span class="opt">(</span><span class="num">0</span><span class="opt">);</span>
+<span class="kwd">main</span><span class="opt">(</span>N<span class="opt">)</span> <span class="kwa">when</span> N <span class="opt">&gt;</span> <span class="num">0</span> <span class="opt">-&gt;</span>
+    <span class="opt">{</span>MaxFlips<span class="opt">,</span> Checksum<span class="opt">} =</span> 
+	<span class="kwa">case</span> N <span class="kwa">of</span>
+	    <span class="num">1</span> <span class="opt">-&gt; {</span><span class="num">0</span><span class="opt">,</span> <span class="num">0</span><span class="opt">};</span>
+	    _Other <span class="opt">-&gt;</span>
+		Chunk <span class="opt">=</span> <span class="kwd">fact</span><span class="opt">(</span>N <span class="opt">-</span> <span class="num">1</span><span class="opt">),</span>
+		<span class="kwd">divide</span><span class="opt">(</span><span class="num">0</span><span class="opt">,</span> N<span class="opt">,</span> <span class="kwc">lists</span><span class="opt">:</span><span class="kwd">seq</span><span class="opt">(</span><span class="num">1</span><span class="opt">,</span> N<span class="opt">),</span> Chunk<span class="opt">),</span>
+		<span class="kwd">join</span><span class="opt">(</span>N<span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> <span class="num">0</span><span class="opt">)</span>
+	<span class="kwa">end</span><span class="opt">,</span>
+    <span class="kwc">io</span><span class="opt">:</span><span class="kwd">format</span><span class="opt">(</span><span class="str">&quot;~p~nPfannkuchen(~p) = ~p~n&quot;</span><span class="opt">, [</span>Checksum<span class="opt">,</span> N<span class="opt">,</span> MaxFlips<span class="opt">]),</span>
+    <span class="opt">{</span>MaxFlips<span class="opt">,</span> Checksum<span class="opt">}.</span>
+
+<span class="kwd">divide</span><span class="opt">(</span>N<span class="opt">,</span> N<span class="opt">,</span> _L<span class="opt">,</span> _C<span class="opt">) -&gt;</span> ok<span class="opt">;</span>
+<span class="kwd">divide</span><span class="opt">(</span>N<span class="opt">,</span> MaxN<span class="opt">, [</span>H<span class="opt">|</span>T<span class="opt">] =</span> List<span class="opt">,</span> Chunk<span class="opt">) -&gt;</span>
+    Self <span class="opt">=</span> <span class="kwb">self</span><span class="opt">(),</span>
+    Fun <span class="opt">=</span> <span class="kwa">fun</span><span class="opt">() -&gt;</span>
+	      <span class="kwd">work</span><span class="opt">(</span>N<span class="opt">,</span> List<span class="opt">,</span> N <span class="opt">*</span> Chunk<span class="opt">, (</span>N <span class="opt">+</span> <span class="num">1</span><span class="opt">) *</span> Chunk<span class="opt">,</span> MaxN<span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> Self<span class="opt">)</span>
+	  <span class="kwa">end</span><span class="opt">,</span>
+    <span class="kwb">spawn</span><span class="opt">(</span>Fun<span class="opt">),</span>
+    <span class="kwd">divide</span><span class="opt">(</span>N <span class="opt">+</span> <span class="num">1</span><span class="opt">,</span> MaxN<span class="opt">,</span> T <span class="opt">++ [</span>H<span class="opt">],</span> Chunk<span class="opt">).</span>
+
+<span class="kwd">join</span><span class="opt">(</span><span class="num">0</span><span class="opt">,</span> MaxFlips<span class="opt">,</span> Checksum<span class="opt">) -&gt; {</span>MaxFlips<span class="opt">,</span> Checksum<span class="opt">};</span>
+<span class="kwd">join</span><span class="opt">(</span>N<span class="opt">,</span> MaxFlips<span class="opt">,</span> Checksum<span class="opt">) -&gt;</span>
+    <span class="kwa">receive</span>
+	<span class="opt">{</span>Flips<span class="opt">,</span> Sum<span class="opt">} -&gt;</span> <span class="kwd">join</span><span class="opt">(</span>N <span class="opt">-</span> <span class="num">1</span><span class="opt">,</span> <span class="kwd">max</span><span class="opt">(</span>MaxFlips<span class="opt">,</span> Flips<span class="opt">),</span> Checksum <span class="opt">+</span> Sum<span class="opt">)</span>
+    <span class="kwa">end</span><span class="opt">.</span>
+
+<span class="kwd">work</span><span class="opt">(</span>_P<span class="opt">,</span> _L<span class="opt">,</span> Index<span class="opt">,</span> Index<span class="opt">,</span> _R<span class="opt">,</span> MaxFlips<span class="opt">,</span> Checksum<span class="opt">,</span> Target<span class="opt">) -&gt;</span>
+    Target <span class="opt">! {</span>MaxFlips<span class="opt">,</span> Checksum<span class="opt">};</span>
+<span class="kwd">work</span><span class="opt">(</span>Proc<span class="opt">,</span> List<span class="opt">,</span> Index<span class="opt">,</span> MaxIndex<span class="opt">,</span> R<span class="opt">,</span> MaxFlips<span class="opt">,</span> Checksum<span class="opt">,</span> Target<span class="opt">) -&gt;</span>
+    <span class="kwd">reset</span><span class="opt">(</span>R<span class="opt">),</span>
+    <span class="opt">{</span>Flips<span class="opt">,</span> Sum<span class="opt">} =</span> <span class="kwd">flip_sum</span><span class="opt">(</span>Index<span class="opt">,</span> List<span class="opt">),</span>
+    NewFlips <span class="opt">=</span> <span class="kwd">max</span><span class="opt">(</span>Flips<span class="opt">,</span> MaxFlips<span class="opt">),</span>
+    NewSum <span class="opt">=</span> Checksum <span class="opt">+</span> Sum<span class="opt">,</span>
+    <span class="opt">{</span>NewList<span class="opt">,</span> NewR<span class="opt">} =</span> <span class="kwd">next</span><span class="opt">(</span>Proc<span class="opt">,</span> List<span class="opt">,</span> <span class="num">1</span><span class="opt">),</span>
+    <span class="kwd">work</span><span class="opt">(</span>Proc<span class="opt">,</span> NewList<span class="opt">,</span> Index <span class="opt">+</span> <span class="num">1</span><span class="opt">,</span> MaxIndex<span class="opt">,</span> NewR<span class="opt">,</span> NewFlips<span class="opt">,</span> NewSum<span class="opt">,</span> Target<span class="opt">).</span>
+
+<span class="kwd">next</span><span class="opt">(</span>Proc<span class="opt">,</span> List<span class="opt">,</span> R<span class="opt">) -&gt;</span>
+    NewList <span class="opt">=</span> <span class="kwd">next_aux</span><span class="opt">(</span>R<span class="opt">,</span> List<span class="opt">),</span>
+    <span class="kwa">case</span> <span class="kwb">put</span><span class="opt">(</span>R<span class="opt">,</span> <span class="kwb">get</span><span class="opt">(</span>R<span class="opt">) -</span> <span class="num">1</span><span class="opt">)</span> <span class="kwa">of</span>
+	<span class="num">1</span> <span class="opt">-&gt;</span> <span class="kwd">next</span><span class="opt">(</span>Proc<span class="opt">,</span> NewList<span class="opt">,</span> R <span class="opt">+</span> <span class="num">1</span><span class="opt">);</span>
+	_Other <span class="opt">-&gt; {</span>NewList<span class="opt">,</span> R<span class="opt">}</span>
+    <span class="kwa">end</span><span class="opt">.</span>
+
+<span class="kwd">next_aux</span><span class="opt">(</span><span class="num">1</span><span class="opt">, [</span>E1<span class="opt">,</span> E2<span class="opt">|</span>T<span class="opt">]) -&gt; [</span>E2<span class="opt">,</span> E1<span class="opt">|</span>T<span class="opt">];</span>
+<span class="kwd">next_aux</span><span class="opt">(</span><span class="num">2</span><span class="opt">, [</span>E1<span class="opt">,</span> E2<span class="opt">,</span> E3<span class="opt">|</span>T<span class="opt">]) -&gt; [</span>E2<span class="opt">,</span> E3<span class="opt">,</span> E1<span class="opt">|</span>T<span class="opt">];</span>
+<span class="kwd">next_aux</span><span class="opt">(</span><span class="num">3</span><span class="opt">, [</span>E1<span class="opt">,</span> E2<span class="opt">,</span> E3<span class="opt">,</span> E4<span class="opt">|</span>T<span class="opt">]) -&gt; [</span>E2<span class="opt">,</span> E3<span class="opt">,</span> E4<span class="opt">,</span> E1<span class="opt">|</span>T<span class="opt">];</span>
+<span class="kwd">next_aux</span><span class="opt">(</span>R<span class="opt">, [</span>H<span class="opt">|</span>T<span class="opt">]) -&gt;</span>
+    <span class="opt">{</span>Front<span class="opt">,</span> Back<span class="opt">} =</span> <span class="kwc">lists</span><span class="opt">:</span><span class="kwd">split</span><span class="opt">(</span>R<span class="opt">,</span> T<span class="opt">),</span>
+    Front <span class="opt">++ [</span>H<span class="opt">] ++</span> Back<span class="opt">.</span>    
+
+<span class="kwd">flip_sum</span><span class="opt">(</span>Index<span class="opt">,</span> List<span class="opt">) -&gt;</span>
+    Flips <span class="opt">=</span> <span class="kwd">flip</span><span class="opt">(</span>List<span class="opt">,</span> <span class="num">0</span><span class="opt">),</span>
+    Sum <span class="opt">=</span> 
+	<span class="kwa">case</span> Index band <span class="num">1</span> <span class="kwa">of</span>
+	    <span class="num">0</span> <span class="opt">-&gt;</span> Flips<span class="opt">;</span>
+	    <span class="num">1</span> <span class="opt">-&gt; -</span>Flips
+	<span class="kwa">end</span><span class="opt">,</span>
+    <span class="opt">{</span>Flips<span class="opt">,</span> Sum<span class="opt">}.</span>
+
+<span class="kwd">flip</span><span class="opt">([</span><span class="num">1</span><span class="opt">|</span>_T<span class="opt">],</span> N<span class="opt">) -&gt;</span>
+    N<span class="opt">;</span>
+<span class="kwd">flip</span><span class="opt">([</span><span class="num">2</span><span class="opt">,</span> E1<span class="opt">|</span>T<span class="opt">],</span> N<span class="opt">) -&gt;</span>
+    <span class="kwd">flip</span><span class="opt">([</span>E1<span class="opt">,</span> <span class="num">2</span><span class="opt">|</span>T<span class="opt">],</span> N <span class="opt">+</span> <span class="num">1</span><span class="opt">);</span>
+<span class="kwd">flip</span><span class="opt">([</span><span class="num">3</span><span class="opt">,</span> E1<span class="opt">,</span> E2<span class="opt">|</span>T<span class="opt">],</span> N<span class="opt">) -&gt;</span>
+    <span class="kwd">flip</span><span class="opt">([</span>E2<span class="opt">,</span> E1<span class="opt">,</span> <span class="num">3</span><span class="opt">|</span>T<span class="opt">],</span> N <span class="opt">+</span> <span class="num">1</span><span class="opt">);</span>
+<span class="kwd">flip</span><span class="opt">([</span><span class="num">4</span><span class="opt">,</span> E1<span class="opt">,</span> E2<span class="opt">,</span> E3<span class="opt">|</span>T<span class="opt">],</span> N<span class="opt">) -&gt;</span>
+    <span class="kwd">flip</span><span class="opt">([</span>E3<span class="opt">,</span> E2<span class="opt">,</span> E1<span class="opt">,</span> <span class="num">4</span><span class="opt">|</span>T<span class="opt">],</span> N <span class="opt">+</span> <span class="num">1</span><span class="opt">);</span>
+<span class="kwd">flip</span><span class="opt">([</span><span class="num">5</span><span class="opt">,</span> E1<span class="opt">,</span> E2<span class="opt">,</span> E3<span class="opt">,</span> E4<span class="opt">|</span>T<span class="opt">],</span> N<span class="opt">) -&gt;</span>
+    <span class="kwd">flip</span><span class="opt">([</span>E4<span class="opt">,</span> E3<span class="opt">,</span> E2<span class="opt">,</span> E1<span class="opt">,</span> <span class="num">5</span><span class="opt">|</span>T<span class="opt">],</span> N <span class="opt">+</span> <span class="num">1</span><span class="opt">);</span>
+<span class="kwd">flip</span><span class="opt">([</span><span class="num">6</span><span class="opt">,</span> E1<span class="opt">,</span> E2<span class="opt">,</span> E3<span class="opt">,</span> E4<span class="opt">,</span> E5<span class="opt">|</span>T<span class="opt">],</span> N<span class="opt">) -&gt;</span>
+    <span class="kwd">flip</span><span class="opt">([</span>E5<span class="opt">,</span> E4<span class="opt">,</span> E3<span class="opt">,</span> E2<span class="opt">,</span> E1<span class="opt">,</span> <span class="num">6</span><span class="opt">|</span>T<span class="opt">],</span> N <span class="opt">+</span> <span class="num">1</span><span class="opt">);</span>
+<span class="kwd">flip</span><span class="opt">([</span><span class="num">7</span><span class="opt">,</span> E1<span class="opt">,</span> E2<span class="opt">,</span> E3<span class="opt">,</span> E4<span class="opt">,</span> E5<span class="opt">,</span> E6<span class="opt">|</span>T<span class="opt">],</span> N<span class="opt">) -&gt;</span>
+    <span class="kwd">flip</span><span class="opt">([</span>E6<span class="opt">,</span> E5<span class="opt">,</span> E4<span class="opt">,</span> E3<span class="opt">,</span> E2<span class="opt">,</span> E1<span class="opt">,</span> <span class="num">7</span><span class="opt">|</span>T<span class="opt">],</span> N <span class="opt">+</span> <span class="num">1</span><span class="opt">);</span>
+<span class="kwd">flip</span><span class="opt">([</span><span class="num">8</span><span class="opt">,</span> E1<span class="opt">,</span> E2<span class="opt">,</span> E3<span class="opt">,</span> E4<span class="opt">,</span> E5<span class="opt">,</span> E6<span class="opt">,</span> E7<span class="opt">|</span>T<span class="opt">],</span> N<span class="opt">) -&gt;</span>
+    <span class="kwd">flip</span><span class="opt">([</span>E7<span class="opt">,</span> E6<span class="opt">,</span> E5<span class="opt">,</span> E4<span class="opt">,</span> E3<span class="opt">,</span> E2<span class="opt">,</span> E1<span class="opt">,</span> <span class="num">8</span><span class="opt">|</span>T<span class="opt">],</span> N <span class="opt">+</span> <span class="num">1</span><span class="opt">);</span>
+<span class="kwd">flip</span><span class="opt">([</span><span class="num">9</span><span class="opt">,</span> E1<span class="opt">,</span> E2<span class="opt">,</span> E3<span class="opt">,</span> E4<span class="opt">,</span> E5<span class="opt">,</span> E6<span class="opt">,</span> E7<span class="opt">,</span> E8<span class="opt">|</span>T<span class="opt">],</span> N<span class="opt">) -&gt;</span>
+    <span class="kwd">flip</span><span class="opt">([</span>E8<span class="opt">,</span> E7<span class="opt">,</span> E6<span class="opt">,</span> E5<span class="opt">,</span> E4<span class="opt">,</span> E3<span class="opt">,</span> E2<span class="opt">,</span> E1<span class="opt">,</span> <span class="num">9</span><span class="opt">|</span>T<span class="opt">],</span> N <span class="opt">+</span> <span class="num">1</span><span class="opt">);</span>
+<span class="kwd">flip</span><span class="opt">([</span><span class="num">10</span><span class="opt">,</span> E1<span class="opt">,</span> E2<span class="opt">,</span> E3<span class="opt">,</span> E4<span class="opt">,</span> E5<span class="opt">,</span> E6<span class="opt">,</span> E7<span class="opt">,</span> E8<span class="opt">,</span> E9<span class="opt">|</span>T<span class="opt">],</span> N<span class="opt">) -&gt;</span>
+    <span class="kwd">flip</span><span class="opt">([</span>E9<span class="opt">,</span> E8<span class="opt">,</span> E7<span class="opt">,</span> E6<span class="opt">,</span> E5<span class="opt">,</span> E4<span class="opt">,</span> E3<span class="opt">,</span> E2<span class="opt">,</span> E1<span class="opt">,</span> <span class="num">10</span><span class="opt">|</span>T<span class="opt">],</span> N <span class="opt">+</span> <span class="num">1</span><span class="opt">);</span>
+<span class="kwd">flip</span><span class="opt">([</span><span class="num">11</span><span class="opt">,</span> E1<span class="opt">,</span> E2<span class="opt">,</span> E3<span class="opt">,</span> E4<span class="opt">,</span> E5<span class="opt">,</span> E6<span class="opt">,</span> E7<span class="opt">,</span> E8<span class="opt">,</span> E9<span class="opt">,</span> E10<span class="opt">|</span>T<span class="opt">],</span> N<span class="opt">) -&gt;</span>
+    <span class="kwd">flip</span><span class="opt">([</span>E10<span class="opt">,</span> E9<span class="opt">,</span> E8<span class="opt">,</span> E7<span class="opt">,</span> E6<span class="opt">,</span> E5<span class="opt">,</span> E4<span class="opt">,</span> E3<span class="opt">,</span> E2<span class="opt">,</span> E1<span class="opt">,</span> <span class="num">11</span><span class="opt">|</span>T<span class="opt">],</span> N <span class="opt">+</span> <span class="num">1</span><span class="opt">);</span>
+<span class="kwd">flip</span><span class="opt">([</span><span class="num">12</span><span class="opt">,</span> E1<span class="opt">,</span> E2<span class="opt">,</span> E3<span class="opt">,</span> E4<span class="opt">,</span> E5<span class="opt">,</span> E6<span class="opt">,</span> E7<span class="opt">,</span> E8<span class="opt">,</span> E9<span class="opt">,</span> E10<span class="opt">,</span> E11<span class="opt">|</span>T<span class="opt">],</span> N<span class="opt">) -&gt;</span>
+    <span class="kwd">flip</span><span class="opt">([</span>E11<span class="opt">,</span> E10<span class="opt">,</span> E9<span class="opt">,</span> E8<span class="opt">,</span> E7<span class="opt">,</span> E6<span class="opt">,</span> E5<span class="opt">,</span> E4<span class="opt">,</span> E3<span class="opt">,</span> E2<span class="opt">,</span> E1<span class="opt">,</span> <span class="num">12</span><span class="opt">|</span>T<span class="opt">],</span> N <span class="opt">+</span> <span class="num">1</span><span class="opt">);</span>
+<span class="kwd">flip</span><span class="opt">([</span>H<span class="opt">|</span>_T<span class="opt">] =</span> List<span class="opt">,</span> N<span class="opt">) -&gt;</span>
+    <span class="opt">{</span>First<span class="opt">,</span> Last<span class="opt">} =</span> <span class="kwc">lists</span><span class="opt">:</span><span class="kwd">split</span><span class="opt">(</span>H<span class="opt">,</span> List<span class="opt">),</span>
+    <span class="kwd">flip</span><span class="opt">(</span><span class="kwc">lists</span><span class="opt">:</span><span class="kwd">reverse</span><span class="opt">(</span>First<span class="opt">) ++</span> Last<span class="opt">,</span> N <span class="opt">+</span> <span class="num">1</span><span class="opt">).</span>
+
+<span class="kwd">reset</span><span class="opt">(</span><span class="num">1</span><span class="opt">) -&gt;</span> ok<span class="opt">;</span>    
+<span class="kwd">reset</span><span class="opt">(</span>N<span class="opt">) -&gt;</span> <span class="kwb">put</span><span class="opt">(</span>N <span class="opt">-</span> <span class="num">1</span><span class="opt">,</span> N<span class="opt">),</span> <span class="kwd">reset</span><span class="opt">(</span>N <span class="opt">-</span> <span class="num">1</span><span class="opt">).</span>
+
+<span class="kwd">fact</span><span class="opt">(</span><span class="num">1</span><span class="opt">) -&gt;</span> <span class="num">1</span><span class="opt">;</span>
+<span class="kwd">fact</span><span class="opt">(</span>N<span class="opt">) -&gt;</span> N <span class="opt">*</span> <span class="kwd">fact</span><span class="opt">(</span>N <span class="opt">-</span> <span class="num">1</span><span class="opt">).</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

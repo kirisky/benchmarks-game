@@ -17,6 +17,137 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc"># The Computer Language Benchmarks Game</span>
+<span class="slc"># https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">#</span>
+<span class="slc"># Contributed by Aaron Tavistock</span>
+<span class="slc"># modified by Isaac Gouy for ord &amp; setbyte not supported in Ruby 1.8.7</span>
+
+ALU <span class="opt">=</span> <span class="str">&apos;GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA&apos;</span><span class="opt">.</span>freeze
+
+IUB <span class="opt">= [</span>
+  <span class="opt">[</span><span class="str">&apos;a&apos;</span><span class="opt">,</span> <span class="num">0.27</span><span class="opt">],</span>
+  <span class="opt">[</span><span class="str">&apos;c&apos;</span><span class="opt">,</span> <span class="num">0.12</span><span class="opt">],</span>
+  <span class="opt">[</span><span class="str">&apos;g&apos;</span><span class="opt">,</span> <span class="num">0.12</span><span class="opt">],</span>
+  <span class="opt">[</span><span class="str">&apos;t&apos;</span><span class="opt">,</span> <span class="num">0.27</span><span class="opt">],</span>
+  <span class="opt">[</span><span class="str">&apos;B&apos;</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">],</span>
+  <span class="opt">[</span><span class="str">&apos;D&apos;</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">],</span>
+  <span class="opt">[</span><span class="str">&apos;H&apos;</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">],</span>
+  <span class="opt">[</span><span class="str">&apos;K&apos;</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">],</span>
+  <span class="opt">[</span><span class="str">&apos;M&apos;</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">],</span>
+  <span class="opt">[</span><span class="str">&apos;N&apos;</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">],</span>
+  <span class="opt">[</span><span class="str">&apos;R&apos;</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">],</span>
+  <span class="opt">[</span><span class="str">&apos;S&apos;</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">],</span>
+  <span class="opt">[</span><span class="str">&apos;V&apos;</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">],</span>
+  <span class="opt">[</span><span class="str">&apos;W&apos;</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">],</span>
+  <span class="opt">[</span><span class="str">&apos;Y&apos;</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">],</span>
+<span class="opt">].</span>freeze
+
+HOMOSAPIENS <span class="opt">= [</span>
+  <span class="opt">[</span><span class="str">&apos;a&apos;</span><span class="opt">,</span> <span class="num">0.3029549426680</span><span class="opt">],</span>
+  <span class="opt">[</span><span class="str">&apos;c&apos;</span><span class="opt">,</span> <span class="num">0.1979883004921</span><span class="opt">],</span>
+  <span class="opt">[</span><span class="str">&apos;g&apos;</span><span class="opt">,</span> <span class="num">0.1975473066391</span><span class="opt">],</span>
+  <span class="opt">[</span><span class="str">&apos;t&apos;</span><span class="opt">,</span> <span class="num">0.3015094502008</span><span class="opt">],</span>
+<span class="opt">].</span>freeze
+
+<span class="kwa">class</span> RandomSequence
+
+  MULTIPLIER <span class="opt">=</span> <span class="num">3877</span>
+  INCREMENT <span class="opt">=</span> <span class="num">29573</span>
+  MODULUS <span class="opt">=</span> <span class="num">139968</span>
+  FLOAT_MODULUS <span class="opt">=</span> MODULUS<span class="opt">.</span>to_f
+
+  ROW_SIZE <span class="opt">=</span> <span class="num">60</span>
+
+  attr_reader <span class="kwc">:value</span>
+
+  <span class="kwa">def</span> <span class="kwd">initialize</span><span class="opt">(</span>seed_value<span class="opt">,</span> map<span class="opt">,</span> size<span class="opt">)</span>
+    <span class="kwb">&#64;size</span> <span class="opt">=</span> size
+    <span class="kwb">&#64;value</span> <span class="opt">=</span> seed_value
+    <span class="kwb">&#64;output</span> <span class="opt">=</span> <span class="str">&apos; &apos;</span> <span class="opt">*</span> ROW_SIZE
+    <span class="kwd">generate_map_value_method</span><span class="opt">(</span>map<span class="opt">)</span>
+  <span class="kwa">end</span>
+
+  <span class="kwa">def</span> <span class="kwd">render</span><span class="opt">(</span>label<span class="opt">)</span>
+    puts <span class="str">&quot;&gt;#{label}&quot;</span>
+    full_row_count<span class="opt">,</span> last_row_size <span class="opt">=</span> <span class="kwb">&#64;size</span><span class="opt">.</span><span class="kwd">divmod</span><span class="opt">(</span><span class="num">60</span><span class="opt">)</span>
+    <span class="kwa">while</span> <span class="opt">(</span>full_row_count <span class="opt">&gt;</span> <span class="num">0</span><span class="opt">)</span>
+      puts <span class="kwd">output_row</span><span class="opt">(</span>ROW_SIZE<span class="opt">)</span>
+      full_row_count <span class="opt">-=</span> <span class="num">1</span>
+    <span class="kwa">end</span>
+    <span class="kwa">if</span> last_row_size <span class="opt">&gt;</span> <span class="num">0</span>
+      <span class="kwb">&#64;output</span> <span class="opt">=</span> <span class="str">&apos; &apos;</span><span class="opt">*</span>last_row_size
+      puts <span class="kwd">output_row</span><span class="opt">(</span>last_row_size<span class="opt">)</span>
+    <span class="kwa">end</span>
+  <span class="kwa">end</span>
+
+  <span class="kwa">private</span>
+
+  <span class="kwa">def</span> <span class="kwd">generate_map_value_method</span><span class="opt">(</span>map<span class="opt">)</span>
+    accum_percentage <span class="opt">=</span> <span class="num">0.0</span>
+
+    conditions <span class="opt">= []</span>
+    map<span class="opt">.</span>each <span class="kwa">do</span> <span class="opt">|</span>letter<span class="opt">,</span> percentage<span class="opt">|</span>
+      accum_percentage <span class="opt">+=</span> percentage
+      conditions <span class="opt">&lt;&lt; %[(</span>value <span class="opt">&lt;=</span> <span class="slc">#{accum_percentage} ? #{letter.unpack(&apos;U&apos;)[0]} : ] # 1.8.7</span>
+    <span class="kwa">end</span>
+    conditions<span class="opt">[-</span><span class="num">1</span><span class="opt">] =</span> <span class="str">&quot;#{map.last.first.unpack(&apos;U&apos;)[0]}&quot;</span> <span class="slc"># 1.8.7</span>
+    conditions <span class="opt">&lt;&lt;</span> <span class="str">&apos;)&apos;</span> <span class="opt">* (</span>map<span class="opt">.</span>size <span class="opt">-</span> <span class="num">1</span><span class="opt">)</span>
+ 
+    instance_eval <span class="opt">%[</span><span class="kwa">def</span> <span class="kwd">map_value</span><span class="opt">(</span>value<span class="opt">);</span> <span class="slc">#{conditions.join}; end]</span>
+  <span class="kwa">end</span>
+
+  <span class="kwa">def</span> next_item
+    <span class="kwb">&#64;value</span> <span class="opt">= (</span><span class="kwb">&#64;value</span> <span class="opt">*</span> MULTIPLIER <span class="opt">+</span> INCREMENT<span class="opt">) %</span> MODULUS
+    <span class="kwb">&#64;value</span><span class="opt">.</span>to_f <span class="opt">/</span> FLOAT_MODULUS
+  <span class="kwa">end</span>
+
+  <span class="kwa">def</span> <span class="kwd">output_row</span><span class="opt">(</span>size<span class="opt">)</span>
+    idx <span class="opt">=</span> <span class="num">0</span>
+    <span class="kwa">while</span> idx <span class="opt">&lt;</span> size
+      <span class="kwb">&#64;output</span><span class="opt">[</span>idx<span class="opt">] =</span> <span class="kwd">map_value</span><span class="opt">(</span>next_item<span class="opt">)</span> <span class="slc"># 1.8.7</span>
+      idx <span class="opt">+=</span> <span class="num">1</span>
+    <span class="kwa">end</span>
+    <span class="kwb">&#64;output</span>
+  <span class="kwa">end</span>
+
+<span class="kwa">end</span>
+
+<span class="kwa">class</span> RepeatSequence
+
+  <span class="kwa">def</span> <span class="kwd">initialize</span><span class="opt">(</span>seed_sequence<span class="opt">,</span> size<span class="opt">)</span>
+    repeats <span class="opt">= (</span>size <span class="opt">/</span> seed_sequence<span class="opt">.</span>size<span class="opt">).</span>to_i <span class="opt">+</span> <span class="num">1</span>
+    seq <span class="opt">=</span> seed_sequence <span class="opt">*</span> repeats
+    <span class="kwb">&#64;sequence</span> <span class="opt">=</span> seq<span class="opt">[</span><span class="num">0</span><span class="opt">,</span>size<span class="opt">]</span>
+  <span class="kwa">end</span>
+
+  <span class="kwa">def</span> <span class="kwd">render</span><span class="opt">(</span>label<span class="opt">)</span>
+    puts <span class="str">&quot;&gt;#{label}&quot;</span>
+    seq_size <span class="opt">=</span> <span class="kwb">&#64;sequence</span><span class="opt">.</span>size <span class="opt">-</span> <span class="num">1</span>
+    <span class="num">0</span><span class="opt">.</span><span class="kwd">step</span><span class="opt">(</span>seq_size<span class="opt">,</span> <span class="num">60</span><span class="opt">)</span> <span class="kwa">do</span> <span class="opt">|</span>x<span class="opt">|</span>
+      puts <span class="kwb">&#64;sequence</span><span class="opt">[</span>x<span class="opt">,</span> <span class="num">60</span><span class="opt">]</span>
+    <span class="kwa">end</span>
+  <span class="kwa">end</span>
+
+<span class="kwa">end</span>
+
+size <span class="opt">= (</span><span class="kwc">ARGV</span><span class="opt">[</span><span class="num">0</span><span class="opt">] ||</span> <span class="num">27</span><span class="opt">).</span>to_i
+
+one <span class="opt">=</span> RepeatSequence<span class="opt">.</span><span class="kwd">new</span><span class="opt">(</span>ALU<span class="opt">,</span> size<span class="opt">*</span><span class="num">2</span><span class="opt">)</span>
+one<span class="opt">.</span><span class="kwd">render</span><span class="opt">(</span><span class="str">&apos;ONE Homo sapiens alu&apos;</span><span class="opt">)</span>
+
+two <span class="opt">=</span> RandomSequence<span class="opt">.</span><span class="kwd">new</span><span class="opt">(</span><span class="num">42</span><span class="opt">,</span> IUB<span class="opt">,</span> size<span class="opt">*</span><span class="num">3</span><span class="opt">)</span>
+two<span class="opt">.</span><span class="kwd">render</span><span class="opt">(</span><span class="str">&apos;TWO IUB ambiguity codes&apos;</span><span class="opt">)</span>
+
+three <span class="opt">=</span> RandomSequence<span class="opt">.</span><span class="kwd">new</span><span class="opt">(</span>two<span class="opt">.</span>value<span class="opt">,</span> HOMOSAPIENS<span class="opt">,</span> size<span class="opt">*</span><span class="num">5</span><span class="opt">)</span>
+three<span class="opt">.</span><span class="kwd">render</span><span class="opt">(</span><span class="str">&apos;THREE Homo sapiens frequency&apos;</span><span class="opt">)</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

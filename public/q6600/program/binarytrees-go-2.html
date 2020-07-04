@@ -17,6 +17,98 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="com">/* The Computer Language Benchmarks Game</span>
+<span class="com"> * https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="com"> *</span>
+<span class="com"> * contributed by The Go Authors.</span>
+<span class="com"> * based on C program by Kevin Carson</span>
+<span class="com"> * flag.Arg hack by Isaac Gouy</span>
+<span class="com"> * </span>
+<span class="com"> * 2013-04</span>
+<span class="com"> * modified by Jamil Djadala to use goroutines</span>
+<span class="com"> * *reset*</span>
+<span class="com"> */</span>
+
+<span class="kwa">package</span> main
+
+<span class="kwa">import</span> <span class="opt">(</span>
+   <span class="str">&quot;flag&quot;</span>
+   <span class="str">&quot;fmt&quot;</span>
+   <span class="str">&quot;strconv&quot;</span>
+   <span class="str">&quot;runtime&quot;</span>
+   <span class="str">&quot;sync&quot;</span>
+<span class="opt">)</span>
+
+<span class="kwa">var</span> n <span class="opt">=</span> <span class="num">0</span>
+
+<span class="kwa">type</span> Node <span class="kwa">struct</span> <span class="opt">{</span>
+     left<span class="opt">,</span> right   <span class="opt">*</span>Node
+<span class="opt">}</span>
+
+<span class="kwa">func</span>  <span class="kwd">bottomUpTree</span><span class="opt">(</span>depth <span class="kwb">int</span><span class="opt">) *</span>Node <span class="opt">{</span>
+   <span class="kwa">if</span> depth <span class="opt">&lt;=</span> <span class="num">0</span> <span class="opt">{</span>
+      <span class="kwa">return</span> <span class="opt">&amp;</span>Node<span class="opt">{}</span>
+   <span class="opt">}</span>
+   <span class="kwa">return</span> <span class="opt">&amp;</span>Node<span class="opt">{</span> <span class="kwd">bottomUpTree</span><span class="opt">(</span>depth<span class="opt">-</span><span class="num">1</span><span class="opt">),</span> <span class="kwd">bottomUpTree</span><span class="opt">(</span>depth<span class="opt">-</span><span class="num">1</span><span class="opt">) }</span>
+<span class="opt">}</span>
+
+<span class="kwa">func</span> <span class="opt">(</span>n <span class="opt">*</span>Node<span class="opt">)</span> <span class="kwd">itemCheck</span><span class="opt">()</span> <span class="kwb">int</span> <span class="opt">{</span>
+   <span class="kwa">if</span> n<span class="opt">.</span>left <span class="opt">==</span> <span class="kwb">nil</span> <span class="opt">{</span>
+      <span class="kwa">return</span> <span class="num">1</span>
+   <span class="opt">}</span>
+   <span class="kwa">return</span> <span class="num">1</span> <span class="opt">+</span> n<span class="opt">.</span>left<span class="opt">.</span><span class="kwd">itemCheck</span><span class="opt">() +</span> n<span class="opt">.</span>right<span class="opt">.</span><span class="kwd">itemCheck</span><span class="opt">()</span>
+<span class="opt">}</span>
+
+<span class="kwa">const</span> minDepth <span class="opt">=</span> <span class="num">4</span>
+
+<span class="kwa">func</span> <span class="kwd">main</span><span class="opt">() {</span>  
+   runtime<span class="opt">.</span><span class="kwd">GOMAXPROCS</span><span class="opt">(</span> runtime<span class="opt">.</span><span class="kwd">NumCPU</span><span class="opt">() +</span> <span class="num">2</span><span class="opt">)</span>
+ 
+   flag<span class="opt">.</span><span class="kwd">Parse</span><span class="opt">()</span>
+   <span class="kwa">if</span> flag<span class="opt">.</span><span class="kwd">NArg</span><span class="opt">() &gt;</span> <span class="num">0</span> <span class="opt">{</span> n<span class="opt">,</span>_ <span class="opt">=</span> strconv<span class="opt">.</span><span class="kwd">Atoi</span><span class="opt">(</span> flag<span class="opt">.</span><span class="kwd">Arg</span><span class="opt">(</span><span class="num">0</span><span class="opt">) ) }</span>
+
+   maxDepth <span class="opt">:=</span> n
+   <span class="kwa">if</span> minDepth <span class="opt">+</span> <span class="num">2</span> <span class="opt">&gt;</span> n <span class="opt">{</span>
+      maxDepth <span class="opt">=</span> minDepth <span class="opt">+</span> <span class="num">2</span>
+   <span class="opt">}</span>
+   stretchDepth <span class="opt">:=</span> maxDepth <span class="opt">+</span> <span class="num">1</span>
+
+   check_l <span class="opt">:=</span> <span class="kwd">bottomUpTree</span><span class="opt">(</span>stretchDepth<span class="opt">).</span><span class="kwd">itemCheck</span><span class="opt">()</span>
+   fmt<span class="opt">.</span><span class="kwd">Printf</span><span class="opt">(</span><span class="str">&quot;stretch tree of depth</span> <span class="ipl">%d</span><span class="str"></span><span class="esc">\t</span> <span class="str">check:</span> <span class="ipl">%d</span><span class="str"></span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span> stretchDepth<span class="opt">,</span> check_l<span class="opt">)</span>
+
+   longLivedTree <span class="opt">:=</span> <span class="kwd">bottomUpTree</span><span class="opt">(</span>maxDepth<span class="opt">)</span>
+   
+   <span class="kwa">var</span> wg sync<span class="opt">.</span>WaitGroup
+   result <span class="opt">:=</span> <span class="kwb">make</span><span class="opt">( []</span><span class="kwb">string</span><span class="opt">,</span> maxDepth<span class="opt">+</span><span class="num">1</span><span class="opt">)</span>
+
+   <span class="kwa">for</span> depth_l <span class="opt">:=</span> minDepth<span class="opt">;</span> depth_l <span class="opt">&lt;=</span> maxDepth<span class="opt">;</span> depth_l<span class="opt">+=</span><span class="num">2</span> <span class="opt">{</span>
+          wg<span class="opt">.</span><span class="kwd">Add</span><span class="opt">(</span><span class="num">1</span><span class="opt">)</span>
+          <span class="kwa">go func</span><span class="opt">(</span> depth <span class="kwb">int</span><span class="opt">,</span> check <span class="kwb">int</span><span class="opt">,</span> r <span class="opt">*</span><span class="kwb">string</span><span class="opt">) {</span>
+          <span class="kwa">defer</span> wg<span class="opt">.</span><span class="kwd">Done</span><span class="opt">()</span>    
+          iterations <span class="opt">:=</span> <span class="num">1</span> <span class="opt">&lt;&lt;</span> <span class="kwb">uint</span><span class="opt">(</span>maxDepth <span class="opt">-</span> depth <span class="opt">+</span> minDepth<span class="opt">)</span>
+          check <span class="opt">=</span> <span class="num">0</span>
+
+          <span class="kwa">for</span> i <span class="opt">:=</span> <span class="num">1</span><span class="opt">;</span> i <span class="opt">&lt;=</span> iterations<span class="opt">;</span> i<span class="opt">++ {</span>
+             check <span class="opt">+=</span> <span class="kwd">bottomUpTree</span><span class="opt">(</span>depth<span class="opt">).</span><span class="kwd">itemCheck</span><span class="opt">()</span>
+          <span class="opt">}</span>
+          <span class="opt">*</span>r <span class="opt">=</span> fmt<span class="opt">.</span><span class="kwd">Sprintf</span><span class="opt">(</span><span class="str">&quot;</span><span class="ipl">%d</span><span class="str"></span><span class="esc">\t</span> <span class="str">trees of depth</span> <span class="ipl">%d</span><span class="str"></span><span class="esc">\t</span> <span class="str">check:</span> <span class="ipl">%d</span><span class="str">&quot;</span><span class="opt">,</span> iterations<span class="opt">,</span> depth<span class="opt">,</span> check<span class="opt">)</span>
+       <span class="opt">}(</span> depth_l<span class="opt">,</span> check_l<span class="opt">, &amp;</span>result<span class="opt">[</span>depth_l<span class="opt">])</span>
+   <span class="opt">}</span>
+   wg<span class="opt">.</span><span class="kwd">Wait</span><span class="opt">()</span>
+   <span class="kwa">for</span> depth <span class="opt">:=</span> minDepth<span class="opt">;</span> depth <span class="opt">&lt;=</span> maxDepth<span class="opt">;</span> depth<span class="opt">+=</span><span class="num">2</span> <span class="opt">{</span>
+       fmt<span class="opt">.</span><span class="kwd">Println</span><span class="opt">(</span> result<span class="opt">[</span>depth<span class="opt">])</span>
+   <span class="opt">}</span>
+   fmt<span class="opt">.</span><span class="kwd">Printf</span><span class="opt">(</span><span class="str">&quot;long lived tree of depth</span> <span class="ipl">%d</span><span class="str"></span><span class="esc">\t</span> <span class="str">check:</span> <span class="ipl">%d</span><span class="str"></span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span> maxDepth<span class="opt">,</span> longLivedTree<span class="opt">.</span><span class="kwd">itemCheck</span><span class="opt">())</span>
+   
+<span class="opt">}</span>
+
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

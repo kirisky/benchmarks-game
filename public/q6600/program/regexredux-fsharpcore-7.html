@@ -17,6 +17,74 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+﻿<span class="slc">// The Computer Language Benchmarks Game</span>
+<span class="slc">// https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">//</span>
+<span class="slc">// regex-dna program contributed by David Grenier</span>
+<span class="slc">// converted from regex-dna program</span>
+<span class="slc">// parallelization by Peter Kese</span>
+<span class="slc">// Use PCRE.NET by Anthony Lloyd</span>
+
+<span class="kwa">open</span> <span class="kwc">PCRE</span>
+
+<span class="kwa">let</span> <span class="kwc">input</span> <span class="opt">=</span> stdin<span class="opt">.</span><span class="kwd">ReadToEnd</span><span class="opt">()</span>
+<span class="kwa">let inline</span> regex s <span class="opt">=</span> <span class="kwd">PcreRegex</span><span class="opt">(</span>s<span class="opt">,</span><span class="kwd">PcreOptions</span><span class="opt">.</span><span class="kwd">Compiled</span><span class="opt">|||</span><span class="kwd">PcreOptions</span><span class="opt">.</span><span class="kwd">NoUtfCheck</span><span class="opt">)</span>
+<span class="kwa">let</span> <span class="kwc">text</span> <span class="opt">= (</span>regex <span class="str">&quot;&gt;.*</span><span class="esc">\n</span><span class="str">|</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">).</span><span class="kwd">Replace</span><span class="opt">(</span><span class="kwc">input</span><span class="opt">,</span> <span class="str">&quot;&quot;</span><span class="opt">)</span>
+
+<span class="kwa">let</span> <span class="kwc">settings</span> <span class="opt">=</span> <span class="kwd">PcreMatchSettings</span><span class="opt">(</span><span class="kwd">AdditionalOptions</span><span class="opt">=</span><span class="kwd">PcreMatchOptions</span><span class="opt">.</span><span class="kwd">NoUtfCheck</span><span class="opt">)</span>
+<span class="kwa">let inline</span> regexCount <span class="kwc">pattern</span> <span class="opt">=</span> async <span class="opt">{</span>
+    <span class="kwa">let</span> <span class="kwc">c</span> <span class="opt">= (</span>regex <span class="kwc">pattern</span><span class="opt">).</span><span class="kwd">Matches</span><span class="opt">(</span><span class="kwc">text</span><span class="opt">,</span><span class="kwc">settings</span><span class="opt">) |&gt;</span> <span class="kwd">Seq</span><span class="opt">.</span>length
+    return <span class="kwc">pattern</span> <span class="opt">+</span> <span class="str">&quot; &quot;</span> <span class="opt">+</span> <span class="kwb">string</span> <span class="kwc">c</span>
+<span class="opt">}</span>
+
+<span class="kwa">let</span> <span class="kwc">replaceTask</span> <span class="opt">=</span> async <span class="opt">{</span>
+    <span class="kwa">let</span> <span class="kwc">l</span> <span class="opt">=</span>
+        <span class="opt">[</span>
+            <span class="str">&quot;tHa[Nt]&quot;</span><span class="opt">,</span> <span class="str">&quot;&lt;4&gt;&quot;</span>
+            <span class="str">&quot;aND|caN|Ha[DS]|WaS&quot;</span><span class="opt">,</span> <span class="str">&quot;&lt;3&gt;&quot;</span>
+            <span class="str">&quot;a[NSt]|BY&quot;</span><span class="opt">,</span> <span class="str">&quot;&lt;2&gt;&quot;</span>
+            <span class="str">&quot;&lt;[^&gt;]*&gt;&quot;</span><span class="opt">,</span> <span class="str">&quot;|&quot;</span>
+            <span class="str">&quot;</span><span class="esc">\\</span><span class="str">|[^|][^|]*</span><span class="esc">\\</span><span class="str">|&quot;</span><span class="opt">,</span> <span class="str">&quot;-&quot;</span>
+        <span class="opt">]</span>
+        <span class="opt">|&gt;</span> <span class="kwd">List</span><span class="opt">.</span>fold <span class="opt">(</span><span class="kwa">fun</span> s <span class="opt">(</span><span class="kwc">pattern</span><span class="opt">,</span> replace<span class="opt">) -&gt;</span>
+            <span class="opt">(</span>regex <span class="kwc">pattern</span><span class="opt">).</span><span class="kwd">Replace</span> <span class="opt">(</span>s<span class="opt">,</span> replace<span class="opt">))</span> <span class="kwc">text</span>
+        <span class="opt">|&gt;</span> <span class="kwd">String</span><span class="opt">.</span>length <span class="opt">|&gt;</span> <span class="kwb">string</span>
+    return <span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span> <span class="opt">+</span> <span class="kwb">string</span> <span class="kwc">input</span><span class="opt">.</span><span class="kwd">Length</span> <span class="opt">+</span> <span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span> <span class="opt">+</span> <span class="kwb">string</span> <span class="kwc">text</span><span class="opt">.</span><span class="kwd">Length</span> <span class="opt">+</span> <span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span> <span class="opt">+</span> <span class="kwc">l</span>
+<span class="opt">}</span>
+
+<span class="kwa">let</span> <span class="kwc">results</span> <span class="opt">=</span>
+    <span class="opt">[</span>
+        <span class="kwc">replaceTask</span>
+        regexCount <span class="str">&quot;[cgt]gggtaaa|tttaccc[acg]&quot;</span>
+        regexCount <span class="str">&quot;a[act]ggtaaa|tttacc[agt]t&quot;</span>
+        regexCount <span class="str">&quot;agggt[cgt]aa|tt[acg]accct&quot;</span>
+        regexCount <span class="str">&quot;aggg[acg]aaa|ttt[cgt]ccct&quot;</span>
+        regexCount <span class="str">&quot;ag[act]gtaaa|tttac[agt]ct&quot;</span>
+        regexCount <span class="str">&quot;agg[act]taaa|ttta[agt]cct&quot;</span>
+        regexCount <span class="str">&quot;agggtaaa|tttaccct&quot;</span>
+        regexCount <span class="str">&quot;agggtaa[cgt]|[acg]ttaccct&quot;</span>
+        regexCount <span class="str">&quot;agggta[cgt]a|t[acg]taccct&quot;</span>
+    <span class="opt">]</span>
+    <span class="opt">|&gt;</span> <span class="kwd">Async</span><span class="opt">.</span><span class="kwd">Parallel</span>
+    <span class="opt">|&gt;</span> <span class="kwd">Async</span><span class="opt">.</span><span class="kwd">RunSynchronously</span>
+
+stdout<span class="opt">.</span><span class="kwd">WriteLine</span> <span class="kwc">results</span><span class="opt">.[</span><span class="num">7</span><span class="opt">]</span>
+stdout<span class="opt">.</span><span class="kwd">WriteLine</span> <span class="kwc">results</span><span class="opt">.[</span><span class="num">1</span><span class="opt">]</span>
+stdout<span class="opt">.</span><span class="kwd">WriteLine</span> <span class="kwc">results</span><span class="opt">.[</span><span class="num">2</span><span class="opt">]</span>
+stdout<span class="opt">.</span><span class="kwd">WriteLine</span> <span class="kwc">results</span><span class="opt">.[</span><span class="num">5</span><span class="opt">]</span>
+stdout<span class="opt">.</span><span class="kwd">WriteLine</span> <span class="kwc">results</span><span class="opt">.[</span><span class="num">6</span><span class="opt">]</span>
+stdout<span class="opt">.</span><span class="kwd">WriteLine</span> <span class="kwc">results</span><span class="opt">.[</span><span class="num">4</span><span class="opt">]</span>
+stdout<span class="opt">.</span><span class="kwd">WriteLine</span> <span class="kwc">results</span><span class="opt">.[</span><span class="num">3</span><span class="opt">]</span>
+stdout<span class="opt">.</span><span class="kwd">WriteLine</span> <span class="kwc">results</span><span class="opt">.[</span><span class="num">9</span><span class="opt">]</span>
+stdout<span class="opt">.</span><span class="kwd">WriteLine</span> <span class="kwc">results</span><span class="opt">.[</span><span class="num">8</span><span class="opt">]</span>
+stdout<span class="opt">.</span><span class="kwd">WriteLine</span> <span class="kwc">results</span><span class="opt">.[</span><span class="num">0</span><span class="opt">]</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

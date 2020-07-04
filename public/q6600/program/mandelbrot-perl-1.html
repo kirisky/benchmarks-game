@@ -17,6 +17,88 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc"># The Computer Language Benchmarks Game</span>
+<span class="slc">#  https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">#</span>
+<span class="slc">#  contributed by Mykola Zubach</span>
+
+<span class="kwa">use</span> strict<span class="opt">;</span>
+<span class="kwa">use</span> threads<span class="opt">;</span>
+<span class="kwa">use</span> threads<span class="opt">::</span>shared<span class="opt">;</span>
+
+<span class="kwa">use</span> constant MAXITER <span class="opt">=&gt;</span> <span class="num">50</span><span class="opt">;</span>
+<span class="kwa">use</span> constant LIMIT <span class="opt">=&gt;</span> <span class="num">4.0</span><span class="opt">;</span>
+<span class="kwa">use</span> constant XMIN <span class="opt">=&gt; -</span><span class="num">1.5</span><span class="opt">;</span>
+<span class="kwa">use</span> constant YMIN <span class="opt">=&gt; -</span><span class="num">1</span><span class="opt">;</span>
+<span class="kwa">use</span> constant WHITE <span class="opt">=&gt;</span> <span class="str">&quot;\0&quot;</span><span class="opt">;</span>
+<span class="kwa">use</span> constant BLACK <span class="opt">=&gt;</span> <span class="str">&quot;</span><span class="esc">\001</span><span class="str">&quot;</span><span class="opt">;</span>
+
+<span class="kwc">my</span> <span class="opt">(</span><span class="kwb">$w</span><span class="opt">,</span> <span class="kwb">$h</span><span class="opt">,</span> <span class="kwb">&#64;threads</span><span class="opt">,</span> <span class="kwb">$invN</span><span class="opt">);</span>
+<span class="kwc">my</span> <span class="kwb">&#64;jobs</span> <span class="opt">:</span>shared<span class="opt">;</span>
+<span class="kwc">my</span> <span class="kwb">&#64;picture</span> <span class="opt">:</span>shared<span class="opt">;</span>
+
+<span class="kwa">sub</span> draw_line<span class="opt">($) {</span>
+   <span class="kwc">my</span> <span class="kwb">$y</span> <span class="opt">=</span> <span class="kwc">shift</span><span class="opt">;</span>
+   <span class="kwc">my</span> <span class="kwb">$line</span><span class="opt">;</span>
+   <span class="kwc">my</span> <span class="kwb">$Ci</span> <span class="opt">=</span> <span class="kwb">$y</span> <span class="opt">*</span> <span class="kwb">$invN</span> <span class="opt">+</span> YMIN<span class="opt">;</span>
+X<span class="opt">:</span>
+   <span class="kwa">for</span> <span class="kwc">my</span> <span class="kwb">$x</span> <span class="opt">(</span><span class="num">0</span> <span class="opt">..</span> <span class="kwb">$w</span> <span class="opt">-</span> <span class="num">1</span><span class="opt">) {</span>
+      <span class="kwc">my</span> <span class="opt">(</span><span class="kwb">$Zr</span><span class="opt">,</span> <span class="kwb">$Zi</span><span class="opt">,</span> <span class="kwb">$Tr</span><span class="opt">,</span> <span class="kwb">$Ti</span><span class="opt">);</span>
+      <span class="kwc">my</span> <span class="kwb">$Cr</span> <span class="opt">=</span> <span class="kwb">$x</span> <span class="opt">*</span> <span class="kwb">$invN</span> <span class="opt">+</span> XMIN<span class="opt">;</span>
+
+      <span class="kwa">for</span> <span class="opt">(</span><span class="num">1</span> <span class="opt">..</span> MAXITER<span class="opt">) {</span>
+         <span class="kwb">$Zi</span> <span class="opt">=</span> <span class="kwb">$Zi</span> <span class="opt">*</span> <span class="num">2</span> <span class="opt">*</span> <span class="kwb">$Zr</span> <span class="opt">+</span> <span class="kwb">$Ci</span><span class="opt">;</span>
+         <span class="kwb">$Zr</span> <span class="opt">=</span> <span class="kwb">$Tr</span> <span class="opt">-</span> <span class="kwb">$Ti</span> <span class="opt">+</span> <span class="kwb">$Cr</span><span class="opt">;</span>
+         <span class="kwb">$Ti</span> <span class="opt">=</span> <span class="kwb">$Zi</span> <span class="opt">*</span> <span class="kwb">$Zi</span><span class="opt">;</span>
+         <span class="kwb">$Tr</span> <span class="opt">=</span> <span class="kwb">$Zr</span> <span class="opt">*</span> <span class="kwb">$Zr</span><span class="opt">;</span>
+         <span class="kwa">if</span> <span class="opt">(</span><span class="kwb">$Tr</span> <span class="opt">+</span> <span class="kwb">$Ti</span> <span class="opt">&gt;</span> LIMIT<span class="opt">) {</span>
+            <span class="kwb">$line</span> <span class="opt">.=</span> WHITE<span class="opt">;</span>
+            <span class="kwa">next</span> X<span class="opt">;</span>
+         <span class="opt">}</span>
+      <span class="opt">}</span>
+      <span class="kwb">$line</span> <span class="opt">.=</span> BLACK<span class="opt">;</span>
+   <span class="opt">}</span>
+   <span class="kwb">$picture</span><span class="opt">[</span><span class="kwb">$y</span><span class="opt">] =</span> <span class="kwc">pack</span> <span class="str">&apos;B*&apos;</span><span class="opt">,</span> <span class="kwb">$line</span><span class="opt">;</span>
+<span class="opt">}</span>
+
+<span class="kwa">sub</span> process_queue<span class="opt">() {</span>
+   <span class="kwa">while</span><span class="opt">(</span><span class="kwc">defined</span><span class="opt">(</span><span class="kwc">my</span> <span class="kwb">$y</span> <span class="opt">=</span> <span class="kwc">pop</span> <span class="kwb">&#64;jobs</span><span class="opt">)) {</span>
+      draw_line<span class="opt">(</span><span class="kwb">$y</span><span class="opt">);</span>
+   <span class="opt">}</span>
+<span class="opt">}</span>
+
+<span class="kwa">sub</span> num_cpus<span class="opt">() {</span>
+   <span class="kwc">open my</span> <span class="kwb">$fh</span><span class="opt">,</span> <span class="str">&apos;&lt;/proc/cpuinfo&apos;</span> <span class="kwc">or</span> <span class="kwa">return</span> <span class="num">4</span><span class="opt">;</span>
+   <span class="kwc">my</span> <span class="kwb">$cpus</span><span class="opt">;</span>
+   <span class="kwa">while</span><span class="opt">(&lt;</span><span class="kwb">$fh</span><span class="opt">&gt;) {</span>
+      <span class="kwb">$cpus</span> <span class="opt">++</span> <span class="kwa">if</span> <span class="kwd">/^processor\s+:/</span><span class="opt">;</span>
+   <span class="opt">}</span>
+   <span class="kwa">return</span> <span class="kwb">$cpus</span><span class="opt">;</span>
+<span class="opt">}</span>
+
+<span class="slc">## MAIN()</span>
+
+<span class="kwb">$w</span> <span class="opt">=</span> <span class="kwb">$h</span> <span class="opt">=</span> <span class="kwc">shift</span> <span class="opt">||</span> <span class="num">200</span><span class="opt">;</span>
+<span class="kwb">$invN</span> <span class="opt">=</span> <span class="num">2</span> <span class="opt">/</span> <span class="kwb">$w</span><span class="opt">;</span>
+<span class="kwb">&#64;jobs</span> <span class="opt">= (</span><span class="num">0</span> <span class="opt">..</span> <span class="kwb">$h</span> <span class="opt">-</span> <span class="num">1</span><span class="opt">);</span>
+
+<span class="kwa">for</span> <span class="opt">(</span><span class="num">1</span> <span class="opt">..</span> num_cpus<span class="opt">()) {</span>
+   <span class="kwc">push</span> <span class="kwb">&#64;threads</span><span class="opt">,</span> threads<span class="opt">-&gt;</span><span class="kwd">create</span><span class="opt">(</span>\<span class="opt">&amp;</span>process_queue<span class="opt">);</span>
+<span class="opt">}</span>
+
+<span class="kwa">for</span> <span class="opt">(</span><span class="kwb">&#64;threads</span><span class="opt">) {</span>
+   <span class="kwb">$_</span><span class="opt">-&gt;</span><span class="kwc">join</span><span class="opt">;</span>
+<span class="opt">}</span>
+
+<span class="kwc">print</span> <span class="str">&quot;P4</span><span class="esc">\n</span><span class="str"></span><span class="ipl">$w</span> <span class="str"></span><span class="ipl">$h</span><span class="str"></span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">;</span> <span class="slc"># PBM image header</span>
+<span class="kwc">print</span> <span class="kwb">&#64;picture</span><span class="opt">;</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

@@ -17,6 +17,235 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc">-- The Computer Language Benchmarks Game</span>
+<span class="slc">-- https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">--</span>
+<span class="slc">-- Contributed by Jaro Reinders</span>
+
+<span class="kwd">module</span> Main <span class="kwd">where</span>
+
+<span class="kwd">import</span> Data<span class="opt">.</span>Word
+<span class="kwd">import qualified</span> Data<span class="opt">.</span>Vector<span class="opt">.</span>Unboxed<span class="opt">.</span>Mutable <span class="kwd">as</span> M
+<span class="kwd">import qualified</span> Data<span class="opt">.</span>Vector<span class="opt">.</span>Unboxed <span class="kwd">as</span> V
+<span class="kwd">import qualified</span> Data<span class="opt">.</span>Vector<span class="opt">.</span>Storable<span class="opt">.</span>Mutable <span class="kwd">as</span> S
+<span class="kwd">import qualified</span> Data<span class="opt">.</span>ByteString <span class="kwd">as</span> B
+<span class="kwd">import qualified</span> Data<span class="opt">.</span>ByteString<span class="opt">.</span>Lazy<span class="opt">.</span>Char8 <span class="kwd">as</span> BL
+<span class="kwd">import</span> Control<span class="opt">.</span>Concurrent
+<span class="kwd">import</span> Control<span class="opt">.</span>Monad
+<span class="kwd">import</span> System<span class="opt">.</span><span class="kwb">IO</span>
+<span class="kwd">import</span> System<span class="opt">.</span><span class="kwb">IO</span><span class="opt">.</span>Unsafe <span class="opt">(</span>unsafePerformIO<span class="opt">)</span>
+<span class="kwd">import</span> Data<span class="opt">.</span><span class="kwb">Char</span>
+<span class="kwd">import</span> Data<span class="opt">.</span><span class="kwb">Maybe</span>
+<span class="kwd">import</span> Data<span class="opt">.</span>IORef
+<span class="kwd">import</span> System<span class="opt">.</span>Environment
+<span class="kwd">import</span> Data<span class="opt">.</span><span class="kwb">Int</span>
+<span class="kwd">import</span> Data<span class="opt">.</span>List
+<span class="kwd">import</span> GHC<span class="opt">.</span>Compact
+
+<span class="slc">-- First some constants</span>
+
+lineLength <span class="opt">::</span> <span class="kwb">Int</span>
+lineLength <span class="opt">=</span> <span class="num">60</span>
+
+workers <span class="opt">::</span> <span class="kwb">Int</span>
+workers <span class="opt">=</span> <span class="num">4</span>
+
+ia<span class="opt">,</span> ic<span class="opt">,</span> im <span class="opt">::</span> Word32
+ia <span class="opt">=</span> <span class="num">3877</span>
+ic <span class="opt">=</span> <span class="num">29573</span>
+im <span class="opt">=</span> <span class="num">139968</span>
+
+alu <span class="opt">::</span> B<span class="opt">.</span>ByteString
+alu <span class="opt">=</span>
+  <span class="str">&quot;GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGG\</span>
+<span class="str">  \AGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGCGTGGTGG\</span>
+<span class="str">  \CGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAG\</span>
+<span class="str">  \TGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA&quot;</span> 
+
+<span class="slc">-- An mvar that is used to ensure that no two threads will print to stdout at</span>
+<span class="slc">-- the same time.</span>
+output <span class="opt">::</span> MVar <span class="opt">()</span>
+output <span class="opt">=</span> unsafePerformIO <span class="opt">(</span>newMVar <span class="opt">())</span>
+
+<span class="slc">-- Firstly the repeated fasta</span>
+
+<span class="slc">-- Helper function that cuts a lazy bytestring into a list of equal size</span>
+<span class="slc">-- chunks.</span>
+toChunksOf <span class="opt">::</span> Int64 <span class="opt">-&gt;</span> BL<span class="opt">.</span>ByteString <span class="opt">-&gt; [</span>BL<span class="opt">.</span>ByteString<span class="opt">]</span>
+toChunksOf <span class="opt">!</span>n <span class="opt">=</span> <span class="kwc">unfoldr</span> <span class="opt">(</span>Just <span class="opt">.</span> BL<span class="opt">.</span><span class="kwc">splitAt</span> n<span class="opt">)</span>
+
+<span class="slc">-- Find the smallest multiple of the alu that aligns with the line length.</span>
+<span class="slc">-- Then print that repeatedly. Finally, print the remainder.</span>
+printRepeatedFasta <span class="opt">::</span> <span class="kwb">Int</span> <span class="opt">-&gt;</span> <span class="kwb">Int</span> <span class="opt">-&gt;</span> B<span class="opt">.</span>ByteString <span class="opt">-&gt;</span> <span class="kwb">IO</span> <span class="opt">()</span>
+printRepeatedFasta <span class="opt">!</span>n <span class="opt">!</span>l <span class="opt">!</span>s <span class="opt">=</span> <span class="kwd">do</span>
+  replicateM_ q <span class="opt">(</span>B<span class="opt">.</span><span class="kwc">putStr</span> buffer<span class="opt">)</span>
+  B<span class="opt">.</span><span class="kwc">putStr</span> <span class="opt">$</span> B<span class="opt">.</span><span class="kwc">take</span> <span class="opt">(</span>r <span class="opt">+</span> r `<span class="kwc">quot</span>` lineLength<span class="opt">)</span> buffer
+  B<span class="opt">.</span><span class="kwc">putStr</span> <span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span>
+  <span class="kwd">where</span>
+  m <span class="opt">=</span> l <span class="opt">*</span> <span class="kwc">gcd</span> l lineLength
+  <span class="opt">(</span>q<span class="opt">,</span>r<span class="opt">) =</span> n `<span class="kwc">quotRem</span>` <span class="opt">(</span>lineLength <span class="opt">*</span> m<span class="opt">)</span>
+  buffer <span class="opt">=</span> BL<span class="opt">.</span>toStrict
+    <span class="opt">$</span> BL<span class="opt">.</span><span class="kwc">unlines</span>
+    <span class="opt">$</span> <span class="kwc">take</span> m
+    <span class="opt">$</span> toChunksOf <span class="opt">(</span><span class="kwc">fromIntegral</span> lineLength<span class="opt">)</span>
+    <span class="opt">$</span> BL<span class="opt">.</span><span class="kwc">cycle</span>
+    <span class="opt">$</span> BL<span class="opt">.</span>fromStrict s
+
+<span class="slc">-- Secondly the random fasta</span>
+
+<span class="slc">-- fill a vector with pseudorandom values from the LCG.</span>
+genSeeds <span class="opt">::</span> Word32 <span class="opt">-&gt;</span> M<span class="opt">.</span>IOVector Word32 <span class="opt">-&gt;</span> Word32 <span class="opt">-&gt;</span> <span class="kwb">IO</span> Word32
+genSeeds <span class="opt">!</span>bufferSize <span class="opt">!</span>v <span class="opt">!</span>s <span class="opt">=</span> go <span class="num">0</span> s <span class="kwd">where</span>
+  go <span class="opt">::</span> Word32 <span class="opt">-&gt;</span> Word32 <span class="opt">-&gt;</span> <span class="kwb">IO</span> Word32
+  go <span class="opt">!</span>n <span class="opt">!</span>s  
+    | n <span class="opt">&lt;</span> bufferSize <span class="opt">=</span> <span class="kwd">do</span>
+      M<span class="opt">.</span>unsafeWrite v <span class="opt">(</span><span class="kwc">fromIntegral</span> n<span class="opt">)</span> s<span class="opt">&apos;</span>
+      go <span class="opt">(</span>n <span class="opt">+</span> <span class="num">1</span><span class="opt">)</span> s<span class="opt">&apos;</span>
+    | <span class="kwc">otherwise</span> <span class="opt">=</span> <span class="kwc">return</span> s
+    <span class="kwd">where</span>
+      <span class="slc">-- This is the LCG formula</span>
+      <span class="opt">!</span>s<span class="opt">&apos; = (</span>ia <span class="opt">*</span> s <span class="opt">+</span> ic<span class="opt">)</span> `<span class="kwc">rem</span>` im
+
+<span class="slc">-- The worker is designed to run in a separate thread. It first generates a</span>
+<span class="slc">-- block of random values, then it consumes that block. This is done repeatedly</span>
+<span class="slc">-- until no more characters need to be generated.</span>
+worker
+  <span class="opt">::</span> M<span class="opt">.</span>IOVector Word32
+  <span class="opt">-&gt;</span> S<span class="opt">.</span>IOVector Word8
+  <span class="opt">-&gt;</span> <span class="kwb">Int</span>
+  <span class="opt">-&gt;</span> V<span class="opt">.</span>Vector Word32
+  <span class="opt">-&gt;</span> V<span class="opt">.</span>Vector Word8
+  <span class="opt">-&gt;</span> MVar <span class="opt">(</span>Word32<span class="opt">,</span> MVar <span class="opt">())</span>
+  <span class="opt">-&gt;</span> IORef <span class="kwb">Int</span>
+  <span class="opt">-&gt;</span> <span class="kwb">IO</span> <span class="opt">()</span>
+worker <span class="opt">!</span>m <span class="opt">!</span>s <span class="opt">!</span>bufferSize <span class="opt">!</span>p0 <span class="opt">!</span>p1 <span class="opt">!</span>mvar <span class="opt">!</span>ref <span class="opt">=</span> <span class="kwd">do</span>
+  <span class="slc">-- We freeze it unsafely here, but we expect it to be changed in the loop.</span>
+  v <span class="opt">&lt;-</span> V<span class="opt">.</span>unsafeFreeze m
+  <span class="kwd">let</span>
+    loop <span class="opt">=</span> <span class="kwd">do</span>
+      <span class="slc">-- Find out how many characters still need to be done.</span>
+      n <span class="opt">&lt;-</span> atomicModifyIORef<span class="opt">&apos;</span> ref <span class="opt">$ \</span>x <span class="opt">-&gt;</span>
+        <span class="kwd">if</span> x <span class="opt">&gt;</span> <span class="num">0</span>
+          <span class="kwd">then</span> <span class="opt">(</span><span class="kwc">max</span> <span class="num">0</span> <span class="opt">(</span>x <span class="opt">-</span> bufferSize<span class="opt">),</span> <span class="kwc">min</span> x bufferSize<span class="opt">)</span>
+          <span class="kwd">else</span> <span class="opt">(</span><span class="num">0</span><span class="opt">,</span> <span class="num">0</span><span class="opt">)</span>
+      <span class="kwc">when</span> <span class="opt">(</span>n <span class="opt">&gt;</span> <span class="num">0</span><span class="opt">) $</span> <span class="kwd">do</span>
+        <span class="kwc">next</span> <span class="opt">&lt;-</span> newEmptyMVar
+        <span class="opt">(</span>rnd<span class="opt">,</span> prev<span class="opt">) &lt;-</span> takeMVar mvar
+        rnd<span class="opt">&apos; &lt;-</span> genSeeds <span class="opt">(</span><span class="kwc">fromIntegral</span> n<span class="opt">)</span> m rnd
+        putMVar mvar <span class="opt">(</span>rnd<span class="opt">&apos;,</span> <span class="kwc">next</span><span class="opt">)</span>
+        consume n p0 p1 s v prev <span class="kwc">next</span>
+        loop
+  loop
+
+<span class="slc">-- Do the cumulative probability sampling and print the resulting string.</span>
+<span class="slc">-- It turns out that using two separate vectors for the lookup table is faster.</span>
+consume
+  <span class="opt">::</span> <span class="kwb">Int</span>
+  <span class="opt">-&gt;</span> V<span class="opt">.</span>Vector Word32
+  <span class="opt">-&gt;</span> V<span class="opt">.</span>Vector Word8
+  <span class="opt">-&gt;</span> S<span class="opt">.</span>IOVector Word8
+  <span class="opt">-&gt;</span> V<span class="opt">.</span>Vector Word32
+  <span class="opt">-&gt;</span> MVar <span class="opt">()</span>
+  <span class="opt">-&gt;</span> MVar <span class="opt">()</span>
+  <span class="opt">-&gt;</span> <span class="kwb">IO</span> <span class="opt">()</span>
+consume <span class="opt">!</span>bufferSize <span class="opt">!</span>p0 <span class="opt">!</span>p1 <span class="opt">!</span>s <span class="opt">!</span>v <span class="opt">!</span>prev <span class="opt">!</span><span class="kwc">next</span> <span class="opt">=</span> <span class="kwd">do</span>
+  loop lineLength <span class="num">0 0</span>
+  takeMVar prev
+  S<span class="opt">.</span>unsafeWith s <span class="opt">$ \</span>ptr <span class="opt">-&gt;</span>
+    hPutBuf <span class="kwc">stdout</span> ptr <span class="opt">(</span>bufferSize <span class="opt">+</span> bufferSize `<span class="kwc">quot</span>` lineLength<span class="opt">)</span>
+  putMVar <span class="kwc">next</span> <span class="opt">()</span>
+  <span class="kwd">where</span>
+    loop <span class="opt">::</span> <span class="kwb">Int</span> <span class="opt">-&gt;</span> <span class="kwb">Int</span> <span class="opt">-&gt;</span> <span class="kwb">Int</span> <span class="opt">-&gt;</span> <span class="kwb">IO</span> <span class="opt">()</span>
+    loop <span class="num">0</span> <span class="opt">!</span>si <span class="opt">!</span>vi <span class="opt">=</span> <span class="kwd">do</span>
+      S<span class="opt">.</span>unsafeWrite s si <span class="num">10</span>
+      loop lineLength <span class="opt">(</span>si <span class="opt">+</span> <span class="num">1</span><span class="opt">)</span> vi
+    loop <span class="opt">!</span>l <span class="opt">!</span>si <span class="opt">!</span>vi
+      <span class="slc">-- | l == 0 = do</span>
+      <span class="slc">--   S.unsafeWrite s si 10</span>
+      <span class="slc">--   loop lineLength (si + 1) vi</span>
+      | vi <span class="opt">&lt;</span> bufferSize <span class="opt">=</span> <span class="kwd">do</span> 
+        S<span class="opt">.</span>unsafeWrite s si <span class="opt">(</span>lookupCumul <span class="opt">(</span>V<span class="opt">.</span>unsafeIndex v <span class="opt">(</span><span class="kwc">fromIntegral</span> vi<span class="opt">)))</span>
+        loop <span class="opt">(</span>l <span class="opt">-</span> <span class="num">1</span><span class="opt">) (</span>si <span class="opt">+</span> <span class="num">1</span><span class="opt">) (</span>vi <span class="opt">+</span> <span class="num">1</span><span class="opt">)</span>
+      | <span class="kwc">otherwise</span> <span class="opt">=</span> <span class="kwc">return</span> <span class="opt">()</span>
+
+    lookupCumul <span class="opt">!</span>c <span class="opt">=</span> V<span class="opt">.</span>unsafeIndex p1 <span class="opt">(</span><span class="kwc">fromJust</span> <span class="opt">(</span>V<span class="opt">.</span><span class="kwc">findIndex</span> <span class="opt">(</span>c <span class="opt">&lt;=)</span> p0<span class="opt">))</span>
+
+<span class="slc">-- Convert a list of characters with probabilities to a cumulative lookup</span>
+<span class="slc">-- table.</span>
+cumulativeProbabilities <span class="opt">:: [(</span><span class="kwb">Char</span><span class="opt">,</span> <span class="kwb">Float</span><span class="opt">)] -&gt;</span> V<span class="opt">.</span>Vector <span class="opt">(</span>Word32<span class="opt">,</span> Word8<span class="opt">)</span>
+cumulativeProbabilities <span class="opt">=</span> V<span class="opt">.</span><span class="kwc">unfoldr</span> uncons <span class="opt">. (\</span>x <span class="opt">-&gt; (</span><span class="num">0</span><span class="opt">,</span>x<span class="opt">))</span> <span class="kwd">where</span>
+  uncons <span class="opt">(</span>_   <span class="opt">, []) =</span> Nothing
+  uncons <span class="opt">(</span>prev<span class="opt">, ((</span>c<span class="opt">,</span>p<span class="opt">):</span>xs<span class="opt">)) =</span> <span class="kwd">let</span> p<span class="opt">&apos; =</span> p <span class="opt">+</span> prev <span class="kwd">in</span> Just
+    <span class="opt">((</span><span class="kwa">floor</span> <span class="opt">(</span><span class="kwc">fromIntegral</span> im <span class="opt">*</span> p<span class="opt">&apos;),</span> <span class="kwc">fromIntegral</span> <span class="opt">(</span><span class="kwc">ord</span> c<span class="opt">)), (</span>p<span class="opt">&apos;,</span> xs<span class="opt">))</span>
+
+printRandomFasta
+  <span class="opt">:: [</span>M<span class="opt">.</span>IOVector Word32<span class="opt">]</span>
+  <span class="opt">-&gt; [</span>S<span class="opt">.</span>IOVector Word8<span class="opt">]</span>
+  <span class="opt">-&gt;</span> <span class="kwb">Int</span>
+  <span class="opt">-&gt;</span> V<span class="opt">.</span>Vector Word32
+  <span class="opt">-&gt;</span> V<span class="opt">.</span>Vector Word8
+  <span class="opt">-&gt;</span> <span class="kwb">Int</span>
+  <span class="opt">-&gt;</span> Word32
+  <span class="opt">-&gt;</span> <span class="kwb">IO</span> Word32
+printRandomFasta <span class="opt">!</span>rndBuffers <span class="opt">!</span>outBuffers <span class="opt">!</span>bufferSize <span class="opt">!</span>p0 <span class="opt">!</span>p1 <span class="opt">!</span>n <span class="opt">!</span>s <span class="opt">=</span> <span class="kwd">do</span>
+  ref <span class="opt">&lt;-</span> newIORef n
+  prev <span class="opt">&lt;-</span> newMVar <span class="opt">()</span>
+  var <span class="opt">&lt;-</span> newMVar <span class="opt">(</span>s<span class="opt">,</span> prev<span class="opt">)</span>
+  <span class="kwc">mapM_</span> <span class="opt">(\(</span>rnd<span class="opt">,</span>out<span class="opt">) -&gt;</span> forkIO <span class="opt">(</span>worker rnd out bufferSize p0 p1 var ref<span class="opt">))</span>
+    <span class="opt">$</span> <span class="kwc">tail</span> <span class="opt">(</span><span class="kwc">zip</span> rndBuffers outBuffers<span class="opt">)</span>
+  <span class="slc">-- run one worker in this thread</span>
+  worker <span class="opt">(</span><span class="kwc">head</span> rndBuffers<span class="opt">) (</span><span class="kwc">head</span> outBuffers<span class="opt">)</span> bufferSize p0 p1 var ref
+  <span class="opt">(</span>s<span class="opt">&apos;,</span> prev<span class="opt">&apos;) &lt;-</span> takeMVar var
+  <span class="slc">-- wait for the last worker to finish</span>
+  takeMVar prev<span class="opt">&apos;</span>
+  <span class="kwc">when</span> <span class="opt">(</span>n `<span class="kwc">rem</span>` lineLength <span class="opt">/=</span> <span class="num">0</span><span class="opt">) (</span><span class="kwc">putStrLn</span> <span class="str">&quot;&quot;</span><span class="opt">)</span>
+  <span class="kwc">return</span> s<span class="opt">&apos;</span>
+
+main <span class="opt">::</span> <span class="kwb">IO</span> <span class="opt">()</span>
+main <span class="opt">=</span> <span class="kwd">do</span>
+  n <span class="opt">&lt;-</span> <span class="kwc">readIO</span> <span class="opt">.</span> <span class="kwc">head</span> <span class="opt">=&lt;&lt;</span> <span class="kwc">getArgs</span>
+
+  <span class="kwc">putStrLn</span> <span class="str">&quot;&gt;ONE Homo sapiens alu&quot;</span>
+  printRepeatedFasta <span class="opt">(</span><span class="num">2</span> <span class="opt">*</span> n<span class="opt">) (</span>B<span class="opt">.</span><span class="kwa">length</span> alu<span class="opt">)</span> alu 
+
+  <span class="kwd">let</span> bufferSize <span class="opt">=</span> <span class="num">2</span>^<span class="num">10</span> <span class="opt">*</span> lineLength
+
+  rndBuffers <span class="opt">&lt;-</span> replicateM workers <span class="opt">(</span>M<span class="opt">.</span>new bufferSize<span class="opt">)</span>
+  outBuffers <span class="opt">&lt;-</span> replicateM workers
+    <span class="opt">(</span>S<span class="opt">.</span>new <span class="opt">(</span>bufferSize <span class="opt">+</span> bufferSize `<span class="kwc">quot</span>` lineLength<span class="opt">))</span>
+
+  <span class="kwd">let</span>
+    p0 <span class="opt">=</span> cumulativeProbabilities
+      <span class="opt">[(&apos;</span>a<span class="opt">&apos;,</span> <span class="num">0.27</span><span class="opt">), (&apos;</span>c<span class="opt">&apos;,</span> <span class="num">0.12</span><span class="opt">), (&apos;</span>g<span class="opt">&apos;,</span> <span class="num">0.12</span><span class="opt">), (&apos;</span>t<span class="opt">&apos;,</span> <span class="num">0.27</span><span class="opt">), (&apos;</span>B<span class="opt">&apos;,</span> <span class="num">0.02</span><span class="opt">),</span>
+       <span class="opt">(&apos;</span>D<span class="opt">&apos;,</span> <span class="num">0.02</span><span class="opt">), (&apos;</span>H<span class="opt">&apos;,</span> <span class="num">0.02</span><span class="opt">), (&apos;</span>K<span class="opt">&apos;,</span> <span class="num">0.02</span><span class="opt">), (&apos;</span>M<span class="opt">&apos;,</span> <span class="num">0.02</span><span class="opt">), (&apos;</span>N<span class="opt">&apos;,</span> <span class="num">0.02</span><span class="opt">),</span>
+       <span class="opt">(&apos;</span>R<span class="opt">&apos;,</span> <span class="num">0.02</span><span class="opt">), (&apos;</span>S<span class="opt">&apos;,</span> <span class="num">0.02</span><span class="opt">), (&apos;</span>V<span class="opt">&apos;,</span> <span class="num">0.02</span><span class="opt">), (&apos;</span>W<span class="opt">&apos;,</span> <span class="num">0.02</span><span class="opt">), (&apos;</span>Y<span class="opt">&apos;,</span> <span class="num">0.02</span><span class="opt">)]</span>
+    p00 <span class="opt">=</span> V<span class="opt">.</span><span class="kwc">map fst</span> p0
+    p01 <span class="opt">=</span> V<span class="opt">.</span><span class="kwc">map snd</span> p0
+    
+  <span class="kwd">let</span>
+    p1 <span class="opt">=</span> cumulativeProbabilities
+      <span class="opt">[(&apos;</span>a<span class="opt">&apos;,</span> <span class="num">0.3029549426680</span><span class="opt">), (&apos;</span>c<span class="opt">&apos;,</span> <span class="num">0.1979883004921</span><span class="opt">),</span>
+       <span class="opt">(&apos;</span>g<span class="opt">&apos;,</span> <span class="num">0.1975473066391</span><span class="opt">), (&apos;</span>t<span class="opt">&apos;,</span> <span class="num">0.3015094502008</span><span class="opt">)]</span>
+    p10 <span class="opt">=</span> V<span class="opt">.</span><span class="kwc">map fst</span> p1
+    p11 <span class="opt">=</span> V<span class="opt">.</span><span class="kwc">map snd</span> p1
+
+  compact <span class="opt">(</span>rndBuffers<span class="opt">,</span> p0<span class="opt">,</span> p1<span class="opt">)</span>
+  <span class="slc">-- outBuffers cannot be compacted because they are pinned</span>
+
+  <span class="kwc">putStrLn</span> <span class="str">&quot;&gt;TWO IUB ambiguity codes&quot;</span>
+  s<span class="opt">&apos; &lt;-</span> printRandomFasta rndBuffers outBuffers bufferSize p00 p01 <span class="opt">(</span><span class="num">3</span> <span class="opt">*</span> n<span class="opt">)</span> <span class="num">42</span>
+
+  <span class="kwc">putStrLn</span> <span class="str">&quot;&gt;THREE Homo sapiens frequency&quot;</span>
+  printRandomFasta rndBuffers outBuffers bufferSize p10 p11 <span class="opt">(</span><span class="num">5</span> <span class="opt">*</span> n<span class="opt">)</span> s<span class="opt">&apos;</span>
+
+  <span class="kwc">return</span> <span class="opt">()</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

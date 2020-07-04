@@ -17,6 +17,128 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc">-- The Computer Language Benchmarks Game</span>
+<span class="slc">-- https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">-- contributed by Mike Pall</span>
+<span class="slc">-- modified by Sebastian Engel to be parallel, derived from mandelbrot-lua-6</span>
+
+<span class="slc">-- called with the following arguments on the command line;</span>
+<span class="slc">-- 1: Initial depth of the tree </span>
+<span class="slc">-- 2: number of children to spawn (defaults to 6, which works well on 4-way)</span>
+<span class="slc">-- If this is a child, then there will be additional parameters;</span>
+<span class="slc">-- 3: current tree depth </span>
+<span class="slc">-- 4: chunk start</span>
+<span class="slc">-- 5: chunk end</span>
+
+
+<span class="kwa">local</span> N          <span class="opt">=</span> <span class="kwb">tonumber</span><span class="opt">(</span>arg <span class="kwa">and</span> arg<span class="opt">[</span><span class="num">1</span><span class="opt">])</span> <span class="kwa">or</span> <span class="num">0</span>
+<span class="kwa">local</span> children   <span class="opt">=</span> <span class="kwb">tonumber</span><span class="opt">(</span>arg <span class="kwa">and</span> arg<span class="opt">[</span><span class="num">2</span><span class="opt">])</span> <span class="kwa">or</span> <span class="num">3</span>
+<span class="kwa">local</span> cdepth     <span class="opt">=</span> <span class="kwb">tonumber</span><span class="opt">(</span>arg <span class="kwa">and</span> arg<span class="opt">[</span><span class="num">3</span><span class="opt">])</span>
+<span class="kwa">local</span> chunkstart <span class="opt">=</span> <span class="kwb">tonumber</span><span class="opt">(</span>arg <span class="kwa">and</span> arg<span class="opt">[</span><span class="num">4</span><span class="opt">])</span>
+<span class="kwa">local</span> chunkend   <span class="opt">=</span> <span class="kwb">tonumber</span><span class="opt">(</span>arg <span class="kwa">and</span> arg<span class="opt">[</span><span class="num">5</span><span class="opt">])</span>
+
+<span class="kwa">local</span> <span class="kwb">write</span> <span class="opt">=</span> io<span class="opt">.</span><span class="kwb">write</span>
+
+<span class="kwa">local</span> mindepth <span class="opt">=</span> <span class="num">4</span>
+<span class="kwa">local</span> maxdepth <span class="opt">=</span> mindepth <span class="opt">+</span> <span class="num">2</span>
+<span class="kwa">if</span> maxdepth <span class="opt">&lt;</span> N <span class="kwa">then</span> maxdepth <span class="opt">=</span> N <span class="kwa">end</span>
+
+
+<span class="kwa">local function</span> <span class="kwd">BottomUpTree</span><span class="opt">(</span>depth<span class="opt">)</span>
+    <span class="kwa">if</span> depth <span class="opt">&gt;</span> <span class="num">0</span> <span class="kwa">then</span>
+        depth <span class="opt">=</span> depth <span class="opt">-</span> <span class="num">1</span>
+        <span class="kwa">local</span> left<span class="opt">,</span> right <span class="opt">=</span> <span class="kwd">BottomUpTree</span><span class="opt">(</span>depth<span class="opt">),</span> <span class="kwd">BottomUpTree</span><span class="opt">(</span>depth<span class="opt">)</span>
+        <span class="kwa">return</span> <span class="opt">{</span> left<span class="opt">,</span> right <span class="opt">}</span>
+    <span class="kwa">else</span>
+        <span class="kwa">return</span> <span class="opt">{ }</span>
+    <span class="kwa">end</span>
+<span class="kwa">end</span>
+
+<span class="kwa">local function</span> <span class="kwd">ItemCheck</span><span class="opt">(</span>tree<span class="opt">)</span>
+    <span class="kwa">if</span> tree<span class="opt">[</span><span class="num">1</span><span class="opt">]</span> <span class="kwa">then</span>
+        <span class="kwa">return</span> <span class="num">1</span> <span class="opt">+</span> <span class="kwd">ItemCheck</span><span class="opt">(</span>tree<span class="opt">[</span><span class="num">1</span><span class="opt">]) +</span> <span class="kwd">ItemCheck</span><span class="opt">(</span>tree<span class="opt">[</span><span class="num">2</span><span class="opt">])</span>
+    <span class="kwa">else</span>
+        <span class="kwa">return</span> <span class="num">1</span>
+    <span class="kwa">end</span>
+<span class="kwa">end</span>
+
+<span class="kwa">if not</span> chunkstart <span class="kwa">then</span>
+    <span class="slc">-- we are the parent process.  </span>
+    <span class="slc">-- emit the header, and then spawn children</span>
+
+    <span class="kwa">local</span> mindepth <span class="opt">=</span> <span class="num">4</span>
+    <span class="kwa">local</span> maxdepth <span class="opt">=</span> mindepth <span class="opt">+</span> <span class="num">2</span>
+    <span class="kwa">if</span> maxdepth <span class="opt">&lt;</span> N <span class="kwa">then</span> maxdepth <span class="opt">=</span> N <span class="kwa">end</span>
+
+    <span class="kwa">do</span>
+        <span class="kwa">local</span> stretchdepth <span class="opt">=</span> maxdepth <span class="opt">+</span> <span class="num">1</span>
+        <span class="kwa">local</span> stretchtree <span class="opt">=</span> <span class="kwd">BottomUpTree</span><span class="opt">(</span>stretchdepth<span class="opt">)</span>
+        <span class="kwb">write</span><span class="opt">(</span><span class="kwb">string</span><span class="opt">.</span><span class="kwb">format</span><span class="opt">(</span><span class="str">&quot;stretch tree of depth %d</span><span class="esc">\t</span> <span class="str">check: %d</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span>
+                stretchdepth<span class="opt">,</span> <span class="kwd">ItemCheck</span><span class="opt">(</span>stretchtree<span class="opt">)))</span>
+    <span class="kwa">end</span>
+
+    <span class="kwa">local</span> longlivedtree <span class="opt">=</span> <span class="kwd">BottomUpTree</span><span class="opt">(</span>maxdepth<span class="opt">)</span>
+
+
+    <span class="kwa">for</span> depth<span class="opt">=</span>mindepth<span class="opt">,</span>maxdepth<span class="opt">,</span><span class="num">2</span> <span class="kwa">do</span>
+        <span class="kwa">local</span> iterations <span class="opt">=</span> <span class="num">2</span> ^ <span class="opt">(</span>maxdepth <span class="opt">-</span> depth <span class="opt">+</span> mindepth<span class="opt">)</span>
+        <span class="kwa">local</span> check <span class="opt">=</span> <span class="num">0</span>
+
+        <span class="kwa">local</span> workunit <span class="opt">=</span> math<span class="opt">.</span><span class="kwb">floor</span><span class="opt">(</span>iterations <span class="opt">/ (</span>children <span class="opt">+</span><span class="num">1</span> <span class="opt">))</span>
+        <span class="kwa">local</span> handles <span class="opt">= { }</span>
+
+        children <span class="opt">=</span> children <span class="opt">-</span> <span class="num">1</span> 
+
+        <span class="kwa">for</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">,</span>children <span class="kwa">do</span> 
+            <span class="kwa">local</span> cs<span class="opt">,</span> ce
+
+            <span class="kwa">if</span> i <span class="opt">==</span> <span class="num">0</span> <span class="kwa">then</span>
+                cs <span class="opt">=</span> <span class="num">1</span>
+                ce <span class="opt">=</span> workunit
+            <span class="kwa">elseif</span> i <span class="opt">==</span> children <span class="kwa">then</span>
+                cs <span class="opt">= (</span>workunit <span class="opt">*</span> i<span class="opt">) +</span> <span class="num">1</span>
+                ce <span class="opt">=</span> iterations 
+            <span class="kwa">else</span>
+                cs <span class="opt">= (</span>workunit <span class="opt">*</span> i<span class="opt">) +</span> <span class="num">1</span>
+                ce <span class="opt">=</span> cs <span class="opt">+</span> workunit <span class="opt">-</span> <span class="num">1</span>
+            <span class="kwa">end</span>
+
+            handles<span class="opt">[</span>i<span class="opt">+</span><span class="num">1</span><span class="opt">] =</span> io<span class="opt">.</span><span class="kwd">popen</span><span class="opt">((</span><span class="str">&quot;%s %s %d %d %d %d %d&quot;</span><span class="opt">):</span><span class="kwb">format</span><span class="opt">(</span>
+            arg<span class="opt">[-</span><span class="num">1</span><span class="opt">],</span> arg<span class="opt">[</span><span class="num">0</span><span class="opt">],</span> N<span class="opt">,</span> children <span class="opt">+</span><span class="num">1</span><span class="opt">,</span> depth<span class="opt">,</span> cs<span class="opt">,</span> ce<span class="opt">))</span>
+        <span class="kwa">end</span>
+
+        <span class="slc">-- collect answers, and emit</span>
+        <span class="kwa">for</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">,</span> children <span class="kwa">do</span>
+            check <span class="opt">=</span> check <span class="opt">+ (</span>handles<span class="opt">[</span>i<span class="opt">+</span><span class="num">1</span><span class="opt">]:</span><span class="kwb">read</span> <span class="str">&quot;*a&quot;</span><span class="opt">)</span>
+        <span class="kwa">end</span>
+
+        children <span class="opt">=</span> children <span class="opt">+</span><span class="num">1</span> 
+
+        <span class="kwb">write</span><span class="opt">(</span><span class="kwb">string</span><span class="opt">.</span><span class="kwb">format</span><span class="opt">(</span><span class="str">&quot;%d</span><span class="esc">\t</span> <span class="str">trees of depth %d</span><span class="esc">\t</span> <span class="str">check: %d</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span>
+                iterations<span class="opt">,</span> depth<span class="opt">,</span> check<span class="opt">))</span>
+    <span class="kwa">end</span>
+
+    <span class="kwb">write</span><span class="opt">(</span><span class="kwb">string</span><span class="opt">.</span><span class="kwb">format</span><span class="opt">(</span><span class="str">&quot;long lived tree of depth %d</span><span class="esc">\t</span> <span class="str">check: %d</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span>
+            maxdepth<span class="opt">,</span> <span class="kwd">ItemCheck</span><span class="opt">(</span>longlivedtree<span class="opt">)))</span>
+
+<span class="kwa">else</span>
+    <span class="slc">-- we are a child process.  </span>
+    <span class="slc">-- do the work allocated to us.</span>
+    <span class="kwa">local</span> partialcheck <span class="opt">=</span> <span class="num">0</span>
+
+    <span class="kwa">for</span> i<span class="opt">=</span>chunkstart<span class="opt">,</span>chunkend <span class="kwa">do</span>
+        partialcheck <span class="opt">=</span> partialcheck <span class="opt">+</span> <span class="kwd">ItemCheck</span><span class="opt">(</span><span class="kwd">BottomUpTree</span><span class="opt">(</span>cdepth<span class="opt">))</span>
+    <span class="kwa">end</span>
+
+    <span class="kwb">write</span><span class="opt">(</span>partialcheck<span class="opt">)</span>
+<span class="kwa">end</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

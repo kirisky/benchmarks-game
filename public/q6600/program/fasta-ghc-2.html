@@ -17,6 +17,107 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc">-- The Computer Language Benchmarks Game</span>
+<span class="slc">-- https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">--</span>
+<span class="slc">-- Contributed by Branimir Maksimovic</span>
+
+<span class="kwd">import</span> Control<span class="opt">.</span>Monad
+<span class="kwd">import</span> Control<span class="opt">.</span>Concurrent
+<span class="kwd">import</span> Control<span class="opt">.</span>Concurrent<span class="opt">.</span>Chan
+<span class="kwd">import</span> System<span class="opt">.</span>Environment
+<span class="kwd">import</span> Data<span class="opt">.</span>IORef
+<span class="kwd">import</span> Data<span class="opt">.</span>List
+<span class="kwd">import qualified</span> Data<span class="opt">.</span>ByteString<span class="opt">.</span>Char8 <span class="kwd">as</span> B
+<span class="kwd">import qualified</span> Data<span class="opt">.</span>ByteString<span class="opt">.</span>Lazy<span class="opt">.</span>Char8 <span class="kwd">as</span> BL
+
+lineLen <span class="opt">=</span> <span class="num">60</span>
+blockFactor <span class="opt">=</span> <span class="num">10</span>
+block <span class="opt">=</span> lineLen <span class="opt">*</span> blockFactor
+
+main <span class="opt">=</span> <span class="kwd">do</span>
+    n <span class="opt">&lt;-</span> <span class="kwc">getArgs</span> <span class="opt">&gt;&gt;=</span> <span class="kwc">readIO</span><span class="opt">.</span><span class="kwc">head</span>
+    rnd <span class="opt">&lt;-</span> newIORef <span class="num">42</span>
+    repeatFasta <span class="str">&quot;&gt;ONE Homo sapiens alu&quot;</span> <span class="opt">(</span><span class="num">2</span><span class="opt">*</span>n<span class="opt">)</span> alu
+    dta <span class="opt">&lt;-</span> startThreads
+    randomFasta <span class="str">&quot;&gt;TWO IUB ambiguity codes&quot;</span> <span class="opt">(</span><span class="num">3</span><span class="opt">*</span>n<span class="opt">)</span> iub rnd dta
+    randomFasta <span class="str">&quot;&gt;THREE Homo sapiens frequency&quot;</span> <span class="opt">(</span><span class="num">5</span><span class="opt">*</span>n<span class="opt">)</span> homosapiens rnd dta
+    <span class="kwd">where</span> startThreads <span class="opt">=</span> <span class="kwd">do</span>
+            out <span class="opt">&lt;-</span> newEmptyMVar
+            workChan <span class="opt">&lt;-</span> newChan
+            <span class="kwc">mapM_</span> <span class="opt">(\</span>_<span class="opt">-&gt;</span> forkIO <span class="opt">$</span> <span class="kwd">do</span>
+                  <span class="kwd">let</span> loop <span class="opt">=</span> <span class="kwd">do</span>
+                       <span class="opt">(</span>i<span class="opt">,</span>work<span class="opt">,</span>line<span class="opt">) &lt;-</span> takeMVar out
+                       <span class="kwd">let</span> <span class="opt">!</span>ln <span class="opt">=</span> line work
+                       writeChan workChan <span class="opt">(</span>i<span class="opt">,</span>ln<span class="opt">)</span>
+                       loop
+                  loop<span class="opt">) [</span><span class="num">0</span><span class="opt">.</span><span class="num">.2</span><span class="opt">]</span>
+            <span class="kwc">return</span> <span class="opt">(</span>out<span class="opt">,</span>workChan<span class="opt">)</span>
+
+repeatFasta <span class="opt">::</span> <span class="kwb">String</span> <span class="opt">-&gt;</span> <span class="kwb">Int</span> <span class="opt">-&gt;</span> BL<span class="opt">.</span>ByteString <span class="opt">-&gt;</span> <span class="kwb">IO</span> <span class="opt">()</span>
+repeatFasta s n nuc <span class="opt">=</span> <span class="kwd">do</span>
+    <span class="kwc">putStrLn</span> s
+    breakString <span class="opt">$</span> BL<span class="opt">.</span>toStrict <span class="opt">$</span> BL<span class="opt">.</span><span class="kwc">take</span> <span class="opt">(</span><span class="kwc">fromIntegral</span> n<span class="opt">) $</span> BL<span class="opt">.</span><span class="kwc">cycle</span> nuc
+
+randomFasta <span class="opt">::</span> <span class="kwb">String</span> <span class="opt">-&gt;</span> <span class="kwb">Int</span> <span class="opt">-&gt; [(</span><span class="kwb">Float</span><span class="opt">,</span><span class="kwb">Char</span><span class="opt">)]-&gt;</span> IORef <span class="kwb">Int</span> <span class="opt">-&gt;</span> 
+               <span class="opt">(</span>MVar <span class="opt">(</span><span class="kwb">Int</span><span class="opt">,[</span><span class="kwb">Float</span><span class="opt">],[</span><span class="kwb">Float</span><span class="opt">]-&gt;</span>B<span class="opt">.</span>ByteString<span class="opt">),</span>Chan <span class="opt">(</span><span class="kwb">Int</span><span class="opt">,</span>B<span class="opt">.</span>ByteString<span class="opt">))-&gt;</span> <span class="kwb">IO</span> <span class="opt">()</span>
+randomFasta s n nuc rnd <span class="opt">(</span>out<span class="opt">,</span>workChan<span class="opt">) =</span> <span class="kwd">do</span>
+    <span class="kwc">putStrLn</span> s
+    <span class="kwd">let</span> tbl <span class="opt">=</span> <span class="kwc">scanl1</span> <span class="opt">(\(</span>a<span class="opt">,</span>_<span class="opt">) (</span>b<span class="opt">,</span>c<span class="opt">) -&gt;(</span>a<span class="opt">+</span>b<span class="opt">,</span>c<span class="opt">))</span> nuc
+        genRndLst n <span class="opt">=</span> replicateM n <span class="opt">(</span>genRandom <span class="num">1.0</span> rnd<span class="opt">)</span>
+        <span class="kwc">find</span> <span class="opt">((</span>a<span class="opt">,</span>b<span class="opt">):</span>xs<span class="opt">)</span> p
+            | p <span class="opt">&lt;</span> a <span class="opt">=</span> b
+            | <span class="kwc">otherwise</span> <span class="opt">=</span> <span class="kwc">find</span> xs p
+        unf <span class="opt">[] =</span> Nothing
+        unf <span class="opt">(</span>x<span class="opt">:</span>xs<span class="opt">) =</span> Just <span class="opt">(</span><span class="kwc">find</span> tbl x<span class="opt">,</span>xs<span class="opt">)</span>
+        line <span class="opt">=</span> B<span class="opt">.</span><span class="kwc">unfoldr</span> unf
+    <span class="opt">(</span><span class="kwa">sum</span><span class="opt">,</span>i<span class="opt">) &lt;-</span> <span class="kwc">foldM</span> <span class="opt">(\(</span>x<span class="opt">,</span>i<span class="opt">)</span> _<span class="opt">-&gt;</span><span class="kwd">do</span>
+                         lst <span class="opt">&lt;-</span> genRndLst block
+                         putMVar out <span class="opt">(</span>i<span class="opt">,</span>lst<span class="opt">,</span>line<span class="opt">)</span>
+                         <span class="kwc">return</span> <span class="opt">(</span>x<span class="opt">+</span>block<span class="opt">,</span>i<span class="opt">+</span><span class="num">1</span><span class="opt">) ) (</span><span class="num">0</span><span class="opt">,</span><span class="num">0</span><span class="opt">) [</span>block<span class="opt">,</span><span class="num">2</span><span class="opt">*</span>block<span class="opt">..</span>n<span class="opt">-</span><span class="num">1</span><span class="opt">]</span>
+    mp <span class="opt">&lt;-</span> <span class="kwc">foldM</span> <span class="opt">(\</span>m _<span class="opt">-&gt;</span> <span class="kwd">do</span>
+                    dta <span class="opt">&lt;-</span> readChan workChan
+                    <span class="kwc">return</span> <span class="opt">(</span>dta<span class="opt">:</span>m<span class="opt">) ) [] [</span><span class="num">0</span><span class="opt">..</span>i<span class="opt">-</span><span class="num">1</span><span class="opt">]</span>
+    <span class="kwc">mapM_</span> <span class="opt">(\(</span>_<span class="opt">,</span>line<span class="opt">)-&gt;</span> breakString line<span class="opt">) $</span> <span class="kwc">sort</span> mp
+    lst <span class="opt">&lt;-</span> genRndLst <span class="opt">(</span>n<span class="opt">-</span><span class="kwa">sum</span><span class="opt">)</span>
+    breakString <span class="opt">$</span> line lst
+    
+alu <span class="opt">=</span> BL<span class="opt">.</span>pack <span class="str">&quot;GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGG\</span>
+<span class="str">    \TCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGG\</span>
+<span class="str">    \CGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGC\</span>
+<span class="str">    \GGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA&quot;</span>
+
+iub <span class="opt">= [(</span><span class="num">0.27</span><span class="opt">,&apos;</span>a<span class="opt">&apos;),(</span><span class="num">0.12</span><span class="opt">,&apos;</span>c<span class="opt">&apos;),(</span><span class="num">0.12</span><span class="opt">,&apos;</span>g<span class="opt">&apos;),(</span><span class="num">0.27</span><span class="opt">,&apos;</span>t<span class="opt">&apos;),(</span><span class="num">0.02</span><span class="opt">,&apos;</span>B<span class="opt">&apos;)</span>
+      <span class="opt">,(</span><span class="num">0.02</span><span class="opt">,&apos;</span>D<span class="opt">&apos;),(</span><span class="num">0.02</span><span class="opt">,&apos;</span>H<span class="opt">&apos;),(</span><span class="num">0.02</span><span class="opt">,&apos;</span>K<span class="opt">&apos;),(</span><span class="num">0.02</span><span class="opt">,&apos;</span>M<span class="opt">&apos;),(</span><span class="num">0.02</span><span class="opt">,&apos;</span>N<span class="opt">&apos;)</span>
+      <span class="opt">,(</span><span class="num">0.02</span><span class="opt">,&apos;</span>R<span class="opt">&apos;),(</span><span class="num">0.02</span><span class="opt">,&apos;</span>S<span class="opt">&apos;),(</span><span class="num">0.02</span><span class="opt">,&apos;</span>V<span class="opt">&apos;),(</span><span class="num">0.02</span><span class="opt">,&apos;</span>W<span class="opt">&apos;),(</span><span class="num">0.02</span><span class="opt">,&apos;</span>Y<span class="opt">&apos;)]</span>
+
+homosapiens <span class="opt">= [(</span><span class="num">0.3029549426680</span><span class="opt">,&apos;</span>a<span class="opt">&apos;),(</span><span class="num">0.1979883004921</span><span class="opt">,&apos;</span>c<span class="opt">&apos;)</span>
+              <span class="opt">,(</span><span class="num">0.1975473066391</span><span class="opt">,&apos;</span>g<span class="opt">&apos;),(</span><span class="num">0.3015094502008</span><span class="opt">,&apos;</span>t<span class="opt">&apos;)]</span>
+
+genRandom <span class="opt">::</span> <span class="kwb">Float</span> <span class="opt">-&gt;</span> IORef <span class="kwb">Int</span> <span class="opt">-&gt;</span> <span class="kwb">IO Float</span>
+genRandom <span class="kwc">max</span> rnd <span class="opt">=</span> <span class="kwd">do</span>
+    <span class="kwd">let</span> im <span class="opt">=</span> <span class="num">139968</span>
+        ia <span class="opt">=</span> <span class="num">3877</span>
+        ic <span class="opt">=</span> <span class="num">29573</span>
+        form x <span class="opt">= ((</span>x<span class="opt">*</span>ia<span class="opt">+</span>ic<span class="opt">)</span>`<span class="kwc">rem</span>`im<span class="opt">)</span>
+    modifyIORef<span class="opt">&apos;</span> rnd form
+    <span class="kwc">last</span> <span class="opt">&lt;-</span> readIORef rnd
+    <span class="kwc">return</span> <span class="opt">(</span><span class="kwc">max</span> <span class="opt">* (</span><span class="kwc">fromIntegral last</span><span class="opt">) /</span> <span class="kwc">fromIntegral</span> im<span class="opt">)</span>
+
+breakString s <span class="opt">=</span> <span class="kwc">break</span><span class="opt">&apos; $</span> B<span class="opt">.</span><span class="kwc">splitAt</span> <span class="opt">(</span><span class="kwc">fromIntegral</span> lineLen<span class="opt">)</span> s
+     <span class="kwd">where</span> <span class="kwc">break</span><span class="opt">&apos; (</span>l<span class="opt">,</span>r<span class="opt">)</span>
+            | B<span class="opt">.</span><span class="kwc">null</span> l <span class="opt">&amp;&amp;</span> B<span class="opt">.</span><span class="kwc">null</span> r  <span class="opt">=</span> <span class="kwc">return</span> <span class="opt">()</span>
+            | B<span class="opt">.</span><span class="kwc">null</span> r <span class="opt">=</span> B<span class="opt">.</span><span class="kwc">putStrLn</span> l
+            | <span class="kwc">otherwise</span> <span class="opt">=</span> <span class="kwd">do</span>
+                           B<span class="opt">.</span><span class="kwc">putStrLn</span> l
+                           <span class="kwc">break</span><span class="opt">&apos; $</span> B<span class="opt">.</span><span class="kwc">splitAt</span> <span class="opt">(</span><span class="kwc">fromIntegral</span> lineLen<span class="opt">)</span> r
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

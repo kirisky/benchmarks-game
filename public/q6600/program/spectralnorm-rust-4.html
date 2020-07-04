@@ -17,6 +17,106 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc">// The Computer Language Benchmarks Game</span>
+<span class="slc">// https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">//</span>
+<span class="slc">// contributed by the Rust Project Developers</span>
+<span class="slc">// contributed by Matt Brubeck</span>
+<span class="slc">// contributed by TeXitoi</span>
+<span class="slc">// modified by Tung Duong</span>
+<span class="slc">// contributed by Cristi Cobzarenco</span>
+
+<span class="kwa">extern crate</span> rayon<span class="opt">;</span>
+<span class="kwa">use</span> rayon<span class="opt">::</span>prelude<span class="opt">::*;</span>
+
+
+<span class="kwa">fn</span> <span class="kwd">main</span><span class="opt">() {</span>
+    <span class="kwa">let</span> n <span class="opt">=</span> std<span class="opt">::</span>env<span class="opt">::</span><span class="kwd">args</span><span class="opt">().</span><span class="kwd">nth</span><span class="opt">(</span><span class="num">1</span><span class="opt">)</span>
+        <span class="opt">.</span><span class="kwd">and_then</span><span class="opt">(|</span>n<span class="opt">|</span> n<span class="opt">.</span><span class="kwd">parse</span><span class="opt">().</span><span class="kwd">ok</span><span class="opt">())</span>
+        <span class="num">.u</span>nwrap<span class="num">_</span>or<span class="opt">(</span><span class="num">100</span><span class="opt">);</span>
+    <span class="kwa">let</span> answer <span class="opt">=</span> <span class="kwd">spectralnorm</span><span class="opt">(</span>n<span class="opt">);</span>
+    println<span class="opt">!(</span><span class="str">&quot;{:.9}&quot;</span><span class="opt">,</span> answer<span class="opt">);</span>
+<span class="opt">}</span>
+
+<span class="kwa">fn</span> <span class="kwd">spectralnorm</span><span class="opt">(</span>n<span class="opt">:</span> <span class="kwb">usize</span><span class="opt">) -&gt;</span> <span class="kwb">f64</span> <span class="opt">{</span>
+    <span class="slc">// Group all vectors in pairs of two for SIMD convenience.</span>
+    assert<span class="opt">!(</span>n <span class="opt">%</span> <span class="num">2</span> <span class="opt">==</span> <span class="num">0</span><span class="opt">,</span> <span class="str">&quot;only even lengths are accepted&quot;</span><span class="opt">);</span>
+    <span class="kwa">let mut</span> u <span class="opt">=</span> vec<span class="opt">![[</span><span class="num">1.0</span><span class="opt">,</span> <span class="num">1.0</span><span class="opt">];</span> n <span class="opt">/</span> <span class="num">2</span><span class="opt">];</span>
+    <span class="kwa">let mut</span> v <span class="opt">=</span> vec<span class="opt">![[</span><span class="num">0.0</span><span class="opt">,</span> <span class="num">0.0</span><span class="opt">];</span> n <span class="opt">/</span> <span class="num">2</span><span class="opt">];</span>
+    <span class="kwa">let mut</span> tmp <span class="opt">=</span> vec<span class="opt">![[</span><span class="num">0.0</span><span class="opt">,</span> <span class="num">0.0</span><span class="opt">];</span> n <span class="opt">/</span> <span class="num">2</span><span class="opt">];</span>
+
+    <span class="kwa">for</span> _ <span class="kwa">in</span> <span class="num">0</span><span class="opt">.</span><span class="num">.10</span> <span class="opt">{</span>
+        <span class="kwd">mult_at_av</span><span class="opt">(&amp;</span>u<span class="opt">, &amp;</span><span class="kwa">mut</span> v<span class="opt">, &amp;</span><span class="kwa">mut</span> tmp<span class="opt">);</span>
+        <span class="kwd">mult_at_av</span><span class="opt">(&amp;</span>v<span class="opt">, &amp;</span><span class="kwa">mut</span> u<span class="opt">, &amp;</span><span class="kwa">mut</span> tmp<span class="opt">);</span>
+    <span class="opt">}</span>
+
+    <span class="opt">(</span><span class="kwd">dot</span><span class="opt">(&amp;</span>u<span class="opt">, &amp;</span>v<span class="opt">) /</span> <span class="kwd">dot</span><span class="opt">(&amp;</span>v<span class="opt">, &amp;</span>v<span class="opt">)).</span><span class="kwd">sqrt</span><span class="opt">()</span>
+<span class="opt">}</span>
+
+<span class="kwa">fn</span> <span class="kwd">mult_at_av</span><span class="opt">(</span>v<span class="opt">: &amp;[[</span><span class="kwb">f64</span><span class="opt">;</span> <span class="num">2</span><span class="opt">]],</span> out<span class="opt">: &amp;</span><span class="kwa">mut</span> <span class="opt">[[</span><span class="kwb">f64</span><span class="opt">;</span> <span class="num">2</span><span class="opt">]],</span> tmp<span class="opt">: &amp;</span><span class="kwa">mut</span> <span class="opt">[[</span><span class="kwb">f64</span><span class="opt">;</span> <span class="num">2</span><span class="opt">]]) {</span>
+    <span class="kwd">mult</span><span class="opt">(</span>v<span class="opt">,</span> tmp<span class="opt">,</span> a<span class="opt">);</span>
+    <span class="kwd">mult</span><span class="opt">(</span>tmp<span class="opt">,</span> out<span class="opt">, |</span>i<span class="opt">,</span> j<span class="opt">|</span> <span class="kwd">a</span><span class="opt">(</span>j<span class="opt">,</span> i<span class="opt">));</span>
+<span class="opt">}</span>
+
+<span class="kwa">fn</span> mult<span class="opt">&lt;</span>F<span class="opt">&gt;(</span>v<span class="opt">: &amp;[[</span><span class="kwb">f64</span><span class="opt">;</span> <span class="num">2</span><span class="opt">]],</span> out<span class="opt">: &amp;</span><span class="kwa">mut</span> <span class="opt">[[</span><span class="kwb">f64</span><span class="opt">;</span> <span class="num">2</span><span class="opt">]],</span> a<span class="opt">:</span> F<span class="opt">)</span>
+           <span class="kwa">where</span> F<span class="opt">:</span> <span class="kwd">Fn</span><span class="opt">([</span><span class="kwb">usize</span><span class="opt">;</span> <span class="num">2</span><span class="opt">], [</span><span class="kwb">usize</span><span class="opt">;</span> <span class="num">2</span><span class="opt">]) -&gt; [</span><span class="kwb">f64</span><span class="opt">;</span> <span class="num">2</span><span class="opt">] +</span> Sync <span class="opt">{</span>
+    <span class="slc">// Parallelize along the output vector, with each pair of slots as a parallelism unit.</span>
+    out<span class="opt">.</span><span class="kwd">par_iter_mut</span><span class="opt">().</span><span class="kwd">enumerate</span><span class="opt">()</span><span class="num">.f</span>or<span class="num">_</span>each<span class="opt">(|(</span>i<span class="opt">,</span> slot<span class="opt">)| {</span>
+        <span class="slc">// We&apos;re computing everything in chunks of two so the indces of slot[0] and slot[1] are 2*i</span>
+        <span class="slc">// and 2*i + 1.</span>
+        <span class="kwa">let</span> i <span class="opt">=</span> <span class="num">2</span> <span class="opt">*</span> i<span class="opt">;</span>
+        <span class="kwa">let</span> <span class="opt">(</span>i0<span class="opt">,</span> i1<span class="opt">) = ([</span>i<span class="opt">;</span> <span class="num">2</span><span class="opt">], [</span>i <span class="opt">+</span> <span class="num">1</span><span class="opt">;</span> <span class="num">2</span><span class="opt">]);</span>
+
+        <span class="slc">// Each slot in the pair gets its own sum, which is further computed in two f64 lanes (which</span>
+        <span class="slc">// are summed at the end.</span>
+        <span class="kwa">let</span> <span class="opt">(</span><span class="kwa">mut</span> sum0<span class="opt">,</span> <span class="kwa">mut</span> sum1<span class="opt">) = ([</span><span class="num">0.0</span><span class="opt">;</span> <span class="num">2</span><span class="opt">], [</span><span class="num">0.0</span><span class="opt">;</span> <span class="num">2</span><span class="opt">]);</span>
+        <span class="kwa">for</span> <span class="opt">(</span>j<span class="opt">,</span> x<span class="opt">)</span> <span class="kwa">in</span> v<span class="num">.i</span>ter<span class="opt">().</span><span class="kwd">enumerate</span><span class="opt">() {</span>
+            <span class="kwa">let</span> j <span class="opt">= [</span><span class="num">2</span> <span class="opt">*</span> j<span class="opt">,</span> <span class="num">2</span> <span class="opt">*</span> j  <span class="opt">+</span> <span class="num">1</span><span class="opt">];</span>
+            <span class="kwd">div_and_add</span><span class="opt">(</span>x<span class="opt">, &amp;</span><span class="kwd">a</span><span class="opt">(</span>i0<span class="opt">,</span> j<span class="opt">), &amp;</span><span class="kwd">a</span><span class="opt">(</span>i1<span class="opt">,</span> j<span class="opt">), &amp;</span><span class="kwa">mut</span> sum0<span class="opt">, &amp;</span><span class="kwa">mut</span> sum1<span class="opt">);</span>
+        <span class="opt">}</span>
+
+        <span class="slc">// Sum the two lanes for each slot.</span>
+        slot<span class="opt">[</span><span class="num">0</span><span class="opt">] =</span> sum0<span class="opt">[</span><span class="num">0</span><span class="opt">] +</span> sum0<span class="opt">[</span><span class="num">1</span><span class="opt">];</span>
+        slot<span class="opt">[</span><span class="num">1</span><span class="opt">] =</span> sum1<span class="opt">[</span><span class="num">0</span><span class="opt">] +</span> sum1<span class="opt">[</span><span class="num">1</span><span class="opt">];</span>
+    <span class="opt">});</span>
+<span class="opt">}</span>
+
+<span class="kwa">fn</span> <span class="kwd">a</span><span class="opt">(</span>i<span class="opt">: [</span><span class="kwb">usize</span><span class="opt">;</span> <span class="num">2</span><span class="opt">],</span> j<span class="opt">: [</span><span class="kwb">usize</span><span class="opt">;</span> <span class="num">2</span><span class="opt">]) -&gt; [</span><span class="kwb">f64</span><span class="opt">;</span> <span class="num">2</span><span class="opt">] {</span>
+   <span class="opt">[(((</span>i<span class="opt">[</span><span class="num">0</span><span class="opt">] +</span> j<span class="opt">[</span><span class="num">0</span><span class="opt">]) * (</span>i<span class="opt">[</span><span class="num">0</span><span class="opt">] +</span> j<span class="opt">[</span><span class="num">0</span><span class="opt">] +</span> <span class="num">1</span><span class="opt">) /</span> <span class="num">2</span> <span class="opt">+</span> i<span class="opt">[</span><span class="num">0</span><span class="opt">] +</span> <span class="num">1</span><span class="opt">)</span> <span class="kwa">as</span> <span class="kwb">f64</span><span class="opt">),</span>
+    <span class="opt">(((</span>i<span class="opt">[</span><span class="num">1</span><span class="opt">] +</span> j<span class="opt">[</span><span class="num">1</span><span class="opt">]) * (</span>i<span class="opt">[</span><span class="num">1</span><span class="opt">] +</span> j<span class="opt">[</span><span class="num">1</span><span class="opt">] +</span> <span class="num">1</span><span class="opt">) /</span> <span class="num">2</span> <span class="opt">+</span> i<span class="opt">[</span><span class="num">1</span><span class="opt">] +</span> <span class="num">1</span><span class="opt">)</span> <span class="kwa">as</span> <span class="kwb">f64</span><span class="opt">)]</span>
+<span class="opt">}</span>
+
+<span class="kwa">fn</span> <span class="kwd">dot</span><span class="opt">(</span>v<span class="opt">: &amp;[[</span><span class="kwb">f64</span><span class="opt">;</span> <span class="num">2</span><span class="opt">]],</span> u<span class="opt">: &amp;[[</span><span class="kwb">f64</span><span class="opt">;</span> <span class="num">2</span><span class="opt">]]) -&gt;</span> <span class="kwb">f64</span> <span class="opt">{</span>
+    <span class="slc">// Vectorised form of dot product: (1) compute dot across two lanes.</span>
+    <span class="kwa">let</span> r <span class="opt">=</span> u<span class="num">.i</span>ter<span class="opt">()</span>
+             <span class="opt">.</span><span class="kwd">zip</span><span class="opt">(</span>v<span class="opt">)</span>
+             <span class="opt">.</span><span class="kwd">map</span><span class="opt">(|(</span>x<span class="opt">,</span> y<span class="opt">)| [</span>x<span class="opt">[</span><span class="num">0</span><span class="opt">] *</span> y<span class="opt">[</span><span class="num">0</span><span class="opt">],</span> x<span class="opt">[</span><span class="num">1</span><span class="opt">] *</span> y<span class="opt">[</span><span class="num">1</span><span class="opt">]])</span>
+             <span class="num">.f</span>old<span class="opt">([</span><span class="num">0.0f64</span><span class="opt">;</span> <span class="num">2</span><span class="opt">], |</span>s<span class="opt">,</span> x<span class="opt">| [</span>s<span class="opt">[</span><span class="num">0</span><span class="opt">] +</span> x<span class="opt">[</span><span class="num">0</span><span class="opt">],</span> s<span class="opt">[</span><span class="num">1</span><span class="opt">] +</span> x<span class="opt">[</span><span class="num">1</span><span class="opt">]]);</span>
+
+    <span class="slc">// (2) sum the two lanes.</span>
+    r<span class="opt">[</span><span class="num">0</span><span class="opt">] +</span> r<span class="opt">[</span><span class="num">1</span><span class="opt">]</span>
+<span class="opt">}</span>
+
+<span class="slc">// Hint that this function should not be inlined. Keep the parallelised code tight, and vectorize</span>
+<span class="slc">// better.</span>
+<span class="ppc">#[inline(never)]</span>
+<span class="kwa">fn</span> <span class="kwd">div_and_add</span><span class="opt">(</span>x<span class="opt">: &amp;[</span><span class="kwb">f64</span><span class="opt">;</span> <span class="num">2</span><span class="opt">],</span>
+               a0<span class="opt">: &amp;[</span><span class="kwb">f64</span><span class="opt">;</span> <span class="num">2</span><span class="opt">],</span>
+               a1<span class="opt">: &amp;[</span><span class="kwb">f64</span><span class="opt">;</span> <span class="num">2</span><span class="opt">],</span>
+               s0<span class="opt">: &amp;</span><span class="kwa">mut</span> <span class="opt">[</span><span class="kwb">f64</span><span class="opt">;</span> <span class="num">2</span><span class="opt">],</span>
+               s1<span class="opt">: &amp;</span><span class="kwa">mut</span> <span class="opt">[</span><span class="kwb">f64</span><span class="opt">;</span> <span class="num">2</span><span class="opt">]) {</span>
+    s0<span class="opt">[</span><span class="num">0</span><span class="opt">] +=</span> x<span class="opt">[</span><span class="num">0</span><span class="opt">] /</span> a0<span class="opt">[</span><span class="num">0</span><span class="opt">];</span>
+    s0<span class="opt">[</span><span class="num">1</span><span class="opt">] +=</span> x<span class="opt">[</span><span class="num">1</span><span class="opt">] /</span> a0<span class="opt">[</span><span class="num">1</span><span class="opt">];</span>
+    s1<span class="opt">[</span><span class="num">0</span><span class="opt">] +=</span> x<span class="opt">[</span><span class="num">0</span><span class="opt">] /</span> a1<span class="opt">[</span><span class="num">0</span><span class="opt">];</span>
+    s1<span class="opt">[</span><span class="num">1</span><span class="opt">] +=</span> x<span class="opt">[</span><span class="num">1</span><span class="opt">] /</span> a1<span class="opt">[</span><span class="num">1</span><span class="opt">];</span>
+<span class="opt">}</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

@@ -17,6 +17,77 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc"># The Computer Language Benchmarks Game</span>
+<span class="slc"># https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">#</span>
+<span class="slc"># contributed by Daniel Jones</span>
+<span class="slc"># fixed by David Campbell</span>
+<span class="slc"># modified by Jarret Revels, Alex Arslan, Yichao Yu</span>
+<span class="slc"># made (slightly) multi-threaded by Adam Beckmeyer</span>
+
+<span class="slc"># Speedup from pcre_jit_match instead of pcre_match in Base. Maybe 2%.</span>
+<span class="kwa">const</span> PCRE <span class="opt">=</span> Base<span class="opt">.</span>PCRE
+<span class="kwa">function</span> PCRE<span class="opt">.</span><span class="kwd">exec</span><span class="opt">(</span>re<span class="opt">,</span> subject<span class="opt">,</span> offset<span class="opt">,</span> options<span class="opt">,</span> match_data<span class="opt">)</span>
+    <span class="num">0</span> <span class="opt">&lt;=</span> <span class="kwd">ccall</span><span class="opt">((:</span>pcre2_jit_match_8<span class="opt">,</span> PCRE<span class="opt">.</span>PCRE_LIB<span class="opt">),</span> Cint<span class="opt">,</span>
+               <span class="opt">(</span>Ptr<span class="opt">{</span>Cvoid<span class="opt">},</span> Ptr<span class="opt">{</span><span class="kwb">UInt8</span><span class="opt">},</span> Csize_t<span class="opt">,</span> Csize_t<span class="opt">,</span> Cuint<span class="opt">,</span> Ptr<span class="opt">{</span>Cvoid<span class="opt">},</span> Ptr<span class="opt">{</span>Cvoid<span class="opt">}),</span>
+               re<span class="opt">,</span> subject<span class="opt">,</span> <span class="kwd">sizeof</span><span class="opt">(</span>subject<span class="opt">),</span> offset<span class="opt">,</span> options<span class="opt">,</span> match_data<span class="opt">,</span>
+               PCRE<span class="opt">.</span><span class="kwd">get_local_match_context</span><span class="opt">())</span>
+<span class="kwa">end</span>
+
+<span class="kwa">const</span> variants <span class="opt">= (</span>
+      r<span class="str">&quot;agggtaaa|tttaccct&quot;</span><span class="opt">,</span>
+      r<span class="str">&quot;[cgt]gggtaaa|tttaccc[acg]&quot;</span><span class="opt">,</span>
+      r<span class="str">&quot;a[act]ggtaaa|tttacc[agt]t&quot;</span><span class="opt">,</span>
+      r<span class="str">&quot;ag[act]gtaaa|tttac[agt]ct&quot;</span><span class="opt">,</span>
+      r<span class="str">&quot;agg[act]taaa|ttta[agt]cct&quot;</span><span class="opt">,</span>
+      r<span class="str">&quot;aggg[acg]aaa|ttt[cgt]ccct&quot;</span><span class="opt">,</span>
+      r<span class="str">&quot;agggt[cgt]aa|tt[acg]accct&quot;</span><span class="opt">,</span>
+      r<span class="str">&quot;agggta[cgt]a|t[acg]taccct&quot;</span><span class="opt">,</span>
+      r<span class="str">&quot;agggtaa[cgt]|[acg]ttaccct&quot;</span>
+<span class="opt">)</span>
+
+<span class="kwa">const</span> subs <span class="opt">= (</span>
+    <span class="opt">(</span>r<span class="str">&quot;tHa[Nt]&quot;</span><span class="opt">,</span> <span class="str">&quot;&lt;4&gt;&quot;</span><span class="opt">),</span>
+    <span class="opt">(</span>r<span class="str">&quot;aND|caN|Ha[DS]|WaS&quot;</span><span class="opt">,</span> <span class="str">&quot;&lt;3&gt;&quot;</span><span class="opt">),</span>
+    <span class="opt">(</span>r<span class="str">&quot;a[NSt]|BY&quot;</span><span class="opt">,</span> <span class="str">&quot;&lt;2&gt;&quot;</span><span class="opt">),</span>
+    <span class="opt">(</span>r<span class="str">&quot;&lt;[^&gt;]*&gt;&quot;</span><span class="opt">,</span> <span class="str">&quot;|&quot;</span><span class="opt">),</span>
+    <span class="opt">(</span>r<span class="str">&quot;\|[^|][^|]*\|&quot;</span><span class="opt">,</span> <span class="str">&quot;-&quot;</span><span class="opt">)</span>
+<span class="opt">)</span>
+
+<span class="kwa">function</span> <span class="kwd">perf_regex_dna</span><span class="opt">(</span>io<span class="opt">,</span> out<span class="opt">)</span>
+    seq <span class="opt">=</span> <span class="kwd">read</span><span class="opt">(</span>io<span class="opt">,</span> String<span class="opt">)</span>
+    <span class="slc"># lastindex is faster than length and correct with ascii input. 4% speedup.</span>
+    l1 <span class="opt">=</span> <span class="kwd">lastindex</span><span class="opt">(</span>seq<span class="opt">)</span>
+
+    seq <span class="opt">=</span> <span class="kwd">replace</span><span class="opt">(</span>seq<span class="opt">,</span> r<span class="str">&quot;&gt;.*</span><span class="esc">\n</span><span class="str">|</span><span class="esc">\n</span><span class="str">&quot;</span> <span class="opt">=&gt;</span> <span class="str">&quot;&quot;</span><span class="opt">)</span>
+    l2 <span class="opt">=</span> <span class="kwd">lastindex</span><span class="opt">(</span>seq<span class="opt">)</span>
+
+    w <span class="opt">=</span> Threads<span class="opt">.</span><span class="kwc">&#64;spawn</span> <span class="kwa">for</span> v <span class="kwa">in</span> variants
+        c <span class="opt">=</span> <span class="num">0</span>
+        <span class="kwa">for</span> _ <span class="kwa">in</span> <span class="kwd">eachmatch</span><span class="opt">(</span>v<span class="opt">,</span> seq<span class="opt">)</span>
+            c <span class="opt">+=</span> <span class="num">1</span>
+        <span class="kwa">end</span>
+        <span class="kwd">println</span><span class="opt">(</span>out<span class="opt">,</span> v<span class="opt">.</span>pattern<span class="opt">,</span> &apos; &apos;<span class="opt">,</span> c<span class="opt">)</span>
+    <span class="kwa">end</span>
+
+    repseq <span class="opt">=</span> seq
+    <span class="kwa">for</span> <span class="opt">(</span>u<span class="opt">,</span> v<span class="opt">)</span> <span class="kwa">in</span> subs
+        repseq <span class="opt">=</span> <span class="kwd">replace</span><span class="opt">(</span>repseq<span class="opt">,</span> u <span class="opt">=&gt;</span> v<span class="opt">)</span>
+    <span class="kwa">end</span>
+
+
+    <span class="kwd">wait</span><span class="opt">(</span>w<span class="opt">)</span>
+    <span class="kwd">write</span><span class="opt">(</span>out<span class="opt">,</span> &apos;<span class="esc">\n</span>&apos;<span class="opt">,</span> <span class="kwd">string</span><span class="opt">(</span>l1<span class="opt">),</span> &apos;<span class="esc">\n</span>&apos;<span class="opt">,</span> <span class="kwd">string</span><span class="opt">(</span>l2<span class="opt">),</span> &apos;<span class="esc">\n</span>&apos;<span class="opt">,</span> <span class="kwd">string</span><span class="opt">(</span><span class="kwd">lastindex</span><span class="opt">(</span>repseq<span class="opt">)),</span> &apos;<span class="esc">\n</span>&apos;<span class="opt">)</span>
+<span class="kwa">end</span>
+
+<span class="kwd">isinteractive</span><span class="opt">() ||</span> <span class="kwd">perf_regex_dna</span><span class="opt">(</span>stdin<span class="opt">,</span> stdout<span class="opt">)</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

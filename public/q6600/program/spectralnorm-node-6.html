@@ -17,6 +17,151 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc">// The Computer Language Benchmarks Game</span>
+<span class="slc">// https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">//</span>
+<span class="slc">// contributed by Ian Osgood</span>
+<span class="slc">// Optimized by Roy Williams</span>
+<span class="slc">// modified for Node.js by Isaac Gouy</span>
+<span class="slc">// multi thread by Andrey Filatkin</span>
+
+<span class="kwa">const</span> <span class="opt">{</span> Worker<span class="opt">,</span> isMainThread<span class="opt">,</span> parentPort<span class="opt">,</span> workerData <span class="opt">} =</span> <span class="kwd">require</span><span class="opt">(</span><span class="str">&apos;worker_threads&apos;</span><span class="opt">);</span>
+<span class="kwa">const</span> os <span class="opt">=</span> <span class="kwd">require</span><span class="opt">(</span><span class="str">&apos;os&apos;</span><span class="opt">);</span>
+
+<span class="kwa">const</span> bytesPerFloat <span class="opt">=</span> Float64Array<span class="opt">.</span>BYTES_PER_ELEMENT<span class="opt">;</span>
+
+<span class="kwa">if</span> <span class="opt">(</span>isMainThread<span class="opt">) {</span>
+    <span class="kwd">mainThread</span><span class="opt">(+</span>process<span class="opt">.</span>argv<span class="opt">[</span><span class="num">2</span><span class="opt">]);</span>
+<span class="opt">}</span> <span class="kwa">else</span> <span class="opt">{</span>
+    <span class="kwd">workerThread</span><span class="opt">(</span>workerData<span class="opt">);</span>
+<span class="opt">}</span>
+
+async <span class="kwa">function</span> <span class="kwd">mainThread</span><span class="opt">(</span>n<span class="opt">) {</span>
+    <span class="kwa">const</span> sab <span class="opt">=</span> <span class="kwa">new</span> <span class="kwd">SharedArrayBuffer</span><span class="opt">(</span><span class="num">3</span> <span class="opt">*</span> bytesPerFloat <span class="opt">*</span> n<span class="opt">);</span>
+    <span class="kwa">const</span> u <span class="opt">=</span> <span class="kwa">new</span> <span class="kwd">Float64Array</span><span class="opt">(</span>sab<span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> n<span class="opt">).</span><span class="kwd">fill</span><span class="opt">(</span><span class="num">1</span><span class="opt">);</span>
+    <span class="kwa">const</span> v <span class="opt">=</span> <span class="kwa">new</span> <span class="kwd">Float64Array</span><span class="opt">(</span>sab<span class="opt">,</span> bytesPerFloat <span class="opt">*</span> n<span class="opt">,</span> n<span class="opt">);</span>
+
+    <span class="kwa">const</span> workers <span class="opt">=</span> <span class="kwa">new</span> <span class="kwd">Set</span><span class="opt">();</span>
+    <span class="kwd">startWorkers</span><span class="opt">();</span>
+
+    <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">let</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> <span class="num">10</span><span class="opt">;</span> i<span class="opt">++) {</span>
+        await <span class="kwd">atAu</span><span class="opt">(</span><span class="str">&apos;u&apos;</span><span class="opt">,</span> <span class="str">&apos;v&apos;</span><span class="opt">,</span> <span class="str">&apos;w&apos;</span><span class="opt">);</span>
+        await <span class="kwd">atAu</span><span class="opt">(</span><span class="str">&apos;v&apos;</span><span class="opt">,</span> <span class="str">&apos;u&apos;</span><span class="opt">,</span> <span class="str">&apos;w&apos;</span><span class="opt">);</span>
+    <span class="opt">}</span>
+
+    <span class="kwd">stopWorkers</span><span class="opt">();</span>
+
+    <span class="kwa">let</span> vBv <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+    <span class="kwa">let</span> vv <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+    <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">let</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> n<span class="opt">;</span> i<span class="opt">++) {</span>
+        vBv <span class="opt">+=</span> u<span class="opt">[</span>i<span class="opt">] *</span> v<span class="opt">[</span>i<span class="opt">];</span>
+        vv <span class="opt">+=</span> v<span class="opt">[</span>i<span class="opt">] *</span> v<span class="opt">[</span>i<span class="opt">];</span>
+    <span class="opt">}</span>
+
+    <span class="kwa">const</span> result <span class="opt">=</span> Math<span class="opt">.</span><span class="kwd">sqrt</span><span class="opt">(</span>vBv <span class="opt">/</span> vv<span class="opt">);</span>
+
+    console<span class="opt">.</span><span class="kwd">log</span><span class="opt">(</span>result<span class="opt">.</span><span class="kwd">toFixed</span><span class="opt">(</span><span class="num">9</span><span class="opt">));</span>
+
+    async <span class="kwa">function</span> <span class="kwd">atAu</span><span class="opt">(</span>u<span class="opt">,</span> v<span class="opt">,</span> w<span class="opt">) {</span>
+        await <span class="kwd">work</span><span class="opt">(</span><span class="str">&apos;au&apos;</span><span class="opt">, {</span>vec1<span class="opt">:</span> u<span class="opt">,</span> vec2<span class="opt">:</span> w<span class="opt">});</span>
+        await <span class="kwd">work</span><span class="opt">(</span><span class="str">&apos;atu&apos;</span><span class="opt">, {</span>vec1<span class="opt">:</span> w<span class="opt">,</span> vec2<span class="opt">:</span> v<span class="opt">});</span>
+    <span class="opt">}</span>
+
+    <span class="kwa">function</span> <span class="kwd">startWorkers</span><span class="opt">() {</span>
+        <span class="kwa">const</span> cpus <span class="opt">=</span> os<span class="opt">.</span><span class="kwd">cpus</span><span class="opt">().</span>length<span class="opt">;</span>
+        <span class="kwa">const</span> chunk <span class="opt">=</span> Math<span class="opt">.</span><span class="kwd">ceil</span><span class="opt">(</span>n <span class="opt">/</span> cpus<span class="opt">);</span>
+
+        <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">let</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> cpus<span class="opt">;</span> i<span class="opt">++) {</span>
+            <span class="kwa">const</span> start <span class="opt">=</span> i <span class="opt">*</span> chunk<span class="opt">;</span>
+            <span class="kwa">let</span> end <span class="opt">=</span> start <span class="opt">+</span> chunk<span class="opt">;</span>
+            <span class="kwa">if</span> <span class="opt">(</span>end <span class="opt">&gt;</span> n<span class="opt">) {</span>
+                end <span class="opt">=</span> n<span class="opt">;</span>
+            <span class="opt">}</span>
+            <span class="kwa">const</span> worker <span class="opt">=</span> <span class="kwa">new</span> <span class="kwd">Worker</span><span class="opt">(</span>__filename<span class="opt">, {</span>workerData<span class="opt">: {</span>n<span class="opt">,</span> start<span class="opt">,</span> end<span class="opt">}});</span>
+
+            worker<span class="opt">.</span><span class="kwd">postMessage</span><span class="opt">({</span>name<span class="opt">:</span> <span class="str">&apos;sab&apos;</span><span class="opt">,</span> data<span class="opt">:</span> sab<span class="opt">});</span>
+            workers<span class="opt">.</span><span class="kwd">add</span><span class="opt">(</span>worker<span class="opt">);</span>
+        <span class="opt">}</span>
+    <span class="opt">}</span>
+
+    <span class="kwa">function</span> <span class="kwd">work</span><span class="opt">(</span>name<span class="opt">,</span> data<span class="opt">) {</span>
+        <span class="kwa">return new</span> <span class="kwd">Promise</span><span class="opt">(</span>resolve <span class="opt">=&gt; {</span>
+            <span class="kwa">let</span> wait <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+            workers<span class="opt">.</span><span class="kwd">forEach</span><span class="opt">(</span>worker <span class="opt">=&gt; {</span>
+                worker<span class="opt">.</span><span class="kwd">postMessage</span><span class="opt">({</span>name<span class="opt">,</span> data<span class="opt">});</span>
+                worker<span class="opt">.</span><span class="kwd">once</span><span class="opt">(</span><span class="str">&apos;message&apos;</span><span class="opt">, () =&gt; {</span>
+                    wait<span class="opt">--;</span>
+                    <span class="kwa">if</span> <span class="opt">(</span>wait <span class="opt">===</span> <span class="num">0</span><span class="opt">) {</span>
+                        <span class="kwd">resolve</span><span class="opt">();</span>
+                    <span class="opt">}</span>
+                <span class="opt">});</span>
+                wait<span class="opt">++;</span>
+            <span class="opt">});</span>
+        <span class="opt">});</span>
+    <span class="opt">}</span>
+
+    <span class="kwa">function</span> <span class="kwd">stopWorkers</span><span class="opt">() {</span>
+        workers<span class="opt">.</span><span class="kwd">forEach</span><span class="opt">(</span>worker <span class="opt">=&gt;</span> worker<span class="opt">.</span><span class="kwd">postMessage</span><span class="opt">({</span>name<span class="opt">:</span> <span class="str">&apos;exit&apos;</span><span class="opt">}));</span>
+    <span class="opt">}</span>
+<span class="opt">}</span>
+
+<span class="kwa">function</span> <span class="kwd">workerThread</span><span class="opt">({</span>n<span class="opt">,</span> start<span class="opt">,</span> end<span class="opt">}) {</span>
+    <span class="kwa">const</span> data <span class="opt">= {</span>
+        u<span class="opt">:</span> <span class="kwa">null</span><span class="opt">,</span>
+        v<span class="opt">:</span> <span class="kwa">null</span><span class="opt">,</span>
+        w<span class="opt">:</span> <span class="kwa">null</span><span class="opt">,</span>
+    <span class="opt">};</span>
+
+    parentPort<span class="opt">.</span><span class="kwd">on</span><span class="opt">(</span><span class="str">&apos;message&apos;</span><span class="opt">,</span> message <span class="opt">=&gt; {</span>
+        <span class="kwa">const</span> name <span class="opt">=</span> message<span class="opt">.</span>name<span class="opt">;</span>
+
+        <span class="kwa">if</span> <span class="opt">(</span>name <span class="opt">===</span> <span class="str">&apos;sab&apos;</span><span class="opt">) {</span>
+            <span class="kwa">const</span> sab <span class="opt">=</span> message<span class="opt">.</span>data<span class="opt">;</span>
+            data<span class="opt">.</span>u <span class="opt">=</span> <span class="kwa">new</span> <span class="kwd">Float64Array</span><span class="opt">(</span>sab<span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> n<span class="opt">);</span>
+            data<span class="opt">.</span>v <span class="opt">=</span> <span class="kwa">new</span> <span class="kwd">Float64Array</span><span class="opt">(</span>sab<span class="opt">,</span> bytesPerFloat <span class="opt">*</span> n<span class="opt">,</span> n<span class="opt">);</span>
+            data<span class="opt">.</span>w <span class="opt">=</span> <span class="kwa">new</span> <span class="kwd">Float64Array</span><span class="opt">(</span>sab<span class="opt">,</span> <span class="num">2</span> <span class="opt">*</span> bytesPerFloat <span class="opt">*</span> n<span class="opt">,</span> n<span class="opt">);</span>
+        <span class="opt">}</span> <span class="kwa">else if</span> <span class="opt">(</span>name <span class="opt">===</span> <span class="str">&apos;au&apos;</span><span class="opt">) {</span>
+            <span class="kwd">au</span><span class="opt">(</span>data<span class="opt">[</span>message<span class="opt">.</span>data<span class="opt">.</span>vec1<span class="opt">],</span> data<span class="opt">[</span>message<span class="opt">.</span>data<span class="opt">.</span>vec2<span class="opt">]);</span>
+            parentPort<span class="opt">.</span><span class="kwd">postMessage</span><span class="opt">({</span>name<span class="opt">:</span> <span class="str">&apos;end&apos;</span><span class="opt">});</span>
+        <span class="opt">}</span> <span class="kwa">else if</span> <span class="opt">(</span>name <span class="opt">===</span> <span class="str">&apos;atu&apos;</span><span class="opt">) {</span>
+            <span class="kwd">atu</span><span class="opt">(</span>data<span class="opt">[</span>message<span class="opt">.</span>data<span class="opt">.</span>vec1<span class="opt">],</span> data<span class="opt">[</span>message<span class="opt">.</span>data<span class="opt">.</span>vec2<span class="opt">]);</span>
+            parentPort<span class="opt">.</span><span class="kwd">postMessage</span><span class="opt">({</span>name<span class="opt">:</span> <span class="str">&apos;end&apos;</span><span class="opt">});</span>
+        <span class="opt">}</span> <span class="kwa">else if</span> <span class="opt">(</span>name <span class="opt">===</span> <span class="str">&apos;exit&apos;</span><span class="opt">) {</span>
+            process<span class="opt">.</span><span class="kwd">exit</span><span class="opt">();</span>
+        <span class="opt">}</span>
+    <span class="opt">});</span>
+
+    <span class="kwa">function</span> <span class="kwd">au</span><span class="opt">(</span>u<span class="opt">,</span> v<span class="opt">) {</span>
+        <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">let</span> i <span class="opt">=</span> start<span class="opt">;</span> i <span class="opt">&lt;</span> end<span class="opt">;</span> i<span class="opt">++) {</span>
+            <span class="kwa">let</span> t <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+            <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">let</span> j <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> j <span class="opt">&lt;</span> n<span class="opt">;</span> j<span class="opt">++) {</span>
+                t <span class="opt">+=</span> u<span class="opt">[</span>j<span class="opt">] /</span> <span class="kwd">a</span><span class="opt">(</span>i<span class="opt">,</span> j<span class="opt">);</span>
+            <span class="opt">}</span>
+            v<span class="opt">[</span>i<span class="opt">] =</span> t<span class="opt">;</span>
+        <span class="opt">}</span>
+    <span class="opt">}</span>
+
+    <span class="kwa">function</span> <span class="kwd">atu</span><span class="opt">(</span>u<span class="opt">,</span> v<span class="opt">) {</span>
+        <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">let</span> i <span class="opt">=</span> start<span class="opt">;</span> i <span class="opt">&lt;</span> end<span class="opt">;</span> i<span class="opt">++) {</span>
+            <span class="kwa">let</span> t <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+            <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">let</span> j <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> j <span class="opt">&lt;</span> n<span class="opt">;</span> j<span class="opt">++) {</span>
+                t <span class="opt">+=</span> u<span class="opt">[</span>j<span class="opt">] /</span> <span class="kwd">a</span><span class="opt">(</span>j<span class="opt">,</span> i<span class="opt">);</span>
+            <span class="opt">}</span>
+            v<span class="opt">[</span>i<span class="opt">] =</span> t<span class="opt">;</span>
+        <span class="opt">}</span>
+    <span class="opt">}</span>
+
+    <span class="kwa">function</span> <span class="kwd">a</span><span class="opt">(</span>i<span class="opt">,</span> j<span class="opt">) {</span>
+        <span class="kwa">return</span> <span class="opt">((</span>i <span class="opt">+</span> j<span class="opt">) * (</span>i <span class="opt">+</span> j <span class="opt">+</span> <span class="num">1</span><span class="opt">) &gt;&gt;&gt;</span> <span class="num">1</span><span class="opt">) +</span> i <span class="opt">+</span> <span class="num">1</span><span class="opt">;</span>
+    <span class="opt">}</span>
+<span class="opt">}</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

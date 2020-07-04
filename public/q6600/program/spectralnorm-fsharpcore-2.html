@@ -17,6 +17,111 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+﻿<span class="slc">// The Computer Language Benchmarks Game</span>
+<span class="slc">// https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">//</span>
+<span class="slc">// Based on C# version by Isaac Gouy, The Anh Tran, Alan McGovern</span>
+<span class="slc">// Contributed by Don Syme</span>
+
+<span class="kwa">open</span> <span class="kwd">System</span>
+<span class="kwa">open</span> <span class="kwd">System</span><span class="opt">.</span><span class="kwd">Threading</span>
+
+<span class="kwa">type</span> <span class="kwc">BarrierHandle</span><span class="opt">(</span>threads<span class="opt">:</span><span class="kwb">int</span><span class="opt">) =</span> 
+    <span class="kwa">let mutable</span> <span class="kwc">current</span> <span class="opt">=</span> threads
+    <span class="kwa">let mutable</span> <span class="kwc">handle</span> <span class="opt">=</span> <span class="kwa">new</span> <span class="kwd">ManualResetEvent</span><span class="opt">(</span><span class="kwa">false</span><span class="opt">)</span>
+
+    <span class="kwa">member</span> x<span class="opt">.</span><span class="kwd">WaitOne</span><span class="opt">() =</span>
+        <span class="kwa">let</span> <span class="kwc">h</span> <span class="opt">=</span> <span class="kwc">handle</span>
+        <span class="kwa">if</span> <span class="kwd">Interlocked</span><span class="opt">.</span><span class="kwd">Decrement</span><span class="opt">(&amp;</span><span class="kwc">current</span><span class="opt">) &gt;</span> <span class="num">0</span> <span class="kwa">then</span> 
+            <span class="kwc">h</span><span class="opt">.</span><span class="kwd">WaitOne</span><span class="opt">() |&gt;</span> ignore<span class="opt">;</span>
+        <span class="kwa">else</span>
+            <span class="kwc">handle</span> <span class="opt">&lt;-</span> <span class="kwa">new</span> <span class="kwd">ManualResetEvent</span><span class="opt">(</span><span class="kwa">false</span><span class="opt">);</span>
+            <span class="kwd">Interlocked</span><span class="opt">.</span><span class="kwd">Exchange</span><span class="opt">(&amp;</span><span class="kwc">current</span><span class="opt">,</span> threads<span class="opt">) |&gt;</span> ignore<span class="opt">;</span>
+            <span class="kwc">h</span><span class="opt">.</span><span class="kwd">Set</span><span class="opt">() |&gt;</span> ignore<span class="opt">;</span>
+            <span class="kwc">h</span><span class="opt">.</span><span class="kwd">Dispose</span><span class="opt">();</span>
+
+<span class="kwa">let</span> <span class="kwc">Approximate</span><span class="opt">(</span>u<span class="opt">:</span>double<span class="opt">[],</span> v<span class="opt">:</span>double<span class="opt">[],</span> tmp<span class="opt">:</span>double<span class="opt">[],</span> rbegin<span class="opt">,</span> rend<span class="opt">,</span> barrier<span class="opt">:</span> <span class="kwc">BarrierHandle</span><span class="opt">) =</span>
+
+    <span class="kwa">let mutable</span> <span class="kwc">vBv</span> <span class="opt">=</span> <span class="num">0.0</span>
+    <span class="kwa">let mutable</span> <span class="kwc">vv</span> <span class="opt">=</span> <span class="num">0.0</span>
+
+    <span class="slc">// return element i,j of infinite matrix A </span>
+    <span class="kwa">let</span> <span class="kwc">A i</span> j <span class="opt">=</span> <span class="num">1.0</span> <span class="opt">/</span> <span class="kwb">float</span><span class="opt">((</span><span class="kwc">i</span> <span class="opt">+</span> j<span class="opt">) * (</span><span class="kwc">i</span> <span class="opt">+</span> j <span class="opt">+</span> <span class="num">1</span><span class="opt">) /</span> <span class="num">2</span> <span class="opt">+</span> <span class="kwc">i</span> <span class="opt">+</span> <span class="num">1</span><span class="opt">)</span>
+
+    <span class="slc">// multiply vector v by matrix A </span>
+    <span class="kwa">let</span> <span class="kwc">multiplyAv</span><span class="opt">(</span>v<span class="opt">:</span>double<span class="opt">[],</span> <span class="kwd">Av</span><span class="opt">:</span>double<span class="opt">[]) =</span>
+        <span class="kwa">for</span> <span class="kwc">i</span> <span class="opt">=</span> rbegin <span class="kwa">to</span> rend <span class="opt">-</span> <span class="num">1</span> <span class="kwa">do</span> 
+            <span class="kwa">let mutable</span> <span class="kwc">sum</span> <span class="opt">=</span> <span class="num">0.0</span><span class="opt">;</span>
+            <span class="kwa">for</span> j <span class="opt">=</span> <span class="num">0</span> <span class="kwa">to</span> v<span class="opt">.</span><span class="kwd">Length</span> <span class="opt">-</span> <span class="num">1</span> <span class="kwa">do</span> 
+                <span class="kwc">sum</span> <span class="opt">&lt;-</span> <span class="kwc">sum</span> <span class="opt">+</span> <span class="kwc">A i</span> j <span class="opt">*</span> v<span class="opt">.[</span>j<span class="opt">];</span>
+            <span class="kwd">Av</span><span class="opt">.[</span><span class="kwc">i</span><span class="opt">] &lt;-</span> <span class="kwc">sum</span>
+
+    <span class="slc">// multiply vector v by matrix A transposed </span>
+    <span class="kwa">let</span> <span class="kwc">multiplyAtv</span><span class="opt">(</span>v<span class="opt">:</span>double<span class="opt">[],</span> atv<span class="opt">:</span>double<span class="opt">[]) =</span>
+        <span class="kwa">for</span> <span class="kwc">i</span> <span class="opt">=</span> rbegin <span class="kwa">to</span> rend <span class="opt">-</span> <span class="num">1</span> <span class="kwa">do</span>
+            <span class="kwa">let mutable</span> <span class="kwc">sum</span> <span class="opt">=</span> <span class="num">0.0</span>
+            <span class="kwa">for</span> j <span class="opt">=</span> <span class="num">0</span> <span class="kwa">to</span> v<span class="opt">.</span><span class="kwd">Length</span> <span class="opt">-</span> <span class="num">1</span> <span class="kwa">do</span> 
+                <span class="kwc">sum</span> <span class="opt">&lt;-</span> <span class="kwc">sum</span> <span class="opt">+</span> <span class="kwc">A</span> j <span class="kwc">i</span> <span class="opt">*</span> v<span class="opt">.[</span>j<span class="opt">];</span>
+            atv<span class="opt">.[</span><span class="kwc">i</span><span class="opt">] &lt;-</span> <span class="kwc">sum</span><span class="opt">;</span>
+
+    <span class="slc">// multiply vector v by matrix A and then by matrix A transposed </span>
+    <span class="kwa">let</span> <span class="kwc">multiplyatAv</span><span class="opt">(</span>v<span class="opt">:</span>double<span class="opt">[],</span> tmp<span class="opt">:</span>double<span class="opt">[],</span> atAv<span class="opt">:</span>double<span class="opt">[]) =</span>
+        <span class="kwc">multiplyAv</span><span class="opt">(</span>v<span class="opt">,</span> tmp<span class="opt">);</span>
+        barrier<span class="opt">.</span><span class="kwd">WaitOne</span><span class="opt">();</span>
+
+        <span class="kwc">multiplyAtv</span><span class="opt">(</span>tmp<span class="opt">,</span> atAv<span class="opt">);</span>
+        barrier<span class="opt">.</span><span class="kwd">WaitOne</span><span class="opt">();</span>
+
+    <span class="kwa">for</span> <span class="kwc">i</span> <span class="opt">=</span> <span class="num">0</span> <span class="kwa">to</span> <span class="num">9</span> <span class="kwa">do</span> 
+        <span class="kwc">multiplyatAv</span><span class="opt">(</span>u<span class="opt">,</span> tmp<span class="opt">,</span> v<span class="opt">);</span>
+        <span class="kwc">multiplyatAv</span><span class="opt">(</span>v<span class="opt">,</span> tmp<span class="opt">,</span> u<span class="opt">);</span>
+
+    <span class="kwa">for</span> <span class="kwc">i</span> <span class="opt">=</span> rbegin <span class="kwa">to</span> rend <span class="opt">-</span> <span class="num">1</span> <span class="kwa">do</span>
+        <span class="kwc">vBv</span> <span class="opt">&lt;-</span> <span class="kwc">vBv</span> <span class="opt">+</span> u<span class="opt">.[</span><span class="kwc">i</span><span class="opt">] *</span> v<span class="opt">.[</span><span class="kwc">i</span><span class="opt">];</span>
+        <span class="kwc">vv</span> <span class="opt">&lt;-</span> <span class="kwc">vv</span> <span class="opt">+</span> v<span class="opt">.[</span><span class="kwc">i</span><span class="opt">] *</span> v<span class="opt">.[</span><span class="kwc">i</span><span class="opt">];</span>
+
+    <span class="opt">(</span><span class="kwc">vBv</span><span class="opt">,</span> <span class="kwc">vv</span><span class="opt">)</span>
+
+
+<span class="kwa">let</span> <span class="kwc">RunGame</span> n <span class="opt">=</span> 
+    <span class="slc">// create unit vector</span>
+    <span class="kwa">let</span> <span class="kwc">u</span> <span class="opt">=</span> <span class="kwd">Array</span><span class="opt">.</span>create <span class="kwc">n</span> <span class="num">1.0</span>
+    <span class="kwa">let</span> <span class="kwc">tmp</span> <span class="opt">=</span> <span class="kwd">Array</span><span class="opt">.</span>zeroCreate <span class="kwc">n</span> 
+    <span class="kwa">let</span> <span class="kwc">v</span> <span class="opt">=</span> <span class="kwd">Array</span><span class="opt">.</span>zeroCreate <span class="kwc">n</span> 
+
+    <span class="kwa">let</span> <span class="kwc">nthread</span> <span class="opt">=</span> <span class="kwd">Environment</span><span class="opt">.</span><span class="kwd">ProcessorCount</span><span class="opt">;</span>
+
+    <span class="kwa">let</span> <span class="kwc">barrier</span> <span class="opt">=</span> <span class="kwa">new</span> <span class="kwc">BarrierHandle</span><span class="opt">(</span><span class="kwc">nthread</span><span class="opt">);</span>
+        <span class="slc">// create thread and hand out tasks</span>
+    <span class="kwa">let</span> <span class="kwc">chunk</span> <span class="opt">=</span> <span class="kwc">n</span> <span class="opt">/</span> <span class="kwc">nthread</span><span class="opt">;</span>
+        <span class="slc">// objects contain result of each thread</span>
+    <span class="kwa">let</span> <span class="kwc">aps</span> <span class="opt">=</span> 
+        <span class="kwd">Async</span><span class="opt">.</span><span class="kwd">Parallel</span> 
+          <span class="opt">[</span> <span class="kwa">for</span> <span class="kwc">i</span> <span class="kwa">in</span> <span class="num">0</span> <span class="opt">..</span> <span class="kwc">nthread</span> <span class="opt">-</span> <span class="num">1</span> <span class="kwa">do</span>
+                <span class="kwa">let</span> <span class="kwc">r1</span> <span class="opt">=</span> <span class="kwc">i</span> <span class="opt">*</span> <span class="kwc">chunk</span><span class="opt">;</span>
+                <span class="kwa">let</span> <span class="kwc">r2</span> <span class="opt">=</span> <span class="kwa">if</span> <span class="opt">(</span><span class="kwc">i</span> <span class="opt">&lt; (</span><span class="kwc">nthread</span> <span class="opt">-</span> <span class="num">1</span><span class="opt">))</span> <span class="kwa">then</span> <span class="kwc">r1</span> <span class="opt">+</span> <span class="kwc">chunk</span> <span class="kwa">else</span> <span class="kwc">n</span>
+                yield async <span class="opt">{</span> return <span class="kwc">Approximate</span><span class="opt">(</span><span class="kwc">u</span><span class="opt">,</span> <span class="kwc">v</span><span class="opt">,</span> <span class="kwc">tmp</span><span class="opt">,</span> <span class="kwc">r1</span><span class="opt">,</span> <span class="kwc">r2</span><span class="opt">,</span> <span class="kwc">barrier</span><span class="opt">) } ]</span>
+         <span class="opt">|&gt;</span> <span class="kwd">Async</span><span class="opt">.</span><span class="kwd">RunSynchronously</span>
+
+    <span class="kwa">let</span> <span class="kwc">vBv</span> <span class="opt">=</span> <span class="kwc">aps</span> <span class="opt">|&gt;</span> <span class="kwd">Array</span><span class="opt">.</span>sumBy fst
+    <span class="kwa">let</span> <span class="kwc">vv</span> <span class="opt">=</span> <span class="kwc">aps</span> <span class="opt">|&gt;</span> <span class="kwd">Array</span><span class="opt">.</span>sumBy snd
+
+    <span class="kwd">Math</span><span class="opt">.</span><span class="kwd">Sqrt</span><span class="opt">(</span><span class="kwc">vBv</span> <span class="opt">/</span> <span class="kwc">vv</span><span class="opt">);</span>
+
+<span class="opt">[&lt;</span><span class="kwd">EntryPoint</span><span class="opt">&gt;]</span>
+<span class="kwa">let</span> <span class="kwc">main</span> args <span class="opt">=</span>
+    <span class="kwa">let</span> <span class="kwc">n</span> <span class="opt">=</span> <span class="kwa">try</span> <span class="kwb">int</span> <span class="opt">&lt;|</span> <span class="kwc">args</span><span class="opt">.[</span><span class="num">0</span><span class="opt">]</span> <span class="kwa">with</span> _ <span class="opt">-&gt;</span> <span class="num">2500</span>
+
+    <span class="kwd">System</span><span class="opt">.</span><span class="kwd">Console</span><span class="opt">.</span><span class="kwd">WriteLine</span><span class="opt">(</span><span class="str">&quot;{0:f9}&quot;</span><span class="opt">,</span> <span class="kwc">RunGame n</span><span class="opt">);</span>
+    <span class="num">0</span>
+
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

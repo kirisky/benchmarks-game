@@ -17,6 +17,128 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc"># The Computer Language Benchmarks Game</span>
+<span class="slc"># https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">#</span>
+<span class="slc"># Contributed by Jens Adam</span>
+<span class="slc"># using ideas from Julia#2, Julia#3, Go#3</span>
+
+<span class="kwa">struct</span> Aminoacids
+    c<span class="opt">::</span><span class="kwb">UInt8</span>
+    p<span class="opt">::</span><span class="kwb">Int32</span>
+<span class="kwa">end</span>
+
+<span class="kwa">const</span> OUT <span class="opt">=</span> stdout
+<span class="kwa">const</span> LINE_LENGTH <span class="opt">=</span> <span class="num">60</span>
+
+<span class="kwa">const</span> IM <span class="opt">=</span> <span class="kwb">Int32</span><span class="opt">(</span><span class="num">139968</span><span class="opt">)</span>
+<span class="kwa">const</span> IA <span class="opt">=</span> <span class="kwb">Int32</span><span class="opt">(</span><span class="num">3877</span><span class="opt">)</span>
+<span class="kwa">const</span> IC <span class="opt">=</span> <span class="kwb">Int32</span><span class="opt">(</span><span class="num">29573</span><span class="opt">)</span>
+<span class="kwa">const</span> last_rnd <span class="opt">=</span> <span class="kwd">Ref</span><span class="opt">(</span><span class="kwb">Int32</span><span class="opt">(</span><span class="num">42</span><span class="opt">))</span>
+<span class="kwd">gen_random</span><span class="opt">() = (</span>last_rnd<span class="opt">[] = (</span>last_rnd<span class="opt">[] *</span> IA <span class="opt">+</span> IC<span class="opt">) %</span> IM<span class="opt">)</span>
+
+<span class="kwa">function</span> <span class="kwd">random_char</span><span class="opt">(</span>genelist<span class="opt">)</span>
+    r <span class="opt">=</span> <span class="kwd">gen_random</span><span class="opt">()</span>
+    <span class="kwa">for</span> aminoacid <span class="kwa">in</span> genelist
+        aminoacid<span class="opt">.</span>p <span class="opt">&gt;=</span> r <span class="opt">&amp;&amp;</span> <span class="kwa">return</span> aminoacid<span class="opt">.</span>c
+    <span class="kwa">end</span>
+    <span class="kwa">return</span> genelist<span class="opt">[</span><span class="kwa">end</span><span class="opt">].</span>c
+<span class="kwa">end</span>
+
+<span class="kwa">function</span> <span class="kwd">fillrand</span><span class="opt">!(</span>line<span class="opt">,</span> genelist<span class="opt">,</span> n<span class="opt">)</span>
+    <span class="kwa">for</span> i <span class="kwa">in</span> <span class="num">1</span><span class="opt">:</span>n
+        <span class="kwc">&#64;inbounds</span> line<span class="opt">[</span>i<span class="opt">] =</span> <span class="kwd">random_char</span><span class="opt">(</span>genelist<span class="opt">)</span>
+    <span class="kwa">end</span>
+<span class="kwa">end</span>
+
+<span class="kwa">function</span> <span class="kwd">random_fasta</span><span class="opt">(</span>genelist<span class="opt">,</span> n<span class="opt">)</span>
+    line <span class="opt">=</span> Vector<span class="opt">{</span><span class="kwb">UInt8</span><span class="opt">}(</span>undef<span class="opt">,</span> LINE_LENGTH<span class="opt">+</span><span class="num">1</span><span class="opt">)</span>
+    line<span class="opt">[</span><span class="kwa">end</span><span class="opt">] =</span> <span class="kwb">UInt8</span><span class="opt">(</span>&apos;<span class="esc">\n</span>&apos;<span class="opt">)</span>
+    <span class="kwa">while</span> n <span class="opt">&gt;</span> LINE_LENGTH
+        <span class="kwd">fillrand</span><span class="opt">!(</span>line<span class="opt">,</span> genelist<span class="opt">,</span> LINE_LENGTH<span class="opt">)</span>
+        <span class="kwd">write</span><span class="opt">(</span>OUT<span class="opt">,</span> line<span class="opt">)</span>
+        n <span class="opt">-=</span> LINE_LENGTH
+    <span class="kwa">end</span>
+    <span class="kwd">fillrand</span><span class="opt">!(</span>line<span class="opt">,</span> genelist<span class="opt">,</span> n<span class="opt">)</span>
+    line<span class="opt">[</span>n<span class="opt">+</span><span class="num">1</span><span class="opt">] =</span> <span class="kwb">UInt8</span><span class="opt">(</span>&apos;<span class="esc">\n</span>&apos;<span class="opt">)</span>
+    <span class="kwd">write</span><span class="opt">(</span>OUT<span class="opt">,</span> <span class="kwc">&#64;view</span> line<span class="opt">[</span><span class="num">1</span><span class="opt">:</span>n<span class="opt">+</span><span class="num">1</span><span class="opt">])</span>
+<span class="kwa">end</span>
+
+<span class="kwa">function</span> <span class="kwd">repeat_fasta</span><span class="opt">(</span>str<span class="opt">,</span> n<span class="opt">)</span>
+    len <span class="opt">=</span> <span class="kwd">length</span><span class="opt">(</span>str<span class="opt">)</span>
+    <span class="slc"># create a string with the beginning repeated at the end</span>
+    <span class="slc"># so we don&apos;t have to wrap around</span>
+    src <span class="opt">=</span> Vector<span class="opt">{</span><span class="kwb">UInt8</span><span class="opt">}(</span>undef<span class="opt">,</span> len <span class="opt">+</span> LINE_LENGTH<span class="opt">)</span>
+    <span class="kwa">for</span> i <span class="kwa">in</span> <span class="num">1</span><span class="opt">:</span>len
+        <span class="kwc">&#64;inbounds</span> src<span class="opt">[</span>i<span class="opt">] =</span> str<span class="opt">[</span>i<span class="opt">]</span>
+    <span class="kwa">end</span>
+    <span class="kwa">for</span> i <span class="kwa">in</span> <span class="num">1</span><span class="opt">:</span>LINE_LENGTH
+        <span class="kwc">&#64;inbounds</span> src<span class="opt">[</span>i<span class="opt">+</span>len<span class="opt">] =</span> str<span class="opt">[</span>i<span class="opt">]</span>
+    <span class="kwa">end</span>
+
+    i <span class="opt">=</span> <span class="num">1</span>
+    lines<span class="opt">,</span> rest <span class="opt">=</span> <span class="kwd">divrem</span><span class="opt">(</span>n<span class="opt">,</span> LINE_LENGTH<span class="opt">)</span>
+    <span class="kwa">for</span> _ <span class="kwa">in</span> <span class="num">1</span><span class="opt">:</span>lines
+        <span class="kwd">write</span><span class="opt">(</span>OUT<span class="opt">,</span> <span class="kwc">&#64;inbounds &#64;view</span> src<span class="opt">[</span>i<span class="opt">:</span>i<span class="opt">+</span>LINE_LENGTH<span class="opt">-</span><span class="num">1</span><span class="opt">])</span>
+        <span class="kwd">write</span><span class="opt">(</span>OUT<span class="opt">,</span> &apos;<span class="esc">\n</span>&apos;<span class="opt">)</span>
+        i <span class="opt">+=</span> LINE_LENGTH
+        i <span class="opt">&gt;</span> len <span class="opt">&amp;&amp; (</span>i <span class="opt">-=</span> len<span class="opt">)</span>
+    <span class="kwa">end</span>
+    <span class="kwd">write</span><span class="opt">(</span>OUT<span class="opt">,</span> <span class="kwc">&#64;inbounds &#64;view</span> src<span class="opt">[</span>i<span class="opt">:</span>i<span class="opt">+</span>rest<span class="opt">-</span><span class="num">1</span><span class="opt">])</span>
+    <span class="kwd">write</span><span class="opt">(</span>OUT<span class="opt">,</span> &apos;<span class="esc">\n</span>&apos;<span class="opt">)</span>
+<span class="kwa">end</span>
+
+<span class="kwa">function</span> <span class="kwd">make_Aminoacids</span><span class="opt">(</span>cs<span class="opt">,</span> ps<span class="opt">)</span>
+    cum_p <span class="opt">=</span> <span class="num">0.0</span>
+    tmp <span class="opt">=</span> Aminoacids<span class="opt">[]</span>
+    <span class="kwa">for</span> <span class="opt">(</span>c<span class="opt">,</span> p<span class="opt">)</span> <span class="kwa">in</span> <span class="kwd">zip</span><span class="opt">(</span>cs<span class="opt">,</span> ps<span class="opt">)</span>
+        cum_p <span class="opt">+=</span> p <span class="opt">*</span> IM
+        <span class="slc"># the comparison is with Int32, so use it here as well</span>
+        <span class="kwd">push</span><span class="opt">!(</span>tmp<span class="opt">,</span> <span class="kwd">Aminoacids</span><span class="opt">(</span>c<span class="opt">,</span> <span class="kwd">floor</span><span class="opt">(</span><span class="kwb">Int32</span><span class="opt">,</span> cum_p<span class="opt">)))</span>
+    <span class="kwa">end</span>
+    <span class="kwa">return</span> <span class="opt">(</span>tmp<span class="opt">...,)</span>
+<span class="kwa">end</span>
+
+<span class="slc"># create Aminoacids with accumulated probabilities and make</span>
+<span class="slc"># the result a constant</span>
+<span class="kwa">const</span> IUB <span class="opt">=</span> <span class="kwa">let</span>
+    iub_c <span class="opt">=</span> b<span class="str">&quot;acgtBDHKMNRSVWY&quot;</span>
+    iub_p <span class="opt">= [</span><span class="num">0.27</span><span class="opt">,</span> <span class="num">0.12</span><span class="opt">,</span> <span class="num">0.12</span><span class="opt">,</span> <span class="num">0.27</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">,</span>
+             <span class="num">0.02</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">]</span>
+    <span class="kwd">make_Aminoacids</span><span class="opt">(</span>iub_c<span class="opt">,</span> iub_p<span class="opt">)</span>
+<span class="kwa">end</span>
+<span class="kwa">const</span> HOMOSAPIENS <span class="opt">=</span> <span class="kwa">let</span>
+    homosapiens_c <span class="opt">=</span> b<span class="str">&quot;acgt&quot;</span>
+    homosapiens_p <span class="opt">= [</span><span class="num">0.3029549426680</span><span class="opt">,</span> <span class="num">0.1979883004921</span><span class="opt">,</span>
+                     <span class="num">0.1975473066391</span><span class="opt">,</span> <span class="num">0.3015094502008</span><span class="opt">]</span>
+    <span class="kwd">make_Aminoacids</span><span class="opt">(</span>homosapiens_c<span class="opt">,</span> homosapiens_p<span class="opt">)</span>
+<span class="kwa">end</span>
+<span class="kwa">const</span> ALU <span class="opt">=</span> <span class="kwd">codeunits</span><span class="opt">(</span>
+    <span class="str">&quot;GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGG&quot;</span> <span class="opt">*</span>
+    <span class="str">&quot;GAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGA&quot;</span> <span class="opt">*</span>
+    <span class="str">&quot;CCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAAT&quot;</span> <span class="opt">*</span>
+    <span class="str">&quot;ACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCA&quot;</span> <span class="opt">*</span>
+    <span class="str">&quot;GCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGG&quot;</span> <span class="opt">*</span>
+    <span class="str">&quot;AGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCC&quot;</span> <span class="opt">*</span>
+    <span class="str">&quot;AGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA&quot;</span><span class="opt">)</span>
+
+<span class="kwa">function</span> <span class="kwd">main</span><span class="opt">(</span>n<span class="opt">)</span>
+    <span class="kwd">write</span><span class="opt">(</span>OUT<span class="opt">,</span> <span class="str">&quot;&gt;ONE Homo sapiens alu</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">)</span>
+    <span class="kwd">repeat_fasta</span><span class="opt">(</span>ALU<span class="opt">,</span> <span class="num">2</span>n<span class="opt">)</span>
+    <span class="kwd">write</span><span class="opt">(</span>OUT<span class="opt">,</span> <span class="str">&quot;&gt;TWO IUB ambiguity codes</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">)</span>
+    <span class="kwd">random_fasta</span><span class="opt">(</span>IUB<span class="opt">,</span> <span class="num">3</span>n<span class="opt">)</span>
+    <span class="kwd">write</span><span class="opt">(</span>OUT<span class="opt">,</span> <span class="str">&quot;&gt;THREE Homo sapiens frequency</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">)</span>
+    <span class="kwd">random_fasta</span><span class="opt">(</span>HOMOSAPIENS<span class="opt">,</span> <span class="num">5</span>n<span class="opt">)</span>
+<span class="kwa">end</span>
+
+<span class="kwd">main</span><span class="opt">(</span><span class="kwd">parse</span><span class="opt">(</span>Int<span class="opt">,</span> ARGS<span class="opt">[</span><span class="num">1</span><span class="opt">]))</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

@@ -17,6 +17,135 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc"># The Computer Language Benchmarks game</span>
+<span class="slc"># https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">#</span>
+<span class="slc"># contributed by David Pyke</span>
+<span class="slc"># tweaked by Danny Sauer</span>
+<span class="slc"># optimized by Steffen Mueller</span>
+<span class="slc"># tweaked by Kuang-che Wu</span>
+
+<span class="kwa">use</span> strict<span class="opt">;</span>
+<span class="kwa">use</span> warnings<span class="opt">;</span>
+<span class="kwa">use</span> constant IM <span class="opt">=&gt;</span> <span class="num">139968</span><span class="opt">;</span>
+<span class="kwa">use</span> constant IA <span class="opt">=&gt;</span> <span class="num">3877</span><span class="opt">;</span>
+<span class="kwa">use</span> constant IC <span class="opt">=&gt;</span> <span class="num">29573</span><span class="opt">;</span>
+
+<span class="kwa">use</span> constant LINELENGTH <span class="opt">=&gt;</span> <span class="num">60</span><span class="opt">;</span>
+
+<span class="kwc">my</span> <span class="kwb">$LAST</span> <span class="opt">=</span> <span class="num">42</span><span class="opt">;</span>
+<span class="kwa">sub</span> gen_random <span class="opt">{</span>
+    <span class="kwa">return</span> <span class="kwc">map</span> <span class="opt">{( (</span><span class="kwb">$_</span><span class="opt">[</span><span class="num">0</span><span class="opt">] * (</span><span class="kwb">$LAST</span> <span class="opt">= (</span><span class="kwb">$LAST</span> <span class="opt">*</span> IA <span class="opt">+</span> IC<span class="opt">) %</span> IM<span class="opt">)) /</span> IM <span class="opt">)}</span> <span class="num">1</span><span class="opt">..(</span><span class="kwb">$_</span><span class="opt">[</span><span class="num">1</span><span class="opt">]||</span><span class="num">1</span><span class="opt">);</span>
+<span class="opt">}</span>
+
+<span class="kwa">sub</span> makeCumulative <span class="opt">{</span>
+    <span class="kwc">my</span> <span class="kwb">$genelist</span> <span class="opt">=</span> <span class="kwc">shift</span><span class="opt">;</span>
+    <span class="kwc">my</span> <span class="kwb">$cp</span> <span class="opt">=</span> <span class="num">0.0</span><span class="opt">;</span>
+
+    <span class="kwb">$_</span><span class="opt">-&gt;[</span><span class="num">1</span><span class="opt">] =</span> <span class="kwb">$cp</span> <span class="opt">+=</span> <span class="kwb">$_</span><span class="opt">-&gt;[</span><span class="num">1</span><span class="opt">]</span> <span class="kwa">foreach</span> &#64;<span class="kwb">$genelist</span><span class="opt">;</span>
+<span class="opt">}</span>
+
+<span class="kwa">sub</span> selectRandom <span class="opt">{</span>
+    <span class="kwc">my</span> <span class="kwb">$genelist</span> <span class="opt">=</span> <span class="kwc">shift</span><span class="opt">;</span>
+    <span class="kwc">my</span> <span class="kwb">$number</span> <span class="opt">=</span> <span class="kwc">shift</span> <span class="opt">||</span> <span class="num">1</span><span class="opt">;</span>
+    <span class="kwc">my</span> <span class="kwb">&#64;r</span> <span class="opt">=</span> gen_random<span class="opt">(</span><span class="num">1</span><span class="opt">,</span> <span class="kwb">$number</span><span class="opt">);</span>
+
+    <span class="kwc">my</span> <span class="kwb">$s</span><span class="opt">;</span>
+    <span class="kwa">foreach</span> <span class="kwc">my</span> <span class="kwb">$r</span> <span class="opt">(</span><span class="kwb">&#64;r</span><span class="opt">) {</span>
+        <span class="kwa">foreach</span> <span class="opt">(</span>&#64;<span class="kwb">$genelist</span><span class="opt">){</span>
+            <span class="kwa">if</span> <span class="opt">(</span><span class="kwb">$r</span> <span class="opt">&lt;</span> <span class="kwb">$_</span><span class="opt">-&gt;[</span><span class="num">1</span><span class="opt">]) {</span> <span class="kwb">$s</span> <span class="opt">.=</span> <span class="kwb">$_</span><span class="opt">-&gt;[</span><span class="num">0</span><span class="opt">];</span> <span class="kwa">last</span><span class="opt">; }</span>
+        <span class="opt">}</span>
+    <span class="opt">}</span>
+
+    <span class="kwa">return</span> <span class="kwb">$s</span><span class="opt">;</span>
+<span class="opt">}</span>
+
+
+<span class="kwa">sub</span> makeRandomFasta <span class="opt">{</span>
+    <span class="kwc">my</span> <span class="opt">(</span><span class="kwb">$id</span><span class="opt">,</span> <span class="kwb">$desc</span><span class="opt">,</span> <span class="kwb">$n</span><span class="opt">,</span> <span class="kwb">$genelist</span><span class="opt">) =</span> <span class="kwb">&#64;_</span><span class="opt">;</span>
+
+    <span class="kwc">print</span> <span class="str">&quot;&gt;&quot;</span><span class="opt">,</span> <span class="kwb">$id</span><span class="opt">,</span> <span class="str">&quot; &quot;</span><span class="opt">,</span> <span class="kwb">$desc</span><span class="opt">,</span> <span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">;</span>
+
+    <span class="slc"># print whole lines</span>
+    <span class="kwa">foreach</span> <span class="opt">(</span><span class="num">1</span> <span class="opt">..</span> <span class="kwc">int</span><span class="opt">(</span><span class="kwb">$n</span> <span class="opt">/</span> LINELENGTH<span class="opt">) ){</span>
+        <span class="kwc">print</span> selectRandom<span class="opt">(</span><span class="kwb">$genelist</span><span class="opt">,</span> LINELENGTH<span class="opt">),</span> <span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">;</span>
+    <span class="opt">}</span>
+    <span class="slc"># print remaining line (if required)</span>
+    <span class="kwa">if</span> <span class="opt">(</span><span class="kwb">$n</span> <span class="opt">%</span> LINELENGTH<span class="opt">){</span>
+        <span class="kwc">print</span> selectRandom<span class="opt">(</span><span class="kwb">$genelist</span><span class="opt">,</span> <span class="kwb">$n</span> <span class="opt">%</span> LINELENGTH<span class="opt">),</span> <span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">;</span>
+    <span class="opt">}</span>
+<span class="opt">}</span>
+
+<span class="kwa">sub</span> makeRepeatFasta <span class="opt">{</span>
+    <span class="kwc">my</span> <span class="opt">(</span><span class="kwb">$id</span><span class="opt">,</span> <span class="kwb">$desc</span><span class="opt">,</span> <span class="kwb">$s</span><span class="opt">,</span> <span class="kwb">$n</span><span class="opt">) =</span> <span class="kwb">&#64;_</span><span class="opt">;</span>
+
+    <span class="kwc">print</span> <span class="str">&quot;&gt;&quot;</span><span class="opt">,</span> <span class="kwb">$id</span><span class="opt">,</span> <span class="str">&quot; &quot;</span><span class="opt">,</span> <span class="kwb">$desc</span><span class="opt">,</span> <span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">;</span>
+
+    <span class="kwc">my</span> <span class="kwb">$r</span> <span class="opt">=</span> <span class="kwc">length</span> <span class="kwb">$s</span><span class="opt">;</span>
+    <span class="kwc">my</span> <span class="kwb">$ss</span> <span class="opt">=</span> <span class="kwb">$s</span> <span class="opt">.</span> <span class="kwb">$s</span> <span class="opt">.</span> <span class="kwc">substr</span><span class="opt">(</span><span class="kwb">$s</span><span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> <span class="kwb">$n</span> <span class="opt">%</span> <span class="kwb">$r</span><span class="opt">);</span>
+    <span class="kwa">for</span> <span class="kwc">my</span> <span class="kwb">$j</span><span class="opt">(</span><span class="num">0</span><span class="opt">..</span><span class="kwc">int</span><span class="opt">(</span><span class="kwb">$n</span> <span class="opt">/</span> LINELENGTH<span class="opt">)-</span><span class="num">1</span><span class="opt">) {</span>
+	<span class="kwc">my</span> <span class="kwb">$i</span> <span class="opt">=</span> <span class="kwb">$j</span><span class="opt">*</span>LINELENGTH <span class="opt">%</span> <span class="kwb">$r</span><span class="opt">;</span>
+	<span class="kwc">print substr</span><span class="opt">(</span><span class="kwb">$ss</span><span class="opt">,</span> <span class="kwb">$i</span><span class="opt">,</span> LINELENGTH<span class="opt">),</span> <span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">;</span>
+    <span class="opt">}</span>
+    <span class="kwa">if</span> <span class="opt">(</span><span class="kwb">$n</span> <span class="opt">%</span> LINELENGTH<span class="opt">) {</span>
+	<span class="kwc">print substr</span><span class="opt">(</span><span class="kwb">$ss</span><span class="opt">, -(</span><span class="kwb">$n</span> <span class="opt">%</span> LINELENGTH<span class="opt">)),</span> <span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">;</span>
+    <span class="opt">}</span>
+<span class="opt">}</span>
+
+
+<span class="kwc">my</span> <span class="kwb">$iub</span> <span class="opt">= [</span>
+    <span class="opt">[</span> <span class="str">&apos;a&apos;</span><span class="opt">,</span> <span class="num">0.27</span> <span class="opt">],</span>
+    <span class="opt">[</span> <span class="str">&apos;c&apos;</span><span class="opt">,</span> <span class="num">0.12</span> <span class="opt">],</span>
+    <span class="opt">[</span> <span class="str">&apos;g&apos;</span><span class="opt">,</span> <span class="num">0.12</span> <span class="opt">],</span>
+    <span class="opt">[</span> <span class="str">&apos;t&apos;</span><span class="opt">,</span> <span class="num">0.27</span> <span class="opt">],</span>
+    <span class="opt">[</span> <span class="str">&apos;B&apos;</span><span class="opt">,</span> <span class="num">0.02</span> <span class="opt">],</span>
+    <span class="opt">[</span> <span class="str">&apos;D&apos;</span><span class="opt">,</span> <span class="num">0.02</span> <span class="opt">],</span>
+    <span class="opt">[</span> <span class="str">&apos;H&apos;</span><span class="opt">,</span> <span class="num">0.02</span> <span class="opt">],</span>
+    <span class="opt">[</span> <span class="str">&apos;K&apos;</span><span class="opt">,</span> <span class="num">0.02</span> <span class="opt">],</span>
+    <span class="opt">[</span> <span class="str">&apos;M&apos;</span><span class="opt">,</span> <span class="num">0.02</span> <span class="opt">],</span>
+    <span class="opt">[</span> <span class="str">&apos;N&apos;</span><span class="opt">,</span> <span class="num">0.02</span> <span class="opt">],</span>
+    <span class="opt">[</span> <span class="str">&apos;R&apos;</span><span class="opt">,</span> <span class="num">0.02</span> <span class="opt">],</span>
+    <span class="opt">[</span> <span class="str">&apos;S&apos;</span><span class="opt">,</span> <span class="num">0.02</span> <span class="opt">],</span>
+    <span class="opt">[</span> <span class="str">&apos;V&apos;</span><span class="opt">,</span> <span class="num">0.02</span> <span class="opt">],</span>
+    <span class="opt">[</span> <span class="str">&apos;W&apos;</span><span class="opt">,</span> <span class="num">0.02</span> <span class="opt">],</span>
+    <span class="opt">[</span> <span class="str">&apos;Y&apos;</span><span class="opt">,</span> <span class="num">0.02</span> <span class="opt">]</span>
+<span class="opt">];</span>
+
+<span class="kwc">my</span> <span class="kwb">$homosapiens</span> <span class="opt">= [</span>
+    <span class="opt">[</span> <span class="str">&apos;a&apos;</span><span class="opt">,</span> <span class="num">0.3029549426680</span> <span class="opt">],</span>
+    <span class="opt">[</span> <span class="str">&apos;c&apos;</span><span class="opt">,</span> <span class="num">0.1979883004921</span> <span class="opt">],</span>
+    <span class="opt">[</span> <span class="str">&apos;g&apos;</span><span class="opt">,</span> <span class="num">0.1975473066391</span> <span class="opt">],</span>
+    <span class="opt">[</span> <span class="str">&apos;t&apos;</span><span class="opt">,</span> <span class="num">0.3015094502008</span> <span class="opt">]</span>
+<span class="opt">];</span>
+
+<span class="kwc">my</span> <span class="kwb">$alu</span> <span class="opt">=</span>
+    <span class="str">&apos;GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGG&apos;</span> <span class="opt">.</span>
+    <span class="str">&apos;GAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGA&apos;</span> <span class="opt">.</span>
+    <span class="str">&apos;CCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAAT&apos;</span> <span class="opt">.</span>
+    <span class="str">&apos;ACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCA&apos;</span> <span class="opt">.</span>
+    <span class="str">&apos;GCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGG&apos;</span> <span class="opt">.</span>
+    <span class="str">&apos;AGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCC&apos;</span> <span class="opt">.</span>
+    <span class="str">&apos;AGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA&apos;</span><span class="opt">;</span>
+
+<span class="slc">######################################################################</span>
+<span class="slc">#main</span>
+
+<span class="kwc">my</span> <span class="kwb">$n</span> <span class="opt">= (</span><span class="kwb">$ARGV</span><span class="opt">[</span><span class="num">0</span><span class="opt">] ||</span> <span class="num">1000</span><span class="opt">) ;</span>
+
+makeCumulative<span class="opt">(</span><span class="kwb">$iub</span><span class="opt">);</span>
+makeCumulative<span class="opt">(</span><span class="kwb">$homosapiens</span><span class="opt">);</span>
+
+makeRepeatFasta <span class="opt">(</span><span class="str">&apos;ONE&apos;</span><span class="opt">,</span> <span class="str">&apos;Homo sapiens alu&apos;</span><span class="opt">,</span> <span class="kwb">$alu</span><span class="opt">,</span> <span class="kwb">$n</span><span class="opt">*</span><span class="num">2</span><span class="opt">);</span>
+makeRandomFasta <span class="opt">(</span><span class="str">&apos;TWO&apos;</span><span class="opt">,</span> <span class="str">&apos;IUB ambiguity codes&apos;</span><span class="opt">,</span> <span class="kwb">$n</span><span class="opt">*</span><span class="num">3</span><span class="opt">,</span> <span class="kwb">$iub</span><span class="opt">);</span>
+makeRandomFasta <span class="opt">(</span><span class="str">&apos;THREE&apos;</span><span class="opt">,</span> <span class="str">&apos;Homo sapiens frequency&apos;</span><span class="opt">,</span> <span class="kwb">$n</span><span class="opt">*</span><span class="num">5</span><span class="opt">,</span> <span class="kwb">$homosapiens</span><span class="opt">);</span>
+
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

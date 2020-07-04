@@ -17,6 +17,102 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="com">/* The Computer Language Benchmarks Game</span>
+<span class="com">   https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="com"></span>
+<span class="com">   contributed by Tom Hildebrandt, Brad Chamberlain, and Lydia Duncan</span>
+<span class="com">   derived from the GNU C version by Mr Ledrug</span>
+<span class="com">*/</span>
+
+<span class="kwa">use</span> GMP<span class="opt">,</span> SysCTypes<span class="opt">;</span>
+
+<span class="kwa">config const</span> n <span class="opt">=</span> <span class="num">50</span><span class="opt">;</span>         <span class="slc">// Compute n digits of pi, 50 by default</span>
+
+<span class="kwa">proc</span> <span class="kwc">main</span><span class="opt">() {</span>
+  <span class="kwa">param</span> digitsPerLine <span class="opt">=</span> <span class="num">10</span><span class="opt">;</span>
+
+  <span class="slc">// Generate n digits, printing them in groups of digitsPerLine</span>
+  <span class="kwa">for</span> <span class="opt">(</span>d<span class="opt">,</span> i<span class="opt">)</span> <span class="kwa">in</span> <span class="kwc">genDigits</span><span class="opt">(</span>n<span class="opt">) {</span>
+    <span class="kwc">write</span><span class="opt">(</span>d<span class="opt">);</span>
+    <span class="kwa">if</span> i <span class="opt">%</span> digitsPerLine <span class="opt">==</span> <span class="num">0</span> <span class="kwa">then</span>
+      <span class="kwc">writeln</span><span class="opt">(</span><span class="str">&quot;</span><span class="esc">\t</span><span class="str">:&quot;</span><span class="opt">,</span> i<span class="opt">);</span>
+  <span class="opt">}</span>
+
+  <span class="slc">// Pad out any trailing digits for the final line</span>
+  <span class="kwa">if</span> n <span class="opt">%</span> digitsPerLine <span class="kwa">then</span>
+    <span class="kwc">writeln</span><span class="opt">(</span><span class="str">&quot; &quot;</span> <span class="opt">* (</span>digitsPerLine <span class="opt">-</span> n <span class="opt">%</span> digitsPerLine<span class="opt">),</span> <span class="str">&quot;</span><span class="esc">\t</span><span class="str">:&quot;</span><span class="opt">,</span> n<span class="opt">);</span>
+<span class="opt">}</span>
+
+
+<span class="kwa">iter</span> <span class="kwc">genDigits</span><span class="opt">(</span>numDigits<span class="opt">) {</span>
+  <span class="kwa">var</span> numer<span class="opt">,</span> accum<span class="opt">,</span> denom<span class="opt">,</span> tmp1<span class="opt">,</span> tmp2<span class="opt">:</span> mpz_t<span class="opt">;</span>
+
+  <span class="kwc">mpz_init</span><span class="opt">(</span>tmp1<span class="opt">);</span>                          <span class="slc">// init tmp1</span>
+  <span class="kwc">mpz_init</span><span class="opt">(</span>tmp2<span class="opt">);</span>                          <span class="slc">// init tmp2</span>
+  <span class="kwc">mpz_init_set_ui</span><span class="opt">(</span>accum<span class="opt">,</span> <span class="num">0</span><span class="opt">);</span>               <span class="slc">// accum = 0</span>
+  <span class="kwc">mpz_init_set_ui</span><span class="opt">(</span>denom<span class="opt">,</span> <span class="num">1</span><span class="opt">);</span>               <span class="slc">// denom = 1</span>
+  <span class="kwc">mpz_init_set_ui</span><span class="opt">(</span>numer<span class="opt">,</span> <span class="num">1</span><span class="opt">);</span>               <span class="slc">// numer = 1</span>
+
+  <span class="kwa">var</span> d<span class="opt">,</span> k<span class="opt">:</span> c_ulong<span class="opt">;</span>
+  <span class="kwa">for</span> i <span class="kwa">in</span> <span class="num">1</span><span class="opt">..</span>numDigits <span class="opt">{</span>
+    <span class="kwa">do</span> <span class="opt">{</span>
+      <span class="kwa">do</span> <span class="opt">{</span>
+        k <span class="opt">+=</span> <span class="num">1</span><span class="opt">;</span>
+        <span class="kwc">nextTerm</span><span class="opt">(</span>k<span class="opt">);</span>
+
+        <span class="slc">// Continue looping until the digit is ready</span>
+      <span class="opt">}</span> <span class="kwa">while</span> <span class="opt">(</span><span class="kwc">mpz_cmp</span><span class="opt">(</span>numer<span class="opt">,</span> accum<span class="opt">) &gt;</span> <span class="num">0</span><span class="opt">);</span>  <span class="slc">// while numer &gt; accum</span>
+
+      d <span class="opt">=</span> <span class="kwc">extractDigit</span><span class="opt">(</span><span class="num">3</span><span class="opt">);</span>
+    <span class="opt">}</span> <span class="kwa">while</span> <span class="opt">(</span>d <span class="opt">!=</span> <span class="kwc">extractDigit</span><span class="opt">(</span><span class="num">4</span><span class="opt">));</span>       <span class="slc">// while the 3rd digit != the 4th</span>
+
+    <span class="kwa">yield</span> <span class="opt">(</span>d<span class="opt">,</span>i<span class="opt">);</span>              <span class="slc">// once it differs, yield it and its position</span>
+
+    <span class="kwc">eliminateDigit</span><span class="opt">(</span>d<span class="opt">);</span>
+  <span class="opt">}</span>
+
+  <span class="slc">// Helper function to compute the next term</span>
+  <span class="kwa">proc</span> <span class="kwc">nextTerm</span><span class="opt">(</span>k<span class="opt">) {</span>
+    <span class="kwa">const</span> k2 <span class="opt">=</span> <span class="num">2</span> <span class="opt">*</span> k <span class="opt">+</span> <span class="num">1</span><span class="opt">;</span>
+
+    <span class="kwc">mpz_addmul_ui</span><span class="opt">(</span>accum<span class="opt">,</span> numer<span class="opt">,</span> <span class="num">2</span><span class="opt">);</span>    <span class="slc">// accum += numer * 2</span>
+    <span class="kwc">mpz_mul_ui</span><span class="opt">(</span>accum<span class="opt">,</span> accum<span class="opt">,</span> k2<span class="opt">);</span>      <span class="slc">// accum *= (2k+1)</span>
+    <span class="kwc">mpz_mul_ui</span><span class="opt">(</span>denom<span class="opt">,</span> denom<span class="opt">,</span> k2<span class="opt">);</span>      <span class="slc">// denom *= (2k+1)</span>
+    <span class="kwc">mpz_mul_ui</span><span class="opt">(</span>numer<span class="opt">,</span> numer<span class="opt">,</span> k<span class="opt">);</span>       <span class="slc">// numer *= k</span>
+  <span class="opt">}</span>
+
+  <span class="slc">// Helper function to extract the nth digit</span>
+  <span class="kwa">proc</span> <span class="kwc">extractDigit</span><span class="opt">(</span>nth<span class="opt">:</span> c_ulong<span class="opt">) {</span>
+    <span class="kwc">mpz_mul_ui</span><span class="opt">(</span>tmp1<span class="opt">,</span> numer<span class="opt">,</span> nth<span class="opt">);</span>            <span class="slc">// tmp1 = numer * nth</span>
+    <span class="kwc">mpz_add</span><span class="opt">(</span>tmp2<span class="opt">,</span> tmp1<span class="opt">,</span> accum<span class="opt">);</span>              <span class="slc">// tmp2 = tmp1 + accum</span>
+    <span class="kwc">mpz_tdiv_q</span><span class="opt">(</span>tmp1<span class="opt">,</span> tmp2<span class="opt">,</span> denom<span class="opt">);</span>           <span class="slc">// tmp1 = tmp2 / denom</span>
+    
+    <span class="kwa">return</span> <span class="kwc">mpz_get_ui</span><span class="opt">(</span>tmp1<span class="opt">);</span>                 <span class="slc">// convert tmp1 to a c_uint</span>
+  <span class="opt">}</span>
+
+  <span class="slc">// Helper function to eliminate digit d</span>
+  <span class="kwa">proc</span> <span class="kwc">eliminateDigit</span><span class="opt">(</span>d<span class="opt">) {</span>
+    <span class="kwc">mpz_submul_ui</span><span class="opt">(</span>accum<span class="opt">,</span> denom<span class="opt">,</span> d<span class="opt">);</span>        <span class="slc">// accum = (accum - denom) * d</span>
+    <span class="kwc">mpz_mul_ui</span><span class="opt">(</span>accum<span class="opt">,</span> accum<span class="opt">,</span> <span class="num">10</span><span class="opt">);</span>          <span class="slc">// accum *= 10</span>
+    <span class="kwc">mpz_mul_ui</span><span class="opt">(</span>numer<span class="opt">,</span> numer<span class="opt">,</span> <span class="num">10</span><span class="opt">);</span>          <span class="slc">// numer *= 10</span>
+  <span class="opt">}</span>
+
+  <span class="slc">// Clean up when done</span>
+  <span class="kwc">mpz_clear</span><span class="opt">(</span>numer<span class="opt">);</span>
+  <span class="kwc">mpz_clear</span><span class="opt">(</span>denom<span class="opt">);</span>
+  <span class="kwc">mpz_clear</span><span class="opt">(</span>accum<span class="opt">);</span>
+  <span class="kwc">mpz_clear</span><span class="opt">(</span>tmp2<span class="opt">);</span>
+  <span class="kwc">mpz_clear</span><span class="opt">(</span>tmp1<span class="opt">);</span>
+<span class="opt">}</span>
+
+
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

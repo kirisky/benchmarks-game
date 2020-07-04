@@ -17,6 +17,127 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc">% The Computer Language Benchmarks Game</span>
+<span class="slc">% https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">% Contributed by: Hynek Vychodil 2009</span>
+<span class="slc">% Fixed by Alexander Fyodorov</span>
+
+
+<span class="slc">% Inspired by regex-dna Erlang HiPE #5 program</span>
+<span class="slc">%    by Sergei Matusevich 2007 and Thanassis Avgerinos 2009</span>
+
+<span class="slc">% Main changes:</span>
+<span class="slc">%   1/ Very fast Port line input instead stdio (~5x)</span>
+<span class="slc">%   2/ Faster IUB code alternatives explicit expansion</span>
+<span class="slc">%      using binary instead lists (~5x)</span>
+<span class="slc">%   3/ Precompile regexps in data loading phase</span>
+<span class="slc">%   4/ Simpler dispatch and result join code</span>
+
+<span class="slc">% Note: re module is damn slow. Boyer-Moore like binary matcher</span>
+<span class="slc">% written in Erlang should be magnitude faster (HiPE of course).</span>
+
+<span class="opt">-</span><span class="kwd">module</span><span class="opt">(</span>regexredux<span class="opt">).</span>
+
+<span class="opt">-</span><span class="kwd">compile</span><span class="opt">([</span>native<span class="opt">, {</span>hipe<span class="opt">, [</span>o3<span class="opt">]}]).</span>
+
+<span class="opt">-</span><span class="kwd">export</span><span class="opt">([</span>main<span class="opt">/</span><span class="num">1</span><span class="opt">]).</span>
+
+<span class="kwd">main</span><span class="opt">(</span>_<span class="opt">) -&gt;</span> <span class="kwd">main</span><span class="opt">().</span>
+
+<span class="kwd">main</span><span class="opt">() -&gt;</span> <span class="kwd">do</span><span class="opt">(),</span> <span class="kwb">halt</span><span class="opt">().</span>
+
+<span class="kwd">do</span><span class="opt">() -&gt;</span>
+    S <span class="opt">=</span> <span class="kwb">self</span><span class="opt">(),</span>
+    Worker <span class="opt">=</span> <span class="kwb">spawn_link</span><span class="opt">(</span><span class="kwa">fun</span> <span class="opt">() -&gt;</span> <span class="kwd">work</span><span class="opt">(</span>S<span class="opt">)</span> <span class="kwa">end</span><span class="opt">),</span>
+    Worker <span class="opt">! {</span>data<span class="opt">,</span> <span class="kwd">read</span><span class="opt">()},</span>
+    <span class="kwa">receive</span> finish <span class="opt">-&gt;</span> ok <span class="kwa">end</span><span class="opt">.</span>
+
+<span class="kwd">work</span><span class="opt">(</span>Master<span class="opt">) -&gt;</span>
+    S <span class="opt">=</span> <span class="kwb">self</span><span class="opt">(),</span>
+    Patterns <span class="opt">= [{</span>Pat<span class="opt">,</span> <span class="kwc">re</span><span class="opt">:</span><span class="kwd">compile</span><span class="opt">(</span>Pat<span class="opt">, [</span>caseless<span class="opt">])}</span>
+		<span class="opt">||</span> Pat <span class="opt">&lt;-</span> <span class="kwd">patterns</span><span class="opt">()],</span>
+    <span class="opt">{</span>RawSize<span class="opt">, [</span>B3<span class="opt">,</span> B2<span class="opt">,</span> B1 <span class="opt">|</span> _<span class="opt">]} =</span> <span class="kwa">receive</span>
+				    <span class="opt">{</span>data<span class="opt">,</span> Data<span class="opt">} -&gt;</span> Data
+				  <span class="kwa">end</span><span class="opt">,</span>
+    L <span class="opt">= [</span><span class="kwb">size</span><span class="opt">(</span>X<span class="opt">) ||</span> X <span class="opt">&lt;- [</span>B1<span class="opt">,</span> B2<span class="opt">,</span> B3<span class="opt">]],</span>
+    Size <span class="opt">=</span> <span class="kwc">lists</span><span class="opt">:</span><span class="kwd">sum</span><span class="opt">(</span>L<span class="opt">),</span>
+    PIDS <span class="opt">= [{</span><span class="kwb">spawn_link</span><span class="opt">(</span><span class="kwd">matcher</span><span class="opt">(</span>S<span class="opt">,</span> B2<span class="opt">,</span> B3<span class="opt">,</span> MR<span class="opt">)),</span>
+	     <span class="kwd">printer</span><span class="opt">(</span>Pat<span class="opt">)}</span>
+	    <span class="opt">|| {</span>Pat<span class="opt">, {</span>ok<span class="opt">,</span> MR<span class="opt">}} &lt;-</span> Patterns<span class="opt">],</span>
+    Final <span class="opt">=</span> <span class="kwd">apply_final_patterns</span><span class="opt">([</span>B2<span class="opt">,</span>B3<span class="opt">],</span> <span class="kwd">final_patterns</span><span class="opt">()),</span>
+    FinalSize <span class="opt">=</span> <span class="kwb">size</span><span class="opt">(</span>B1<span class="opt">) +</span> <span class="kwb">size</span><span class="opt">(</span>Final<span class="opt">),</span>
+    <span class="kwd">results</span><span class="opt">(</span>PIDS<span class="opt">),</span>
+    <span class="kwc">io</span><span class="opt">:</span><span class="kwd">format</span><span class="opt">(</span><span class="str">&quot;~n~b~n~b~n~b~n&quot;</span><span class="opt">,</span>
+	      <span class="opt">[</span>RawSize<span class="opt">,</span> Size<span class="opt">,</span> FinalSize<span class="opt">]),</span>
+    Master <span class="opt">!</span> finish<span class="opt">.</span>
+
+<span class="kwd">apply_final_patterns</span><span class="opt">(</span>S<span class="opt">, [{</span>Pat<span class="opt">,</span> Rep<span class="opt">}|</span>Rest<span class="opt">]) -&gt;</span>
+  <span class="kwd">apply_final_patterns</span><span class="opt">(</span><span class="kwc">re</span><span class="opt">:</span><span class="kwd">replace</span><span class="opt">(</span>S<span class="opt">,</span> Pat<span class="opt">,</span> Rep<span class="opt">,[{</span>return<span class="opt">,</span><span class="kwb">binary</span><span class="opt">},</span>caseless<span class="opt">,</span>global<span class="opt">,</span>never_utf<span class="opt">]),</span> Rest<span class="opt">);</span>
+<span class="kwd">apply_final_patterns</span><span class="opt">(</span>S<span class="opt">, []) -&gt;</span>
+  S<span class="opt">.</span>
+
+<span class="kwd">matcher</span><span class="opt">(</span>S<span class="opt">,</span> B2<span class="opt">,</span> B3<span class="opt">,</span> MR<span class="opt">) -&gt;</span>
+    <span class="kwa">fun</span> <span class="opt">() -&gt;</span>
+	    S <span class="opt">!</span>
+	      <span class="opt">{</span><span class="kwb">self</span><span class="opt">(),</span> <span class="kwd">countMatches</span><span class="opt">(</span>B2<span class="opt">,</span> MR<span class="opt">) +</span> <span class="kwd">countMatches</span><span class="opt">(</span>B3<span class="opt">,</span> MR<span class="opt">)}</span>
+    <span class="kwa">end</span><span class="opt">.</span>
+
+<span class="kwd">printer</span><span class="opt">(</span>Pat<span class="opt">) -&gt;</span>
+    <span class="kwa">fun</span> <span class="opt">(</span>Num<span class="opt">) -&gt;</span> <span class="kwc">io</span><span class="opt">:</span><span class="kwd">format</span><span class="opt">(</span><span class="str">&quot;</span><span class="ipl">~s</span> <span class="str">~b~n&quot;</span><span class="opt">, [</span>Pat<span class="opt">,</span> Num<span class="opt">])</span> <span class="kwa">end</span><span class="opt">.</span>
+
+<span class="kwd">countMatches</span><span class="opt">(</span>Data<span class="opt">,</span> RE<span class="opt">) -&gt;</span>
+    <span class="kwa">case</span> <span class="kwc">re</span><span class="opt">:</span><span class="kwd">run</span><span class="opt">(</span>Data<span class="opt">,</span> RE<span class="opt">, [</span>global<span class="opt">])</span> <span class="kwa">of</span>
+      <span class="opt">{</span>match<span class="opt">,</span> M<span class="opt">} -&gt;</span> <span class="kwb">length</span><span class="opt">(</span>M<span class="opt">);</span>
+      nomatch <span class="opt">-&gt;</span> <span class="num">0</span>
+    <span class="kwa">end</span><span class="opt">.</span>
+
+<span class="kwd">results</span><span class="opt">([{</span>PID<span class="opt">,</span> Fin<span class="opt">} |</span> R<span class="opt">]) -&gt;</span>
+    <span class="kwa">receive</span> <span class="opt">{</span>PID<span class="opt">,</span> Ret<span class="opt">} -&gt;</span> <span class="kwd">Fin</span><span class="opt">(</span>Ret<span class="opt">),</span> <span class="kwd">results</span><span class="opt">(</span>R<span class="opt">)</span> <span class="kwa">end</span><span class="opt">;</span>
+<span class="kwd">results</span><span class="opt">([]) -&gt;</span> ok<span class="opt">.</span>
+
+<span class="kwd">patterns</span><span class="opt">() -&gt;</span>
+    <span class="opt">[</span><span class="str">&quot;agggtaaa|tttaccct&quot;</span><span class="opt">,</span> <span class="str">&quot;[cgt]gggtaaa|tttaccc[acg]&quot;</span><span class="opt">,</span>
+     <span class="str">&quot;a[act]ggtaaa|tttacc[agt]t&quot;</span><span class="opt">,</span>
+     <span class="str">&quot;ag[act]gtaaa|tttac[agt]ct&quot;</span><span class="opt">,</span>
+     <span class="str">&quot;agg[act]taaa|ttta[agt]cct&quot;</span><span class="opt">,</span>
+     <span class="str">&quot;aggg[acg]aaa|ttt[cgt]ccct&quot;</span><span class="opt">,</span>
+     <span class="str">&quot;agggt[cgt]aa|tt[acg]accct&quot;</span><span class="opt">,</span>
+     <span class="str">&quot;agggta[cgt]a|t[acg]taccct&quot;</span><span class="opt">,</span>
+     <span class="str">&quot;agggtaa[cgt]|[acg]ttaccct&quot;</span><span class="opt">].</span>
+
+<span class="kwd">final_patterns</span><span class="opt">() -&gt;</span>
+  <span class="opt">[</span>
+    <span class="opt">{</span><span class="str">&quot;tHa[Nt]&quot;</span><span class="opt">,</span> <span class="str">&quot;&lt;4&gt;&quot;</span><span class="opt">},</span>
+    <span class="opt">{</span><span class="str">&quot;aND|caN|Ha[DS]|WaS&quot;</span><span class="opt">,</span> <span class="str">&quot;&lt;3&gt;&quot;</span><span class="opt">},</span>
+    <span class="opt">{</span><span class="str">&quot;a[NSt]|BY&quot;</span><span class="opt">,</span> <span class="str">&quot;&lt;2&gt;&quot;</span><span class="opt">},</span>
+    <span class="opt">{</span><span class="str">&quot;&lt;[^&gt;]*&gt;&quot;</span><span class="opt">,</span> <span class="str">&quot;|&quot;</span><span class="opt">},</span>
+    <span class="opt">{</span><span class="str">&quot;</span><span class="esc">\\</span><span class="str">|[^|][^|]*</span><span class="esc">\\</span><span class="str">|&quot;</span><span class="opt">,</span> <span class="str">&quot;-&quot;</span><span class="opt">}</span>
+  <span class="opt">].</span>
+
+<span class="kwd">read</span><span class="opt">() -&gt;</span>
+    Port <span class="opt">=</span> <span class="kwb">open_port</span><span class="opt">({</span>fd<span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> <span class="num">1</span><span class="opt">}, [</span>in<span class="opt">,</span> <span class="kwb">binary</span><span class="opt">, {</span>line<span class="opt">,</span> <span class="num">256</span><span class="opt">}]),</span>
+    <span class="kwd">read</span><span class="opt">(</span>Port<span class="opt">,</span> <span class="num">0</span><span class="opt">, [], []).</span>
+
+<span class="kwd">read</span><span class="opt">(</span>Port<span class="opt">,</span> Size<span class="opt">,</span> Seg<span class="opt">,</span> R<span class="opt">) -&gt;</span>
+    <span class="kwa">receive</span>
+      <span class="opt">{</span>Port<span class="opt">, {</span>data<span class="opt">, {</span>eol<span class="opt">, &lt;&lt;</span>$<span class="opt">&gt;:</span><span class="num">8</span><span class="opt">,</span> _<span class="opt">/</span><span class="kwb">binary</span><span class="opt">&gt;&gt; =</span> Line<span class="opt">}}} -&gt;</span>
+	  <span class="kwd">read</span><span class="opt">(</span>Port<span class="opt">,</span> Size <span class="opt">+</span> <span class="kwb">size</span><span class="opt">(</span>Line<span class="opt">) +</span> <span class="num">1</span><span class="opt">, [],</span>
+	       <span class="opt">[</span><span class="kwd">iolist_to_binary</span><span class="opt">(</span><span class="kwc">lists</span><span class="opt">:</span><span class="kwd">reverse</span><span class="opt">(</span>Seg<span class="opt">, [])) |</span> R<span class="opt">]);</span>
+      <span class="opt">{</span>Port<span class="opt">, {</span>data<span class="opt">, {</span>eol<span class="opt">,</span> Line<span class="opt">}}} -&gt;</span>
+	  <span class="kwd">read</span><span class="opt">(</span>Port<span class="opt">,</span> Size <span class="opt">+</span> <span class="kwb">size</span><span class="opt">(</span>Line<span class="opt">) +</span> <span class="num">1</span><span class="opt">, [</span>Line <span class="opt">|</span> Seg<span class="opt">],</span> R<span class="opt">);</span>
+      <span class="opt">{</span><span class="str">&apos;EXIT&apos;</span><span class="opt">,</span> Port<span class="opt">,</span> normal<span class="opt">} -&gt;</span>
+	  <span class="opt">{</span>Size<span class="opt">, [</span><span class="kwd">iolist_to_binary</span><span class="opt">(</span><span class="kwc">lists</span><span class="opt">:</span><span class="kwd">reverse</span><span class="opt">(</span>Seg<span class="opt">, [])) |</span> R<span class="opt">]};</span>
+      Other <span class="opt">-&gt;</span>
+	  <span class="kwc">io</span><span class="opt">:</span><span class="kwd">format</span><span class="opt">(</span><span class="str">&quot;&gt;&gt;&gt;&gt;&gt;&gt;&gt; Wrong! ~p~n&quot;</span><span class="opt">, [</span>Other<span class="opt">]),</span>
+	  <span class="kwb">exit</span><span class="opt">(</span>bad_data<span class="opt">)</span>
+    <span class="kwa">end</span><span class="opt">.</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

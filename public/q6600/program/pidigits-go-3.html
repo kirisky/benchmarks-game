@@ -17,6 +17,111 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="com">/* The Computer Language Benchmarks Game</span>
+<span class="com"> * https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="com"> *</span>
+<span class="com"> * based on pidigits.c (by Paolo Bonzini &amp; Sean Bartlett,</span>
+<span class="com"> *    modified by Michael Mellor)</span>
+<span class="com"> *</span>
+<span class="com"> * contributed by Zhao Zhiqiang.</span>
+<span class="com"> */</span>
+
+<span class="kwa">package</span> main
+
+<span class="com">/*</span>
+<span class="com">#cgo LDFLAGS: -lgmp</span>
+<span class="com">#include &lt;gmp.h&gt;</span>
+<span class="com">#include &lt;stdlib.h&gt;</span>
+<span class="com">*/</span>
+<span class="kwa">import</span> <span class="str">&quot;C&quot;</span>
+
+<span class="kwa">import</span> <span class="opt">(</span>
+    <span class="str">&quot;bufio&quot;</span>
+    <span class="str">&quot;flag&quot;</span>
+    <span class="str">&quot;fmt&quot;</span>
+    <span class="str">&quot;os&quot;</span>
+    <span class="str">&quot;runtime&quot;</span>
+    <span class="str">&quot;strconv&quot;</span>
+<span class="opt">)</span>
+
+<span class="kwa">var</span> n <span class="opt">=</span> <span class="num">0</span>
+
+<span class="kwa">func</span> <span class="kwd">extract_digit</span><span class="opt">(</span>nth <span class="kwb">uint32</span><span class="opt">)</span> <span class="kwb">uint32</span> <span class="opt">{</span>
+    C<span class="opt">.</span><span class="kwd">mpz_mul_ui</span><span class="opt">(&amp;</span>tmp1<span class="opt">[</span><span class="num">0</span><span class="opt">], &amp;</span>num<span class="opt">[</span><span class="num">0</span><span class="opt">],</span> C<span class="opt">.</span><span class="kwd">ulong</span><span class="opt">(</span>nth<span class="opt">))</span>
+    C<span class="opt">.</span><span class="kwd">mpz_add</span>   <span class="opt">(&amp;</span>tmp2<span class="opt">[</span><span class="num">0</span><span class="opt">], &amp;</span>tmp1<span class="opt">[</span><span class="num">0</span><span class="opt">], &amp;</span>acc<span class="opt">[</span><span class="num">0</span><span class="opt">])</span>
+    C<span class="opt">.</span><span class="kwd">mpz_tdiv_q</span><span class="opt">(&amp;</span>tmp1<span class="opt">[</span><span class="num">0</span><span class="opt">], &amp;</span>tmp2<span class="opt">[</span><span class="num">0</span><span class="opt">], &amp;</span>den<span class="opt">[</span><span class="num">0</span><span class="opt">])</span>
+
+    <span class="kwa">return</span> <span class="kwb">uint32</span><span class="opt">(</span>C<span class="opt">.</span><span class="kwd">mpz_get_ui</span><span class="opt">(&amp;</span>tmp1<span class="opt">[</span><span class="num">0</span><span class="opt">]))</span>
+<span class="opt">}</span>
+
+<span class="kwa">func</span> <span class="kwd">eliminate_digit</span><span class="opt">(</span>d <span class="kwb">uint32</span><span class="opt">) {</span>
+    C<span class="opt">.</span><span class="kwd">mpz_submul_ui</span><span class="opt">(&amp;</span>acc<span class="opt">[</span><span class="num">0</span><span class="opt">], &amp;</span>den<span class="opt">[</span><span class="num">0</span><span class="opt">],</span> C<span class="opt">.</span><span class="kwd">ulong</span><span class="opt">(</span>d<span class="opt">))</span>
+    C<span class="opt">.</span><span class="kwd">mpz_mul_ui</span><span class="opt">(&amp;</span>acc<span class="opt">[</span><span class="num">0</span><span class="opt">], &amp;</span>acc<span class="opt">[</span><span class="num">0</span><span class="opt">],</span> <span class="num">10</span><span class="opt">)</span>
+    C<span class="opt">.</span><span class="kwd">mpz_mul_ui</span><span class="opt">(&amp;</span>num<span class="opt">[</span><span class="num">0</span><span class="opt">], &amp;</span>num<span class="opt">[</span><span class="num">0</span><span class="opt">],</span> <span class="num">10</span><span class="opt">)</span>    
+<span class="opt">}</span>
+
+<span class="kwa">func</span> <span class="kwd">next_term</span><span class="opt">(</span>k <span class="kwb">uint32</span><span class="opt">) {</span>
+    k2 <span class="opt">:=</span> C<span class="opt">.</span><span class="kwd">ulong</span><span class="opt">(</span>k<span class="opt">*</span><span class="num">2</span><span class="opt">+</span><span class="num">1</span><span class="opt">)</span>
+
+    C<span class="opt">.</span><span class="kwd">mpz_addmul_ui</span><span class="opt">(&amp;</span>acc<span class="opt">[</span><span class="num">0</span><span class="opt">], &amp;</span>num<span class="opt">[</span><span class="num">0</span><span class="opt">],</span> <span class="num">2</span><span class="opt">)</span>
+    C<span class="opt">.</span><span class="kwd">mpz_mul_ui</span><span class="opt">(&amp;</span>acc<span class="opt">[</span><span class="num">0</span><span class="opt">], &amp;</span>acc<span class="opt">[</span><span class="num">0</span><span class="opt">],</span> k2<span class="opt">)</span>
+    C<span class="opt">.</span><span class="kwd">mpz_mul_ui</span><span class="opt">(&amp;</span>den<span class="opt">[</span><span class="num">0</span><span class="opt">], &amp;</span>den<span class="opt">[</span><span class="num">0</span><span class="opt">],</span> k2<span class="opt">)</span>
+    C<span class="opt">.</span><span class="kwd">mpz_mul_ui</span><span class="opt">(&amp;</span>num<span class="opt">[</span><span class="num">0</span><span class="opt">], &amp;</span>num<span class="opt">[</span><span class="num">0</span><span class="opt">],</span> C<span class="opt">.</span><span class="kwd">ulong</span><span class="opt">(</span>k<span class="opt">))</span>        
+<span class="opt">}</span>
+
+<span class="kwa">func</span> <span class="kwd">init</span><span class="opt">() {</span>
+    runtime<span class="opt">.</span><span class="kwd">GOMAXPROCS</span><span class="opt">(</span><span class="num">1</span><span class="opt">)</span>
+    flag<span class="opt">.</span><span class="kwd">Parse</span><span class="opt">()</span>
+    <span class="kwa">if</span> flag<span class="opt">.</span><span class="kwd">NArg</span><span class="opt">() &gt;</span> <span class="num">0</span> <span class="opt">{</span>
+        n<span class="opt">,</span> _ <span class="opt">=</span> strconv<span class="opt">.</span><span class="kwd">Atoi</span><span class="opt">(</span>flag<span class="opt">.</span><span class="kwd">Arg</span><span class="opt">(</span><span class="num">0</span><span class="opt">))</span>
+    <span class="opt">}</span>
+<span class="opt">}</span>
+
+<span class="kwa">var</span> tmp1<span class="opt">,</span> tmp2<span class="opt">,</span> acc<span class="opt">,</span> den<span class="opt">,</span> num C<span class="opt">.</span>mpz_t
+
+<span class="kwa">func</span> <span class="kwd">main</span><span class="opt">() {</span>
+    w <span class="opt">:=</span> bufio<span class="opt">.</span><span class="kwd">NewWriter</span><span class="opt">(</span>os<span class="opt">.</span>Stdout<span class="opt">)</span>
+    <span class="kwa">defer</span> w<span class="opt">.</span><span class="kwd">Flush</span><span class="opt">()</span>
+
+    C<span class="opt">.</span><span class="kwd">mpz_init</span><span class="opt">(&amp;</span>tmp1<span class="opt">[</span><span class="num">0</span><span class="opt">])</span>
+    C<span class="opt">.</span><span class="kwd">mpz_init</span><span class="opt">(&amp;</span>tmp2<span class="opt">[</span><span class="num">0</span><span class="opt">])</span>
+
+    C<span class="opt">.</span><span class="kwd">mpz_init_set_ui</span><span class="opt">(&amp;</span>acc<span class="opt">[</span><span class="num">0</span><span class="opt">],</span> <span class="num">0</span><span class="opt">)</span>
+    C<span class="opt">.</span><span class="kwd">mpz_init_set_ui</span><span class="opt">(&amp;</span>den<span class="opt">[</span><span class="num">0</span><span class="opt">],</span> <span class="num">1</span><span class="opt">)</span>
+    C<span class="opt">.</span><span class="kwd">mpz_init_set_ui</span><span class="opt">(&amp;</span>num<span class="opt">[</span><span class="num">0</span><span class="opt">],</span> <span class="num">1</span><span class="opt">)</span>
+
+    k <span class="opt">:=</span> <span class="kwb">uint32</span><span class="opt">(</span><span class="num">0</span><span class="opt">)</span>
+    d <span class="opt">:=</span> <span class="kwb">uint32</span><span class="opt">(</span><span class="num">0</span><span class="opt">)</span>
+    <span class="kwa">for</span> i <span class="opt">:=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> n<span class="opt">; {</span>
+        k<span class="opt">++</span>
+        <span class="kwd">next_term</span><span class="opt">(</span>k<span class="opt">)</span>
+
+        <span class="kwa">if</span> C<span class="opt">.</span><span class="kwd">mpz_cmp</span><span class="opt">(&amp;</span>num<span class="opt">[</span><span class="num">0</span><span class="opt">], &amp;</span>acc<span class="opt">[</span><span class="num">0</span><span class="opt">]) &gt;</span> <span class="num">0</span> <span class="opt">{</span>
+            <span class="kwa">continue</span>
+        <span class="opt">}</span>
+
+        d <span class="opt">=</span> <span class="kwd">extract_digit</span><span class="opt">(</span><span class="num">3</span><span class="opt">)</span>
+        <span class="kwa">if</span> d <span class="opt">!=</span> <span class="kwd">extract_digit</span><span class="opt">(</span><span class="num">4</span><span class="opt">) {</span>
+            <span class="kwa">continue</span>
+        <span class="opt">}</span>
+
+        fmt<span class="opt">.</span><span class="kwd">Printf</span><span class="opt">(</span><span class="str">&quot;</span><span class="ipl">%d</span><span class="str">&quot;</span><span class="opt">,</span> d<span class="opt">)</span>
+
+        i<span class="opt">++</span>
+        <span class="kwa">if</span> i <span class="opt">%</span> <span class="num">10</span> <span class="opt">==</span> <span class="num">0</span> <span class="opt">{</span>
+            fmt<span class="opt">.</span><span class="kwd">Printf</span><span class="opt">(</span><span class="str">&quot;</span><span class="esc">\t</span><span class="str">:</span><span class="ipl">%d</span><span class="str"></span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span> i<span class="opt">)</span>
+        <span class="opt">}</span>
+
+        <span class="kwd">eliminate_digit</span><span class="opt">(</span>d<span class="opt">)</span>
+    <span class="opt">}</span> 
+<span class="opt">}</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

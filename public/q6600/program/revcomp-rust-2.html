@@ -17,6 +17,192 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc">// The Computer Language Benchmarks Game</span>
+<span class="slc">// https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">//</span>
+<span class="slc">// contributed by the Rust Project Developers</span>
+<span class="slc">// contributed by Cristi Cobzarenco</span>
+<span class="slc">// contributed by TeXitoi</span>
+<span class="slc">// contributed by Matt Brubeck</span>
+
+<span class="kwa">extern crate</span> rayon<span class="opt">;</span>
+
+<span class="kwa">use</span> std<span class="opt">::</span>cmp<span class="opt">::</span>min<span class="opt">;</span>
+<span class="kwa">use</span> std<span class="opt">::</span>io<span class="opt">::{</span>BufRead<span class="opt">,</span> Result<span class="opt">,</span> Write<span class="opt">,</span> stdin<span class="opt">,</span> stdout<span class="opt">};</span>
+<span class="kwa">use</span> std<span class="opt">::</span>mem<span class="opt">::</span>replace<span class="opt">;</span>
+
+<span class="kwa">fn</span> <span class="kwd">main</span><span class="opt">() -&gt;</span> Result<span class="opt">&lt;()&gt; {</span>
+    <span class="kwa">let</span> table <span class="opt">=</span> <span class="kwd">build_table</span><span class="opt">();</span>
+    <span class="kwa">for</span> seq <span class="kwa">in</span> <span class="kwd">get_sequences</span><span class="opt">(&amp;</span>table<span class="opt">)</span>?<span class="num">.i</span>ter<span class="opt">().</span><span class="kwd">rev</span><span class="opt">() {</span>
+        <span class="kwd">stdout</span><span class="opt">().</span><span class="kwd">write_all</span><span class="opt">(</span>seq<span class="opt">)</span>?<span class="opt">;</span>
+    <span class="opt">}</span>
+    <span class="kwd">Ok</span><span class="opt">(())</span>
+<span class="opt">}</span>
+
+<span class="slc">/// Lookup table to find the complement of a single FASTA code.</span>
+<span class="kwa">fn</span> <span class="kwd">build_table</span><span class="opt">() -&gt; [</span><span class="kwb">u8</span><span class="opt">;</span> <span class="num">256</span><span class="opt">] {</span>
+    <span class="kwa">let mut</span> table <span class="opt">= [</span><span class="num">0</span><span class="opt">;</span> <span class="num">256</span><span class="opt">];</span>
+    <span class="kwa">for</span> <span class="opt">(</span>i<span class="opt">,</span> x<span class="opt">)</span> <span class="kwa">in</span> table<span class="num">.i</span>ter<span class="num">_</span>m<span class="num">u</span>t<span class="opt">().</span><span class="kwd">enumerate</span><span class="opt">() {</span>
+        <span class="opt">*</span>x <span class="opt">=</span> <span class="kwa">match</span> i <span class="kwa">as</span> <span class="kwb">u8</span> <span class="kwa">as</span> <span class="kwb">char</span> <span class="opt">{</span>
+            &apos;A&apos; <span class="opt">|</span> &apos;a&apos; <span class="opt">=&gt;</span> &apos;T&apos;<span class="opt">,</span>
+            &apos;C&apos; <span class="opt">|</span> &apos;c&apos; <span class="opt">=&gt;</span> &apos;G&apos;<span class="opt">,</span>
+            &apos;G&apos; <span class="opt">|</span> &apos;g&apos; <span class="opt">=&gt;</span> &apos;C&apos;<span class="opt">,</span>
+            &apos;T&apos; <span class="opt">|</span> &apos;t&apos; <span class="opt">=&gt;</span> &apos;A&apos;<span class="opt">,</span>
+            &apos;U&apos; <span class="opt">|</span> &apos;u&apos; <span class="opt">=&gt;</span> &apos;A&apos;<span class="opt">,</span>
+            &apos;M&apos; <span class="opt">|</span> &apos;m&apos; <span class="opt">=&gt;</span> &apos;K&apos;<span class="opt">,</span>
+            &apos;R&apos; <span class="opt">|</span> &apos;r&apos; <span class="opt">=&gt;</span> &apos;Y&apos;<span class="opt">,</span>
+            &apos;W&apos; <span class="opt">|</span> &apos;w&apos; <span class="opt">=&gt;</span> &apos;W&apos;<span class="opt">,</span>
+            &apos;S&apos; <span class="opt">|</span> &apos;s&apos; <span class="opt">=&gt;</span> &apos;S&apos;<span class="opt">,</span>
+            &apos;Y&apos; <span class="opt">|</span> &apos;y&apos; <span class="opt">=&gt;</span> &apos;R&apos;<span class="opt">,</span>
+            &apos;K&apos; <span class="opt">|</span> &apos;k&apos; <span class="opt">=&gt;</span> &apos;M&apos;<span class="opt">,</span>
+            &apos;V&apos; <span class="opt">|</span> &apos;v&apos; <span class="opt">=&gt;</span> &apos;B&apos;<span class="opt">,</span>
+            &apos;H&apos; <span class="opt">|</span> &apos;h&apos; <span class="opt">=&gt;</span> &apos;D&apos;<span class="opt">,</span>
+            &apos;D&apos; <span class="opt">|</span> &apos;d&apos; <span class="opt">=&gt;</span> &apos;H&apos;<span class="opt">,</span>
+            &apos;B&apos; <span class="opt">|</span> &apos;b&apos; <span class="opt">=&gt;</span> &apos;V&apos;<span class="opt">,</span>
+            &apos;N&apos; <span class="opt">|</span> &apos;n&apos; <span class="opt">=&gt;</span> &apos;N&apos;<span class="opt">,</span>
+            i <span class="opt">=&gt;</span> i<span class="opt">,</span>
+        <span class="opt">}</span> <span class="kwa">as</span> <span class="kwb">u8</span><span class="opt">;</span>
+    <span class="opt">}</span>
+    table
+<span class="opt">}</span>
+
+<span class="slc">/// Read each sequence from stdin, process it, and return it.</span>
+<span class="kwa">fn</span> <span class="kwd">get_sequences</span><span class="opt">(</span>table<span class="opt">: &amp;[</span><span class="kwb">u8</span><span class="opt">;</span> <span class="num">256</span><span class="opt">]) -&gt;</span> Result<span class="opt">&lt;</span>Vec<span class="opt">&lt;</span>Vec<span class="opt">&lt;</span><span class="kwb">u8</span><span class="opt">&gt;&gt;&gt; {</span>
+    <span class="kwa">let</span> stdin <span class="opt">=</span> <span class="kwd">stdin</span><span class="opt">();</span>
+    <span class="kwa">let mut</span> input <span class="opt">=</span> stdin<span class="opt">.</span><span class="kwd">lock</span><span class="opt">();</span>
+    <span class="kwa">let mut</span> buf <span class="opt">=</span> Vec<span class="opt">::</span><span class="kwd">with_capacity</span><span class="opt">(</span><span class="num">16</span> <span class="opt">*</span> <span class="num">1024</span><span class="opt">);</span>
+
+    <span class="slc">// Read the header line.</span>
+    input<span class="opt">.</span><span class="kwd">read_until</span><span class="opt">(</span>b&apos;<span class="esc">\</span>n&apos;<span class="opt">, &amp;</span><span class="kwa">mut</span> buf<span class="opt">)</span>?<span class="opt">;</span>
+    <span class="kwa">let</span> start <span class="opt">=</span> buf<span class="opt">.</span><span class="kwd">len</span><span class="opt">();</span>
+
+    <span class="slc">// Read sequence data.</span>
+    input<span class="opt">.</span><span class="kwd">read_until</span><span class="opt">(</span>b&apos;<span class="opt">&gt;</span>&apos;<span class="opt">, &amp;</span><span class="kwa">mut</span> buf<span class="opt">)</span>?<span class="opt">;</span>
+    <span class="kwa">let</span> end <span class="opt">=</span> buf<span class="opt">.</span><span class="kwd">len</span><span class="opt">();</span>
+    <span class="kwd">drop</span><span class="opt">(</span>input<span class="opt">);</span>
+
+    <span class="kwa">if</span> buf<span class="opt">[</span>end <span class="opt">-</span> <span class="num">1</span><span class="opt">] ==</span> b&apos;<span class="opt">&gt;</span>&apos; <span class="opt">{</span>
+        <span class="slc">// Found the start of a new sequence. Process this one</span>
+        <span class="slc">// and start reading the next one in parallel.</span>
+        <span class="kwa">let mut</span> results <span class="opt">=</span> rayon<span class="opt">::</span><span class="kwd">join</span><span class="opt">(</span>
+            <span class="opt">||</span> <span class="kwd">reverse_complement</span><span class="opt">(&amp;</span><span class="kwa">mut</span> buf<span class="opt">[</span>start<span class="opt">..</span>end <span class="opt">-</span> <span class="num">1</span><span class="opt">], &amp;</span>table<span class="opt">),</span>
+            <span class="opt">||</span> <span class="kwd">get_sequences</span><span class="opt">(</span>table<span class="opt">))</span><span class="num">.1</span>?<span class="opt">;</span>
+        results<span class="opt">.</span><span class="kwd">push</span><span class="opt">(</span>buf<span class="opt">);</span>
+        <span class="kwd">Ok</span><span class="opt">(</span>results<span class="opt">)</span>
+    <span class="opt">}</span> <span class="kwa">else</span> <span class="opt">{</span>
+        <span class="slc">// Reached the end of the file.</span>
+        <span class="kwd">reverse_complement</span><span class="opt">(&amp;</span><span class="kwa">mut</span> buf<span class="opt">[</span>start<span class="opt">..</span>end<span class="opt">], &amp;</span>table<span class="opt">);</span>
+        <span class="kwd">Ok</span><span class="opt">(</span>vec<span class="opt">![</span>buf<span class="opt">])</span>
+    <span class="opt">}</span>
+<span class="opt">}</span>
+
+<span class="slc">/// Compute the reverse complement of one sequence.</span>
+<span class="kwa">fn</span> <span class="kwd">reverse_complement</span><span class="opt">(</span>seq<span class="opt">: &amp;</span><span class="kwa">mut</span> <span class="opt">[</span><span class="kwb">u8</span><span class="opt">],</span> table<span class="opt">: &amp;[</span><span class="kwb">u8</span><span class="opt">;</span> <span class="num">256</span><span class="opt">]) {</span>
+    <span class="kwa">let</span> len <span class="opt">=</span> seq<span class="opt">.</span><span class="kwd">len</span><span class="opt">() -</span> <span class="num">1</span><span class="opt">;</span>
+    <span class="kwa">let</span> seq <span class="opt">= &amp;</span><span class="kwa">mut</span> seq<span class="opt">[..</span>len<span class="opt">];</span> <span class="slc">// Drop the last newline</span>
+    <span class="kwa">let</span> trailing_len <span class="opt">=</span> len <span class="opt">%</span> LINE_LEN<span class="opt">;</span>
+    <span class="kwa">let</span> <span class="opt">(</span>left<span class="opt">,</span> right<span class="opt">) =</span> seq<span class="opt">.</span><span class="kwd">split_at_mut</span><span class="opt">(</span>len <span class="opt">/</span> <span class="num">2</span><span class="opt">);</span>
+    <span class="kwd">reverse_complement_left_right</span><span class="opt">(</span>left<span class="opt">,</span> right<span class="opt">,</span> trailing_len<span class="opt">,</span> table<span class="opt">);</span>
+<span class="opt">}</span>
+
+<span class="slc">/// Length of a normal line including the terminating \n.</span>
+<span class="kwa">const</span> LINE_LEN<span class="opt">:</span> <span class="kwb">usize</span> <span class="opt">=</span> <span class="num">61</span><span class="opt">;</span>
+<span class="slc">/// Maximum number of bytes to process in serial.</span>
+<span class="kwa">const</span> SEQUENTIAL_SIZE<span class="opt">:</span> <span class="kwb">usize</span> <span class="opt">=</span> <span class="num">16</span> <span class="opt">*</span> <span class="num">1024</span><span class="opt">;</span>
+
+<span class="slc">/// Compute the reverse complement on chunks from opposite ends of a sequence.</span>
+<span class="slc">///</span>
+<span class="slc">/// `left` must start at the beginning of a line. If there are an odd number of</span>
+<span class="slc">/// bytes, `right` will initially be 1 byte longer than `left`; otherwise they</span>
+<span class="slc">/// will have equal lengths.</span>
+<span class="kwa">fn</span> <span class="kwd">reverse_complement_left_right</span><span class="opt">(</span><span class="kwa">mut</span> left<span class="opt">: &amp;</span><span class="kwa">mut</span> <span class="opt">[</span><span class="kwb">u8</span><span class="opt">],</span>
+                                 <span class="kwa">mut</span> right<span class="opt">: &amp;</span><span class="kwa">mut</span> <span class="opt">[</span><span class="kwb">u8</span><span class="opt">],</span>
+                                 trailing_len<span class="opt">:</span> <span class="kwb">usize</span><span class="opt">,</span>
+                                 table<span class="opt">: &amp;[</span><span class="kwb">u8</span><span class="opt">;</span> <span class="num">256</span><span class="opt">]) {</span>
+    <span class="kwa">let</span> len <span class="opt">=</span> left<span class="opt">.</span><span class="kwd">len</span><span class="opt">();</span>
+    <span class="kwa">if</span> len <span class="opt">&lt;=</span> SEQUENTIAL_SIZE <span class="opt">{</span>
+        <span class="slc">// Each iteration swaps one line from the start of the sequence with one</span>
+        <span class="slc">// from the end.</span>
+        <span class="kwa">while</span> left<span class="opt">.</span><span class="kwd">len</span><span class="opt">() &gt;</span> <span class="num">0</span>  <span class="opt">||</span> right<span class="opt">.</span><span class="kwd">len</span><span class="opt">() &gt;</span> <span class="num">0</span> <span class="opt">{</span>
+            <span class="slc">// Get the chunk up to the newline in `right`.</span>
+            <span class="kwa">let mut</span> a <span class="opt">=</span> left<span class="opt">.</span><span class="kwd">split_off_left</span><span class="opt">(</span>trailing_len<span class="opt">);</span>
+            <span class="kwa">let mut</span> b <span class="opt">=</span> right<span class="opt">.</span><span class="kwd">split_off_right</span><span class="opt">(</span>trailing_len<span class="opt">);</span>
+            right<span class="opt">.</span><span class="kwd">split_off_right</span><span class="opt">(</span><span class="num">1</span><span class="opt">);</span> <span class="slc">// Skip the newline in `right`.</span>
+
+            <span class="slc">// If we&apos;ve reached the middle of the sequence here and there is an</span>
+            <span class="slc">// odd number of bytes remaining, the odd one will be on the right.</span>
+            <span class="kwa">if</span> b<span class="opt">.</span><span class="kwd">len</span><span class="opt">() &gt;</span> a<span class="opt">.</span><span class="kwd">len</span><span class="opt">() {</span>
+                <span class="kwa">let</span> mid <span class="opt">=</span> b<span class="opt">.</span><span class="kwd">split_off_left</span><span class="opt">(</span><span class="num">1</span><span class="opt">);</span>
+                mid<span class="opt">[</span><span class="num">0</span><span class="opt">] =</span> table<span class="opt">[</span>mid<span class="opt">[</span><span class="num">0</span><span class="opt">]</span> <span class="kwa">as</span> <span class="kwb">usize</span><span class="opt">];</span>
+            <span class="opt">}</span>
+
+            <span class="kwd">reverse_chunks</span><span class="opt">(</span>a<span class="opt">,</span> b<span class="opt">,</span> table<span class="opt">);</span>
+
+            <span class="slc">// Get the chunk up to the newline in `left`.</span>
+            <span class="kwa">let</span> n <span class="opt">=</span> LINE_LEN <span class="opt">-</span> <span class="num">1</span> <span class="opt">-</span> trailing_len<span class="opt">;</span>
+            a <span class="opt">=</span> left<span class="opt">.</span><span class="kwd">split_off_left</span><span class="opt">(</span>n<span class="opt">);</span>
+            b <span class="opt">=</span> right<span class="opt">.</span><span class="kwd">split_off_right</span><span class="opt">(</span>n<span class="opt">);</span>
+            left<span class="opt">.</span><span class="kwd">split_off_left</span><span class="opt">(</span><span class="num">1</span><span class="opt">);</span> <span class="slc">// Skip the newline in `left`.</span>
+
+            <span class="slc">// If we&apos;ve reached the middle of the sequence and there is an odd</span>
+            <span class="slc">// number of bytes remaining, the odd one will now be on the left.</span>
+            <span class="kwa">if</span> a<span class="opt">.</span><span class="kwd">len</span><span class="opt">() &gt;</span> b<span class="opt">.</span><span class="kwd">len</span><span class="opt">() {</span>
+                <span class="kwa">let</span> mid <span class="opt">=</span> a<span class="opt">.</span><span class="kwd">split_off_right</span><span class="opt">(</span><span class="num">1</span><span class="opt">);</span>
+                mid<span class="opt">[</span><span class="num">0</span><span class="opt">] =</span> table<span class="opt">[</span>mid<span class="opt">[</span><span class="num">0</span><span class="opt">]</span> <span class="kwa">as</span> <span class="kwb">usize</span><span class="opt">]</span>
+            <span class="opt">}</span>
+
+            <span class="kwd">reverse_chunks</span><span class="opt">(</span>a<span class="opt">,</span> b<span class="opt">,</span> table<span class="opt">);</span>
+        <span class="opt">}</span>
+    <span class="opt">}</span> <span class="kwa">else</span> <span class="opt">{</span>
+        <span class="slc">// Divide large chunks in half and fork them into two parallel tasks.</span>
+        <span class="kwa">let</span> line_count <span class="opt">=</span> len <span class="opt">/</span> LINE_LEN<span class="opt">;</span>
+        <span class="kwa">let</span> mid <span class="opt">=</span> line_count <span class="opt">/</span> <span class="num">2</span> <span class="opt">*</span> LINE_LEN<span class="opt">;</span> <span class="slc">// Split on a whole number of lines.</span>
+
+        <span class="kwa">let</span> left1 <span class="opt">=</span> left<span class="opt">.</span><span class="kwd">split_off_left</span><span class="opt">(</span>mid<span class="opt">);</span>
+        <span class="kwa">let</span> right1 <span class="opt">=</span> right<span class="opt">.</span><span class="kwd">split_off_right</span><span class="opt">(</span>mid<span class="opt">);</span>
+        rayon<span class="opt">::</span><span class="kwd">join</span><span class="opt">(||</span> <span class="kwd">reverse_complement_left_right</span><span class="opt">(</span>left<span class="opt">,</span>  right<span class="opt">,</span>  trailing_len<span class="opt">,</span> table<span class="opt">),</span>
+                    <span class="opt">||</span> <span class="kwd">reverse_complement_left_right</span><span class="opt">(</span>left1<span class="opt">,</span> right1<span class="opt">,</span> trailing_len<span class="opt">,</span> table<span class="opt">));</span>
+    <span class="opt">}</span>
+<span class="opt">}</span>
+
+<span class="slc">/// Compute the reverse complement for two contiguous chunks without line breaks.</span>
+<span class="kwa">fn</span> <span class="kwd">reverse_chunks</span><span class="opt">(</span>left<span class="opt">: &amp;</span><span class="kwa">mut</span> <span class="opt">[</span><span class="kwb">u8</span><span class="opt">],</span> right<span class="opt">: &amp;</span><span class="kwa">mut</span> <span class="opt">[</span><span class="kwb">u8</span><span class="opt">],</span> table<span class="opt">: &amp;[</span><span class="kwb">u8</span><span class="opt">;</span> <span class="num">256</span><span class="opt">]) {</span>
+    <span class="kwa">for</span> <span class="opt">(</span>x<span class="opt">,</span> y<span class="opt">)</span> <span class="kwa">in</span> left<span class="num">.i</span>ter<span class="num">_</span>m<span class="num">u</span>t<span class="opt">().</span><span class="kwd">zip</span><span class="opt">(</span>right<span class="num">.i</span>ter<span class="num">_</span>m<span class="num">u</span>t<span class="opt">().</span><span class="kwd">rev</span><span class="opt">()) {</span>
+        <span class="opt">*</span>y <span class="opt">=</span> table<span class="opt">[</span><span class="kwd">replace</span><span class="opt">(</span>x<span class="opt">,</span> table<span class="opt">[*</span>y <span class="kwa">as</span> <span class="kwb">usize</span><span class="opt">])</span> <span class="kwa">as</span> <span class="kwb">usize</span><span class="opt">];</span>
+    <span class="opt">}</span>
+<span class="opt">}</span>
+
+<span class="slc">/// Utilities for splitting chunks off of slices.</span>
+<span class="kwa">trait</span> SplitOff <span class="opt">{</span>
+    <span class="kwa">fn</span> <span class="kwd">split_off_left</span><span class="opt">(&amp;</span><span class="kwa">mut self</span><span class="opt">,</span> n<span class="opt">:</span> <span class="kwb">usize</span><span class="opt">) -&gt;</span> <span class="kwa">Self</span><span class="opt">;</span>
+    <span class="kwa">fn</span> <span class="kwd">split_off_right</span><span class="opt">(&amp;</span><span class="kwa">mut self</span><span class="opt">,</span> n<span class="opt">:</span> <span class="kwb">usize</span><span class="opt">) -&gt;</span> <span class="kwa">Self</span><span class="opt">;</span>
+<span class="opt">}</span>
+<span class="kwa">impl</span><span class="opt">&lt;</span>&apos;a<span class="opt">,</span> T<span class="opt">&gt;</span> SplitOff <span class="kwa">for</span> <span class="opt">&amp;</span>&apos;a <span class="kwa">mut</span> <span class="opt">[</span>T<span class="opt">] {</span>
+    <span class="slc">/// Split the left `n` items from self and return them as a separate slice.</span>
+    <span class="kwa">fn</span> <span class="kwd">split_off_left</span><span class="opt">(&amp;</span><span class="kwa">mut self</span><span class="opt">,</span> n<span class="opt">:</span> <span class="kwb">usize</span><span class="opt">) -&gt;</span> <span class="kwa">Self</span> <span class="opt">{</span>
+        <span class="kwa">let</span> n <span class="opt">=</span> <span class="kwd">min</span><span class="opt">(</span><span class="kwa">self</span><span class="opt">.</span><span class="kwd">len</span><span class="opt">(),</span> n<span class="opt">);</span>
+        <span class="kwa">let</span> data <span class="opt">=</span> <span class="kwd">replace</span><span class="opt">(</span><span class="kwa">self</span><span class="opt">, &amp;</span><span class="kwa">mut</span> <span class="opt">[]);</span>
+        <span class="kwa">let</span> <span class="opt">(</span>left<span class="opt">,</span> data<span class="opt">) =</span> data<span class="opt">.</span><span class="kwd">split_at_mut</span><span class="opt">(</span>n<span class="opt">);</span>
+        <span class="opt">*</span><span class="kwa">self</span> <span class="opt">=</span> data<span class="opt">;</span>
+        left
+    <span class="opt">}</span>
+    <span class="slc">/// Split the right `n` items from self and return them as a separate slice.</span>
+    <span class="kwa">fn</span> <span class="kwd">split_off_right</span><span class="opt">(&amp;</span><span class="kwa">mut self</span><span class="opt">,</span> n<span class="opt">:</span> <span class="kwb">usize</span><span class="opt">) -&gt;</span> <span class="kwa">Self</span> <span class="opt">{</span>
+        <span class="kwa">let</span> len <span class="opt">=</span> <span class="kwa">self</span><span class="opt">.</span><span class="kwd">len</span><span class="opt">();</span>
+        <span class="kwa">let</span> n <span class="opt">=</span> <span class="kwd">min</span><span class="opt">(</span>len<span class="opt">,</span> n<span class="opt">);</span>
+        <span class="kwa">let</span> data <span class="opt">=</span> <span class="kwd">replace</span><span class="opt">(</span><span class="kwa">self</span><span class="opt">, &amp;</span><span class="kwa">mut</span> <span class="opt">[]);</span>
+        <span class="kwa">let</span> <span class="opt">(</span>data<span class="opt">,</span> right<span class="opt">) =</span> data<span class="opt">.</span><span class="kwd">split_at_mut</span><span class="opt">(</span>len <span class="opt">-</span> n<span class="opt">);</span>
+        <span class="opt">*</span><span class="kwa">self</span> <span class="opt">=</span> data<span class="opt">;</span>
+        right
+    <span class="opt">}</span>
+<span class="opt">}</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

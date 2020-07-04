@@ -17,6 +17,81 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc">! The Computer Language Benchmarks Game</span>
+<span class="slc">! https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">!</span>
+<span class="slc">! converted to fortran by Gilbert Brietzke on 31. Januar 2011</span>
+<span class="slc">! from C-code by Joseph Piché as a conversion</span>
+<span class="slc">! from Java version by Oleg Mazurov and Isaac Gouy</span>
+
+<span class="kwa">program</span> fannkuch
+
+  <span class="kwa">implicit none</span>
+
+  <span class="kwa">integer</span> <span class="opt">::</span> n<span class="opt">,</span>checksum<span class="opt">,</span>maxFlipsCount
+  <span class="kwa">character</span><span class="opt">(</span>len<span class="opt">=</span><span class="num">2</span><span class="opt">) ::</span> arg
+  <span class="kwa">character</span><span class="opt">(</span>len<span class="opt">=</span><span class="num">10</span><span class="opt">) ::</span> out
+  <span class="kwa">call</span> <span class="kwd">get_command_argument</span><span class="opt">(</span><span class="num">1</span><span class="opt">,</span>arg<span class="opt">);</span><span class="kwa">read</span><span class="opt">(</span>arg<span class="opt">,</span><span class="str">&apos;(I2)&apos;</span><span class="opt">)</span>n
+  <span class="kwa">call</span> <span class="kwd">fannkuchredux</span><span class="opt">(</span>n<span class="opt">,</span>checksum<span class="opt">,</span>maxFlipsCount<span class="opt">)</span>
+  <span class="kwa">write</span><span class="opt">(</span>out<span class="opt">,</span><span class="str">&apos;(I10)&apos;</span><span class="opt">)</span> checksum<span class="opt">;</span>
+  <span class="kwa">write</span><span class="opt">(*,</span><span class="str">&apos;(A)&apos;</span><span class="opt">)</span> <span class="kwd">trim</span><span class="opt">(</span><span class="kwd">adjustl</span><span class="opt">(</span>out<span class="opt">))</span>
+  <span class="kwa">write</span><span class="opt">(</span>out<span class="opt">,</span><span class="str">&apos;(I10)&apos;</span><span class="opt">)</span> maxFlipsCount<span class="opt">;</span>
+  <span class="kwa">write</span><span class="opt">(*,</span><span class="str">&apos;(A)&apos;</span><span class="opt">)</span> <span class="str">&apos;Pfannkuchen(&apos;</span><span class="opt">//</span><span class="kwd">trim</span><span class="opt">(</span><span class="kwd">adjustl</span><span class="opt">(</span>arg<span class="opt">))//</span><span class="str">&apos;) = &apos;</span><span class="opt">//</span><span class="kwd">trim</span><span class="opt">(</span><span class="kwd">adjustl</span><span class="opt">(</span>out<span class="opt">))</span>
+
+<span class="kwa">contains</span>
+
+  <span class="kwa">subroutine</span> <span class="kwd">fannkuchredux</span><span class="opt">(</span>n<span class="opt">,</span>checksum<span class="opt">,</span>maxFlipsCount<span class="opt">)</span>
+    <span class="kwa">implicit none</span>
+    <span class="kwa">integer</span><span class="opt">,</span> <span class="kwd">intent</span><span class="opt">(</span>in<span class="opt">) ::</span> n
+    <span class="kwa">integer</span><span class="opt">,</span> <span class="kwd">intent</span><span class="opt">(</span>out<span class="opt">) ::</span> maxFlipsCount<span class="opt">,</span>checksum
+    <span class="kwa">integer</span> <span class="opt">::</span> <span class="kwd">perm</span><span class="opt">(</span><span class="num">0</span><span class="opt">:</span>n<span class="opt">-</span><span class="num">1</span><span class="opt">),</span><span class="kwd">perm1</span><span class="opt">(</span><span class="num">0</span><span class="opt">:</span>n<span class="opt">-</span><span class="num">1</span><span class="opt">),</span><span class="kwd">icount</span><span class="opt">(</span><span class="num">0</span><span class="opt">:</span>n<span class="opt">-</span><span class="num">1</span><span class="opt">);</span>
+    <span class="kwa">integer</span> <span class="opt">::</span> i<span class="opt">,</span>r<span class="opt">,</span>temp<span class="opt">,</span>k<span class="opt">,</span>perm0<span class="opt">,</span>permCount <span class="opt">=</span> <span class="num">0</span><span class="opt">,</span>flipsCount <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+    checksum <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>  maxFlipsCount <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+    <span class="kwa">do</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">,</span>n<span class="opt">-</span><span class="num">1</span>
+       <span class="kwd">perm1</span><span class="opt">(</span>i<span class="opt">)=</span> i<span class="opt">;</span>
+    <span class="kwa">enddo</span>
+    r<span class="opt">=</span>n
+    <span class="kwa">do while</span> <span class="opt">(.</span>true<span class="opt">.)</span>
+       <span class="kwa">do while</span> <span class="opt">(</span>r <span class="opt">/=</span> <span class="num">1</span><span class="opt">)</span>
+          <span class="kwd">icount</span><span class="opt">(</span>r<span class="opt">-</span><span class="num">1</span><span class="opt">)=</span>r<span class="opt">;</span> r<span class="opt">=</span>r<span class="opt">-</span><span class="num">1</span><span class="opt">;</span>
+       <span class="kwa">end do</span>
+       perm <span class="opt">=</span> perm1<span class="opt">;</span> flipsCount <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+       <span class="kwa">do while</span> <span class="opt">(</span><span class="kwd">perm</span><span class="opt">(</span><span class="num">0</span><span class="opt">)/=</span><span class="num">0</span><span class="opt">)</span> 
+          k <span class="opt">=</span> <span class="kwd">perm</span><span class="opt">(</span><span class="num">0</span><span class="opt">)</span>
+          <span class="kwa">do</span>  i<span class="opt">=</span><span class="num">0</span><span class="opt">,</span><span class="kwd">ishft</span><span class="opt">(</span>k<span class="opt">+</span><span class="num">1</span><span class="opt">,-</span><span class="num">1</span><span class="opt">)-</span><span class="num">1</span>
+             temp <span class="opt">=</span> <span class="kwd">perm</span><span class="opt">(</span>i<span class="opt">);</span> <span class="kwd">perm</span><span class="opt">(</span>i<span class="opt">) =</span> <span class="kwd">perm</span><span class="opt">(</span>k<span class="opt">-</span>i<span class="opt">);</span> <span class="kwd">perm</span><span class="opt">(</span>k<span class="opt">-</span>i<span class="opt">) =</span> temp<span class="opt">;</span>
+          <span class="kwa">enddo</span>
+          flipsCount <span class="opt">=</span> flipsCount <span class="opt">+</span> <span class="num">1</span><span class="opt">;</span>
+       <span class="kwa">end do</span>
+       maxFlipsCount <span class="opt">=</span> <span class="kwd">max</span><span class="opt">(</span>maxFlipsCount<span class="opt">,</span>flipsCount<span class="opt">);</span>
+       <span class="kwa">if</span> <span class="opt">(</span><span class="kwd">modulo</span><span class="opt">(</span>permCount<span class="opt">,</span><span class="num">2</span><span class="opt">) ==</span> <span class="num">0</span><span class="opt">)</span><span class="kwa">then</span>
+          checksum <span class="opt">=</span> checksum <span class="opt">+</span> flipsCount
+       <span class="kwa">else</span>
+          checksum <span class="opt">=</span> checksum <span class="opt">-</span> flipsCount
+       <span class="kwa">end if</span>
+       <span class="kwa">do while</span> <span class="opt">(.</span>true<span class="opt">.)</span>
+          <span class="kwa">if</span> <span class="opt">(</span>r<span class="opt">==</span>n<span class="opt">)</span> <span class="kwa">return</span>
+          perm0 <span class="opt">=</span> <span class="kwd">perm1</span><span class="opt">(</span><span class="num">0</span><span class="opt">);</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+          <span class="kwa">do while</span> <span class="opt">(</span>i <span class="opt">&lt;</span> r<span class="opt">)</span> 
+             <span class="kwd">perm1</span><span class="opt">(</span>i<span class="opt">) =</span> <span class="kwd">perm1</span><span class="opt">(</span>i <span class="opt">+</span> <span class="num">1</span><span class="opt">);</span> i <span class="opt">=</span> i <span class="opt">+</span> <span class="num">1</span><span class="opt">;</span>
+          <span class="kwa">end do</span>
+          <span class="kwd">perm1</span><span class="opt">(</span>r<span class="opt">) =</span> perm0<span class="opt">;</span>
+          <span class="kwd">icount</span><span class="opt">(</span>r<span class="opt">) =</span> <span class="kwd">icount</span><span class="opt">(</span>r<span class="opt">) -</span> <span class="num">1</span><span class="opt">;</span>
+          <span class="kwa">if</span> <span class="opt">(</span><span class="kwd">icount</span><span class="opt">(</span>r<span class="opt">) &gt;</span> <span class="num">0</span><span class="opt">)</span> exit<span class="opt">;</span>
+          r <span class="opt">=</span> r <span class="opt">+</span> <span class="num">1</span><span class="opt">;</span>
+       <span class="kwa">end do</span>
+       permCount <span class="opt">=</span> permCount <span class="opt">+</span> <span class="num">1</span><span class="opt">;</span>
+    <span class="kwa">end do</span>
+  <span class="kwa">end subroutine</span> fannkuchredux
+  
+<span class="kwa">end program</span> fannkuch
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

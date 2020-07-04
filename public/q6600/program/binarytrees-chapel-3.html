@@ -17,6 +17,102 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="com">/* The Computer Language Benchmarks Game</span>
+<span class="com">   https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="com"></span>
+<span class="com">   contributed by Casey Battaglino, Ben Harshbarger, and Brad Chamberlain</span>
+<span class="com">   derived from the GNU C version by Jeremy Zerfas</span>
+<span class="com">*/</span>
+
+
+<span class="kwa">use</span> DynamicIters<span class="opt">;</span>
+
+<span class="kwa">config const</span> n <span class="opt">=</span> <span class="num">10</span><span class="opt">;</span>         <span class="slc">// the maximum tree depth</span>
+
+<span class="kwa">proc</span> <span class="kwc">main</span><span class="opt">() {</span>
+  <span class="kwa">const</span> minDepth <span class="opt">=</span> <span class="num">4</span><span class="opt">,</span>                      <span class="slc">// the shallowest tree</span>
+        maxDepth <span class="opt">=</span> <span class="kwc">max</span><span class="opt">(</span>minDepth <span class="opt">+</span> <span class="num">2</span><span class="opt">,</span> n<span class="opt">),</span>   <span class="slc">// the deepest normal tree</span>
+        strDepth <span class="opt">=</span> maxDepth <span class="opt">+</span> <span class="num">1</span><span class="opt">,</span>           <span class="slc">// the depth of the &quot;stretch&quot; tree</span>
+        depths <span class="opt">=</span> minDepth<span class="opt">..</span>maxDepth <span class="kwa">by</span> <span class="num">2</span><span class="opt">;</span>  <span class="slc">// the range of depths to create</span>
+  <span class="kwa">var</span> stats<span class="opt">: [</span>depths<span class="opt">] (</span><span class="kwb">int</span><span class="opt">,</span><span class="kwb">int</span><span class="opt">);</span>           <span class="slc">// stores statistics for the trees</span>
+
+  <span class="slc">//</span>
+  <span class="slc">// Create the short-lived &quot;stretch&quot; tree, checksum it, and print its stats.</span>
+  <span class="slc">//</span>
+  <span class="opt">{</span>
+    <span class="kwa">const</span> strTree <span class="opt">=</span> <span class="kwa">new</span> <span class="kwc">Tree</span><span class="opt">(</span>strDepth<span class="opt">);</span>
+    <span class="kwc">writeln</span><span class="opt">(</span><span class="str">&quot;stretch tree of depth &quot;</span><span class="opt">,</span> strDepth<span class="opt">,</span> <span class="str">&quot;</span><span class="esc">\t</span> <span class="str">check: &quot;</span><span class="opt">,</span> strTree<span class="opt">.</span><span class="kwc">sum</span><span class="opt">());</span>
+  <span class="opt">}</span>
+
+  <span class="slc">//</span>
+  <span class="slc">// Build the long-lived tree.</span>
+  <span class="slc">//</span>
+  <span class="kwa">const</span> llTree <span class="opt">=</span> <span class="kwa">new</span> <span class="kwc">Tree</span><span class="opt">(</span>maxDepth<span class="opt">);</span>
+
+  <span class="slc">//</span>
+  <span class="slc">// Iterate over the depths in parallel, dynamically assigning them</span>
+  <span class="slc">// to tasks.  At each depth, create the required trees, compute</span>
+  <span class="slc">// their sums, and free them.</span>
+  <span class="slc">//</span>
+  <span class="kwa">forall</span> depth <span class="kwa">in</span> <span class="kwc">dynamic</span><span class="opt">(</span>depths<span class="opt">) {</span>
+    <span class="kwa">const</span> iterations <span class="opt">=</span> <span class="num">2</span><span class="opt">**(</span>maxDepth <span class="opt">-</span> depth <span class="opt">+</span> minDepth<span class="opt">);</span>
+    <span class="kwa">var</span> sum <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+
+    <span class="kwa">for</span> i <span class="kwa">in</span> <span class="num">1</span><span class="opt">..</span>iterations <span class="opt">{</span>
+      <span class="kwa">const</span> t <span class="opt">=</span> <span class="kwa">new</span> <span class="kwc">Tree</span><span class="opt">(</span>depth<span class="opt">);</span>
+      sum <span class="opt">+=</span> t<span class="opt">.</span><span class="kwc">sum</span><span class="opt">();</span>
+    <span class="opt">}</span>
+    stats<span class="opt">[</span>depth<span class="opt">] = (</span>iterations<span class="opt">,</span> sum<span class="opt">);</span>
+  <span class="opt">}</span>
+
+  <span class="slc">//</span>
+  <span class="slc">// Print out the stats for the trees of varying depths.</span>
+  <span class="slc">//</span>
+  <span class="kwa">for</span> <span class="opt">(</span>depth<span class="opt">, (</span>numTrees<span class="opt">,</span> checksum<span class="opt">))</span> <span class="kwa">in zip</span><span class="opt">(</span>depths<span class="opt">,</span> stats<span class="opt">)</span> <span class="kwa">do</span>
+    <span class="kwc">writeln</span><span class="opt">(</span>numTrees<span class="opt">,</span> <span class="str">&quot;</span><span class="esc">\t</span> <span class="str">trees of depth &quot;</span><span class="opt">,</span> depth<span class="opt">,</span> <span class="str">&quot;</span><span class="esc">\t</span> <span class="str">check: &quot;</span><span class="opt">,</span> checksum<span class="opt">);</span>
+
+  <span class="slc">//</span>
+  <span class="slc">// Checksum the long-lived tree, print its stats, and free it.</span>
+  <span class="slc">//</span>
+  <span class="kwc">writeln</span><span class="opt">(</span><span class="str">&quot;long lived tree of depth &quot;</span><span class="opt">,</span> maxDepth<span class="opt">,</span> <span class="str">&quot;</span><span class="esc">\t</span> <span class="str">check: &quot;</span><span class="opt">,</span> llTree<span class="opt">.</span><span class="kwc">sum</span><span class="opt">());</span>
+<span class="opt">}</span>
+
+
+<span class="slc">//</span>
+<span class="slc">// A simple balanced tree node class</span>
+<span class="slc">//</span>
+<span class="kwa">class</span> Tree <span class="opt">{</span>
+  <span class="kwa">var</span> left<span class="opt">,</span> right<span class="opt">:</span> unmanaged Tree<span class="opt">?;</span>
+
+  <span class="slc">//</span>
+  <span class="slc">// A Tree-building initializer</span>
+  <span class="slc">//</span>
+  <span class="kwa">proc</span> <span class="kwc">init</span><span class="opt">(</span>depth<span class="opt">) {</span>
+    <span class="kwa">if</span> depth <span class="opt">&gt;</span> <span class="num">0</span> <span class="opt">{</span>
+      left  <span class="opt">=</span> <span class="kwa">new</span> unmanaged <span class="kwc">Tree</span><span class="opt">(</span>depth<span class="opt">-</span><span class="num">1</span><span class="opt">);</span>
+      right <span class="opt">=</span> <span class="kwa">new</span> unmanaged <span class="kwc">Tree</span><span class="opt">(</span>depth<span class="opt">-</span><span class="num">1</span><span class="opt">);</span>
+    <span class="opt">}</span>
+  <span class="opt">}</span>
+
+  <span class="slc">//</span>
+  <span class="slc">// Add up tree node, freeing as we go</span>
+  <span class="slc">//</span>
+  <span class="kwa">proc</span> <span class="kwc">sum</span><span class="opt">():</span> <span class="kwb">int</span> <span class="opt">{</span>
+    <span class="kwa">var</span> sum <span class="opt">=</span> <span class="num">1</span><span class="opt">;</span>
+    <span class="kwa">if</span> left <span class="opt">{</span>
+      sum <span class="opt">+=</span> left<span class="opt">!.</span><span class="kwc">sum</span><span class="opt">() +</span> right<span class="opt">!.</span><span class="kwc">sum</span><span class="opt">();</span>
+      <span class="kwa">delete</span> left<span class="opt">,</span> right<span class="opt">;</span>
+    <span class="opt">}</span>
+    <span class="kwa">return</span> sum<span class="opt">;</span>
+  <span class="opt">}</span>
+<span class="opt">}</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

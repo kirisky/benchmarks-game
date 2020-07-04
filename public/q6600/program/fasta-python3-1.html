@@ -17,6 +17,98 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc"># The Computer Language Benchmarks Game</span>
+<span class="slc"># https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">#</span>
+<span class="slc"># modified by Ian Osgood</span>
+<span class="slc"># modified again by Heinrich Acker</span>
+<span class="slc"># modified by Justin Peel</span>
+<span class="slc"># 2to3</span>
+
+<span class="kwa">import</span> sys<span class="opt">,</span> bisect
+
+alu <span class="opt">= (</span>
+   <span class="str">&apos;GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGG&apos;</span>
+   <span class="str">&apos;GAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGA&apos;</span>
+   <span class="str">&apos;CCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAAT&apos;</span>
+   <span class="str">&apos;ACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCA&apos;</span>
+   <span class="str">&apos;GCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGG&apos;</span>
+   <span class="str">&apos;AGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCC&apos;</span>
+   <span class="str">&apos;AGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA&apos;</span><span class="opt">)</span>
+
+iub <span class="opt">=</span> <span class="kwb">list</span><span class="opt">(</span><span class="kwb">zip</span><span class="opt">(</span><span class="str">&apos;acgtBDHKMNRSVWY&apos;</span><span class="opt">, [</span><span class="num">0.27</span><span class="opt">,</span> <span class="num">0.12</span><span class="opt">,</span> <span class="num">0.12</span><span class="opt">,</span> <span class="num">0.27</span><span class="opt">] + [</span><span class="num">0.02</span><span class="opt">]*</span><span class="num">11</span><span class="opt">))</span>
+
+homosapiens <span class="opt">= [</span>
+    <span class="opt">(</span><span class="str">&apos;a&apos;</span><span class="opt">,</span> <span class="num">0.3029549426680</span><span class="opt">),</span>
+    <span class="opt">(</span><span class="str">&apos;c&apos;</span><span class="opt">,</span> <span class="num">0.1979883004921</span><span class="opt">),</span>
+    <span class="opt">(</span><span class="str">&apos;g&apos;</span><span class="opt">,</span> <span class="num">0.1975473066391</span><span class="opt">),</span>
+    <span class="opt">(</span><span class="str">&apos;t&apos;</span><span class="opt">,</span> <span class="num">0.3015094502008</span><span class="opt">),</span>
+<span class="opt">]</span>
+
+
+<span class="kwa">def</span> <span class="kwd">genRandom</span><span class="opt">(</span>ia <span class="opt">=</span> <span class="num">3877</span><span class="opt">,</span> ic <span class="opt">=</span> <span class="num">29573</span><span class="opt">,</span> im <span class="opt">=</span> <span class="num">139968</span><span class="opt">):</span>
+    seed <span class="opt">=</span> <span class="num">42</span>
+    imf <span class="opt">=</span> <span class="kwb">float</span><span class="opt">(</span>im<span class="opt">)</span>
+    <span class="kwa">while</span> <span class="num">1</span><span class="opt">:</span>
+        seed <span class="opt">= (</span>seed <span class="opt">*</span> ia <span class="opt">+</span> ic<span class="opt">) %</span> im
+        <span class="kwa">yield</span> seed <span class="opt">/</span> imf
+
+Random <span class="opt">=</span> <span class="kwd">genRandom</span><span class="opt">()</span>
+
+<span class="kwa">def</span> <span class="kwd">makeCumulative</span><span class="opt">(</span>table<span class="opt">):</span>
+    P <span class="opt">= []</span>
+    C <span class="opt">= []</span>
+    prob <span class="opt">=</span> <span class="num">0</span><span class="opt">.</span>
+    <span class="kwa">for</span> char<span class="opt">,</span> p <span class="kwa">in</span> table<span class="opt">:</span>
+        prob <span class="opt">+=</span> p
+        P <span class="opt">+= [</span>prob<span class="opt">]</span>
+        C <span class="opt">+= [</span>char<span class="opt">]</span>
+    <span class="kwa">return</span> <span class="opt">(</span>P<span class="opt">,</span> C<span class="opt">)</span>
+
+<span class="kwa">def</span> <span class="kwd">repeatFasta</span><span class="opt">(</span>src<span class="opt">,</span> n<span class="opt">):</span>
+    width <span class="opt">=</span> <span class="num">60</span>
+    r <span class="opt">=</span> <span class="kwb">len</span><span class="opt">(</span>src<span class="opt">)</span>
+    s <span class="opt">=</span> src <span class="opt">+</span> src <span class="opt">+</span> src<span class="opt">[:</span>n <span class="opt">%</span> r<span class="opt">]</span>
+    <span class="kwa">for</span> j <span class="kwa">in</span> <span class="kwb">range</span><span class="opt">(</span>n <span class="opt">//</span> width<span class="opt">):</span>
+        i <span class="opt">=</span> j<span class="opt">*</span>width <span class="opt">%</span> r
+        <span class="kwa">print</span><span class="opt">(</span>s<span class="opt">[</span>i<span class="opt">:</span>i<span class="opt">+</span>width<span class="opt">])</span>
+    <span class="kwa">if</span> n <span class="opt">%</span> width<span class="opt">:</span>
+        <span class="kwa">print</span><span class="opt">(</span>s<span class="opt">[-(</span>n <span class="opt">%</span> width<span class="opt">):])</span>
+
+<span class="kwa">def</span> <span class="kwd">randomFasta</span><span class="opt">(</span>table<span class="opt">,</span> n<span class="opt">):</span>
+    width <span class="opt">=</span> <span class="num">60</span>
+    r <span class="opt">=</span> <span class="kwb">range</span><span class="opt">(</span>width<span class="opt">)</span>
+    gR <span class="opt">=</span> Random<span class="num">.__</span>next<span class="num">__</span>
+    bb <span class="opt">=</span> bisect<span class="opt">.</span>bisect
+    jn <span class="opt">=</span> <span class="str">&apos;&apos;</span><span class="opt">.</span>join
+    probs<span class="opt">,</span> chars <span class="opt">=</span> <span class="kwd">makeCumulative</span><span class="opt">(</span>table<span class="opt">)</span>
+    <span class="kwa">for</span> j <span class="kwa">in</span> <span class="kwb">range</span><span class="opt">(</span>n <span class="opt">//</span> width<span class="opt">):</span>
+        x <span class="opt">=</span> <span class="kwd">jn</span><span class="opt">([</span>chars<span class="opt">[</span><span class="kwd">bb</span><span class="opt">(</span>probs<span class="opt">,</span> <span class="kwd">gR</span><span class="opt">())]</span> <span class="kwa">for</span> i <span class="kwa">in</span> r<span class="opt">])</span>
+        <span class="kwa">print</span><span class="opt">(</span>x<span class="opt">)</span>
+    <span class="kwa">if</span> n <span class="opt">%</span> width<span class="opt">:</span>
+        <span class="kwa">print</span><span class="opt">(</span><span class="kwd">jn</span><span class="opt">([</span>chars<span class="opt">[</span><span class="kwd">bb</span><span class="opt">(</span>probs<span class="opt">,</span> <span class="kwd">gR</span><span class="opt">())]</span> <span class="kwa">for</span> i <span class="kwa">in</span> <span class="kwb">range</span><span class="opt">(</span>n <span class="opt">%</span> width<span class="opt">)]))</span>
+
+<span class="kwa">def</span> <span class="kwd">main</span><span class="opt">():</span>
+    n <span class="opt">=</span> <span class="kwb">int</span><span class="opt">(</span>sys<span class="opt">.</span>argv<span class="opt">[</span><span class="num">1</span><span class="opt">])</span>
+
+    <span class="kwa">print</span><span class="opt">(</span><span class="str">&apos;&gt;ONE Homo sapiens alu&apos;</span><span class="opt">)</span>
+    <span class="kwd">repeatFasta</span><span class="opt">(</span>alu<span class="opt">,</span> n<span class="opt">*</span><span class="num">2</span><span class="opt">)</span>
+
+    <span class="kwa">print</span><span class="opt">(</span><span class="str">&apos;&gt;TWO IUB ambiguity codes&apos;</span><span class="opt">)</span>
+    <span class="kwd">randomFasta</span><span class="opt">(</span>iub<span class="opt">,</span> n<span class="opt">*</span><span class="num">3</span><span class="opt">)</span>
+
+    <span class="kwa">print</span><span class="opt">(</span><span class="str">&apos;&gt;THREE Homo sapiens frequency&apos;</span><span class="opt">)</span>
+    <span class="kwd">randomFasta</span><span class="opt">(</span>homosapiens<span class="opt">,</span> n<span class="opt">*</span><span class="num">5</span><span class="opt">)</span>
+
+<span class="kwd">main</span><span class="opt">()</span>
+
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

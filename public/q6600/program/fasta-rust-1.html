@@ -17,6 +17,118 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc">// The Computer Language Benchmarks Game</span>
+<span class="slc">// https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">//</span>
+<span class="slc">// contributed by the Rust Project Developers</span>
+<span class="slc">// contributed by TeXitoi</span>
+
+<span class="kwa">use</span> std<span class="opt">::</span>cmp<span class="opt">::</span>min<span class="opt">;</span>
+<span class="kwa">use</span> std<span class="opt">::</span>io<span class="opt">;</span>
+
+<span class="kwa">const</span> LINE_LENGTH<span class="opt">:</span> <span class="kwb">usize</span> <span class="opt">=</span> <span class="num">60</span><span class="opt">;</span>
+<span class="kwa">const</span> IM<span class="opt">:</span> <span class="kwb">u32</span> <span class="opt">=</span> <span class="num">139968</span><span class="opt">;</span>
+
+<span class="kwa">struct</span> MyRandom <span class="opt">{</span>
+    last<span class="opt">:</span> <span class="kwb">u32</span>
+<span class="opt">}</span>
+<span class="kwa">impl</span> MyRandom <span class="opt">{</span>
+    <span class="kwa">fn</span> <span class="kwd">new</span><span class="opt">() -&gt;</span> MyRandom <span class="opt">{</span> MyRandom <span class="opt">{</span> last<span class="opt">:</span> <span class="num">42</span> <span class="opt">} }</span>
+    <span class="kwa">fn</span> <span class="kwd">normalize</span><span class="opt">(</span>p<span class="opt">:</span> <span class="kwb">f32</span><span class="opt">) -&gt;</span> <span class="kwb">u32</span> <span class="opt">{(</span>p <span class="opt">*</span> IM <span class="kwa">as</span> <span class="kwb">f32</span><span class="opt">)</span><span class="num">.f</span>loor<span class="opt">()</span> <span class="kwa">as</span> <span class="kwb">u32</span><span class="opt">}</span>
+    <span class="kwa">fn</span> <span class="kwd">gen</span><span class="opt">(&amp;</span><span class="kwa">mut self</span><span class="opt">) -&gt;</span> <span class="kwb">u32</span> <span class="opt">{</span>
+        <span class="kwa">self</span><span class="opt">.</span>last <span class="opt">= (</span><span class="kwa">self</span><span class="opt">.</span>last <span class="opt">*</span> <span class="num">3877</span> <span class="opt">+</span> <span class="num">29573</span><span class="opt">) %</span> IM<span class="opt">;</span>
+        <span class="kwa">self</span><span class="opt">.</span>last
+    <span class="opt">}</span>
+<span class="opt">}</span>
+
+<span class="kwa">struct</span> AAGen<span class="opt">&lt;</span>&apos;a<span class="opt">&gt; {</span>
+    rng<span class="opt">: &amp;</span>&apos;a <span class="kwa">mut</span> MyRandom<span class="opt">,</span>
+    data<span class="opt">:</span> Vec<span class="opt">&lt;(</span><span class="kwb">u32</span><span class="opt">,</span> <span class="kwb">u8</span><span class="opt">)&gt;</span>
+<span class="opt">}</span>
+<span class="kwa">impl</span><span class="opt">&lt;</span>&apos;a<span class="opt">&gt;</span> AAGen<span class="opt">&lt;</span>&apos;a<span class="opt">&gt; {</span>
+    <span class="kwa">fn</span> new<span class="opt">&lt;</span>&apos;b<span class="opt">&gt;(</span>rng<span class="opt">: &amp;</span>&apos;b <span class="kwa">mut</span> MyRandom<span class="opt">,</span> aa<span class="opt">: &amp;[(</span><span class="kwb">char</span><span class="opt">,</span> <span class="kwb">f32</span><span class="opt">)]) -&gt;</span> AAGen<span class="opt">&lt;</span>&apos;b<span class="opt">&gt; {</span>
+        <span class="kwa">let mut</span> cum <span class="opt">=</span> <span class="num">0</span><span class="opt">.;</span>
+        <span class="kwa">let</span> data <span class="opt">=</span> aa<span class="num">.i</span>ter<span class="opt">()</span>
+            <span class="opt">.</span><span class="kwd">map</span><span class="opt">(|&amp;(</span>ch<span class="opt">,</span> p<span class="opt">)| {</span> cum <span class="opt">+=</span> p<span class="opt">; (</span>MyRandom<span class="opt">::</span><span class="kwd">normalize</span><span class="opt">(</span>cum<span class="opt">),</span> ch <span class="kwa">as</span> <span class="kwb">u8</span><span class="opt">) })</span>
+            <span class="opt">.</span><span class="kwd">collect</span><span class="opt">();</span>
+        AAGen <span class="opt">{</span> rng<span class="opt">:</span> rng<span class="opt">,</span> data<span class="opt">:</span> data <span class="opt">}</span>
+    <span class="opt">}</span>
+<span class="opt">}</span>
+<span class="kwa">impl</span><span class="opt">&lt;</span>&apos;a<span class="opt">&gt;</span> Iterator <span class="kwa">for</span> AAGen<span class="opt">&lt;</span>&apos;a<span class="opt">&gt; {</span>
+    <span class="kwa">type</span> Item <span class="opt">=</span> <span class="kwb">u8</span><span class="opt">;</span>
+
+    <span class="kwa">fn</span> <span class="kwd">next</span><span class="opt">(&amp;</span><span class="kwa">mut self</span><span class="opt">) -&gt;</span> Option<span class="opt">&lt;</span><span class="kwb">u8</span><span class="opt">&gt; {</span>
+        <span class="kwa">let</span> r <span class="opt">=</span> <span class="kwa">self</span><span class="opt">.</span>rng<span class="opt">.</span><span class="kwd">gen</span><span class="opt">();</span>
+        <span class="kwa">self</span><span class="opt">.</span>data<span class="num">.i</span>ter<span class="opt">()</span>
+            <span class="opt">.</span><span class="kwd">skip_while</span><span class="opt">(|</span>pc<span class="opt">|</span> pc<span class="num">.0</span> <span class="opt">&lt;</span> r<span class="opt">)</span>
+            <span class="opt">.</span><span class="kwd">map</span><span class="opt">(|&amp;(</span>_<span class="opt">,</span> c<span class="opt">)|</span> c<span class="opt">)</span>
+            <span class="opt">.</span><span class="kwd">next</span><span class="opt">()</span>
+    <span class="opt">}</span>
+<span class="opt">}</span>
+
+<span class="kwa">fn</span> make_fasta<span class="opt">&lt;</span>W<span class="opt">:</span> io<span class="opt">::</span>Write<span class="opt">,</span> I<span class="opt">:</span> Iterator<span class="opt">&lt;</span>Item<span class="opt">=</span><span class="kwb">u8</span><span class="opt">&gt;&gt;(</span>
+    wr<span class="opt">: &amp;</span><span class="kwa">mut</span> W<span class="opt">,</span> header<span class="opt">: &amp;</span><span class="kwb">str</span><span class="opt">,</span> <span class="kwa">mut</span> it<span class="opt">:</span> I<span class="opt">,</span> <span class="kwa">mut</span> n<span class="opt">:</span> <span class="kwb">usize</span><span class="opt">)</span>
+    <span class="opt">-&gt;</span> io<span class="opt">::</span>Result<span class="opt">&lt;()&gt;</span>
+<span class="opt">{</span>
+    try<span class="opt">!(</span>wr<span class="opt">.</span><span class="kwd">write_all</span><span class="opt">(</span>header<span class="opt">.</span><span class="kwd">as_bytes</span><span class="opt">()));</span>
+    <span class="kwa">let mut</span> line <span class="opt">= [</span><span class="num">0u8</span><span class="opt">;</span> LINE_LENGTH <span class="opt">+</span> <span class="num">1</span><span class="opt">];</span>
+    <span class="kwa">while</span> n <span class="opt">&gt;</span> <span class="num">0</span> <span class="opt">{</span>
+        <span class="kwa">let</span> nb <span class="opt">=</span> <span class="kwd">min</span><span class="opt">(</span>LINE_LENGTH<span class="opt">,</span> n<span class="opt">);</span>
+        <span class="kwa">for</span> i <span class="kwa">in</span> <span class="opt">(</span><span class="num">0</span><span class="opt">..</span>nb<span class="opt">) {</span>
+            line<span class="opt">[</span>i<span class="opt">] =</span> it<span class="opt">.</span><span class="kwd">next</span><span class="opt">()</span><span class="num">.u</span>nwrap<span class="opt">();</span>
+        <span class="opt">}</span>
+        n <span class="opt">-=</span> nb<span class="opt">;</span>
+        line<span class="opt">[</span>nb<span class="opt">] =</span> &apos;<span class="esc">\</span>n&apos; <span class="kwa">as</span> <span class="kwb">u8</span><span class="opt">;</span>
+        try<span class="opt">!(</span>wr<span class="opt">.</span><span class="kwd">write_all</span><span class="opt">(&amp;</span>line<span class="opt">[..(</span>nb<span class="opt">+</span><span class="num">1</span><span class="opt">)]));</span>
+    <span class="opt">}</span>
+    <span class="kwd">Ok</span><span class="opt">(())</span>
+<span class="opt">}</span>
+
+<span class="kwa">fn</span> run<span class="opt">&lt;</span>W<span class="opt">:</span> io<span class="opt">::</span>Write<span class="opt">&gt;(</span>writer<span class="opt">: &amp;</span><span class="kwa">mut</span> W<span class="opt">) -&gt;</span> io<span class="opt">::</span>Result<span class="opt">&lt;()&gt; {</span>
+    <span class="kwa">let</span> n <span class="opt">=</span> std<span class="opt">::</span>env<span class="opt">::</span><span class="kwd">args_os</span><span class="opt">().</span><span class="kwd">nth</span><span class="opt">(</span><span class="num">1</span><span class="opt">)</span>
+        <span class="opt">.</span><span class="kwd">and_then</span><span class="opt">(|</span>s<span class="opt">|</span> s<span class="num">.i</span>nto<span class="num">_</span>str<span class="num">i</span>ng<span class="opt">().</span><span class="kwd">ok</span><span class="opt">())</span>
+        <span class="opt">.</span><span class="kwd">and_then</span><span class="opt">(|</span>n<span class="opt">|</span> n<span class="opt">.</span><span class="kwd">parse</span><span class="opt">().</span><span class="kwd">ok</span><span class="opt">())</span>
+        <span class="num">.u</span>nwrap<span class="num">_</span>or<span class="opt">(</span><span class="num">1000</span><span class="opt">);</span>
+
+    <span class="kwa">let</span> rng <span class="opt">= &amp;</span><span class="kwa">mut</span> MyRandom<span class="opt">::</span><span class="kwd">new</span><span class="opt">();</span>
+    <span class="kwa">let</span> alu <span class="opt">=</span>
+        <span class="str">&quot;GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGG</span><span class="esc">\</span>
+<span class="str">        GAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGA</span><span class="esc">\</span>
+<span class="str">        CCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAAT</span><span class="esc">\</span>
+<span class="str">        ACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCA</span><span class="esc">\</span>
+<span class="str">        GCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGG</span><span class="esc">\</span>
+<span class="str">        AGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCC</span><span class="esc">\</span>
+<span class="str">        AGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA&quot;</span><span class="opt">;</span>
+    <span class="kwa">let</span> iub <span class="opt">= &amp;[(</span>&apos;a&apos;<span class="opt">,</span> <span class="num">0.27</span><span class="opt">), (</span>&apos;c&apos;<span class="opt">,</span> <span class="num">0.12</span><span class="opt">), (</span>&apos;g&apos;<span class="opt">,</span> <span class="num">0.12</span><span class="opt">),</span>
+                <span class="opt">(</span>&apos;t&apos;<span class="opt">,</span> <span class="num">0.27</span><span class="opt">), (</span>&apos;B&apos;<span class="opt">,</span> <span class="num">0.02</span><span class="opt">), (</span>&apos;D&apos;<span class="opt">,</span> <span class="num">0.02</span><span class="opt">),</span>
+                <span class="opt">(</span>&apos;H&apos;<span class="opt">,</span> <span class="num">0.02</span><span class="opt">), (</span>&apos;K&apos;<span class="opt">,</span> <span class="num">0.02</span><span class="opt">), (</span>&apos;M&apos;<span class="opt">,</span> <span class="num">0.02</span><span class="opt">),</span>
+                <span class="opt">(</span>&apos;N&apos;<span class="opt">,</span> <span class="num">0.02</span><span class="opt">), (</span>&apos;R&apos;<span class="opt">,</span> <span class="num">0.02</span><span class="opt">), (</span>&apos;S&apos;<span class="opt">,</span> <span class="num">0.02</span><span class="opt">),</span>
+                <span class="opt">(</span>&apos;V&apos;<span class="opt">,</span> <span class="num">0.02</span><span class="opt">), (</span>&apos;W&apos;<span class="opt">,</span> <span class="num">0.02</span><span class="opt">), (</span>&apos;Y&apos;<span class="opt">,</span> <span class="num">0.02</span><span class="opt">)];</span>
+    <span class="kwa">let</span> homosapiens <span class="opt">= &amp;[(</span>&apos;a&apos;<span class="opt">,</span> <span class="num">0.3029549426680</span><span class="opt">),</span>
+                        <span class="opt">(</span>&apos;c&apos;<span class="opt">,</span> <span class="num">0.1979883004921</span><span class="opt">),</span>
+                        <span class="opt">(</span>&apos;g&apos;<span class="opt">,</span> <span class="num">0.1975473066391</span><span class="opt">),</span>
+                        <span class="opt">(</span>&apos;t&apos;<span class="opt">,</span> <span class="num">0.3015094502008</span><span class="opt">)];</span>
+
+    try<span class="opt">!(</span><span class="kwd">make_fasta</span><span class="opt">(</span>writer<span class="opt">,</span> <span class="str">&quot;&gt;ONE Homo sapiens alu</span><span class="esc">\</span><span class="str">n&quot;</span><span class="opt">,</span>
+                    alu<span class="opt">.</span><span class="kwd">as_bytes</span><span class="opt">()</span><span class="num">.i</span>ter<span class="opt">().</span><span class="kwd">cycle</span><span class="opt">().</span><span class="kwd">map</span><span class="opt">(|</span>c<span class="opt">| *</span>c<span class="opt">),</span> n <span class="opt">*</span> <span class="num">2</span><span class="opt">));</span>
+    try<span class="opt">!(</span><span class="kwd">make_fasta</span><span class="opt">(</span>writer<span class="opt">,</span> <span class="str">&quot;&gt;TWO IUB ambiguity codes</span><span class="esc">\</span><span class="str">n&quot;</span><span class="opt">,</span>
+                    AAGen<span class="opt">::</span><span class="kwd">new</span><span class="opt">(</span>rng<span class="opt">,</span> iub<span class="opt">),</span> n <span class="opt">*</span> <span class="num">3</span><span class="opt">));</span>
+    try<span class="opt">!(</span><span class="kwd">make_fasta</span><span class="opt">(</span>writer<span class="opt">,</span> <span class="str">&quot;&gt;THREE Homo sapiens frequency</span><span class="esc">\</span><span class="str">n&quot;</span><span class="opt">,</span>
+                    AAGen<span class="opt">::</span><span class="kwd">new</span><span class="opt">(</span>rng<span class="opt">,</span> homosapiens<span class="opt">),</span> n <span class="opt">*</span> <span class="num">5</span><span class="opt">));</span>
+
+    writer<span class="num">.f</span>l<span class="num">u</span>sh<span class="opt">()</span>
+<span class="opt">}</span>
+
+<span class="kwa">fn</span> <span class="kwd">main</span><span class="opt">() {</span>
+    <span class="kwd">run</span><span class="opt">(&amp;</span><span class="kwa">mut</span> io<span class="opt">::</span><span class="kwd">stdout</span><span class="opt">())</span><span class="num">.u</span>nwrap<span class="opt">()</span>
+<span class="opt">}</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

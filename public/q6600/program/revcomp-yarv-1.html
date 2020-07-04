@@ -17,6 +17,84 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc"># The Computer Language Benchmarks Game</span>
+<span class="slc"># https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">#</span>
+<span class="slc"># Contributed by Aaron Tavistock</span>
+
+<span class="kwa">def</span> <span class="kwd">process_segment</span><span class="opt">(</span>segment<span class="opt">)</span>
+  <span class="opt">(</span>header<span class="opt">, *</span>body<span class="opt">,</span> tail<span class="opt">) =</span> segment<span class="opt">.</span><span class="kwd">split</span><span class="opt">(</span><span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">)</span>
+
+  <span class="slc"># This is an ugly way to handle the first row, but returning nil causes the fork to implode</span>
+  <span class="kwa">return</span> <span class="str">&apos;&apos;</span> <span class="kwa">if</span> <span class="opt">!</span>tail
+  body <span class="opt">&lt;&lt;</span> tail <span class="kwa">if</span> tail <span class="opt">!=</span> <span class="str">&apos;&gt;&apos;</span>
+
+  sequence <span class="opt">=</span> body<span class="opt">.</span>join
+  sequence<span class="opt">.</span>reverse<span class="opt">!</span>
+  sequence<span class="opt">.</span>tr<span class="opt">!(</span>
+    <span class="str">&apos;wsatugcyrkmbdhvnATUGCYRKMBDHVN&apos;</span><span class="opt">,</span>
+    <span class="str">&apos;WSTAACGRYMKVHDBNTAACGRYMKVHDBN&apos;</span>
+  <span class="opt">)</span>
+
+  results <span class="opt">= [</span><span class="str">&quot;&gt;#{header}&quot;</span><span class="opt">]</span>
+
+  idx <span class="opt">=</span> <span class="num">0</span>
+  length <span class="opt">=</span> sequence<span class="opt">.</span>length
+  <span class="kwa">while</span> idx <span class="opt">&lt;</span> length
+    results <span class="opt">&lt;&lt;</span> sequence<span class="opt">[</span>idx<span class="opt">,</span><span class="num">60</span><span class="opt">]</span>
+    idx <span class="opt">+=</span> <span class="num">60</span>
+  <span class="kwa">end</span>
+
+  results<span class="opt">.</span><span class="kwd">join</span><span class="opt">(</span><span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">)</span>
+<span class="kwa">end</span>
+
+<span class="kwa">def</span> <span class="kwd">forking_worker</span><span class="opt">(</span>segment<span class="opt">)</span>
+  reader<span class="opt">,</span> writer <span class="opt">=</span> IO<span class="opt">.</span>pipe
+
+  pid <span class="opt">=</span> Process<span class="opt">.</span>fork <span class="kwa">do</span>
+    <span class="kwa">begin</span>
+      reader<span class="opt">.</span>close
+      results <span class="opt">=</span> <span class="kwd">process_segment</span><span class="opt">(</span>segment<span class="opt">)</span>
+      Marshal<span class="opt">.</span><span class="kwd">dump</span><span class="opt">(</span>results<span class="opt">,</span> writer<span class="opt">)</span> <span class="kwa">if</span> results
+    <span class="kwa">ensure</span>
+      writer<span class="opt">.</span>close
+    <span class="kwa">end</span>
+  <span class="kwa">end</span>
+
+  writer<span class="opt">.</span>close
+  <span class="kwa">begin</span>
+    results <span class="opt">=</span> Marshal<span class="opt">.</span><span class="kwd">load</span><span class="opt">(</span>reader<span class="opt">)</span>
+  <span class="kwa">ensure</span>
+    reader<span class="opt">.</span>close
+  <span class="kwa">end</span>
+  Process<span class="opt">.</span><span class="kwd">waitpid</span><span class="opt">(</span>pid<span class="opt">)</span>
+
+  results
+<span class="kwa">end</span>
+
+threads <span class="opt">= []</span>
+<span class="kwb">$stdin</span><span class="opt">.</span><span class="kwd">each_line</span><span class="opt">(</span><span class="str">&apos;&gt;&apos;</span><span class="opt">)</span> <span class="kwa">do</span> <span class="opt">|</span>segment<span class="opt">|</span>
+  threads <span class="opt">&lt;&lt;</span> Thread<span class="opt">.</span>new <span class="kwa">do</span>
+    <span class="kwa">if</span> <span class="opt">(</span><span class="kwc">RUBY_PLATFORM</span> <span class="opt">==</span> <span class="str">&apos;java&apos;</span><span class="opt">)</span> 
+      Thread<span class="opt">.</span>current<span class="opt">[</span><span class="kwc">:output</span><span class="opt">] =</span> <span class="kwd">process_segment</span><span class="opt">(</span>segment<span class="opt">)</span>
+    <span class="kwa">else</span>
+      Thread<span class="opt">.</span>current<span class="opt">[</span><span class="kwc">:output</span><span class="opt">] =</span> <span class="kwd">forking_worker</span><span class="opt">(</span>segment<span class="opt">)</span>
+    <span class="kwa">end</span>
+  <span class="kwa">end</span>
+<span class="kwa">end</span>
+threads<span class="opt">.</span><span class="kwd">each</span><span class="opt">(&amp;</span><span class="kwc">:join</span><span class="opt">)</span>
+threads<span class="opt">.</span>each <span class="kwa">do</span> <span class="opt">|</span>thread<span class="opt">|</span>
+  <span class="kwa">if</span> <span class="opt">!</span>thread<span class="opt">[</span><span class="kwc">:output</span><span class="opt">].</span>empty<span class="opt">?</span>  <span class="slc"># Artifact of non-empty results from forking worker</span>
+    puts thread<span class="opt">[</span><span class="kwc">:output</span><span class="opt">]</span>
+  <span class="kwa">end</span>
+<span class="kwa">end</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

@@ -17,6 +17,89 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+﻿
+<span class="kwa">namespace</span> BenchmarkGameBTrees
+<span class="opt">{</span>
+    <span class="com">/*</span>
+<span class="com">          The Computer Language Benchmarks Game</span>
+<span class="com">          https://salsa.debian.org/benchmarksgame-team/benchmarksgame/ </span>
+<span class="com"></span>
+<span class="com">          contributed by Marek Safar  </span>
+<span class="com">          optimized by kasthack</span>
+<span class="com">          *reset*</span>
+<span class="com">    */</span>
+    <span class="kwa">using</span> System<span class="opt">;</span>
+    <span class="kwa">using</span> System<span class="opt">.</span>Threading<span class="opt">;</span>
+    <span class="kwa">using</span> System<span class="opt">.</span>Threading<span class="opt">.</span>Tasks<span class="opt">;</span>
+
+    <span class="kwa">class</span> BinaryTrees
+    <span class="opt">{</span>
+        <span class="kwa">const int</span> minDepth <span class="opt">=</span> <span class="num">4</span><span class="opt">;</span>
+        <span class="kwa">public static void</span> <span class="kwd">Main</span><span class="opt">(</span>String<span class="opt">[]</span> args<span class="opt">)</span>
+        <span class="opt">{</span>
+            <span class="kwa">int</span> n <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+            <span class="kwa">if</span> <span class="opt">(</span>args<span class="opt">.</span>Length <span class="opt">&gt;</span> <span class="num">0</span><span class="opt">)</span> n <span class="opt">=</span> Int32<span class="opt">.</span><span class="kwd">Parse</span><span class="opt">(</span>args<span class="opt">[</span><span class="num">0</span><span class="opt">]);</span>
+            <span class="kwa">int</span> maxDepth <span class="opt">=</span> Math<span class="opt">.</span><span class="kwd">Max</span><span class="opt">(</span>minDepth <span class="opt">+</span> <span class="num">2</span><span class="opt">,</span> n<span class="opt">);</span>
+            <span class="kwa">int</span> stretchDepth <span class="opt">=</span> maxDepth <span class="opt">+</span> <span class="num">1</span><span class="opt">;</span>
+            <span class="kwa">int</span> check <span class="opt">= (</span>TreeNode<span class="opt">.</span><span class="kwd">bottomUpTree</span><span class="opt">(</span>stretchDepth<span class="opt">)).</span><span class="kwd">itemCheck</span><span class="opt">();</span>
+            Console<span class="opt">.</span><span class="kwd">WriteLine</span><span class="opt">(</span><span class="str">&quot;stretch tree of depth</span> <span class="ipl">{0}</span><span class="str"></span><span class="esc">\t</span> <span class="str">check:</span> <span class="ipl">{1}</span><span class="str">&quot;</span><span class="opt">,</span> stretchDepth<span class="opt">,</span> check<span class="opt">);</span>
+            TreeNode longLivedTree <span class="opt">=</span> TreeNode<span class="opt">.</span><span class="kwd">bottomUpTree</span><span class="opt">(</span>maxDepth<span class="opt">);</span>
+            <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">int</span> depth <span class="opt">=</span> minDepth<span class="opt">;</span> depth <span class="opt">&lt;=</span> maxDepth<span class="opt">;</span> depth <span class="opt">+=</span> <span class="num">2</span><span class="opt">)</span>
+            <span class="opt">{</span>
+                <span class="kwa">int</span> iterations <span class="opt">=</span> <span class="num">1</span> <span class="opt">&lt;&lt; (</span>maxDepth <span class="opt">-</span> depth <span class="opt">+</span> minDepth<span class="opt">);</span>
+                check <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+
+                Parallel<span class="opt">.</span><span class="kwd">For</span><span class="opt">(</span><span class="num">1</span><span class="opt">,</span> iterations <span class="opt">+</span> <span class="num">1</span><span class="opt">,</span>
+                    <span class="opt">() =&gt;</span> <span class="num">0</span><span class="opt">,</span>
+                    <span class="opt">(</span>i<span class="opt">,</span> loop<span class="opt">,</span> localCheck<span class="opt">) =&gt;</span>
+                    <span class="opt">{</span>
+                        <span class="kwa">return</span> localCheck <span class="opt">+</span> 
+                            <span class="opt">(</span>TreeNode<span class="opt">.</span><span class="kwd">bottomUpTree</span><span class="opt">(</span>depth<span class="opt">)).</span><span class="kwd">itemCheck</span><span class="opt">();</span>
+                    <span class="opt">},</span>
+                    localCheck <span class="opt">=&gt;</span> Interlocked<span class="opt">.</span><span class="kwd">Add</span><span class="opt">(</span><span class="kwa">ref</span> check<span class="opt">,</span> localCheck<span class="opt">)</span>
+                <span class="opt">);</span>
+
+                Console<span class="opt">.</span><span class="kwd">WriteLine</span><span class="opt">(</span><span class="str">&quot;</span><span class="ipl">{0}</span><span class="str"></span><span class="esc">\t</span> <span class="str">trees of depth</span> <span class="ipl">{1}</span><span class="str"></span><span class="esc">\t</span> <span class="str">check:</span> <span class="ipl">{2}</span><span class="str">&quot;</span><span class="opt">,</span>
+                    iterations<span class="opt">,</span> depth<span class="opt">,</span> check<span class="opt">);</span>
+            <span class="opt">}</span>
+            Console<span class="opt">.</span><span class="kwd">WriteLine</span><span class="opt">(</span><span class="str">&quot;long lived tree of depth</span> <span class="ipl">{0}</span><span class="str"></span><span class="esc">\t</span> <span class="str">check:</span> <span class="ipl">{1}</span><span class="str">&quot;</span><span class="opt">,</span>
+                maxDepth<span class="opt">,</span> longLivedTree<span class="opt">.</span><span class="kwd">itemCheck</span><span class="opt">());</span>
+        <span class="opt">}</span>
+
+        <span class="kwa">class</span> TreeNode
+        <span class="opt">{</span>
+            <span class="kwa">private</span> TreeNode left<span class="opt">,</span> right<span class="opt">;</span>
+
+            <span class="kwa">internal static</span> TreeNode <span class="kwd">bottomUpTree</span><span class="opt">(</span><span class="kwa">int</span> depth<span class="opt">)</span>
+            <span class="opt">{</span>
+                TreeNode t<span class="opt">;</span>
+                <span class="kwd">ChildTreeNodes</span><span class="opt">(</span><span class="kwa">out</span> t<span class="opt">,</span> depth<span class="opt">);</span>
+                <span class="kwa">return</span> t<span class="opt">;</span>
+            <span class="opt">}</span>
+            <span class="kwa">static void</span> <span class="kwd">ChildTreeNodes</span><span class="opt">(</span><span class="kwa">out</span> TreeNode node<span class="opt">,</span> <span class="kwa">int</span> depth<span class="opt">)</span>
+            <span class="opt">{</span>
+                node <span class="opt">=</span> <span class="kwa">new</span> <span class="kwd">TreeNode</span><span class="opt">();</span>
+                <span class="kwa">if</span> <span class="opt">(</span>depth <span class="opt">&gt;</span> <span class="num">0</span><span class="opt">)</span>
+                <span class="opt">{</span>
+                    <span class="kwd">ChildTreeNodes</span><span class="opt">(</span><span class="kwa">out</span> node<span class="opt">.</span>left<span class="opt">,</span> depth <span class="opt">-</span> <span class="num">1</span><span class="opt">);</span>
+                    <span class="kwd">ChildTreeNodes</span><span class="opt">(</span><span class="kwa">out</span> node<span class="opt">.</span>right<span class="opt">,</span> depth <span class="opt">-</span> <span class="num">1</span><span class="opt">);</span>
+                <span class="opt">}</span>
+            <span class="opt">}</span>
+            <span class="kwa">internal int</span> <span class="kwd">itemCheck</span><span class="opt">()</span>
+            <span class="opt">{</span>
+                <span class="kwa">if</span> <span class="opt">(</span>right <span class="opt">==</span> <span class="kwa">null</span><span class="opt">)</span> <span class="kwa">return</span> <span class="num">1</span><span class="opt">;</span>
+                <span class="kwa">else return</span> <span class="num">1</span> <span class="opt">+</span> left<span class="opt">.</span><span class="kwd">itemCheck</span><span class="opt">() +</span> right<span class="opt">.</span><span class="kwd">itemCheck</span><span class="opt">();</span>
+            <span class="opt">}</span>
+        <span class="opt">}</span>
+    <span class="opt">}</span>
+<span class="opt">}</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

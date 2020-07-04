@@ -17,6 +17,66 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc">;;; The Computer Language Benchmarks Game</span>
+<span class="slc">;;; https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">;;; contributed by Antonio Saade</span>
+
+<span class="opt">(</span><span class="kwa">declaim</span> <span class="opt">(</span><span class="kwa">optimize</span> <span class="opt">(</span><span class="kwa">speed</span> <span class="num">3</span><span class="opt">) (</span><span class="kwa">safety</span> <span class="num">0</span><span class="opt">) (</span><span class="kwa">debug</span> <span class="num">0</span><span class="opt">))</span>
+         <span class="opt">(</span><span class="kwa">inline</span> compl<span class="opt">))</span>
+
+<span class="opt">(</span><span class="kwa">defconstant</span> <span class="opt">+</span>lut<span class="opt">+</span>
+  <span class="opt">(</span><span class="kwa">let</span> <span class="opt">((</span><span class="kwa">lut</span> <span class="opt">(</span><span class="kwa">make-array</span> <span class="num">256</span> <span class="opt">:</span>element-type <span class="opt">&apos;</span>base-char<span class="opt">)))</span>
+    <span class="opt">(</span><span class="kwa">loop</span>
+      for a across <span class="str">&quot;ACGTMRWSYKVHDBNUacgtmrwsykvhdbnu&quot;</span>
+      for b across <span class="str">&quot;TGCAKYWSRMBDHVNATGCAKYWSRMBDHVNA&quot;</span>
+      do <span class="opt">(</span><span class="kwa">setf</span> <span class="opt">(</span><span class="kwa">aref</span> lut <span class="opt">(</span><span class="kwa">char-code</span> a<span class="opt">))</span> b<span class="opt">))</span>
+    lut<span class="opt">))</span>
+
+<span class="opt">(</span><span class="kwa">defun</span> <span class="kwb">compl</span> <span class="opt">(</span><span class="kwa">a</span><span class="opt">)</span>
+  <span class="opt">(</span><span class="kwa">declare</span> <span class="opt">(</span><span class="kwa">type</span> base-char a<span class="opt">))</span>
+  <span class="opt">(</span><span class="kwa">aref</span> <span class="opt">+</span>lut<span class="opt">+ (</span><span class="kwa">char-code</span> a<span class="opt">)))</span>
+
+<span class="opt">(</span><span class="kwa">defun</span> <span class="kwb">write-seq-by-n</span> <span class="opt">(</span><span class="kwa">s</span> n out<span class="opt">)</span>
+  <span class="opt">(</span><span class="kwa">declare</span> <span class="opt">(</span><span class="kwa">type</span> simple-string s<span class="opt">)</span>
+           <span class="opt">(</span><span class="kwa">type</span> fixnum n<span class="opt">))</span>
+  <span class="opt">(</span><span class="kwa">loop</span>
+    with length <span class="opt">= (</span><span class="kwa">length</span> s<span class="opt">)</span>
+    for start from <span class="num">0</span> by n below length
+    do <span class="opt">(</span><span class="kwa">write-line</span> s out <span class="opt">:</span>start start <span class="opt">:</span>end <span class="opt">(</span><span class="kwa">min</span> length <span class="opt">(+</span> start n<span class="opt">)))))</span>
+
+<span class="opt">(</span><span class="kwa">defun</span> <span class="kwb">process-fasta</span> <span class="opt">(</span><span class="kwa">s</span> out<span class="opt">)</span>
+  <span class="opt">(</span><span class="kwa">declare</span> <span class="opt">(</span><span class="kwa">type</span> simple-string s<span class="opt">))</span>
+  <span class="opt">(</span><span class="kwa">do</span> <span class="opt">((</span><span class="kwa">start</span> <span class="num">0</span> <span class="opt">(</span><span class="kwa">1</span><span class="opt">+</span> start<span class="opt">))</span>
+       <span class="opt">(</span><span class="kwa">end</span> <span class="opt">(</span><span class="kwa">-</span> <span class="opt">(</span><span class="kwa">length</span> s<span class="opt">)</span> <span class="num">1</span><span class="opt">) (</span><span class="kwa">1-</span> end<span class="opt">))</span>
+       <span class="opt">(</span><span class="kwa">b</span> <span class="opt">#</span>\<span class="num">0</span><span class="opt">))</span>
+      <span class="opt">((&lt;</span> end start<span class="opt">))</span>
+    <span class="opt">(</span><span class="kwa">setf</span> b <span class="opt">(</span><span class="kwa">schar</span> s start<span class="opt">))</span>
+    <span class="opt">(</span><span class="kwa">setf</span> <span class="opt">(</span><span class="kwa">schar</span> s start<span class="opt">) (</span><span class="kwa">compl</span> <span class="opt">(</span><span class="kwa">schar</span> s end<span class="opt">)))</span>
+    <span class="opt">(</span><span class="kwa">setf</span> <span class="opt">(</span><span class="kwa">schar</span> s end<span class="opt">) (</span><span class="kwa">compl</span> b<span class="opt">)))</span>
+  <span class="opt">(</span><span class="kwa">write-seq-by-n</span> s <span class="num">60</span> out<span class="opt">))</span>
+
+<span class="opt">(</span><span class="kwa">defun</span> <span class="kwb">main</span> <span class="opt">()</span>
+  <span class="opt">(</span><span class="kwa">with-open-file</span> <span class="opt">(</span><span class="kwa">in</span> <span class="opt">#</span>p<span class="str">&quot;/dev/stdin&quot;</span> <span class="opt">:</span>direction <span class="opt">:</span>input<span class="opt">)</span>
+    <span class="opt">(</span><span class="kwa">with-open-file</span> <span class="opt">(</span><span class="kwa">out</span> <span class="opt">#</span>p<span class="str">&quot;/dev/stdout&quot;</span>
+                         <span class="opt">:</span>direction <span class="opt">:</span>output
+                         <span class="opt">:</span>if-exists <span class="opt">:</span>supersede<span class="opt">)</span>
+      <span class="opt">(</span><span class="kwa">loop</span>
+        with fasta <span class="opt">= (</span><span class="kwa">make-string-output-stream</span> <span class="opt">:</span>element-type <span class="opt">&apos;</span>base-char<span class="opt">)</span>
+        for line simple-string <span class="opt">= (</span><span class="kwa">read-line</span> in nil<span class="opt">)</span>
+        while line
+        do <span class="opt">(</span><span class="kwa">if</span> <span class="opt">(</span><span class="kwa">char</span><span class="opt">= (</span><span class="kwa">char</span> line <span class="num">0</span><span class="opt">) #</span>\<span class="opt">&gt;)</span>
+               <span class="opt">(</span><span class="kwa">progn</span>
+                 <span class="opt">(</span><span class="kwa">process-fasta</span> <span class="opt">(</span><span class="kwa">get-output-stream-string</span> fasta<span class="opt">)</span> out<span class="opt">)</span>
+                 <span class="opt">(</span><span class="kwa">write-line</span> line out<span class="opt">))</span>
+               <span class="opt">(</span><span class="kwa">write-string</span> line fasta<span class="opt">))</span>
+        finally <span class="opt">(</span><span class="kwa">process-fasta</span> <span class="opt">(</span><span class="kwa">get-output-stream-string</span> fasta<span class="opt">)</span> out<span class="opt">)))))</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

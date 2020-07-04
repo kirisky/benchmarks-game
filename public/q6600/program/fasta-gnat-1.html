@@ -17,6 +17,170 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc">-- The Computer Language Benchmarks Game</span>
+<span class="slc">-- https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">--</span>
+<span class="slc">-- Contributed by Pascal Obry on 2005/04/07</span>
+
+<span class="kwa">package</span> Fasta_Pck <span class="kwa">is</span>
+
+   <span class="kwa">type</span> Real <span class="kwa">is new</span> <span class="kwb">Long_Float</span><span class="opt">;</span>
+
+   <span class="kwa">type</span> Aminoacid <span class="kwa">is record</span>
+      C <span class="opt">:</span> <span class="kwb">Character</span><span class="opt">;</span>
+      P <span class="opt">:</span> Real<span class="opt">;</span>
+   <span class="kwa">end record</span><span class="opt">;</span>
+
+   <span class="kwa">type</span> Aminoacid_Set <span class="kwa">is array</span> <span class="opt">(</span><span class="kwb">Positive</span> <span class="kwa">range</span> <span class="opt">&lt;&gt;)</span> <span class="kwa">of</span> Aminoacid<span class="opt">;</span>
+
+   <span class="kwa">procedure</span> Make_Cumulative <span class="opt">(</span>Gene_List <span class="opt">:</span> <span class="kwa">in out</span> Aminoacid_Set<span class="opt">);</span>
+
+   <span class="kwa">function</span> Select_Random <span class="opt">(</span>Gene_List <span class="opt">:</span> <span class="kwa">in</span> Aminoacid_Set<span class="opt">)</span> <span class="kwa">return</span> <span class="kwb">Character</span><span class="opt">;</span>
+
+   <span class="kwa">procedure</span> Make_Random_Fasta
+     <span class="opt">(</span>Id<span class="opt">,</span> Desc <span class="opt">:</span> <span class="kwa">in</span> <span class="kwb">String</span><span class="opt">;</span> Gene_List <span class="opt">:</span> <span class="kwa">in</span> Aminoacid_Set<span class="opt">;</span> N <span class="opt">:</span> <span class="kwa">in</span> <span class="kwb">Positive</span><span class="opt">);</span>
+
+   <span class="kwa">procedure</span> Make_Repeat_Fasta <span class="opt">(</span>Id<span class="opt">,</span> Desc<span class="opt">,</span> S <span class="opt">:</span> <span class="kwa">in</span> <span class="kwb">String</span><span class="opt">;</span> N <span class="opt">:</span> <span class="kwa">in</span> <span class="kwb">Positive</span><span class="opt">);</span>
+
+<span class="kwa">end</span> Fasta_Pck<span class="opt">;</span>
+
+<span class="kwa">with</span> Ada<span class="opt">.</span>Text_IO<span class="opt">;</span> <span class="kwa">use</span> Ada<span class="opt">.</span>Text_IO<span class="opt">;</span>
+
+<span class="kwa">package body</span> Fasta_Pck <span class="kwa">is</span>
+
+   Line_Length <span class="opt">:</span> <span class="kwa">constant</span> <span class="opt">:=</span> <span class="num">60</span><span class="opt">;</span>
+
+   Last        <span class="opt">:</span> <span class="kwb">Natural</span> <span class="opt">:=</span> <span class="num">42</span><span class="opt">;</span>
+
+   <span class="kwa">function</span> Gen_Random <span class="opt">(</span>Max <span class="opt">:</span> <span class="kwa">in</span> Real<span class="opt">)</span> <span class="kwa">return</span> Real<span class="opt">;</span>
+   <span class="kwa">pragma</span> Inline <span class="opt">(</span>Gen_Random<span class="opt">);</span>
+
+   <span class="kwa">function</span> Gen_Random <span class="opt">(</span>Max <span class="opt">:</span> <span class="kwa">in</span> Real<span class="opt">)</span> <span class="kwa">return</span> Real <span class="kwa">is</span>
+      IM <span class="opt">:</span> <span class="kwa">constant</span> <span class="opt">:=</span> <span class="num">139</span>_968<span class="opt">;</span>
+      IA <span class="opt">:</span> <span class="kwa">constant</span> <span class="opt">:=</span>   <span class="num">3</span>_877<span class="opt">;</span>
+      IC <span class="opt">:</span> <span class="kwa">constant</span> <span class="opt">:=</span>  <span class="num">29</span>_573<span class="opt">;</span>
+   <span class="kwa">begin</span>
+      Last <span class="opt">:= (</span>Last <span class="opt">*</span> IA <span class="opt">+</span> IC<span class="opt">)</span> <span class="kwa">mod</span> IM<span class="opt">;</span>
+      <span class="kwa">return</span> <span class="opt">(</span>Max <span class="opt">*</span> Real <span class="opt">(</span>Last<span class="opt">)) /</span> Real <span class="opt">(</span>IM<span class="opt">);</span>
+   <span class="kwa">end</span> Gen_Random<span class="opt">;</span>
+
+   <span class="kwa">procedure</span> Make_Cumulative <span class="opt">(</span>Gene_List <span class="opt">:</span> <span class="kwa">in out</span> Aminoacid_Set<span class="opt">)</span> <span class="kwa">is</span>
+      C <span class="opt">:</span> Real <span class="opt">:=</span> Gene_List <span class="opt">(</span>Gene_List<span class="kwd">&apos;First</span><span class="opt">).</span>P<span class="opt">;</span>
+   <span class="kwa">begin</span>
+      <span class="kwa">for</span> K <span class="kwa">in</span> Gene_List<span class="kwd">&apos;First</span> <span class="opt">+</span> <span class="num">1</span> <span class="opt">..</span> Gene_List<span class="kwd">&apos;Last</span> <span class="kwa">loop</span>
+         C <span class="opt">:=</span> C <span class="opt">+</span> Gene_List <span class="opt">(</span>K<span class="opt">).</span>P<span class="opt">;</span>
+         Gene_List <span class="opt">(</span>K<span class="opt">).</span>P <span class="opt">:=</span> C<span class="opt">;</span>
+      <span class="kwa">end loop</span><span class="opt">;</span>
+   <span class="kwa">end</span> Make_Cumulative<span class="opt">;</span>
+
+   <span class="kwa">function</span> Select_Random <span class="opt">(</span>Gene_List <span class="opt">:</span> <span class="kwa">in</span> Aminoacid_Set<span class="opt">)</span> <span class="kwa">return</span> <span class="kwb">Character</span> <span class="kwa">is</span>
+      R         <span class="opt">:</span> Real <span class="opt">:=</span> Gen_Random <span class="opt">(</span><span class="num">1.0</span><span class="opt">);</span>
+      I<span class="opt">,</span> Lo<span class="opt">,</span> Hi <span class="opt">:</span> <span class="kwb">Integer</span><span class="opt">;</span>
+   <span class="kwa">begin</span>
+      <span class="kwa">if</span> R <span class="opt">&lt;</span> Gene_List <span class="opt">(</span>Gene_List<span class="kwd">&apos;First</span><span class="opt">).</span>P <span class="kwa">then</span>
+         <span class="kwa">return</span> Gene_List <span class="opt">(</span>Gene_List<span class="kwd">&apos;First</span><span class="opt">).</span>C<span class="opt">;</span>
+      <span class="kwa">end if</span><span class="opt">;</span>
+
+      Lo <span class="opt">:=</span> <span class="num">0</span><span class="opt">;</span>
+      Hi <span class="opt">:=</span> Gene_List<span class="kwd">&apos;Last</span><span class="opt">;</span>
+
+      <span class="kwa">while</span> Hi <span class="opt">&gt;</span> Lo <span class="opt">+</span> <span class="num">1</span> <span class="kwa">loop</span>
+         I <span class="opt">:= (</span>Hi <span class="opt">+</span> Lo<span class="opt">) /</span> <span class="num">2</span><span class="opt">;</span>
+         <span class="kwa">if</span> R <span class="opt">&lt;</span> Gene_List <span class="opt">(</span>I<span class="opt">).</span>P <span class="kwa">then</span>
+            Hi <span class="opt">:=</span> I<span class="opt">;</span>
+         <span class="kwa">else</span>
+            Lo <span class="opt">:=</span> I<span class="opt">;</span>
+         <span class="kwa">end if</span><span class="opt">;</span>
+      <span class="kwa">end loop</span><span class="opt">;</span>
+
+      <span class="kwa">return</span> Gene_List <span class="opt">(</span>Hi<span class="opt">).</span>C<span class="opt">;</span>
+   <span class="kwa">end</span> Select_Random<span class="opt">;</span>
+
+   <span class="kwa">procedure</span> Make_Random_Fasta
+     <span class="opt">(</span>Id<span class="opt">,</span> Desc <span class="opt">:</span> <span class="kwa">in</span> <span class="kwb">String</span><span class="opt">;</span> Gene_List <span class="opt">:</span> <span class="kwa">in</span> Aminoacid_Set<span class="opt">;</span> N <span class="opt">:</span> <span class="kwa">in</span> <span class="kwb">Positive</span><span class="opt">)</span>
+   <span class="kwa">is</span>
+      Todo <span class="opt">:</span> <span class="kwb">Integer</span> <span class="opt">:=</span> N<span class="opt">;</span>
+      M    <span class="opt">:</span> <span class="kwb">Integer</span><span class="opt">;</span>
+      Pick <span class="opt">:</span> <span class="kwb">String</span> <span class="opt">(</span><span class="num">1</span> <span class="opt">..</span> Line_Length<span class="opt">);</span>
+   <span class="kwa">begin</span>
+      Put_Line <span class="opt">(</span><span class="str">&quot;&gt;&quot;</span> <span class="opt">&amp;</span> Id <span class="opt">&amp;</span> <span class="str">&apos; &apos;</span> <span class="opt">&amp;</span> Desc<span class="opt">);</span>
+
+      <span class="kwa">while</span> Todo <span class="opt">&gt;</span> <span class="num">0</span> <span class="kwa">loop</span>
+         M <span class="opt">:=</span> <span class="kwb">Natural</span><span class="kwd">&apos;Min</span> <span class="opt">(</span>Todo<span class="opt">,</span> Line_Length<span class="opt">);</span>
+
+         <span class="kwa">for</span> K <span class="kwa">in</span> <span class="num">1</span> <span class="opt">..</span> M <span class="kwa">loop</span>
+            Pick <span class="opt">(</span>K<span class="opt">) :=</span> Select_Random <span class="opt">(</span>Gene_List<span class="opt">);</span>
+         <span class="kwa">end loop</span><span class="opt">;</span>
+
+         Put_Line <span class="opt">(</span>Pick <span class="opt">(</span><span class="num">1</span> <span class="opt">..</span> M<span class="opt">));</span>
+         Todo <span class="opt">:=</span> Todo <span class="opt">-</span> Line_Length<span class="opt">;</span>
+      <span class="kwa">end loop</span><span class="opt">;</span>
+   <span class="kwa">end</span> Make_Random_Fasta<span class="opt">;</span>
+
+   <span class="kwa">procedure</span> Make_Repeat_Fasta <span class="opt">(</span>Id<span class="opt">,</span> Desc<span class="opt">,</span> S <span class="opt">:</span> <span class="kwa">in</span> <span class="kwb">String</span><span class="opt">;</span> N <span class="opt">:</span> <span class="kwa">in</span> <span class="kwb">Positive</span><span class="opt">)</span> <span class="kwa">is</span>
+      Todo <span class="opt">:</span> <span class="kwb">Integer</span> <span class="opt">:=</span> N<span class="opt">;</span>
+      K    <span class="opt">:</span> <span class="kwb">Positive</span> <span class="opt">:=</span> S<span class="kwd">&apos;First</span><span class="opt">;</span>
+      M    <span class="opt">:</span> <span class="kwb">Natural</span><span class="opt">;</span>
+   <span class="kwa">begin</span>
+      Put_Line <span class="opt">(</span><span class="str">&quot;&gt;&quot;</span> <span class="opt">&amp;</span> Id <span class="opt">&amp;</span> <span class="str">&apos; &apos;</span> <span class="opt">&amp;</span> Desc<span class="opt">);</span>
+
+      <span class="kwa">while</span> Todo <span class="opt">&gt;</span> <span class="num">0</span> <span class="kwa">loop</span>
+         M <span class="opt">:=</span> <span class="kwb">Natural</span><span class="kwd">&apos;Min</span> <span class="opt">(</span>Todo<span class="opt">,</span> Line_Length<span class="opt">);</span>
+
+         <span class="kwa">while</span> M <span class="opt">&gt;=</span> S<span class="kwd">&apos;Length</span> <span class="opt">-</span> K <span class="opt">+</span> S<span class="kwd">&apos;First</span> <span class="kwa">loop</span>
+            Put <span class="opt">(</span>S <span class="opt">(</span>K <span class="opt">..</span> S<span class="kwd">&apos;Last</span><span class="opt">));</span>
+            M <span class="opt">:=</span> M <span class="opt">- (</span>S<span class="kwd">&apos;Length</span> <span class="opt">-</span> K <span class="opt">+</span> S<span class="kwd">&apos;First</span><span class="opt">);</span>
+            K <span class="opt">:=</span> S<span class="kwd">&apos;First</span><span class="opt">;</span>
+         <span class="kwa">end loop</span><span class="opt">;</span>
+
+         Put_Line <span class="opt">(</span>S <span class="opt">(</span>K <span class="opt">..</span> K <span class="opt">+</span> M <span class="opt">-</span> S<span class="kwd">&apos;First</span><span class="opt">));</span>
+         K <span class="opt">:=</span> K <span class="opt">+</span> M <span class="opt">-</span> S<span class="kwd">&apos;First</span> <span class="opt">+</span> <span class="num">1</span><span class="opt">;</span>
+
+         Todo <span class="opt">:=</span> Todo <span class="opt">-</span> Line_Length<span class="opt">;</span>
+      <span class="kwa">end loop</span><span class="opt">;</span>
+   <span class="kwa">end</span> Make_Repeat_Fasta<span class="opt">;</span>
+
+<span class="kwa">end</span> Fasta_Pck<span class="opt">;</span>
+
+<span class="kwa">with</span> Ada<span class="opt">.</span>Command_Line<span class="opt">;</span> <span class="kwa">use</span> Ada<span class="opt">.</span>Command_Line<span class="opt">;</span>
+<span class="kwa">with</span> Fasta_Pck<span class="opt">;</span>        <span class="kwa">use</span> Fasta_Pck<span class="opt">;</span>
+
+<span class="kwa">procedure</span> Fasta <span class="kwa">is</span>
+   Homosapiens <span class="opt">:</span> Aminoacid_Set <span class="opt">:=</span>
+                   <span class="opt">((</span><span class="str">&apos;a&apos;</span><span class="opt">,</span> <span class="num">0.3029549426680</span><span class="opt">), (</span><span class="str">&apos;c&apos;</span><span class="opt">,</span> <span class="num">0.1979883004921</span><span class="opt">),</span>
+                    <span class="opt">(</span><span class="str">&apos;g&apos;</span><span class="opt">,</span> <span class="num">0.1975473066391</span><span class="opt">), (</span><span class="str">&apos;t&apos;</span><span class="opt">,</span> <span class="num">0.3015094502008</span><span class="opt">));</span>
+   Iub         <span class="opt">:</span> Aminoacid_Set <span class="opt">:=</span>
+                   <span class="opt">((</span><span class="str">&apos;a&apos;</span><span class="opt">,</span> <span class="num">0.27</span><span class="opt">), (</span><span class="str">&apos;c&apos;</span><span class="opt">,</span> <span class="num">0.12</span><span class="opt">), (</span><span class="str">&apos;g&apos;</span><span class="opt">,</span> <span class="num">0.12</span><span class="opt">), (</span><span class="str">&apos;t&apos;</span><span class="opt">,</span> <span class="num">0.27</span><span class="opt">),</span>
+                    <span class="opt">(</span><span class="str">&apos;B&apos;</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">), (</span><span class="str">&apos;D&apos;</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">), (</span><span class="str">&apos;H&apos;</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">), (</span><span class="str">&apos;K&apos;</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">),</span>
+                    <span class="opt">(</span><span class="str">&apos;M&apos;</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">), (</span><span class="str">&apos;N&apos;</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">), (</span><span class="str">&apos;R&apos;</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">), (</span><span class="str">&apos;S&apos;</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">),</span>
+                    <span class="opt">(</span><span class="str">&apos;V&apos;</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">), (</span><span class="str">&apos;W&apos;</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">), (</span><span class="str">&apos;Y&apos;</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">));</span>
+   Alu         <span class="opt">:</span> <span class="kwa">constant</span> <span class="kwb">String</span> <span class="opt">:=</span>
+                    <span class="str">&quot;GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGG&quot;</span> <span class="opt">&amp;</span>
+                    <span class="str">&quot;GAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGA&quot;</span> <span class="opt">&amp;</span>
+                    <span class="str">&quot;CCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAAT&quot;</span> <span class="opt">&amp;</span>
+                    <span class="str">&quot;ACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCA&quot;</span> <span class="opt">&amp;</span>
+                    <span class="str">&quot;GCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGG&quot;</span> <span class="opt">&amp;</span>
+                    <span class="str">&quot;AGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCC&quot;</span> <span class="opt">&amp;</span>
+                    <span class="str">&quot;AGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA&quot;</span><span class="opt">;</span>
+
+   N           <span class="opt">:</span> <span class="kwa">constant</span> <span class="kwb">Positive</span> <span class="opt">:=</span> <span class="kwb">Positive</span><span class="kwd">&apos;Value</span> <span class="opt">(</span>Argument <span class="opt">(</span><span class="num">1</span><span class="opt">));</span>
+
+<span class="kwa">begin</span>
+   Make_Cumulative <span class="opt">(</span>Iub<span class="opt">);</span>
+   Make_Cumulative <span class="opt">(</span>Homosapiens<span class="opt">);</span>
+
+   Make_Repeat_Fasta <span class="opt">(</span><span class="str">&quot;ONE&quot;</span><span class="opt">,</span> <span class="str">&quot;Homo sapiens alu&quot;</span><span class="opt">,</span> alu<span class="opt">,</span> N <span class="opt">*</span> <span class="num">2</span><span class="opt">);</span>
+   Make_Random_Fasta <span class="opt">(</span><span class="str">&quot;TWO&quot;</span><span class="opt">,</span> <span class="str">&quot;IUB ambiguity codes&quot;</span><span class="opt">,</span> Iub<span class="opt">,</span> N <span class="opt">*</span> <span class="num">3</span><span class="opt">);</span>
+   Make_Random_Fasta
+     <span class="opt">(</span><span class="str">&quot;THREE&quot;</span><span class="opt">,</span> <span class="str">&quot;Homo sapiens frequency&quot;</span><span class="opt">,</span> Homosapiens<span class="opt">,</span> N <span class="opt">*</span> <span class="num">5</span><span class="opt">);</span>
+<span class="kwa">end</span> Fasta<span class="opt">;</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

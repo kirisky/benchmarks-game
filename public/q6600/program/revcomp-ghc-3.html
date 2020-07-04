@@ -17,6 +17,102 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="com">{-</span>
+<span class="com">The Computer Language Benchmarks Game</span>
+<span class="com">https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="com"></span>
+<span class="com">contributed by Louis Wasserman</span>
+<span class="com">-}</span>
+
+<span class="kwd">import</span> Control<span class="opt">.</span>Monad
+<span class="kwd">import</span> Foreign
+<span class="kwd">import</span> Data<span class="opt">.</span>ByteString<span class="opt">.</span>Internal
+<span class="kwd">import</span> System<span class="opt">.</span><span class="kwb">IO</span>
+
+<span class="kwd">data</span> Buf <span class="opt">=</span> Buf <span class="opt">!</span><span class="kwb">Int</span> <span class="opt">!</span><span class="kwb">Int</span> <span class="opt">!(</span>Ptr Word8<span class="opt">)</span> 
+
+withBuf run <span class="opt">=</span> run <span class="opt">.</span> Buf <span class="num">0</span> ini <span class="opt">=&lt;&lt;</span> mallocBytes ini
+  <span class="kwd">where</span> ini <span class="opt">=</span> <span class="num">1024</span>
+
+newSize len sz
+  | len <span class="opt">&lt;=</span> sz  <span class="opt">=</span> sz
+  | <span class="kwc">otherwise</span>  <span class="opt">=</span> newSize len <span class="opt">(</span><span class="num">2</span> <span class="opt">*</span> sz<span class="opt">)</span>
+
+<span class="com">{-# INLINE putBuf #-}</span>
+putBuf pS lS <span class="opt">(</span>Buf lD szD pD<span class="opt">)</span> run
+  | lD<span class="opt">&apos; &gt;</span> szD  <span class="opt">=</span> <span class="kwd">do</span>
+    <span class="kwd">let</span> szD<span class="opt">&apos; =</span> newSize lD<span class="opt">&apos;</span> szD
+    pD<span class="opt">&apos; &lt;-</span> reallocBytes pD szD<span class="opt">&apos;</span>
+    copyArray <span class="opt">(</span>pD<span class="opt">&apos; +*</span> lD<span class="opt">)</span> pS lS
+    run <span class="opt">(</span>Buf lD<span class="opt">&apos;</span> szD<span class="opt">&apos;</span> pD<span class="opt">&apos;)</span>
+  | <span class="kwc">otherwise</span>  <span class="opt">=</span> <span class="kwd">do</span>
+    copyArray <span class="opt">(</span>pD <span class="opt">+*</span> lD<span class="opt">)</span> pS lS
+    run <span class="opt">(</span>Buf lD<span class="opt">&apos;</span> szD pD<span class="opt">)</span>
+  <span class="kwd">where</span> lD<span class="opt">&apos; =</span> lD <span class="opt">+</span> lS
+
+findChar p n c zero one <span class="opt">=</span> <span class="kwd">do</span>
+    q <span class="opt">&lt;-</span> memchr p c <span class="opt">(</span><span class="kwc">fromIntegral</span> <span class="opt">(</span>n <span class="opt">::</span> <span class="kwb">Int</span><span class="opt">))</span>
+    <span class="kwd">if</span> q <span class="opt">==</span> nullPtr <span class="kwd">then</span> zero <span class="kwd">else</span> one <span class="opt">$!</span> q `minusPtr` p
+
+clearBuf <span class="opt">(</span>Buf _ lB pB<span class="opt">) =</span> Buf <span class="num">0</span> lB pB
+
+main <span class="opt">=</span> allocaArray <span class="num">82</span> <span class="opt">$ \</span> line <span class="opt">-&gt;</span>
+  <span class="kwd">let</span> go <span class="opt">!</span>buf <span class="opt">=</span> <span class="kwd">do</span>
+      <span class="opt">!</span>m <span class="opt">&lt;-</span> hGetBuf <span class="kwc">stdin</span> line <span class="num">82</span>
+      <span class="kwd">if</span> m <span class="opt">==</span> <span class="num">0</span> <span class="kwd">then</span> revcomp buf <span class="kwd">else do</span>
+        findChar line m <span class="opt">(</span>c2w <span class="opt">&apos;&gt;&apos;)</span> 
+          <span class="opt">(</span>putBuf line m buf go<span class="opt">)</span>
+          <span class="opt">(\</span> end <span class="opt">-&gt;</span> <span class="kwd">do</span>
+            putBuf line end buf revcomp
+            putBuf <span class="opt">(</span>line <span class="opt">+*</span> end<span class="opt">) (</span>m <span class="opt">-</span> end<span class="opt">) (</span>clearBuf buf<span class="opt">)</span>
+              go<span class="opt">)</span>
+    <span class="kwd">in</span> withBuf go
+
+<span class="opt">(+*) =</span> advancePtr
+
+<span class="com">{-# INLINE comps #-}</span>
+comps <span class="opt">=</span> Prelude<span class="opt">.</span><span class="kwc">zipWith</span> <span class="opt">(\</span> a b <span class="opt">-&gt; (</span><span class="kwc">fromEnum</span> a<span class="opt">,</span> c2w b<span class="opt">))</span> <span class="str">&quot;AaCcGgTtUuMmRrYyKkVvHhDdBb&quot;</span> 
+  <span class="str">&quot;TTGGCCAAAAKKYYRRMMBBDDHHVV&quot;</span>
+
+ca <span class="opt">::</span> Ptr Word8
+ca <span class="opt">=</span> inlinePerformIO <span class="opt">$</span> <span class="kwd">do</span>
+       <span class="opt">!</span>a <span class="opt">&lt;-</span> mallocArray <span class="num">200</span>
+       <span class="kwc">mapM_</span> <span class="opt">(\</span> i <span class="opt">-&gt;</span> pokeByteOff a <span class="opt">(</span><span class="kwc">fromIntegral</span> i<span class="opt">)</span> i <span class="opt">) [</span><span class="num">0</span><span class="opt">.</span><span class="num">.199</span><span class="opt">::</span>Word8<span class="opt">]</span>
+       <span class="kwc">mapM_</span> <span class="opt">(</span><span class="kwc">uncurry</span> <span class="opt">(</span>pokeByteOff a<span class="opt">))</span> comps
+       <span class="kwc">return</span> a
+
+revcomp <span class="opt">(</span>Buf lBuf _ pBuf<span class="opt">) =</span> <span class="kwc">when</span> <span class="opt">(</span>lBuf <span class="opt">&gt;</span> <span class="num">0</span><span class="opt">) $</span> ca `<span class="kwc">seq</span>`
+  findChar pBuf lBuf <span class="opt">(</span>c2w <span class="opt">&apos;</span><span class="esc">\n</span><span class="opt">&apos;)</span> <span class="kwc">undefined</span> <span class="opt">$ \</span> begin <span class="opt">-&gt;</span> <span class="kwd">let</span>
+    begin<span class="opt">&apos; =</span> begin <span class="opt">+</span> <span class="num">1</span>
+    rc <span class="opt">::</span> Ptr Word8 <span class="opt">-&gt;</span> Ptr Word8 <span class="opt">-&gt;</span> <span class="kwb">IO</span> <span class="opt">()</span>
+    rc <span class="opt">!</span>i <span class="opt">!</span>j | i <span class="opt">&lt;</span> j <span class="opt">=</span> <span class="kwd">do</span>
+      x <span class="opt">&lt;-</span> peek i
+      <span class="kwd">if</span> x <span class="opt">==</span> c2w <span class="opt">&apos;</span><span class="esc">\n</span><span class="opt">&apos;</span> <span class="kwd">then let</span> <span class="opt">!</span>i<span class="opt">&apos; =</span> i <span class="opt">+*</span> <span class="num">1</span> <span class="kwd">in</span> rc1 j i<span class="opt">&apos; =&lt;&lt;</span> peek i<span class="opt">&apos;</span>
+        <span class="kwd">else</span> rc1 j i x
+    rc i j <span class="opt">=</span> <span class="kwc">when</span> <span class="opt">(</span>i <span class="opt">==</span> j<span class="opt">) (</span>poke i <span class="opt">=&lt;&lt;</span> comp <span class="opt">=&lt;&lt;</span> peek i<span class="opt">)</span>
+    
+    rc1 <span class="opt">!</span>j <span class="opt">!</span>i <span class="opt">!</span>xi <span class="opt">=</span> <span class="kwd">do</span>
+      y <span class="opt">&lt;-</span> peek j
+      <span class="kwd">if</span> y <span class="opt">==</span> c2w <span class="opt">&apos;</span><span class="esc">\n</span><span class="opt">&apos;</span> <span class="kwd">then let</span> <span class="opt">!</span>j<span class="opt">&apos; =</span> j <span class="opt">+* (-</span><span class="num">1</span><span class="opt">)</span> <span class="kwd">in</span> rc2 i xi j<span class="opt">&apos; =&lt;&lt;</span> peek j<span class="opt">&apos;</span>
+        <span class="kwd">else</span> rc2 i xi j y
+    
+    comp <span class="opt">=</span> peekElemOff ca <span class="opt">.</span> <span class="kwc">fromIntegral</span>
+    
+    rc2 <span class="opt">!</span>i <span class="opt">!</span>xi <span class="opt">!</span>j <span class="opt">!</span>xj <span class="opt">=</span> <span class="kwd">do</span>
+      poke j <span class="opt">=&lt;&lt;</span> comp xi
+      poke i <span class="opt">=&lt;&lt;</span> comp xj
+      rc <span class="opt">(</span>i <span class="opt">+*</span> <span class="num">1</span><span class="opt">) (</span>j <span class="opt">+* (-</span><span class="num">1</span><span class="opt">))</span>
+    <span class="kwd">in do</span>
+      hPutBuf <span class="kwc">stdout</span> pBuf begin<span class="opt">&apos;</span>
+      rc <span class="opt">(</span>pBuf <span class="opt">+*</span> begin<span class="opt">&apos;) (</span>pBuf <span class="opt">+* (</span>lBuf <span class="opt">-</span> <span class="num">1</span><span class="opt">))</span>
+      hPutBuf <span class="kwc">stdout</span> <span class="opt">(</span>pBuf <span class="opt">+*</span> begin<span class="opt">&apos;) (</span>lBuf <span class="opt">-</span> begin <span class="opt">-</span> <span class="num">1</span><span class="opt">)</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

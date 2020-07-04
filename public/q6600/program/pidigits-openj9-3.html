@@ -17,6 +17,135 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc">// The Computer Language Benchmarks Game</span>
+<span class="slc">// https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">//</span>
+<span class="slc">// Translated from Mr Ledrug&apos;s C program by Jeremy Zerfas.</span>
+
+<span class="kwa">final class</span> pidigits <span class="kwa">extends</span> Java_GMP_Wrapper<span class="opt">{</span>
+    <span class="slc">// These variables are used to store pointers to the GMP numbers we will be</span>
+    <span class="slc">// using in this program. These pointers are being stored as Java 64 bit</span>
+    <span class="slc">// signed longs and this could potentially cause a few problems. One problem</span>
+    <span class="slc">// could occur if the program is ran on a computer that is using more than</span>
+    <span class="slc">// 64 bits of address space. The second problem that could possibly occur is</span>
+    <span class="slc">// that the pointers could be corrupted while being converted to and from</span>
+    <span class="slc">// Java longs (if the machine architecture and/or C implementation is</span>
+    <span class="slc">// weird). Neither of these problems is likely to occur on just about any</span>
+    <span class="slc">// present day computer capable of running Java and if it is a problem you</span>
+    <span class="slc">// could work around it by storing the pointers in Java ByteBuffers or byte</span>
+    <span class="slc">// arrays (but those are about 5% slower from my testing and also increase</span>
+    <span class="slc">// the code size).</span>
+    <span class="kwa">static final long</span> tmp1_Pointer<span class="opt">=</span><span class="kwd">allocate_mpz_t</span><span class="opt">(),</span>
+      tmp2_Pointer<span class="opt">=</span><span class="kwd">allocate_mpz_t</span><span class="opt">(),</span> acc_Pointer<span class="opt">=</span><span class="kwd">allocate_mpz_t</span><span class="opt">(),</span>
+      den_Pointer<span class="opt">=</span><span class="kwd">allocate_mpz_t</span><span class="opt">(),</span> num_Pointer<span class="opt">=</span><span class="kwd">allocate_mpz_t</span><span class="opt">();</span>
+
+
+    <span class="kwa">static final long</span> <span class="kwd">extract_Digit</span><span class="opt">(</span><span class="kwa">final long</span> nth<span class="opt">){</span>
+        <span class="slc">// joggling between tmp1_Pointer and tmp2_Pointer, so GMP won&apos;t have to</span>
+        <span class="slc">// use temp buffers</span>
+        <span class="kwd">mpz_mul_ui</span><span class="opt">(</span>tmp1_Pointer<span class="opt">,</span> num_Pointer<span class="opt">,</span> nth<span class="opt">);</span>
+        <span class="kwd">mpz_add</span><span class="opt">(</span>tmp2_Pointer<span class="opt">,</span> tmp1_Pointer<span class="opt">,</span> acc_Pointer<span class="opt">);</span>
+        <span class="kwd">mpz_tdiv_q</span><span class="opt">(</span>tmp1_Pointer<span class="opt">,</span> tmp2_Pointer<span class="opt">,</span> den_Pointer<span class="opt">);</span>
+
+        <span class="kwa">return</span> <span class="kwd">mpz_get_ui</span><span class="opt">(</span>tmp1_Pointer<span class="opt">);</span>
+    <span class="opt">}</span>
+
+
+    <span class="kwa">static final void</span> <span class="kwd">eliminate_Digit</span><span class="opt">(</span><span class="kwa">final long</span> d<span class="opt">){</span>
+        <span class="kwd">mpz_submul_ui</span><span class="opt">(</span>acc_Pointer<span class="opt">,</span> den_Pointer<span class="opt">,</span> d<span class="opt">);</span>
+        <span class="kwd">mpz_mul_ui</span><span class="opt">(</span>acc_Pointer<span class="opt">,</span> acc_Pointer<span class="opt">,</span> <span class="num">10</span><span class="opt">);</span>
+        <span class="kwd">mpz_mul_ui</span><span class="opt">(</span>num_Pointer<span class="opt">,</span> num_Pointer<span class="opt">,</span> <span class="num">10</span><span class="opt">);</span>
+    <span class="opt">}</span>
+
+
+    <span class="kwa">static final void</span> <span class="kwd">next_Term</span><span class="opt">(</span><span class="kwa">final long</span> k<span class="opt">){</span>
+        <span class="kwa">final long</span> k2<span class="opt">=</span>k<span class="opt">*</span><span class="num">2</span><span class="opt">+</span><span class="num">1</span><span class="opt">;</span>
+        <span class="kwd">mpz_addmul_ui</span><span class="opt">(</span>acc_Pointer<span class="opt">,</span> num_Pointer<span class="opt">,</span> <span class="num">2</span><span class="opt">);</span>
+        <span class="kwd">mpz_mul_ui</span><span class="opt">(</span>acc_Pointer<span class="opt">,</span> acc_Pointer<span class="opt">,</span> k2<span class="opt">);</span>
+        <span class="kwd">mpz_mul_ui</span><span class="opt">(</span>den_Pointer<span class="opt">,</span> den_Pointer<span class="opt">,</span> k2<span class="opt">);</span>
+        <span class="kwd">mpz_mul_ui</span><span class="opt">(</span>num_Pointer<span class="opt">,</span> num_Pointer<span class="opt">,</span> k<span class="opt">);</span>
+    <span class="opt">}</span>
+
+
+    <span class="kwa">public static final void</span> <span class="kwd">main</span><span class="opt">(</span><span class="kwa">final</span> String<span class="opt">[]</span> args<span class="opt">){</span>
+        <span class="kwa">final long</span> n<span class="opt">=</span>Long<span class="opt">.</span><span class="kwd">parseLong</span><span class="opt">(</span>args<span class="opt">[</span><span class="num">0</span><span class="opt">]);</span>
+
+        <span class="kwd">mpz_init_set_ui</span><span class="opt">(</span>tmp1_Pointer<span class="opt">,</span> <span class="num">0</span><span class="opt">);</span>
+        <span class="kwd">mpz_init_set_ui</span><span class="opt">(</span>tmp2_Pointer<span class="opt">,</span> <span class="num">0</span><span class="opt">);</span>
+
+        <span class="kwd">mpz_init_set_ui</span><span class="opt">(</span>acc_Pointer<span class="opt">,</span> <span class="num">0</span><span class="opt">);</span>
+        <span class="kwd">mpz_init_set_ui</span><span class="opt">(</span>den_Pointer<span class="opt">,</span> <span class="num">1</span><span class="opt">);</span>
+        <span class="kwd">mpz_init_set_ui</span><span class="opt">(</span>num_Pointer<span class="opt">,</span> <span class="num">1</span><span class="opt">);</span>
+
+        <span class="slc">// It&apos;s considerably faster to use a StringBuilder to buffer all the</span>
+        <span class="slc">// output and do one single print() call instead of many print(ln)()</span>
+        <span class="slc">// calls. A BufferedWriter could be used alternatively and works about</span>
+        <span class="slc">// equally well and is a little more flexible but it also increases the</span>
+        <span class="slc">// code size too.</span>
+        <span class="kwa">final</span> StringBuilder results<span class="opt">=</span><span class="kwa">new</span> <span class="kwd">StringBuilder</span><span class="opt">();</span>
+
+        <span class="kwa">for</span><span class="opt">(</span><span class="kwa">long</span> i<span class="opt">=</span><span class="num">0</span><span class="opt">,</span> k<span class="opt">=</span><span class="num">0</span><span class="opt">;</span> i<span class="opt">&lt;</span>n<span class="opt">;){</span>
+            <span class="kwd">next_Term</span><span class="opt">(++</span>k<span class="opt">);</span>
+            <span class="kwa">if</span><span class="opt">(</span><span class="kwd">mpz_cmp</span><span class="opt">(</span>num_Pointer<span class="opt">,</span> acc_Pointer<span class="opt">)&gt;</span><span class="num">0</span><span class="opt">)</span>
+                <span class="kwa">continue</span><span class="opt">;</span>
+
+            <span class="kwa">final long</span> d<span class="opt">=</span><span class="kwd">extract_Digit</span><span class="opt">(</span><span class="num">3</span><span class="opt">);</span>
+            <span class="kwa">if</span><span class="opt">(</span>d<span class="opt">!=</span><span class="kwd">extract_Digit</span><span class="opt">(</span><span class="num">4</span><span class="opt">))</span>
+                <span class="kwa">continue</span><span class="opt">;</span>
+
+            results<span class="opt">.</span><span class="kwd">append</span><span class="opt">(</span>d<span class="opt">);</span>
+            <span class="kwa">if</span><span class="opt">(++</span>i<span class="opt">%</span><span class="num">10</span><span class="opt">==</span><span class="num">0</span><span class="opt">)</span>
+                results<span class="opt">.</span><span class="kwd">append</span><span class="opt">(</span><span class="str">&quot;</span><span class="esc">\t</span><span class="str">:&quot;</span><span class="opt">).</span><span class="kwd">append</span><span class="opt">(</span>i<span class="opt">).</span><span class="kwd">append</span><span class="opt">(</span><span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">);</span>
+            <span class="kwd">eliminate_Digit</span><span class="opt">(</span>d<span class="opt">);</span>
+        <span class="opt">}</span>
+
+        System<span class="opt">.</span>out<span class="opt">.</span><span class="kwd">print</span><span class="opt">(</span>results<span class="opt">);</span>
+    <span class="opt">}</span>
+<span class="opt">}</span>
+
+
+<span class="kwa">class</span> Java_GMP_Wrapper<span class="opt">{</span>
+    <span class="kwa">static</span> <span class="opt">{</span>
+        System<span class="opt">.</span><span class="kwd">loadLibrary</span><span class="opt">(</span><span class="str">&quot;Java_GMP_Wrapper&quot;</span><span class="opt">);</span>
+    <span class="opt">}</span>
+
+    <span class="slc">// Note that the following *_ui() functions will be calling GMP functions of</span>
+    <span class="slc">// the same name and they will be expecting C unsigned longs (which are at</span>
+    <span class="slc">// least 32 bits in size) but we&apos;ll actually be passing them Java signed</span>
+    <span class="slc">// longs (which are 64 bits). All of these functions except for</span>
+    <span class="slc">// mpz_addmul_ui() and mpz_submul_ui() have a _si vesion that uses signed</span>
+    <span class="slc">// longs instead but I just decided to use the _ui versions for all of these</span>
+    <span class="slc">// anyway to be consistent with the original C program this was translated</span>
+    <span class="slc">// from and since I already had no choice for the mpz_addmul_ui() and</span>
+    <span class="slc">// mpz_submul_ui() functions. This shouldn&apos;t be an issue as long as the</span>
+    <span class="slc">// machine architecture and/or C implementation isn&apos;t weird which is the</span>
+    <span class="slc">// case for just about every present day computer capable of running Java.</span>
+    <span class="slc">//</span>
+    <span class="slc">// Also see the comment up above regarding the pointers.</span>
+    <span class="kwa">final static native long</span> <span class="kwd">allocate_mpz_t</span><span class="opt">();</span>
+    <span class="kwa">final static native void</span> <span class="kwd">mpz_add</span><span class="opt">(</span><span class="kwa">long</span> sum_Pointer<span class="opt">,</span> <span class="kwa">long</span> augend_Pointer<span class="opt">,</span>
+      <span class="kwa">long</span> addend_Pointer<span class="opt">);</span>
+    <span class="kwa">final static native void</span> <span class="kwd">mpz_addmul_ui</span><span class="opt">(</span><span class="kwa">long</span> sum_Pointer<span class="opt">,</span>
+      <span class="kwa">long</span> multiplier_Pointer<span class="opt">,</span> <span class="kwa">long</span> multiplicand<span class="opt">);</span>
+    <span class="kwa">final static native int</span> <span class="kwd">mpz_cmp</span><span class="opt">(</span><span class="kwa">long</span> first_Number_Pointer<span class="opt">,</span>
+      <span class="kwa">long</span> second_Number_Pointer<span class="opt">);</span>
+    <span class="kwa">final static native long</span> <span class="kwd">mpz_get_ui</span><span class="opt">(</span><span class="kwa">long</span> number_Pointer<span class="opt">);</span>
+    <span class="kwa">final static native void</span> <span class="kwd">mpz_init_set_ui</span><span class="opt">(</span><span class="kwa">long</span> number_Pointer<span class="opt">,</span>
+      <span class="kwa">long</span> new_Value<span class="opt">);</span>
+    <span class="kwa">final static native void</span> <span class="kwd">mpz_mul_ui</span><span class="opt">(</span><span class="kwa">long</span> product_Pointer<span class="opt">,</span>
+      <span class="kwa">long</span> multiplier_Pointer<span class="opt">,</span> <span class="kwa">long</span> multiplicand<span class="opt">);</span>
+    <span class="kwa">final static native void</span> <span class="kwd">mpz_submul_ui</span><span class="opt">(</span><span class="kwa">long</span> difference_Pointer<span class="opt">,</span>
+      <span class="kwa">long</span> minuend_Pointer<span class="opt">,</span> <span class="kwa">long</span> subtrahend<span class="opt">);</span>
+    <span class="kwa">final static native void</span> <span class="kwd">mpz_tdiv_q</span><span class="opt">(</span><span class="kwa">long</span> quotient_Pointer<span class="opt">,</span>
+      <span class="kwa">long</span> dividend_Pointer<span class="opt">,</span> <span class="kwa">long</span> divisor_Pointer<span class="opt">);</span>
+<span class="opt">}</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

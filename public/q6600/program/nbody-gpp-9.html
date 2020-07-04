@@ -17,6 +17,251 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="com">/* The Computer Language Benchmarks Game</span>
+<span class="com">   https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="com"></span>
+<span class="com">   contributed by Mark C. Lewis</span>
+<span class="com">   modified slightly by Chad Whipkey</span>
+<span class="com">   converted from java to c++,added sse support, by Branimir Maksimovic</span>
+<span class="com">   modified by Vaclav Zeman</span>
+<span class="com">   modified by Vaclav Haisman to use explicit SSE2 intrinsics and constexpr</span>
+<span class="com">*/</span>
+
+<span class="ppc">#include &lt;cstdio&gt;</span>
+<span class="ppc">#include &lt;cmath&gt;</span>
+<span class="ppc">#include &lt;cstdlib&gt;</span>
+<span class="ppc">#include &lt;array&gt;</span>
+<span class="ppc">#include &lt;immintrin.h&gt;</span>
+
+<span class="kwc">constexpr</span> <span class="kwb">double</span> PI <span class="opt">=</span> <span class="num">3.141592653589793</span><span class="opt">;</span>
+<span class="kwc">constexpr</span> <span class="kwb">double</span> SOLAR_MASS <span class="opt">=</span> <span class="num">4</span> <span class="opt">*</span> PI <span class="opt">*</span> PI<span class="opt">;</span>
+<span class="kwc">constexpr</span> <span class="kwb">double</span> DAYS_PER_YEAR <span class="opt">=</span> <span class="num">365.24</span><span class="opt">;</span>
+
+
+<span class="kwc">class</span> Body <span class="opt">{</span>
+
+<span class="kwc">public</span><span class="opt">:</span>
+    <span class="kwd">alignas</span><span class="opt">(</span><span class="num">16</span><span class="opt">)</span> <span class="kwb">double</span> x<span class="opt">,</span> y<span class="opt">,</span> z<span class="opt">;</span>
+    <span class="com">/*double filler;*/</span>
+    <span class="kwd">alignas</span><span class="opt">(</span><span class="num">16</span><span class="opt">)</span> <span class="kwb">double</span> vx<span class="opt">,</span> vy<span class="opt">,</span> vz<span class="opt">;</span>
+    <span class="kwd">alignas</span><span class="opt">(</span><span class="num">16</span><span class="opt">)</span> <span class="kwb">double</span> mass<span class="opt">;</span>
+
+    <span class="kwd">Body</span><span class="opt">() =</span> <span class="kwa">default</span><span class="opt">;</span>
+
+    Body<span class="opt">&amp;</span> <span class="kwd">offsetMomentum</span><span class="opt">(</span><span class="kwb">double</span> px<span class="opt">,</span> <span class="kwb">double</span> py<span class="opt">,</span> <span class="kwb">double</span> pz<span class="opt">){</span>
+        vx <span class="opt">= -</span>px <span class="opt">/</span> SOLAR_MASS<span class="opt">;</span>
+        vy <span class="opt">= -</span>py <span class="opt">/</span> SOLAR_MASS<span class="opt">;</span>
+        vz <span class="opt">= -</span>pz <span class="opt">/</span> SOLAR_MASS<span class="opt">;</span>
+        <span class="kwa">return</span> <span class="opt">*</span><span class="kwa">this</span><span class="opt">;</span>
+    <span class="opt">}</span>
+<span class="opt">};</span>
+
+
+<span class="kwc">constexpr</span> Body <span class="kwd">jupiter</span><span class="opt">(){</span>
+    <span class="kwa">return</span> Body <span class="opt">{</span>
+    <span class="com">/*x =*/</span> <span class="num">4.84143144246472090e+00</span><span class="opt">,</span>
+    <span class="com">/*y =*/</span> <span class="opt">-</span><span class="num">1.16032004402742839e+00</span><span class="opt">,</span>
+    <span class="com">/*z =*/</span> <span class="opt">-</span><span class="num">1.03622044471123109e-01</span><span class="opt">,</span>
+
+    <span class="com">/*vx =*/</span> <span class="num">1.66007664274403694e-03</span> <span class="opt">*</span> DAYS_PER_YEAR<span class="opt">,</span>
+    <span class="com">/*vy =*/</span> <span class="num">7.69901118419740425e-03</span> <span class="opt">*</span> DAYS_PER_YEAR<span class="opt">,</span>
+    <span class="com">/*vz =*/</span> <span class="opt">-</span><span class="num">6.90460016972063023e-05</span> <span class="opt">*</span> DAYS_PER_YEAR<span class="opt">,</span>
+    <span class="com">/*mass =*/</span> <span class="num">9.54791938424326609e-04</span> <span class="opt">*</span> SOLAR_MASS
+    <span class="opt">};</span>
+<span class="opt">}</span>
+
+<span class="kwc">constexpr</span> Body <span class="kwd">saturn</span><span class="opt">(){</span>
+    <span class="kwa">return</span> Body <span class="opt">{</span>
+    <span class="com">/*x = */</span><span class="num">8.34336671824457987e+00</span><span class="opt">,</span>
+    <span class="com">/*y = */</span><span class="num">4.12479856412430479e+00</span><span class="opt">,</span>
+    <span class="com">/*z = */</span><span class="opt">-</span><span class="num">4.03523417114321381e-01</span><span class="opt">,</span>
+
+    <span class="com">/*vx = */</span><span class="opt">-</span><span class="num">2.76742510726862411e-03</span> <span class="opt">*</span> DAYS_PER_YEAR<span class="opt">,</span>
+    <span class="com">/*vy = */</span><span class="num">4.99852801234917238e-03</span> <span class="opt">*</span> DAYS_PER_YEAR<span class="opt">,</span>
+    <span class="com">/*vz = */</span><span class="num">2.30417297573763929e-05</span> <span class="opt">*</span> DAYS_PER_YEAR<span class="opt">,</span>
+    <span class="com">/*mass =*/</span> <span class="num">2.85885980666130812e-04</span> <span class="opt">*</span> SOLAR_MASS
+    <span class="opt">};</span>
+<span class="opt">}</span>
+
+<span class="kwc">constexpr</span> Body <span class="kwd">uranus</span><span class="opt">(){</span>
+    <span class="kwa">return</span> Body <span class="opt">{</span>
+    <span class="com">/*x =*/</span> <span class="num">1.28943695621391310e+01</span><span class="opt">,</span>
+    <span class="com">/*y =*/</span> <span class="opt">-</span><span class="num">1.51111514016986312e+01</span><span class="opt">,</span>
+    <span class="com">/*z =*/</span> <span class="opt">-</span><span class="num">2.23307578892655734e-01</span><span class="opt">,</span>
+
+    <span class="com">/*vx = */</span><span class="num">2.96460137564761618e-03</span> <span class="opt">*</span> DAYS_PER_YEAR<span class="opt">,</span>
+    <span class="com">/*vy = */</span><span class="num">2.37847173959480950e-03</span> <span class="opt">*</span> DAYS_PER_YEAR<span class="opt">,</span>
+    <span class="com">/*vz = */</span><span class="opt">-</span><span class="num">2.96589568540237556e-05</span> <span class="opt">*</span> DAYS_PER_YEAR<span class="opt">,</span>
+    <span class="com">/*mass =*/</span> <span class="num">4.36624404335156298e-05</span> <span class="opt">*</span> SOLAR_MASS
+    <span class="opt">};</span>
+<span class="opt">}</span>
+
+<span class="kwc">constexpr</span> Body <span class="kwd">neptune</span><span class="opt">(){</span>
+    <span class="kwa">return</span> Body <span class="opt">{</span>
+    <span class="com">/*x = */</span> <span class="num">1.53796971148509165e+01</span><span class="opt">,</span>
+    <span class="com">/*y = */</span> <span class="opt">-</span><span class="num">2.59193146099879641e+01</span><span class="opt">,</span>
+    <span class="com">/*z = */</span> <span class="num">1.79258772950371181e-01</span><span class="opt">,</span>
+
+    <span class="com">/*vx = */</span> <span class="num">2.68067772490389322e-03</span> <span class="opt">*</span> DAYS_PER_YEAR<span class="opt">,</span>
+    <span class="com">/*vy = */</span> <span class="num">1.62824170038242295e-03</span> <span class="opt">*</span> DAYS_PER_YEAR<span class="opt">,</span>
+    <span class="com">/*vz = */</span><span class="opt">-</span><span class="num">9.51592254519715870e-05</span> <span class="opt">*</span> DAYS_PER_YEAR<span class="opt">,</span>
+    <span class="com">/*mass = */</span> <span class="num">5.15138902046611451e-05</span> <span class="opt">*</span> SOLAR_MASS
+    <span class="opt">};</span>
+<span class="opt">}</span>
+
+<span class="kwc">constexpr</span> Body <span class="kwd">sun</span><span class="opt">(){</span>
+    <span class="kwa">return</span> Body <span class="opt">{</span>
+    <span class="com">/*x = */</span><span class="num">0</span><span class="opt">,</span>
+    <span class="com">/*y = */</span><span class="num">0</span><span class="opt">,</span>
+    <span class="com">/*z = */</span><span class="num">0</span><span class="opt">,</span>
+
+    <span class="com">/*vx = */</span><span class="num">0</span><span class="opt">,</span>
+    <span class="com">/*vy = */</span><span class="num">0</span><span class="opt">,</span>
+    <span class="com">/*vz = */</span><span class="num">0</span><span class="opt">,</span>
+    <span class="com">/*mass = */</span> SOLAR_MASS
+    <span class="opt">};</span>
+<span class="opt">}</span>
+
+
+<span class="kwc">class</span> NBodySystem <span class="opt">{</span>
+<span class="kwc">private</span><span class="opt">:</span>
+    <span class="kwc">std</span><span class="opt">::</span>array<span class="opt">&lt;</span>Body<span class="opt">,</span> <span class="num">5</span><span class="opt">&gt;</span> bodies<span class="opt">;</span>
+    <span class="kwb">static</span> <span class="kwc">constexpr</span> <span class="kwb">int</span> bodies_size <span class="opt">=</span> <span class="num">5</span><span class="opt">;</span>
+
+<span class="kwc">public</span><span class="opt">:</span>
+    <span class="kwd">NBodySystem</span><span class="opt">()</span>
+        <span class="opt">:</span>  bodies <span class="opt">{{</span>
+            <span class="kwd">sun</span><span class="opt">(),</span>
+            <span class="kwd">jupiter</span><span class="opt">(),</span>
+            <span class="kwd">saturn</span><span class="opt">(),</span>
+            <span class="kwd">uranus</span><span class="opt">(),</span>
+            <span class="kwd">neptune</span><span class="opt">()</span>
+            <span class="opt">}}</span>
+	<span class="opt">{</span>
+        <span class="kwb">double</span> px <span class="opt">=</span> <span class="num">0.0</span><span class="opt">;</span>
+        <span class="kwb">double</span> py <span class="opt">=</span> <span class="num">0.0</span><span class="opt">;</span>
+        <span class="kwb">double</span> pz <span class="opt">=</span> <span class="num">0.0</span><span class="opt">;</span>
+        <span class="kwa">for</span><span class="opt">(</span><span class="kwb">unsigned</span> i<span class="opt">=</span><span class="num">0</span><span class="opt">;</span> i <span class="opt">!=</span> bodies_size<span class="opt">; ++</span>i<span class="opt">) {</span>
+            px <span class="opt">+=</span> bodies<span class="opt">[</span>i<span class="opt">].</span>vx <span class="opt">*</span> bodies<span class="opt">[</span>i<span class="opt">].</span>mass<span class="opt">;</span>
+            py <span class="opt">+=</span> bodies<span class="opt">[</span>i<span class="opt">].</span>vy <span class="opt">*</span> bodies<span class="opt">[</span>i<span class="opt">].</span>mass<span class="opt">;</span>
+            pz <span class="opt">+=</span> bodies<span class="opt">[</span>i<span class="opt">].</span>vz <span class="opt">*</span> bodies<span class="opt">[</span>i<span class="opt">].</span>mass<span class="opt">;</span>
+        <span class="opt">}</span>
+        bodies<span class="opt">[</span><span class="num">0</span><span class="opt">].</span><span class="kwd">offsetMomentum</span><span class="opt">(</span>px<span class="opt">,</span>py<span class="opt">,</span>pz<span class="opt">);</span>
+    <span class="opt">}</span>
+
+    <span class="kwb">void</span> <span class="kwd">advance</span><span class="opt">(</span><span class="kwb">double</span> dt<span class="opt">) {</span>
+        <span class="kwc">constexpr</span> <span class="kwb">unsigned</span> N <span class="opt">= ((</span>bodies_size<span class="opt">-</span><span class="num">1</span><span class="opt">)*</span>bodies_size<span class="opt">)/</span><span class="num">2</span><span class="opt">;</span>
+        <span class="kwb">struct</span> <span class="kwd">alignas</span><span class="opt">(</span><span class="num">16</span><span class="opt">)</span> R <span class="opt">{</span>
+            <span class="kwb">double</span> dx<span class="opt">,</span>dy<span class="opt">,</span>dz<span class="opt">;</span>
+        <span class="opt">};</span>
+        <span class="kwb">static</span> R r<span class="opt">[</span><span class="num">1000</span><span class="opt">];</span>
+        <span class="kwd">alignas</span><span class="opt">(</span><span class="num">32</span><span class="opt">)</span> <span class="kwb">static double</span> mag<span class="opt">[</span><span class="num">1000</span><span class="opt">];</span>
+
+        <span class="kwa">for</span><span class="opt">(</span><span class="kwb">int</span> i<span class="opt">=</span><span class="num">0</span><span class="opt">,</span>k<span class="opt">=</span><span class="num">0</span><span class="opt">;</span> i <span class="opt">!=</span> bodies_size<span class="opt">-</span><span class="num">1</span><span class="opt">; ++</span>i<span class="opt">) {</span>
+            Body <span class="kwb">const</span> <span class="opt">&amp;</span> iBody <span class="opt">=</span> bodies<span class="opt">[</span>i<span class="opt">];</span>
+            <span class="kwa">for</span><span class="opt">(</span><span class="kwb">int</span> j<span class="opt">=</span>i<span class="opt">+</span><span class="num">1</span><span class="opt">;</span> j <span class="opt">!=</span> bodies_size<span class="opt">; ++</span>j<span class="opt">,++</span>k<span class="opt">) {</span>
+                r<span class="opt">[</span>k<span class="opt">].</span>dx <span class="opt">=</span> iBody<span class="opt">.</span>x <span class="opt">-</span> bodies<span class="opt">[</span>j<span class="opt">].</span>x<span class="opt">;</span>
+                r<span class="opt">[</span>k<span class="opt">].</span>dy <span class="opt">=</span> iBody<span class="opt">.</span>y <span class="opt">-</span> bodies<span class="opt">[</span>j<span class="opt">].</span>y<span class="opt">;</span>
+                r<span class="opt">[</span>k<span class="opt">].</span>dz <span class="opt">=</span> iBody<span class="opt">.</span>z <span class="opt">-</span> bodies<span class="opt">[</span>j<span class="opt">].</span>z<span class="opt">;</span>
+            <span class="opt">}</span>
+        <span class="opt">}</span>
+
+        <span class="kwa">for</span><span class="opt">(</span><span class="kwb">int</span> i<span class="opt">=</span><span class="num">0</span><span class="opt">;</span> i <span class="opt">!=</span> N<span class="opt">;</span> i<span class="opt">+=</span><span class="num">2</span><span class="opt">) {</span>
+            __m128d <span class="kwb">const</span> dx <span class="opt">=</span> <span class="kwd">_mm_loadh_pd</span><span class="opt">(</span><span class="kwd">_mm_loadl_pd</span><span class="opt">(</span>dx<span class="opt">,&amp;</span>r<span class="opt">[</span>i<span class="opt">].</span>dx<span class="opt">),&amp;</span>r<span class="opt">[</span>i<span class="opt">+</span><span class="num">1</span><span class="opt">].</span>dx<span class="opt">);</span>
+            __m128d <span class="kwb">const</span> dy <span class="opt">=</span> <span class="kwd">_mm_loadh_pd</span><span class="opt">(</span><span class="kwd">_mm_loadl_pd</span><span class="opt">(</span>dy<span class="opt">,&amp;</span>r<span class="opt">[</span>i<span class="opt">].</span>dy<span class="opt">),&amp;</span>r<span class="opt">[</span>i<span class="opt">+</span><span class="num">1</span><span class="opt">].</span>dy<span class="opt">);</span>
+            __m128d <span class="kwb">const</span> dz <span class="opt">=</span> <span class="kwd">_mm_loadh_pd</span><span class="opt">(</span><span class="kwd">_mm_loadl_pd</span><span class="opt">(</span>dz<span class="opt">,&amp;</span>r<span class="opt">[</span>i<span class="opt">].</span>dz<span class="opt">),&amp;</span>r<span class="opt">[</span>i<span class="opt">+</span><span class="num">1</span><span class="opt">].</span>dz<span class="opt">);</span>
+
+            <span class="slc">//__m128d dSquared = dx*dx + dy*dy + dz*dz;</span>
+            __m128d <span class="kwb">const</span> dSquared <span class="opt">=</span> <span class="kwd">_mm_add_pd</span><span class="opt">(</span>
+                <span class="kwd">_mm_add_pd</span><span class="opt">(</span><span class="kwd">_mm_mul_pd</span><span class="opt">(</span>dx<span class="opt">,</span> dx<span class="opt">),</span> <span class="kwd">_mm_mul_pd</span><span class="opt">(</span>dy<span class="opt">,</span> dy<span class="opt">)),</span>
+                <span class="kwd">_mm_mul_pd</span><span class="opt">(</span>dz<span class="opt">,</span> dz<span class="opt">));</span>
+
+            __m128d distance <span class="opt">=</span>
+                <span class="kwd">_mm_cvtps_pd</span><span class="opt">(</span><span class="kwd">_mm_rsqrt_ps</span><span class="opt">(</span><span class="kwd">_mm_cvtpd_ps</span><span class="opt">(</span>dSquared<span class="opt">)));</span>
+            <span class="kwa">for</span><span class="opt">(</span><span class="kwb">int</span> j<span class="opt">=</span><span class="num">0</span><span class="opt">;</span>j<span class="opt">!=</span><span class="num">2</span><span class="opt">;++</span>j<span class="opt">)</span>
+            <span class="opt">{</span>
+                distance <span class="opt">=</span> <span class="kwd">_mm_sub_pd</span><span class="opt">(</span>
+                    <span class="kwd">_mm_mul_pd</span><span class="opt">(</span>distance<span class="opt">,</span> <span class="kwd">_mm_set1_pd</span><span class="opt">(</span><span class="num">1.5</span><span class="opt">)),</span>
+                    <span class="kwd">_mm_mul_pd</span><span class="opt">(</span>
+                        <span class="kwd">_mm_mul_pd</span><span class="opt">(</span>
+                            <span class="kwd">_mm_mul_pd</span><span class="opt">(</span><span class="kwd">_mm_set1_pd</span><span class="opt">(</span><span class="num">0.5</span><span class="opt">),</span> dSquared<span class="opt">),</span>
+                             distance<span class="opt">),</span>
+                        <span class="kwd">_mm_mul_pd</span><span class="opt">(</span>distance<span class="opt">,</span> distance<span class="opt">)</span>
+                    <span class="opt">)</span>
+                <span class="opt">);</span>
+            <span class="opt">}</span>
+
+            __m128d <span class="kwb">const</span> dmag <span class="opt">=</span> <span class="kwd">_mm_mul_pd</span><span class="opt">(</span>
+                <span class="kwd">_mm_div_pd</span><span class="opt">(</span><span class="kwd">_mm_set1_pd</span><span class="opt">(</span>dt<span class="opt">),</span> dSquared<span class="opt">),</span> distance<span class="opt">);</span>
+            <span class="kwd">_mm_store_pd</span><span class="opt">(&amp;</span>mag<span class="opt">[</span>i<span class="opt">],</span>dmag<span class="opt">);</span>
+        <span class="opt">}</span>
+
+        <span class="kwa">for</span><span class="opt">(</span><span class="kwb">int</span> i<span class="opt">=</span><span class="num">0</span><span class="opt">,</span>k<span class="opt">=</span><span class="num">0</span><span class="opt">;</span> i <span class="opt">!=</span> bodies_size<span class="opt">-</span><span class="num">1</span><span class="opt">; ++</span>i<span class="opt">) {</span>
+            Body<span class="opt">&amp;</span> iBody <span class="opt">=</span> bodies<span class="opt">[</span>i<span class="opt">];</span>
+            <span class="kwa">for</span><span class="opt">(</span><span class="kwb">int</span> j<span class="opt">=</span>i<span class="opt">+</span><span class="num">1</span><span class="opt">;</span> j <span class="opt">!=</span> bodies_size<span class="opt">; ++</span>j<span class="opt">,++</span>k<span class="opt">) {</span>
+                Body <span class="opt">&amp;</span> jBody <span class="opt">=</span> bodies<span class="opt">[</span>j<span class="opt">];</span>
+                <span class="kwb">double const</span> jmm <span class="opt">=</span> jBody<span class="opt">.</span>mass <span class="opt">*</span> mag<span class="opt">[</span>k<span class="opt">];</span>
+                iBody<span class="opt">.</span>vx <span class="opt">-=</span> r<span class="opt">[</span>k<span class="opt">].</span>dx <span class="opt">*</span> jmm<span class="opt">;</span>
+                iBody<span class="opt">.</span>vy <span class="opt">-=</span> r<span class="opt">[</span>k<span class="opt">].</span>dy <span class="opt">*</span> jmm<span class="opt">;</span>
+                iBody<span class="opt">.</span>vz <span class="opt">-=</span> r<span class="opt">[</span>k<span class="opt">].</span>dz <span class="opt">*</span> jmm<span class="opt">;</span>
+
+                <span class="kwb">double const</span> imm <span class="opt">=</span> iBody<span class="opt">.</span>mass <span class="opt">*</span> mag<span class="opt">[</span>k<span class="opt">];</span>
+                jBody<span class="opt">.</span>vx <span class="opt">+=</span> r<span class="opt">[</span>k<span class="opt">].</span>dx <span class="opt">*</span> imm<span class="opt">;</span>
+                jBody<span class="opt">.</span>vy <span class="opt">+=</span> r<span class="opt">[</span>k<span class="opt">].</span>dy <span class="opt">*</span> imm<span class="opt">;</span>
+                jBody<span class="opt">.</span>vz <span class="opt">+=</span> r<span class="opt">[</span>k<span class="opt">].</span>dz <span class="opt">*</span> imm<span class="opt">;</span>
+            <span class="opt">}</span>
+        <span class="opt">}</span>
+
+        <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">!=</span> bodies_size<span class="opt">; ++</span>i<span class="opt">) {</span>
+            Body<span class="opt">&amp;</span> iBody <span class="opt">=</span> bodies<span class="opt">[</span>i<span class="opt">];</span>
+            iBody<span class="opt">.</span>x <span class="opt">+=</span> dt <span class="opt">*</span> iBody<span class="opt">.</span>vx<span class="opt">;</span>
+            iBody<span class="opt">.</span>y <span class="opt">+=</span> dt <span class="opt">*</span> iBody<span class="opt">.</span>vy<span class="opt">;</span>
+            iBody<span class="opt">.</span>z <span class="opt">+=</span> dt <span class="opt">*</span> iBody<span class="opt">.</span>vz<span class="opt">;</span>
+        <span class="opt">}</span>
+    <span class="opt">}</span>
+
+    <span class="kwb">double</span> <span class="kwd">energy</span><span class="opt">(){</span>
+        <span class="kwb">double</span> e <span class="opt">=</span> <span class="num">0.0</span><span class="opt">;</span>
+
+        <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> i<span class="opt">=</span><span class="num">0</span><span class="opt">;</span> i <span class="opt">!=</span> bodies_size<span class="opt">; ++</span>i<span class="opt">) {</span>
+            Body <span class="kwb">const</span> iBody <span class="opt">=</span> bodies<span class="opt">[</span>i<span class="opt">];</span>
+            e <span class="opt">+=</span> <span class="num">0.5</span> <span class="opt">*</span> iBody<span class="opt">.</span>mass <span class="opt">*</span>
+                <span class="opt">(</span> iBody<span class="opt">.</span>vx <span class="opt">*</span> iBody<span class="opt">.</span>vx
+                    <span class="opt">+</span> iBody<span class="opt">.</span>vy <span class="opt">*</span> iBody<span class="opt">.</span>vy
+                    <span class="opt">+</span> iBody<span class="opt">.</span>vz <span class="opt">*</span> iBody<span class="opt">.</span>vz <span class="opt">);</span>
+
+
+            <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> j<span class="opt">=</span>i<span class="opt">+</span><span class="num">1</span><span class="opt">;</span> j <span class="opt">!=</span> bodies_size<span class="opt">; ++</span>j<span class="opt">) {</span>
+                Body <span class="kwb">const</span> <span class="opt">&amp;</span> jBody <span class="opt">=</span> bodies<span class="opt">[</span>j<span class="opt">];</span>
+
+                <span class="kwb">double const</span> dx <span class="opt">=</span> iBody<span class="opt">.</span>x <span class="opt">-</span> jBody<span class="opt">.</span>x<span class="opt">;</span>
+                <span class="kwb">double const</span> dy <span class="opt">=</span> iBody<span class="opt">.</span>y <span class="opt">-</span> jBody<span class="opt">.</span>y<span class="opt">;</span>
+                <span class="kwb">double const</span> dz <span class="opt">=</span> iBody<span class="opt">.</span>z <span class="opt">-</span> jBody<span class="opt">.</span>z<span class="opt">;</span>
+
+                <span class="kwb">double const</span> distance <span class="opt">=</span> <span class="kwd">sqrt</span><span class="opt">(</span>dx<span class="opt">*</span>dx <span class="opt">+</span> dy<span class="opt">*</span>dy <span class="opt">+</span> dz<span class="opt">*</span>dz<span class="opt">);</span>
+                e <span class="opt">-= (</span>iBody<span class="opt">.</span>mass <span class="opt">*</span> jBody<span class="opt">.</span>mass<span class="opt">) /</span> distance<span class="opt">;</span>
+            <span class="opt">}</span>
+        <span class="opt">}</span>
+        <span class="kwa">return</span> e<span class="opt">;</span>
+    <span class="opt">}</span>
+<span class="opt">};</span>
+
+<span class="kwb">int</span> <span class="kwd">main</span><span class="opt">(</span><span class="kwb">int</span> argc<span class="opt">,</span> <span class="kwb">char</span><span class="opt">**</span> argv<span class="opt">) {</span>
+    <span class="kwb">int</span> n <span class="opt">=</span> <span class="kwd">atoi</span><span class="opt">(</span>argv<span class="opt">[</span><span class="num">1</span><span class="opt">]);</span>
+
+    NBodySystem bodies<span class="opt">;</span>
+    <span class="kwd">printf</span><span class="opt">(</span><span class="str">&quot;%.9f</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span> bodies<span class="opt">.</span><span class="kwd">energy</span><span class="opt">());</span>
+    <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> i<span class="opt">=</span><span class="num">0</span><span class="opt">;</span> i<span class="opt">&lt;</span>n<span class="opt">; ++</span>i<span class="opt">)</span>
+        bodies<span class="opt">.</span><span class="kwd">advance</span><span class="opt">(</span><span class="num">0.01</span><span class="opt">);</span>
+    <span class="kwd">printf</span><span class="opt">(</span><span class="str">&quot;%.9f</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span> bodies<span class="opt">.</span><span class="kwd">energy</span><span class="opt">());</span>
+<span class="opt">}</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

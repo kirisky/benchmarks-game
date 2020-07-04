@@ -17,6 +17,96 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="com">/* The Computer Language Benchmarks Game</span>
+<span class="com">   https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="com">   contributed by Stefan Krause</span>
+<span class="com">   slightly modified by Chad Whipkey</span>
+<span class="com">*/</span>
+
+<span class="kwa">import</span> java<span class="opt">.</span>io<span class="opt">.</span>IOException<span class="opt">;</span>
+<span class="kwa">import</span> java<span class="opt">.</span>io<span class="opt">.</span>PrintStream<span class="opt">;</span>
+
+<span class="kwa">class</span> mandelbrot <span class="opt">{</span>
+
+   <span class="kwa">public static void</span> <span class="kwd">main</span><span class="opt">(</span>String<span class="opt">[]</span> args<span class="opt">)</span> <span class="kwa">throws</span> Exception <span class="opt">{</span>
+       <span class="kwa">new</span> <span class="kwd">Mandelbrot</span><span class="opt">(</span>Integer<span class="opt">.</span><span class="kwd">parseInt</span><span class="opt">(</span>args<span class="opt">[</span><span class="num">0</span><span class="opt">])).</span><span class="kwd">compute</span><span class="opt">();</span>
+   <span class="opt">}</span>
+
+   <span class="kwa">public static class</span> Mandelbrot <span class="opt">{</span>
+       <span class="kwa">private static final int</span> BUFFER_SIZE <span class="opt">=</span> <span class="num">8192</span><span class="opt">;</span>
+
+       <span class="kwa">public</span> <span class="kwd">Mandelbrot</span><span class="opt">(</span><span class="kwa">int</span> size<span class="opt">) {</span>
+         <span class="kwa">this</span><span class="opt">.</span>size <span class="opt">=</span> size<span class="opt">;</span>
+         fac <span class="opt">=</span> <span class="num">2.0</span> <span class="opt">/</span> size<span class="opt">;</span>
+         out <span class="opt">=</span> System<span class="opt">.</span>out<span class="opt">;</span>
+         shift <span class="opt">=</span> size <span class="opt">%</span> <span class="num">8</span> <span class="opt">==</span> <span class="num">0</span> ? <span class="num">0</span> <span class="opt">: (</span><span class="num">8</span><span class="opt">-</span> size <span class="opt">%</span> <span class="num">8</span><span class="opt">);</span>
+      <span class="opt">}</span>
+      <span class="kwa">final int</span> size<span class="opt">;</span>
+      <span class="kwa">final</span> PrintStream out<span class="opt">;</span>
+      <span class="kwa">final byte</span> <span class="opt">[]</span> buf <span class="opt">=</span> <span class="kwa">new byte</span><span class="opt">[</span>BUFFER_SIZE<span class="opt">];</span>
+      <span class="kwa">int</span> bufLen <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+      <span class="kwa">final double</span> fac<span class="opt">;</span>
+      <span class="kwa">final int</span> shift<span class="opt">;</span>
+
+      <span class="kwa">public void</span> <span class="kwd">compute</span><span class="opt">()</span> <span class="kwa">throws</span> IOException
+      <span class="opt">{</span>
+         out<span class="opt">.</span><span class="kwd">format</span><span class="opt">(</span><span class="str">&quot;P4</span><span class="esc">\n</span><span class="str">%d %d</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span>size<span class="opt">,</span>size<span class="opt">);</span>
+         <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">int</span> y <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> y<span class="opt">&lt;</span>size<span class="opt">;</span> y<span class="opt">++)</span>
+            <span class="kwd">computeRow</span><span class="opt">(</span>y<span class="opt">);</span>
+         out<span class="opt">.</span><span class="kwd">write</span><span class="opt">(</span> buf<span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> bufLen<span class="opt">);</span>
+         out<span class="opt">.</span><span class="kwd">close</span><span class="opt">();</span>
+      <span class="opt">}</span>
+
+      <span class="kwa">private void</span> <span class="kwd">computeRow</span><span class="opt">(</span><span class="kwa">int</span> y<span class="opt">)</span> <span class="kwa">throws</span> IOException
+      <span class="opt">{</span>
+         <span class="kwa">int</span> bits <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+
+         <span class="kwa">final double</span> Ci <span class="opt">= (</span>y<span class="opt">*</span>fac <span class="opt">-</span> <span class="num">1.0</span><span class="opt">);</span>
+          <span class="kwa">final byte</span><span class="opt">[]</span> bufLocal <span class="opt">=</span> buf<span class="opt">;</span>
+          <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">int</span> x <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> x<span class="opt">&lt;</span>size<span class="opt">;</span>x<span class="opt">++) {</span>
+            <span class="kwa">double</span> Zr <span class="opt">=</span> <span class="num">0.0</span><span class="opt">;</span>
+            <span class="kwa">double</span> Zi <span class="opt">=</span> <span class="num">0.0</span><span class="opt">;</span>
+            <span class="kwa">double</span> Cr <span class="opt">= (</span>x<span class="opt">*</span>fac <span class="opt">-</span> <span class="num">1.5</span><span class="opt">);</span>
+            <span class="kwa">int</span> i <span class="opt">=</span> <span class="num">50</span><span class="opt">;</span>
+            <span class="kwa">double</span> ZrN <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+            <span class="kwa">double</span> ZiN <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+            <span class="kwa">do</span> <span class="opt">{</span>
+               Zi <span class="opt">=</span> <span class="num">2.0</span> <span class="opt">*</span> Zr <span class="opt">*</span> Zi <span class="opt">+</span> Ci<span class="opt">;</span>
+               Zr <span class="opt">=</span> ZrN <span class="opt">-</span> ZiN <span class="opt">+</span> Cr<span class="opt">;</span>
+               ZiN <span class="opt">=</span> Zi <span class="opt">*</span> Zi<span class="opt">;</span>
+               ZrN <span class="opt">=</span> Zr <span class="opt">*</span> Zr<span class="opt">;</span>
+            <span class="opt">}</span> <span class="kwa">while</span> <span class="opt">(!(</span>ZiN <span class="opt">+</span> ZrN <span class="opt">&gt;</span> <span class="num">4.0</span><span class="opt">) &amp;&amp; --</span>i <span class="opt">&gt;</span> <span class="num">0</span><span class="opt">);</span>
+
+            bits <span class="opt">=</span> bits <span class="opt">&lt;&lt;</span> <span class="num">1</span><span class="opt">;</span>
+            <span class="kwa">if</span> <span class="opt">(</span>i <span class="opt">==</span> <span class="num">0</span><span class="opt">)</span> bits<span class="opt">++;</span>
+
+            <span class="kwa">if</span> <span class="opt">(</span>x<span class="opt">%</span><span class="num">8</span> <span class="opt">==</span> <span class="num">7</span><span class="opt">) {</span>
+                bufLocal<span class="opt">[</span>bufLen<span class="opt">++] = (</span><span class="kwa">byte</span><span class="opt">)</span> bits<span class="opt">;</span>
+                <span class="kwa">if</span> <span class="opt">(</span> bufLen <span class="opt">==</span> BUFFER_SIZE<span class="opt">) {</span>
+                    out<span class="opt">.</span><span class="kwd">write</span><span class="opt">(</span>bufLocal<span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> BUFFER_SIZE<span class="opt">);</span>
+                    bufLen <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+                <span class="opt">}</span>
+               bits <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+            <span class="opt">}</span>
+         <span class="opt">}</span>
+         <span class="kwa">if</span> <span class="opt">(</span>shift<span class="opt">!=</span><span class="num">0</span><span class="opt">) {</span>
+            bits <span class="opt">=</span> bits <span class="opt">&lt;&lt;</span> shift<span class="opt">;</span>
+            bufLocal<span class="opt">[</span>bufLen<span class="opt">++] = (</span><span class="kwa">byte</span><span class="opt">)</span> bits<span class="opt">;</span>
+            <span class="kwa">if</span> <span class="opt">(</span> bufLen <span class="opt">==</span> BUFFER_SIZE<span class="opt">) {</span>
+                out<span class="opt">.</span><span class="kwd">write</span><span class="opt">(</span>bufLocal<span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> BUFFER_SIZE<span class="opt">);</span>
+                bufLen <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+            <span class="opt">}</span>
+         <span class="opt">}</span>
+      <span class="opt">}</span>
+   <span class="opt">}</span>
+<span class="opt">}</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

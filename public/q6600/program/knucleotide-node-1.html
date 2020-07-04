@@ -17,6 +17,114 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="com">/* The Computer Language Benchmarks Game</span>
+<span class="com">   https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="com"></span>
+<span class="com">   Contributed by Jesse Millikan</span>
+<span class="com">   Modified by Matt Baker</span>
+<span class="com">   Ported, modified, and parallelized by Roman Pletnev</span>
+<span class="com">*/</span>
+
+<span class="str">&apos;use strict&apos;</span><span class="opt">;</span>
+
+<span class="kwa">var</span> rd <span class="opt">=</span> <span class="kwd">require</span><span class="opt">(</span><span class="str">&apos;readline&apos;</span><span class="opt">),</span> cluster <span class="opt">=</span> <span class="kwd">require</span><span class="opt">(</span><span class="str">&apos;cluster&apos;</span><span class="opt">);</span>
+
+<span class="kwa">function</span> <span class="kwd">RefNum</span><span class="opt">(</span>num<span class="opt">){</span> <span class="kwa">this</span><span class="opt">.</span>num <span class="opt">=</span> num<span class="opt">; }</span>
+RefNum<span class="opt">.</span><span class="kwa">prototype</span><span class="opt">.</span><span class="kwd">toString</span> <span class="opt">=</span> <span class="kwa">function</span><span class="opt">() {</span> <span class="kwa">return this</span><span class="opt">.</span>num<span class="opt">.</span><span class="kwd">toString</span><span class="opt">(); }</span>
+
+<span class="kwa">function</span> <span class="kwd">frequency</span><span class="opt">(</span>seq<span class="opt">,</span> length<span class="opt">){</span>
+    <span class="kwa">var</span> freq <span class="opt">=</span> <span class="kwa">new</span> <span class="kwd">Map</span><span class="opt">(),</span> n <span class="opt">=</span> seq<span class="opt">.</span>length<span class="opt">-</span>length<span class="opt">+</span><span class="num">1</span><span class="opt">,</span> key<span class="opt">,</span> cur<span class="opt">,</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+    <span class="kwa">for</span><span class="opt">(;</span> i<span class="opt">&lt;</span>n<span class="opt">; ++</span>i<span class="opt">){</span>
+        key <span class="opt">=</span> seq<span class="opt">.</span><span class="kwd">substr</span><span class="opt">(</span>i<span class="opt">,</span> length<span class="opt">);</span>
+        cur <span class="opt">=</span> freq<span class="opt">.</span><span class="kwa">get</span><span class="opt">(</span>key<span class="opt">);</span>
+        cur <span class="opt">===</span> <span class="kwb">undefined</span> <span class="opt">?</span> freq<span class="opt">.</span><span class="kwa">set</span><span class="opt">(</span>key<span class="opt">,</span> <span class="kwa">new</span> <span class="kwd">RefNum</span><span class="opt">(</span><span class="num">1</span><span class="opt">)) : ++</span>cur<span class="opt">.</span>num<span class="opt">;</span>
+    <span class="opt">}</span>
+    <span class="kwa">return</span> freq<span class="opt">;</span>
+<span class="opt">}</span>
+
+<span class="kwa">function</span> <span class="kwd">sort</span><span class="opt">(</span>seq<span class="opt">,</span> length<span class="opt">){</span>
+    <span class="kwa">var</span> f <span class="opt">=</span> <span class="kwd">frequency</span><span class="opt">(</span>seq<span class="opt">,</span> length<span class="opt">),</span> keys <span class="opt">=</span> Array<span class="opt">.</span><span class="kwa">from</span><span class="opt">(</span>f<span class="opt">.</span><span class="kwd">keys</span><span class="opt">()),</span>
+        n <span class="opt">=</span> seq<span class="opt">.</span>length<span class="opt">-</span>length<span class="opt">+</span><span class="num">1</span><span class="opt">,</span> res <span class="opt">=</span> <span class="str">&apos;&apos;</span><span class="opt">;</span>
+    keys<span class="opt">.</span><span class="kwd">sort</span><span class="opt">((</span>a<span class="opt">,</span> b<span class="opt">)=&gt;</span>f<span class="opt">.</span><span class="kwa">get</span><span class="opt">(</span>b<span class="opt">)-</span>f<span class="opt">.</span><span class="kwa">get</span><span class="opt">(</span>a<span class="opt">));</span>
+    <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">var</span> key <span class="kwa">of</span> keys<span class="opt">)</span> res <span class="opt">+=</span> key<span class="opt">+</span><span class="str">&apos; &apos;</span><span class="opt">+(</span>f<span class="opt">.</span><span class="kwa">get</span><span class="opt">(</span>key<span class="opt">)*</span><span class="num">100</span><span class="opt">/</span>n<span class="opt">).</span><span class="kwd">toFixed</span><span class="opt">(</span><span class="num">3</span><span class="opt">)+</span><span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span><span class="opt">;</span>
+    res <span class="opt">+=</span> <span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span><span class="opt">;</span>
+    <span class="kwa">return</span> res<span class="opt">;</span>
+<span class="opt">}</span>
+
+<span class="kwa">function</span> <span class="kwd">find</span><span class="opt">(</span>seq<span class="opt">,</span> s<span class="opt">){</span>
+    <span class="kwa">var</span> f <span class="opt">=</span> <span class="kwd">frequency</span><span class="opt">(</span>seq<span class="opt">,</span> s<span class="opt">.</span>length<span class="opt">);</span>
+    <span class="kwa">return</span> <span class="opt">(</span>f<span class="opt">.</span><span class="kwa">get</span><span class="opt">(</span>s<span class="opt">) ||</span> <span class="num">0</span><span class="opt">)+</span><span class="str">&quot;</span><span class="esc">\t</span><span class="str">&quot;</span><span class="opt">+</span>s<span class="opt">+</span><span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span><span class="opt">;</span>
+<span class="opt">}</span>
+
+<span class="kwa">function</span> <span class="kwd">master</span><span class="opt">() {</span>
+    <span class="kwa">var</span> workers <span class="opt">= [],</span> reading <span class="opt">=</span> <span class="kwa">false</span><span class="opt">,</span> seq <span class="opt">=</span> <span class="str">&apos;&apos;</span><span class="opt">,</span> maxBuf <span class="opt">=</span> <span class="num">2048</span><span class="opt">;</span>
+
+    <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">var</span> i<span class="opt">=</span><span class="num">0</span><span class="opt">;</span> i<span class="opt">&lt;</span><span class="num">4</span><span class="opt">;++</span>i<span class="opt">)</span> workers<span class="opt">.</span><span class="kwd">push</span><span class="opt">(</span>cluster<span class="opt">.</span><span class="kwd">fork</span><span class="opt">({</span>workerId<span class="opt">:</span> i<span class="opt">}));</span>
+
+    <span class="kwa">var</span> <span class="kwd">flush</span> <span class="opt">=</span> <span class="kwa">function</span><span class="opt">(</span>close<span class="opt">) {</span>
+        <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">var</span> w <span class="kwa">of</span> workers<span class="opt">)</span> w<span class="opt">.</span><span class="kwd">send</span><span class="opt">(</span>seq<span class="opt">);</span>
+        <span class="kwa">if</span> <span class="opt">(</span>close<span class="opt">)</span> <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">var</span> w <span class="kwa">of</span> workers<span class="opt">)</span> w<span class="opt">.</span><span class="kwd">send</span><span class="opt">(</span><span class="str">&apos;eof&apos;</span><span class="opt">);</span>
+        seq <span class="opt">=</span> <span class="str">&apos;&apos;</span><span class="opt">;</span>
+    <span class="opt">};</span>
+    <span class="kwa">var</span> <span class="kwd">lineHandler</span> <span class="opt">=</span> <span class="kwa">function</span><span class="opt">(</span>line<span class="opt">){</span>
+        <span class="kwa">if</span> <span class="opt">(</span>reading<span class="opt">) {</span>
+            <span class="kwa">if</span> <span class="opt">(</span>line<span class="opt">[</span><span class="num">0</span><span class="opt">] !==</span> <span class="str">&apos;&gt;&apos;</span> <span class="opt">&amp;&amp;</span>
+                    <span class="opt">(</span>seq <span class="opt">+=</span> line<span class="opt">.</span><span class="kwd">toUpperCase</span><span class="opt">()).</span>length <span class="opt">&gt;=</span> maxBuf<span class="opt">)</span> <span class="kwd">flush</span><span class="opt">();</span>
+        <span class="opt">}</span> <span class="kwa">else</span> reading <span class="opt">=</span> line<span class="opt">.</span><span class="kwd">substr</span><span class="opt">(</span><span class="num">0</span><span class="opt">,</span> <span class="num">6</span><span class="opt">) ===</span> <span class="str">&apos;&gt;THREE&apos;</span><span class="opt">;</span>
+    <span class="opt">};</span>
+    rd<span class="opt">.</span><span class="kwd">createInterface</span><span class="opt">(</span>process<span class="opt">.</span>stdin<span class="opt">,</span> process<span class="opt">.</span>stdout<span class="opt">)</span>
+        <span class="opt">.</span><span class="kwd">on</span><span class="opt">(</span><span class="str">&apos;line&apos;</span><span class="opt">,</span> lineHandler<span class="opt">).</span><span class="kwd">on</span><span class="opt">(</span><span class="str">&apos;close&apos;</span><span class="opt">,</span> <span class="kwa">function</span><span class="opt">() {</span> <span class="kwd">flush</span><span class="opt">(</span><span class="kwa">true</span><span class="opt">); });</span>
+
+    <span class="kwa">var</span> jobs <span class="opt">=</span> workers<span class="opt">.</span>length<span class="opt">,</span> results <span class="opt">= [];</span>
+    <span class="kwa">var</span> <span class="kwd">messageHandler</span> <span class="opt">=</span> <span class="kwa">function</span><span class="opt">(</span>i<span class="opt">){</span>
+        <span class="kwa">return function</span><span class="opt">(</span>message<span class="opt">){</span>
+            results<span class="opt">[</span>i<span class="opt">] =</span> message<span class="opt">;</span>
+            <span class="kwa">if</span> <span class="opt">(!(--</span>jobs<span class="opt">)) {</span>
+                process<span class="opt">.</span>stdout<span class="opt">.</span><span class="kwd">write</span><span class="opt">(</span>results<span class="opt">.</span><span class="kwd">join</span><span class="opt">(</span><span class="str">&apos;&apos;</span><span class="opt">));</span>
+                process<span class="opt">.</span><span class="kwd">exit</span><span class="opt">(</span><span class="num">0</span><span class="opt">);</span>
+            <span class="opt">}</span>
+        <span class="opt">};</span>
+    <span class="opt">};</span>
+    <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">var</span> i<span class="opt">=</span><span class="num">0</span><span class="opt">;</span> i<span class="opt">&lt;</span>workers<span class="opt">.</span>length<span class="opt">; ++</span>i<span class="opt">)</span>
+        workers<span class="opt">[</span>i<span class="opt">].</span><span class="kwd">on</span><span class="opt">(</span><span class="str">&apos;message&apos;</span><span class="opt">,</span> <span class="kwd">messageHandler</span><span class="opt">(</span>i<span class="opt">));</span>
+<span class="opt">}</span>
+
+<span class="kwa">function</span> <span class="kwd">worker</span><span class="opt">(){</span>
+    <span class="kwa">var</span> seq <span class="opt">=</span> <span class="str">&apos;&apos;</span><span class="opt">;</span>
+    process<span class="opt">.</span><span class="kwd">on</span><span class="opt">(</span><span class="str">&apos;message&apos;</span><span class="opt">,</span> <span class="kwa">function</span><span class="opt">(</span>message<span class="opt">){</span>
+        <span class="kwa">if</span> <span class="opt">(</span>message <span class="opt">===</span> <span class="str">&apos;eof&apos;</span><span class="opt">) {</span>
+            <span class="kwa">var</span> res <span class="opt">=</span> <span class="str">&apos;&apos;</span><span class="opt">;</span>
+            <span class="kwa">switch</span> <span class="opt">(</span>process<span class="opt">.</span>env<span class="opt">.</span>workerId<span class="opt">) {</span>
+                <span class="kwa">case</span> <span class="str">&apos;0&apos;</span><span class="opt">:</span>
+                    res <span class="opt">+=</span> <span class="kwd">sort</span><span class="opt">(</span>seq<span class="opt">,</span> <span class="num">1</span><span class="opt">);</span>
+                    res <span class="opt">+=</span> <span class="kwd">sort</span><span class="opt">(</span>seq<span class="opt">,</span> <span class="num">2</span><span class="opt">);</span>
+                    res <span class="opt">+=</span> <span class="kwd">find</span><span class="opt">(</span>seq<span class="opt">,</span> <span class="str">&quot;GGT&quot;</span><span class="opt">);</span>
+                    <span class="kwa">break</span><span class="opt">;</span>
+                <span class="kwa">case</span> <span class="str">&apos;1&apos;</span><span class="opt">:</span>
+                    res <span class="opt">+=</span> <span class="kwd">find</span><span class="opt">(</span>seq<span class="opt">,</span> <span class="str">&quot;GGTA&quot;</span><span class="opt">);</span>
+                    res <span class="opt">+=</span> <span class="kwd">find</span><span class="opt">(</span>seq<span class="opt">,</span> <span class="str">&quot;GGTATT&quot;</span><span class="opt">);</span>
+                    <span class="kwa">break</span><span class="opt">;</span>
+                <span class="kwa">case</span> <span class="str">&apos;2&apos;</span><span class="opt">:</span>
+                    res <span class="opt">+=</span> <span class="kwd">find</span><span class="opt">(</span>seq<span class="opt">,</span> <span class="str">&quot;GGTATTTTAATT&quot;</span><span class="opt">);</span>
+                    <span class="kwa">break</span><span class="opt">;</span>
+                <span class="kwa">case</span> <span class="str">&apos;3&apos;</span><span class="opt">:</span>
+                    res <span class="opt">+=</span> <span class="kwd">find</span><span class="opt">(</span>seq<span class="opt">,</span> <span class="str">&quot;GGTATTTTAATTTATAGT&quot;</span><span class="opt">);</span>
+                    <span class="kwa">break</span><span class="opt">;</span>
+            <span class="opt">}</span>
+            process<span class="opt">.</span><span class="kwd">send</span><span class="opt">(</span>res<span class="opt">);</span>
+            process<span class="opt">.</span><span class="kwd">exit</span><span class="opt">();</span>
+        <span class="opt">}</span> <span class="kwa">else</span> seq <span class="opt">+=</span> message<span class="opt">;</span>
+    <span class="opt">});</span>
+<span class="opt">}</span>
+
+cluster<span class="opt">.</span>isMaster <span class="opt">?</span> <span class="kwd">master</span><span class="opt">() :</span> <span class="kwd">worker</span><span class="opt">();</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

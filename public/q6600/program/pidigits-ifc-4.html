@@ -17,6 +17,180 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc">! The Computer Language Benchmarks Game</span>
+<span class="slc">! https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">!</span>
+<span class="slc">! Contributed by Tyler Funnell</span>
+<span class="slc">!   Based heavily on C version by Mr Ledrug, and Fortran version by</span>
+<span class="slc">!   Andrei Jirnyi</span>
+<span class="slc">! compilation: ifort -O2 -xHost -ipo pidigits.f90 -lgmp</span>
+
+<span class="kwa">module</span> gmp_mod
+  <span class="slc">! declaring the GMP functions...</span>
+  <span class="kwa">use</span> iso_c_binding
+  <span class="kwa">type</span><span class="opt">,</span> <span class="kwd">bind</span><span class="opt">(</span>C<span class="opt">) ::</span> mpz_t 
+     private
+     <span class="kwa">integer</span> <span class="opt">::</span> mp_alloc
+     <span class="kwa">integer</span> <span class="opt">::</span> mp_size
+     <span class="kwa">type</span><span class="opt">(</span>c_ptr<span class="opt">) ::</span> mp_d  <span class="slc">! a pointer</span>
+  <span class="kwa">end type</span> mpz_t
+  
+  <span class="kwa">interface</span>
+     <span class="slc">! int mpz_cmp (mpz_t op1, mpz_t op2)</span>
+     <span class="kwa">integer</span><span class="opt">(</span>c_int<span class="opt">)</span> <span class="kwa">function</span>  <span class="kwd">mpz_cmp</span><span class="opt">(</span>op1<span class="opt">,</span> op2<span class="opt">)</span> <span class="kwd">bind</span><span class="opt">(</span>C<span class="opt">,</span> name<span class="opt">=</span><span class="str">&apos;__gmpz_cmp&apos;</span><span class="opt">)</span>
+       import
+       <span class="kwa">type</span><span class="opt">(</span>mpz_t<span class="opt">),</span> <span class="kwd">intent</span><span class="opt">(</span>inout<span class="opt">) ::</span> op1
+       <span class="kwa">type</span><span class="opt">(</span>mpz_t<span class="opt">),</span> <span class="kwd">intent</span><span class="opt">(</span>inout<span class="opt">) ::</span> op2
+     <span class="kwa">end function</span> mpz_cmp
+
+     <span class="slc">! void mpz_init (mpz_t integer)</span>
+     <span class="kwa">subroutine</span> <span class="kwd">mpz_init</span><span class="opt">(</span>op<span class="opt">)</span> <span class="kwd">bind</span><span class="opt">(</span>C<span class="opt">,</span>name<span class="opt">=</span><span class="str">&apos;__gmpz_init&apos;</span><span class="opt">)</span>
+       import
+       <span class="kwa">type</span><span class="opt">(</span>mpz_t<span class="opt">),</span> <span class="kwd">intent</span><span class="opt">(</span>inout<span class="opt">) ::</span> op
+     <span class="kwa">end subroutine</span> mpz_init
+
+     <span class="slc">! void mpz_init_set_ui (mpz_t rop, unsigned long int op)</span>
+     <span class="kwa">subroutine</span> <span class="kwd">mpz_init_set_ui</span><span class="opt">(</span>op<span class="opt">,</span> N<span class="opt">)</span> <span class="kwd">bind</span><span class="opt">(</span>C<span class="opt">,</span> name<span class="opt">=</span><span class="str">&apos;__gmpz_init_set_ui&apos;</span><span class="opt">)</span>
+       import
+       <span class="kwa">type</span><span class="opt">(</span>mpz_t<span class="opt">),</span> <span class="kwd">intent</span><span class="opt">(</span>inout<span class="opt">) ::</span> op
+       <span class="kwa">integer</span><span class="opt">(</span>c_long<span class="opt">),</span> value<span class="opt">,</span> <span class="kwd">intent</span><span class="opt">(</span>in<span class="opt">) ::</span> N
+     <span class="kwa">end subroutine</span> mpz_init_set_ui
+
+     <span class="slc">! unsigned long int mpz_get_ui (mpz_t op)</span>
+     <span class="kwa">integer function</span>  <span class="kwd">mpz_get_ui</span><span class="opt">(</span>op1<span class="opt">)</span> <span class="kwd">bind</span><span class="opt">(</span>C<span class="opt">,</span> name<span class="opt">=</span><span class="str">&apos;__gmpz_get_ui&apos;</span><span class="opt">)</span>
+       import
+       <span class="kwa">type</span><span class="opt">(</span>mpz_t<span class="opt">),</span> <span class="kwd">intent</span><span class="opt">(</span>inout<span class="opt">) ::</span> op1
+     <span class="kwa">end function</span> mpz_get_ui
+
+     <span class="slc">! void mpz_add (mpz_t rop, mpz_t op1, mpz_t op2)</span>
+     <span class="kwa">subroutine</span> <span class="kwd">mpz_add</span><span class="opt">(</span>op1<span class="opt">,</span> op2<span class="opt">,</span> op3<span class="opt">)</span> <span class="kwd">bind</span><span class="opt">(</span>C<span class="opt">,</span> name<span class="opt">=</span><span class="str">&apos;__gmpz_add&apos;</span><span class="opt">)</span>
+       import
+       <span class="kwa">type</span><span class="opt">(</span>mpz_t<span class="opt">),</span> <span class="kwd">intent</span><span class="opt">(</span>inout<span class="opt">) ::</span> op1
+       <span class="kwa">type</span><span class="opt">(</span>mpz_t<span class="opt">),</span> <span class="kwd">intent</span><span class="opt">(</span>inout<span class="opt">) ::</span> op2
+       <span class="kwa">type</span><span class="opt">(</span>mpz_t<span class="opt">),</span> <span class="kwd">intent</span><span class="opt">(</span>inout<span class="opt">) ::</span> op3
+     <span class="kwa">end subroutine</span> mpz_add
+
+     <span class="slc">! void mpz_mul_ui (mpz_t rop, mpz_t op1, unsigned long int op2)</span>
+     <span class="kwa">subroutine</span> <span class="kwd">mpz_mul_ui</span><span class="opt">(</span>op1<span class="opt">,</span> op2<span class="opt">,</span> N<span class="opt">)</span> <span class="kwd">bind</span><span class="opt">(</span>C<span class="opt">,</span> name<span class="opt">=</span><span class="str">&apos;__gmpz_mul_ui&apos;</span><span class="opt">)</span>
+       import
+       <span class="kwa">type</span><span class="opt">(</span>mpz_t<span class="opt">),</span> <span class="kwd">intent</span><span class="opt">(</span>inout<span class="opt">) ::</span> op1
+       <span class="kwa">type</span><span class="opt">(</span>mpz_t<span class="opt">),</span> <span class="kwd">intent</span><span class="opt">(</span>inout<span class="opt">) ::</span> op2
+       <span class="kwa">integer</span><span class="opt">(</span>c_long<span class="opt">),</span> value<span class="opt">,</span> <span class="kwd">intent</span><span class="opt">(</span>in<span class="opt">) ::</span> N
+     <span class="kwa">end subroutine</span> mpz_mul_ui
+
+     <span class="slc">! void mpz_submul_ui (mpz_t rop, mpz_t op1, unsigned long int op2)</span>
+     <span class="kwa">subroutine</span> <span class="kwd">mpz_submul_ui</span><span class="opt">(</span>op1<span class="opt">,</span> op2<span class="opt">,</span> N<span class="opt">)</span> <span class="kwd">bind</span><span class="opt">(</span>C<span class="opt">,</span> name<span class="opt">=</span><span class="str">&apos;__gmpz_submul_ui&apos;</span><span class="opt">)</span>
+       import
+       <span class="kwa">type</span><span class="opt">(</span>mpz_t<span class="opt">),</span> <span class="kwd">intent</span><span class="opt">(</span>inout<span class="opt">) ::</span> op1
+       <span class="kwa">type</span><span class="opt">(</span>mpz_t<span class="opt">),</span> <span class="kwd">intent</span><span class="opt">(</span>inout<span class="opt">) ::</span> op2
+       <span class="kwa">integer</span><span class="opt">(</span>c_long<span class="opt">),</span> value<span class="opt">,</span> <span class="kwd">intent</span><span class="opt">(</span>in<span class="opt">) ::</span> N
+     <span class="kwa">end subroutine</span> mpz_submul_ui
+
+     <span class="slc">! void mpz_addmul_ui (mpz_t rop, mpz_t op1, unsigned long int op2)     </span>
+     <span class="kwa">subroutine</span> <span class="kwd">mpz_addmul_ui</span><span class="opt">(</span>op1<span class="opt">,</span> op2<span class="opt">,</span> N<span class="opt">)</span> <span class="kwd">bind</span><span class="opt">(</span>C<span class="opt">,</span> name<span class="opt">=</span><span class="str">&apos;__gmpz_addmul_ui&apos;</span><span class="opt">)</span>
+       import
+       <span class="kwa">type</span><span class="opt">(</span>mpz_t<span class="opt">),</span> <span class="kwd">intent</span><span class="opt">(</span>inout<span class="opt">) ::</span> op1
+       <span class="kwa">type</span><span class="opt">(</span>mpz_t<span class="opt">),</span> <span class="kwd">intent</span><span class="opt">(</span>inout<span class="opt">) ::</span> op2
+       <span class="kwa">integer</span><span class="opt">(</span>c_long<span class="opt">),</span> value<span class="opt">,</span> <span class="kwd">intent</span><span class="opt">(</span>in<span class="opt">) ::</span> N
+     <span class="kwa">end subroutine</span> mpz_addmul_ui
+
+     <span class="slc">! void mpz_tdiv_q (mpz_t rop, mpz_t op1, mpz_t op2)     </span>
+     <span class="kwa">subroutine</span> <span class="kwd">mpz_tdiv_q</span><span class="opt">(</span>op1<span class="opt">,</span> op2<span class="opt">,</span> op3<span class="opt">)</span> <span class="kwd">bind</span><span class="opt">(</span>C<span class="opt">,</span> name<span class="opt">=</span><span class="str">&apos;__gmpz_tdiv_q&apos;</span><span class="opt">)</span>
+       import
+       <span class="kwa">type</span><span class="opt">(</span>mpz_t<span class="opt">),</span> <span class="kwd">intent</span><span class="opt">(</span>inout<span class="opt">) ::</span> op1
+       <span class="kwa">type</span><span class="opt">(</span>mpz_t<span class="opt">),</span> <span class="kwd">intent</span><span class="opt">(</span>inout<span class="opt">) ::</span> op2
+       <span class="kwa">type</span><span class="opt">(</span>mpz_t<span class="opt">),</span> <span class="kwd">intent</span><span class="opt">(</span>inout<span class="opt">) ::</span> op3
+     <span class="kwa">end subroutine</span> mpz_tdiv_q
+  <span class="kwa">end interface</span>
+<span class="kwa">end module</span> gmp_mod
+
+<span class="kwa">program</span> pidigits
+    <span class="kwa">use</span> iso_c_binding
+    <span class="kwa">use</span> gmp_mod
+    <span class="kwa">implicit none</span>
+
+    <span class="kwa">type</span><span class="opt">(</span>mpz_t<span class="opt">) ::</span> tmp1<span class="opt">,</span> tmp2<span class="opt">,</span> acc<span class="opt">,</span> den<span class="opt">,</span> num
+    <span class="kwa">integer</span><span class="opt">(</span>c_long<span class="opt">) ::</span> d<span class="opt">,</span> k <span class="opt">=</span> <span class="num">0</span><span class="opt">,</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">,</span> j <span class="opt">=</span> <span class="num">0</span><span class="opt">,</span> n <span class="opt">=</span> <span class="num">10000</span>
+    <span class="kwa">character</span><span class="opt">(</span>len<span class="opt">=</span><span class="num">15</span><span class="opt">) ::</span> fmtstr
+    <span class="kwa">integer</span><span class="opt">(</span><span class="num">8</span><span class="opt">) ::</span> intout <span class="opt">=</span> <span class="num">0</span>
+    <span class="kwa">character</span><span class="opt">(</span>len<span class="opt">=</span><span class="num">10</span><span class="opt">) ::</span> argv<span class="opt">,</span> strout
+
+    <span class="kwa">call</span> <span class="kwd">getarg</span><span class="opt">(</span><span class="num">1</span><span class="opt">,</span> argv<span class="opt">)</span>
+    <span class="kwa">read</span><span class="opt">(</span>argv<span class="opt">, *)</span> n
+
+    <span class="kwa">call</span> <span class="kwd">mpz_init</span><span class="opt">(</span>tmp1<span class="opt">)</span>
+    <span class="kwa">call</span> <span class="kwd">mpz_init</span><span class="opt">(</span>tmp2<span class="opt">)</span>
+
+    <span class="kwa">call</span> <span class="kwd">mpz_init_set_ui</span><span class="opt">(</span>acc<span class="opt">,</span> <span class="num">0</span>_c_long<span class="opt">)</span>
+    <span class="kwa">call</span> <span class="kwd">mpz_init_set_ui</span><span class="opt">(</span>den<span class="opt">,</span> <span class="num">1</span>_c_long<span class="opt">)</span>
+    <span class="kwa">call</span> <span class="kwd">mpz_init_set_ui</span><span class="opt">(</span>num<span class="opt">,</span> <span class="num">1</span>_c_long<span class="opt">)</span>
+
+    <span class="kwa">do</span>
+        k <span class="opt">=</span> k <span class="opt">+</span> <span class="num">1</span>
+        <span class="kwa">call</span> <span class="kwd">next_term</span><span class="opt">(</span>k<span class="opt">)</span>
+
+        <span class="kwa">if</span> <span class="opt">(</span><span class="kwd">mpz_cmp</span><span class="opt">(</span>num<span class="opt">,</span> acc<span class="opt">) &gt;</span> <span class="num">0</span><span class="opt">)</span> cycle
+
+        d <span class="opt">=</span> <span class="kwd">extract_digit</span><span class="opt">(</span><span class="num">3</span>_c_long<span class="opt">)</span>
+        <span class="kwa">if</span> <span class="opt">(</span>d <span class="opt">/=</span> <span class="kwd">extract_digit</span><span class="opt">(</span><span class="num">4</span>_c_long<span class="opt">))</span> cycle
+
+        i <span class="opt">=</span> i <span class="opt">+</span> <span class="num">1</span>
+        j <span class="opt">=</span> <span class="kwd">mod</span><span class="opt">(</span>i<span class="opt">,</span> <span class="num">10</span><span class="opt">)</span>
+        intout <span class="opt">=</span> intout <span class="opt">*</span> <span class="num">10</span> <span class="opt">+</span> d
+        <span class="kwa">if</span> <span class="opt">(</span>j <span class="opt">==</span> <span class="num">0</span><span class="opt">)</span> <span class="kwa">then</span>
+            <span class="kwa">write</span><span class="opt">(*,</span> <span class="str">&apos;(i0.10, a, i0)&apos;</span><span class="opt">)</span> intout<span class="opt">,</span> <span class="kwd">achar</span><span class="opt">(</span><span class="num">9</span><span class="opt">)//</span><span class="str">&apos;:&apos;</span><span class="opt">,</span> i
+            intout <span class="opt">=</span> <span class="num">0</span>
+        <span class="kwa">end if</span>
+
+        <span class="kwa">if</span> <span class="opt">(</span>i <span class="opt">&gt;=</span> n<span class="opt">)</span> exit
+
+        <span class="kwa">call</span> <span class="kwd">eliminate_digit</span><span class="opt">(</span>d<span class="opt">)</span>
+    <span class="kwa">end do</span>
+
+    <span class="kwa">if</span> <span class="opt">(</span>j <span class="opt">/=</span> <span class="num">0</span><span class="opt">)</span> <span class="kwa">then</span>
+        <span class="kwa">write</span><span class="opt">(</span>fmtstr<span class="opt">,</span> <span class="str">&apos;(a, i0, a)&apos;</span><span class="opt">)</span> <span class="str">&apos;(i0.&apos;</span><span class="opt">,</span> j<span class="opt">,</span> <span class="str">&apos;, a, i0)&apos;</span>
+        <span class="kwa">write</span><span class="opt">(</span>strout<span class="opt">,</span> fmtstr<span class="opt">)</span> intout
+        <span class="kwa">write</span><span class="opt">(*,</span> <span class="str">&apos;(2a, i0)&apos;</span><span class="opt">)</span> <span class="kwd">adjustl</span><span class="opt">(</span>strout<span class="opt">),</span> <span class="kwd">achar</span><span class="opt">(</span><span class="num">9</span><span class="opt">)//</span><span class="str">&apos;:&apos;</span><span class="opt">,</span> i
+    <span class="kwa">end if</span>
+
+<span class="kwa">contains</span>
+    <span class="kwa">integer function</span> <span class="kwd">extract_digit</span><span class="opt">(</span>nth<span class="opt">)</span>
+        <span class="kwa">integer</span><span class="opt">(</span>c_long<span class="opt">)</span> nth
+
+        <span class="kwa">call</span> <span class="kwd">mpz_mul_ui</span><span class="opt">(</span>tmp1<span class="opt">,</span> num<span class="opt">,</span> nth<span class="opt">)</span>
+        <span class="kwa">call</span> <span class="kwd">mpz_add</span><span class="opt">(</span>tmp2<span class="opt">,</span> tmp1<span class="opt">,</span> acc<span class="opt">)</span>
+        <span class="kwa">call</span> <span class="kwd">mpz_tdiv_q</span><span class="opt">(</span>tmp1<span class="opt">,</span> tmp2<span class="opt">,</span> den<span class="opt">)</span>
+        extract_digit <span class="opt">=</span> <span class="kwd">mpz_get_ui</span><span class="opt">(</span>tmp1<span class="opt">)</span>
+        <span class="kwa">return</span> 
+    <span class="kwa">end function</span> extract_digit
+
+    <span class="kwa">subroutine</span> <span class="kwd">next_term</span><span class="opt">(</span>k<span class="opt">)</span>
+        <span class="kwa">integer</span><span class="opt">(</span>c_long<span class="opt">)</span> k
+        <span class="kwa">integer</span><span class="opt">(</span>c_long<span class="opt">)</span> k2
+
+        k2 <span class="opt">=</span> k <span class="opt">*</span> <span class="num">2</span> <span class="opt">+</span> <span class="num">1</span>
+
+        <span class="kwa">call</span> <span class="kwd">mpz_addmul_ui</span><span class="opt">(</span>acc<span class="opt">,</span> num<span class="opt">,</span> <span class="num">2</span>_c_long<span class="opt">)</span>
+        <span class="kwa">call</span> <span class="kwd">mpz_mul_ui</span><span class="opt">(</span>acc<span class="opt">,</span> acc<span class="opt">,</span> k2<span class="opt">)</span>
+        <span class="kwa">call</span> <span class="kwd">mpz_mul_ui</span><span class="opt">(</span>den<span class="opt">,</span> den<span class="opt">,</span> k2<span class="opt">)</span>
+        <span class="kwa">call</span> <span class="kwd">mpz_mul_ui</span><span class="opt">(</span>num<span class="opt">,</span> num<span class="opt">,</span> k<span class="opt">)</span>
+    <span class="kwa">end subroutine</span> next_term
+
+    <span class="kwa">subroutine</span> <span class="kwd">eliminate_digit</span><span class="opt">(</span>d<span class="opt">)</span>
+        <span class="kwa">integer</span><span class="opt">(</span>c_long<span class="opt">)</span> d
+
+        <span class="kwa">call</span> <span class="kwd">mpz_submul_ui</span><span class="opt">(</span>acc<span class="opt">,</span> den<span class="opt">,</span> d<span class="opt">)</span>
+        <span class="kwa">call</span> <span class="kwd">mpz_mul_ui</span><span class="opt">(</span>acc<span class="opt">,</span> acc<span class="opt">,</span> <span class="num">10</span>_c_long<span class="opt">)</span>
+        <span class="kwa">call</span> <span class="kwd">mpz_mul_ui</span><span class="opt">(</span>num<span class="opt">,</span> num<span class="opt">,</span> <span class="num">10</span>_c_long<span class="opt">)</span>
+    <span class="kwa">end subroutine</span> eliminate_digit
+<span class="kwa">end program</span> pidigits
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

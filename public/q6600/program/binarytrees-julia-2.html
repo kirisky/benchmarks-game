@@ -17,6 +17,77 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc"># The Computer Language Benchmarks Game</span>
+<span class="slc"># https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+
+<span class="slc"># contributed by Jarret Revels and Alex Arslan</span>
+<span class="slc"># based on an OCaml program</span>
+<span class="slc"># *reset*</span>
+<span class="slc">#</span>
+<span class="slc"># modified by Michal Stransky:</span>
+<span class="slc">#  - made trees immutable as there is no mutation of trees in the program</span>
+<span class="slc">#  - removed subtyping from the tree definition</span>
+<span class="slc">#       (usually slower then union types)</span>
+
+<span class="kwa">using</span> Printf
+
+<span class="kwa">struct</span> Empty <span class="slc"># singleton type: Empty() === Empty()</span>
+<span class="kwa">end</span>
+
+<span class="kwa">struct</span> Node
+    left<span class="opt">::</span>Union<span class="opt">{</span>Node<span class="opt">,</span>Empty<span class="opt">}</span>
+    right<span class="opt">::</span>Union<span class="opt">{</span>Node<span class="opt">,</span>Empty<span class="opt">}</span>
+<span class="kwa">end</span>
+
+<span class="kwa">function</span> <span class="kwd">make</span><span class="opt">(</span>d<span class="opt">)</span>
+    <span class="kwa">if</span> d <span class="opt">==</span> <span class="num">0</span>
+        <span class="kwd">Node</span><span class="opt">(</span><span class="kwd">Empty</span><span class="opt">(),</span> <span class="kwd">Empty</span><span class="opt">())</span>
+    <span class="kwa">else</span>
+        <span class="kwd">Node</span><span class="opt">(</span><span class="kwd">make</span><span class="opt">(</span>d<span class="opt">-</span><span class="num">1</span><span class="opt">),</span> <span class="kwd">make</span><span class="opt">(</span>d<span class="opt">-</span><span class="num">1</span><span class="opt">))</span>
+    <span class="kwa">end</span>
+<span class="kwa">end</span>
+
+<span class="kwd">check</span><span class="opt">(</span>t<span class="opt">::</span>Empty<span class="opt">) =</span> <span class="num">0</span>
+<span class="kwd">check</span><span class="opt">(</span>t<span class="opt">::</span>Node<span class="opt">) =</span> <span class="num">1</span> <span class="opt">+</span> <span class="kwd">check</span><span class="opt">(</span>t<span class="opt">.</span>left<span class="opt">) +</span> <span class="kwd">check</span><span class="opt">(</span>t<span class="opt">.</span>right<span class="opt">)</span>
+
+<span class="kwa">function</span> <span class="kwd">loop_depths</span><span class="opt">(</span>d<span class="opt">,</span> min_depth<span class="opt">,</span> max_depth<span class="opt">)</span>
+    <span class="kwa">for</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">:</span><span class="kwd">div</span><span class="opt">(</span>max_depth <span class="opt">-</span> d<span class="opt">,</span> <span class="num">2</span><span class="opt">)</span>
+        niter <span class="opt">=</span> <span class="num">1</span> <span class="opt">&lt;&lt; (</span>max_depth <span class="opt">-</span> d <span class="opt">+</span> min_depth<span class="opt">)</span>
+        c <span class="opt">=</span> <span class="num">0</span>
+        <span class="kwa">for</span> j <span class="opt">=</span> <span class="num">1</span><span class="opt">:</span>niter
+            c <span class="opt">+=</span> <span class="kwd">check</span><span class="opt">(</span><span class="kwd">make</span><span class="opt">(</span>d<span class="opt">))</span> 
+        <span class="kwa">end</span>
+        <span class="kwc">&#64;printf</span><span class="opt">(</span><span class="str">&quot;</span><span class="ipl">%i</span><span class="str"></span><span class="esc">\t</span> <span class="str">trees of depth</span> <span class="ipl">%i</span><span class="str"></span><span class="esc">\t</span> <span class="str">check:</span> <span class="ipl">%i</span><span class="str"></span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span> niter<span class="opt">,</span> d<span class="opt">,</span> c<span class="opt">)</span>
+        d <span class="opt">+=</span> <span class="num">2</span>
+    <span class="kwa">end</span>
+<span class="kwa">end</span>
+
+<span class="kwa">function</span> <span class="kwd">perf_binary_trees</span><span class="opt">(</span>N<span class="opt">::</span>Int<span class="opt">=</span><span class="num">10</span><span class="opt">)</span>
+    min_depth <span class="opt">=</span> <span class="num">4</span>
+    max_depth <span class="opt">=</span> N
+    stretch_depth <span class="opt">=</span> max_depth <span class="opt">+</span> <span class="num">1</span>
+
+    <span class="slc"># create and check stretch tree</span>
+    <span class="kwa">let</span> c <span class="opt">=</span> <span class="kwd">check</span><span class="opt">(</span><span class="kwd">make</span><span class="opt">(</span>stretch_depth<span class="opt">))</span>
+        <span class="kwc">&#64;printf</span><span class="opt">(</span><span class="str">&quot;stretch tree of depth</span> <span class="ipl">%i</span><span class="str"></span><span class="esc">\t</span> <span class="str">check:</span> <span class="ipl">%i</span><span class="str"></span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span> stretch_depth<span class="opt">,</span> c<span class="opt">)</span>
+    <span class="kwa">end</span>
+
+    long_lived_tree <span class="opt">=</span> <span class="kwd">make</span><span class="opt">(</span>max_depth<span class="opt">)</span>
+
+    <span class="kwd">loop_depths</span><span class="opt">(</span>min_depth<span class="opt">,</span> min_depth<span class="opt">,</span> max_depth<span class="opt">)</span>
+    <span class="kwc">&#64;printf</span><span class="opt">(</span><span class="str">&quot;long lived tree of depth</span> <span class="ipl">%i</span><span class="str"></span><span class="esc">\t</span> <span class="str">check:</span> <span class="ipl">%i</span><span class="str"></span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span> max_depth<span class="opt">,</span> <span class="kwd">check</span><span class="opt">(</span>long_lived_tree<span class="opt">))</span>
+
+<span class="kwa">end</span>
+
+n <span class="opt">=</span> <span class="kwd">parse</span><span class="opt">(</span>Int<span class="opt">,</span>ARGS<span class="opt">[</span><span class="num">1</span><span class="opt">])</span>
+<span class="kwd">perf_binary_trees</span><span class="opt">(</span>n<span class="opt">)</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

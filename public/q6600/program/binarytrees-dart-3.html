@@ -17,6 +17,215 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="com">/* The Computer Language Benchmarks game</span>
+<span class="com">   https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="com"></span>
+<span class="com">   Contributed by Diogo</span>
+<span class="com">*/</span>
+
+import <span class="str">&apos;dart:isolate&apos;</span><span class="opt">;</span>
+
+<span class="kwa">void</span> <span class="kwd">main</span><span class="opt">(</span><span class="kwb">List</span><span class="opt">&lt;</span><span class="kwb">String</span><span class="opt">&gt;</span> args<span class="opt">)</span> async <span class="opt">{</span>
+  <span class="kwb">int</span> n <span class="opt">=</span> <span class="kwb">int</span><span class="opt">.</span><span class="kwd">parse</span><span class="opt">(</span>args<span class="opt">.</span><span class="kwd">elementAt</span><span class="opt">(</span><span class="num">0</span><span class="opt">));</span>
+  <span class="kwa">var</span> d <span class="opt">=</span> <span class="num">4</span><span class="opt">;</span>
+
+  <span class="slc">/// Define min and max iterations</span>
+  <span class="kwa">var</span> maxIter <span class="opt">= (</span>n <span class="opt">&lt;=</span> <span class="num">4</span><span class="opt">)</span> ? <span class="num">4</span> <span class="opt">: (</span>n <span class="opt">%</span> <span class="num">2</span> <span class="opt">==</span> <span class="num">0</span><span class="opt">)</span> ? n <span class="opt">:</span> n <span class="opt">-</span> <span class="num">1</span><span class="opt">;</span>
+  <span class="kwa">var</span> maxIterId <span class="opt">= (</span>maxIter <span class="opt">-</span> <span class="num">4</span><span class="opt">) /</span> <span class="num">2</span><span class="opt">;</span>
+
+  <span class="slc">/// Variables for output control on flow</span>
+  <span class="kwa">var</span> expectedId <span class="opt">=</span> <span class="str">&apos;stretch-tree&apos;</span><span class="opt">;</span>
+  <span class="kwa">var</span> iterResult <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+
+  <span class="slc">/// Create map for storing data</span>
+  <span class="kwa">var</span> results <span class="opt">=</span> <span class="kwb">Map</span><span class="opt">&lt;</span><span class="kwb">String</span><span class="opt">,</span> dynamic<span class="opt">&gt;();</span>
+  <span class="kwa">var</span> status <span class="opt">=</span> <span class="kwb">Map</span><span class="opt">&lt;</span><span class="kwb">String</span><span class="opt">,</span> <span class="kwb">bool</span><span class="opt">&gt;();</span>
+
+  <span class="slc">/// Set final status to finish loop of output</span>
+  status<span class="opt">[</span><span class="str">&apos;finished&apos;</span><span class="opt">] =</span> <span class="kwa">false</span><span class="opt">;</span>
+
+  <span class="slc">/// Create a port for dealing with results</span>
+  <span class="kwb">ReceivePort</span> port <span class="opt">=</span> <span class="kwa">new</span> <span class="kwb">ReceivePort</span><span class="opt">();</span>
+  port<span class="opt">.</span><span class="kwd">listen</span><span class="opt">((</span>dataReceived<span class="opt">) {</span>
+    <span class="slc">/// Data received will be a ResultTreeMessage</span>
+    <span class="slc">/// Store data received from message</span>
+    <span class="kwb">ResultTreeMessage</span> data <span class="opt">=</span> dataReceived as <span class="kwb">ResultTreeMessage</span><span class="opt">;</span>
+    results<span class="opt">[</span>data<span class="opt">.</span>id<span class="opt">] =</span> data<span class="opt">;</span>
+    status<span class="opt">[</span>data<span class="opt">.</span>id<span class="opt">] =</span> <span class="kwa">true</span><span class="opt">;</span>
+
+    <span class="slc">/// We will use this main isolate to print results</span>
+    <span class="slc">/// Create event loop to check if ordered result has arrived</span>
+    
+    <span class="kwa">var</span> nextIdStatus <span class="opt">=</span> <span class="kwa">true</span><span class="opt">;</span>
+    <span class="kwa">while</span> <span class="opt">(</span>nextIdStatus <span class="opt">==</span> <span class="kwa">true</span><span class="opt">) {</span>
+      <span class="kwa">if</span> <span class="opt">(</span>status<span class="opt">[</span>expectedId<span class="opt">] ==</span> <span class="kwa">true</span><span class="opt">) {</span>
+        <span class="kwa">if</span> <span class="opt">(</span>expectedId <span class="opt">==</span> <span class="str">&apos;stretch-tree&apos;</span><span class="opt">) {</span>
+          <span class="slc">/// Get stretch tree result and output</span>
+          <span class="kwa">var</span> result <span class="opt">=</span> results<span class="opt">[</span><span class="str">&apos;stretch-tree&apos;</span><span class="opt">]</span> as <span class="kwb">ResultTreeMessage</span><span class="opt">;</span>
+          <span class="kwb">int</span> checkVal <span class="opt">=</span> result<span class="opt">.</span>check<span class="opt">;</span>
+          <span class="kwd">print</span><span class="opt">(</span><span class="str">&quot;stretch tree of depth ${n+1}</span><span class="esc">\t</span> <span class="str">check: ${checkVal}&quot;</span><span class="opt">);</span>
+
+          <span class="slc">/// Change expectedId to first iter tree: 0-tree</span>
+          expectedId <span class="opt">=</span> <span class="str">&quot;${iterResult}-tree&quot;</span><span class="opt">;</span>
+
+        <span class="opt">}</span> <span class="kwa">else if</span> <span class="opt">(</span>expectedId <span class="opt">==</span> <span class="str">&apos;long-lived-tree&apos;</span><span class="opt">) {</span>
+          <span class="slc">/// Get long lived tree result and output</span>
+          <span class="kwa">var</span> result <span class="opt">=</span> results<span class="opt">[</span><span class="str">&apos;long-lived-tree&apos;</span><span class="opt">]</span> as <span class="kwb">ResultTreeMessage</span><span class="opt">;</span>
+          <span class="kwb">int</span> checkVal <span class="opt">=</span> result<span class="opt">.</span>check<span class="opt">;</span>
+          <span class="kwd">print</span><span class="opt">(</span><span class="str">&quot;long lived tree of depth ${n}</span><span class="esc">\t</span> <span class="str">check: ${checkVal}&quot;</span><span class="opt">);</span>
+
+          <span class="slc">/// Change expectedId to &apos;finished&apos; to avoid errors</span>
+          expectedId <span class="opt">=</span> <span class="str">&apos;finished&apos;</span><span class="opt">;</span>
+          nextIdStatus <span class="opt">=</span> <span class="kwa">false</span><span class="opt">;</span>
+
+          <span class="slc">/// Close port because we finished job</span>
+          port<span class="opt">.</span><span class="kwd">close</span><span class="opt">();</span>
+
+        <span class="opt">}</span> <span class="kwa">else</span> <span class="opt">{</span>
+          <span class="slc">/// Get current iter result we are looking for</span>
+          <span class="kwa">var</span> iterId <span class="opt">=</span> <span class="str">&quot;${iterResult}-tree&quot;</span><span class="opt">;</span>
+          <span class="kwa">if</span> <span class="opt">(</span>status<span class="opt">[</span>iterId<span class="opt">] ==</span> <span class="kwa">true</span><span class="opt">) {</span>
+            <span class="slc">/// If it is done</span>
+            <span class="slc">/// Get iter trees result and output</span>
+            <span class="kwa">var</span> result <span class="opt">=</span> results<span class="opt">[</span>iterId<span class="opt">]</span> as <span class="kwb">ResultTreeMessage</span><span class="opt">;</span>
+            <span class="kwb">int</span> niter <span class="opt">=</span> result<span class="opt">.</span>niter<span class="opt">;</span>
+            <span class="kwb">int</span> depth <span class="opt">=</span> result<span class="opt">.</span>depth<span class="opt">;</span>
+            <span class="kwb">int</span> check <span class="opt">=</span> result<span class="opt">.</span>check<span class="opt">;</span>
+            <span class="kwd">print</span><span class="opt">(</span><span class="str">&quot;${niter}</span><span class="esc">\t</span> <span class="str">trees of depth ${depth}</span><span class="esc">\t</span> <span class="str">check: ${check}&quot;</span><span class="opt">);</span>
+
+            <span class="slc">/// If we achieved maxIter than we go to long lived tree</span>
+            <span class="kwa">if</span> <span class="opt">(</span>iterResult <span class="opt">==</span> maxIterId<span class="opt">) {</span>
+              <span class="slc">/// Reached end of iter go to long lived tree</span>
+              expectedId <span class="opt">=</span> <span class="str">&quot;long-lived-tree&quot;</span><span class="opt">;</span>
+            <span class="opt">}</span> <span class="kwa">else</span> <span class="opt">{</span>
+              <span class="slc">/// Keep iterating trees</span>
+              <span class="slc">/// Set expectedId to next integer</span>
+              iterResult <span class="opt">+=</span> <span class="num">1</span><span class="opt">;</span>
+              expectedId <span class="opt">=</span> <span class="str">&quot;${iterResult}-tree&quot;</span><span class="opt">;</span>
+            <span class="opt">}</span>
+          <span class="opt">}</span>
+        <span class="opt">}</span>
+      <span class="opt">}</span>
+
+      <span class="slc">/// Don&apos;t continue unless next result is already available</span>
+      nextIdStatus <span class="opt">=</span> <span class="kwa">false</span><span class="opt">;</span>
+      <span class="kwa">if</span> <span class="opt">(</span>status<span class="opt">[</span>expectedId<span class="opt">] ==</span> <span class="kwa">true</span><span class="opt">) {</span>
+        nextIdStatus <span class="opt">=</span> <span class="kwa">true</span><span class="opt">;</span>
+      <span class="opt">}</span>
+    <span class="opt">}</span>
+  <span class="opt">});</span>
+
+  <span class="slc">/// Keep track of all isolates</span>
+  <span class="slc">/// And start making isolates to create trees</span>
+  <span class="kwb">List</span><span class="opt">&lt;</span><span class="kwb">Isolate</span><span class="opt">&gt;</span> isolates <span class="opt">=</span> <span class="kwa">new</span> <span class="kwb">List</span><span class="opt">();</span>
+
+  <span class="slc">/// Stretch Tree</span>
+  <span class="slc">/// Uses depth of n + 1</span>
+  <span class="slc">/// Keep id as &apos;stretch-tree&apos;</span>
+  <span class="kwb">StartMessage</span> stretchStartMessage <span class="opt">=</span> <span class="kwa">new</span> <span class="kwb">StartMessage</span><span class="opt">(</span>n <span class="opt">+</span> <span class="num">1</span><span class="opt">,</span> <span class="str">&apos;stretch-tree&apos;</span><span class="opt">,</span> <span class="kwa">false</span><span class="opt">,</span> port<span class="opt">.</span>sendPort<span class="opt">,</span> <span class="kwa">null</span><span class="opt">);</span>
+  status<span class="opt">[</span><span class="str">&apos;stretch-tree&apos;</span><span class="opt">] =</span> <span class="kwa">false</span><span class="opt">;</span>
+  isolates<span class="opt">.</span><span class="kwd">add</span><span class="opt">(</span>await <span class="kwb">Isolate</span><span class="opt">.</span><span class="kwd">spawn</span><span class="opt">(</span>runIsoCheckTree<span class="opt">,</span> stretchStartMessage<span class="opt">));</span>
+
+  <span class="slc">/// Long Lived Tree</span>
+  <span class="slc">/// Uses depth of n</span>
+  <span class="slc">/// Keep id as &apos;long-lived-tree&apos;</span>
+  <span class="kwb">StartMessage</span> longLivedStartMessage <span class="opt">=</span> <span class="kwa">new</span> <span class="kwb">StartMessage</span><span class="opt">(</span>n<span class="opt">,</span> <span class="str">&apos;long-lived-tree&apos;</span><span class="opt">,</span> <span class="kwa">true</span><span class="opt">,</span> port<span class="opt">.</span>sendPort<span class="opt">,</span> <span class="kwa">null</span><span class="opt">);</span>
+  status<span class="opt">[</span><span class="str">&apos;long-lived-tree&apos;</span><span class="opt">] =</span> <span class="kwa">false</span><span class="opt">;</span>
+  isolates<span class="opt">.</span><span class="kwd">add</span><span class="opt">(</span>await <span class="kwb">Isolate</span><span class="opt">.</span><span class="kwd">spawn</span><span class="opt">(</span>runIsoCheckTree<span class="opt">,</span> longLivedStartMessage<span class="opt">));</span>
+
+  <span class="slc">/// Start iterating by steps of 2</span>
+  <span class="slc">/// Begin at d (which is 4) and goes up to maxIter</span>
+  <span class="slc">/// Id of each tree will be &apos;${niter}-tree&apos;</span>
+  d <span class="opt">=</span> <span class="num">4</span><span class="opt">;</span>
+  <span class="kwa">var</span> iterId <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+  <span class="kwa">while</span> <span class="opt">(</span>d <span class="opt">&lt;=</span> n<span class="opt">) {</span>
+    <span class="kwa">var</span> idIter <span class="opt">=</span> <span class="str">&quot;${iterId}-tree&quot;</span><span class="opt">;</span>
+    <span class="kwb">StartMessage</span> message <span class="opt">=</span> <span class="kwa">new</span> <span class="kwb">StartMessage</span><span class="opt">(</span>d<span class="opt">,</span> idIter<span class="opt">,</span> <span class="kwa">false</span><span class="opt">,</span> port<span class="opt">.</span>sendPort<span class="opt">,</span> n<span class="opt">);</span>
+    status<span class="opt">[</span>idIter<span class="opt">] =</span> <span class="kwa">false</span><span class="opt">;</span>
+    isolates<span class="opt">.</span><span class="kwd">add</span><span class="opt">(</span>await <span class="kwb">Isolate</span><span class="opt">.</span><span class="kwd">spawn</span><span class="opt">(</span>runIsoIterationFor<span class="opt">,</span> message<span class="opt">));</span>
+    iterId <span class="opt">+=</span> <span class="num">1</span><span class="opt">;</span>
+    d <span class="opt">+=</span> <span class="num">2</span><span class="opt">;</span>
+  <span class="opt">}</span>
+
+  <span class="slc">/// Port will receive messages as soon as they get ready and print them</span>
+<span class="opt">}</span>
+
+<span class="slc">/// Define a message for sending isolate data</span>
+<span class="kwa">class</span> <span class="kwb">StartMessage</span> <span class="opt">{</span>
+  <span class="kwb">int</span> depth<span class="opt">;</span>
+  <span class="kwa">var</span> id<span class="opt">;</span>
+  <span class="kwb">bool</span> keepTree<span class="opt">;</span>
+  <span class="kwb">SendPort</span> port<span class="opt">;</span>
+  <span class="kwb">int</span> n<span class="opt">;</span>
+  <span class="kwb">StartMessage</span><span class="opt">(</span><span class="kwa">this</span><span class="opt">.</span>depth<span class="opt">,</span> <span class="kwa">this</span><span class="opt">.</span>id<span class="opt">,</span> <span class="kwa">this</span><span class="opt">.</span>keepTree<span class="opt">,</span> <span class="kwa">this</span><span class="opt">.</span>port<span class="opt">,</span> <span class="kwa">this</span><span class="opt">.</span>n<span class="opt">);</span>
+<span class="opt">}</span>
+
+<span class="slc">/// Define a message for receiving data</span>
+<span class="kwa">class</span> <span class="kwb">ResultTreeMessage</span> <span class="opt">{</span>
+  <span class="kwa">var</span> id<span class="opt">;</span>
+  <span class="kwb">List</span> tree<span class="opt">;</span>
+  <span class="kwb">int</span> check<span class="opt">;</span>
+  <span class="kwb">int</span> depth<span class="opt">;</span>
+  <span class="kwb">int</span> niter<span class="opt">;</span>
+  <span class="kwb">ResultTreeMessage</span><span class="opt">(</span><span class="kwa">this</span><span class="opt">.</span>id<span class="opt">,</span> <span class="kwa">this</span><span class="opt">.</span>tree<span class="opt">,</span> <span class="kwa">this</span><span class="opt">.</span>check<span class="opt">,</span> <span class="kwa">this</span><span class="opt">.</span>depth<span class="opt">,</span> <span class="kwa">this</span><span class="opt">.</span>niter<span class="opt">);</span>
+<span class="opt">}</span>
+
+<span class="kwa">void</span> <span class="kwd">runIsoCheckTree</span><span class="opt">(</span><span class="kwb">StartMessage</span> message<span class="opt">) {</span>
+  <span class="slc">/// Creating tree of depth n</span>
+  <span class="kwb">List</span> tree <span class="opt">=</span> <span class="kwd">make</span><span class="opt">(</span>message<span class="opt">.</span>depth<span class="opt">);</span>
+  <span class="slc">/// Making check on that tree</span>
+  <span class="kwb">int</span> checkVal <span class="opt">=</span> <span class="kwd">check</span><span class="opt">(</span>tree<span class="opt">);</span>
+  <span class="kwa">if</span> <span class="opt">(</span>message<span class="opt">.</span>keepTree <span class="opt">==</span> <span class="kwa">true</span><span class="opt">) {</span>
+    <span class="slc">/// Return value and tree if tree is kept - use Isolate Port for it</span>
+    message<span class="opt">.</span>port<span class="opt">.</span><span class="kwd">send</span><span class="opt">(</span><span class="kwa">new</span> <span class="kwb">ResultTreeMessage</span><span class="opt">(</span>message<span class="opt">.</span>id<span class="opt">,</span> tree<span class="opt">,</span> checkVal<span class="opt">,</span> message<span class="opt">.</span>depth<span class="opt">,</span> <span class="kwa">null</span><span class="opt">));</span>
+  <span class="opt">}</span> <span class="kwa">else</span> <span class="opt">{</span>
+    <span class="slc">/// Return only value if tree is not kept - use Isolate Port for it</span>
+    message<span class="opt">.</span>port<span class="opt">.</span><span class="kwd">send</span><span class="opt">(</span><span class="kwa">new</span> <span class="kwb">ResultTreeMessage</span><span class="opt">(</span>message<span class="opt">.</span>id<span class="opt">,</span> <span class="kwa">null</span><span class="opt">,</span> checkVal<span class="opt">,</span> message<span class="opt">.</span>depth<span class="opt">,</span> <span class="kwa">null</span><span class="opt">));</span>
+  <span class="opt">}</span>
+<span class="opt">}</span>
+
+<span class="slc">/// Get message containing depth and define number of trees to iterate over</span>
+<span class="kwa">void</span> <span class="kwd">runIsoIterationFor</span><span class="opt">(</span><span class="kwb">StartMessage</span> message<span class="opt">) {</span>
+  <span class="kwb">int</span> niter <span class="opt">=</span> <span class="num">1</span> <span class="opt">&lt;&lt; (</span>message<span class="opt">.</span>n <span class="opt">-</span> message<span class="opt">.</span>depth <span class="opt">+</span> <span class="num">4</span><span class="opt">);</span>
+  <span class="kwb">int</span> checkVal <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+  <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> i <span class="opt">=</span> <span class="num">1</span><span class="opt">;</span> i <span class="opt">&lt;=</span> niter<span class="opt">;</span> i<span class="opt">++) {</span>
+    <span class="slc">/// Create tree and check number of nodes</span>
+    <span class="kwb">List</span> tree <span class="opt">=</span> <span class="kwd">make</span><span class="opt">(</span>message<span class="opt">.</span>depth<span class="opt">);</span>
+    <span class="kwb">int</span> c <span class="opt">=</span> <span class="kwd">check</span><span class="opt">(</span>tree<span class="opt">);</span>
+
+    <span class="slc">/// Add number of nodes to master value</span>
+    checkVal <span class="opt">+=</span> c<span class="opt">;</span>
+
+    <span class="slc">/// Clear references to empty memory</span>
+    c <span class="opt">=</span> <span class="kwa">null</span><span class="opt">;</span>
+    tree <span class="opt">=</span> <span class="kwa">null</span><span class="opt">;</span>
+  <span class="opt">}</span>
+  message<span class="opt">.</span>port<span class="opt">.</span><span class="kwd">send</span><span class="opt">(</span><span class="kwa">new</span> <span class="kwb">ResultTreeMessage</span><span class="opt">(</span>message<span class="opt">.</span>id<span class="opt">,</span> <span class="kwa">null</span><span class="opt">,</span> checkVal<span class="opt">,</span> message<span class="opt">.</span>depth<span class="opt">,</span> niter<span class="opt">));</span>
+<span class="opt">}</span>
+
+
+<span class="slc">/// Trees will be defined by Lists of Lists containing always 2 elements</span>
+<span class="slc">/// make =&gt; Create recursive lists of 2 elements</span>
+<span class="kwb">List</span> <span class="kwd">make</span><span class="opt">(</span><span class="kwb">int</span> depth<span class="opt">) {</span>
+  <span class="kwb">List</span> tree <span class="opt">=</span> <span class="kwa">new</span> <span class="kwb">List</span><span class="opt">(</span><span class="num">2</span><span class="opt">);</span>
+  <span class="kwa">if</span> <span class="opt">(</span>depth <span class="opt">!=</span> <span class="num">0</span><span class="opt">) {</span>
+    tree<span class="opt">[</span><span class="num">0</span><span class="opt">] =</span> <span class="kwd">make</span><span class="opt">(</span>depth <span class="opt">-</span> <span class="num">1</span><span class="opt">);</span>
+    tree<span class="opt">[</span><span class="num">1</span><span class="opt">] =</span> <span class="kwd">make</span><span class="opt">(</span>depth <span class="opt">-</span> <span class="num">1</span><span class="opt">);</span>
+  <span class="opt">}</span>
+  <span class="kwa">return</span> tree<span class="opt">;</span>
+<span class="opt">}</span>
+
+<span class="slc">/// check =&gt; Runs through lists of list and get number of items</span>
+<span class="kwb">int</span> <span class="kwd">check</span><span class="opt">(</span><span class="kwb">List</span> node<span class="opt">) {</span>
+  <span class="kwa">return</span> <span class="opt">(</span>node<span class="opt">[</span><span class="num">0</span><span class="opt">] ==</span> <span class="kwa">null</span><span class="opt">)</span> ? <span class="num">1</span> <span class="opt">:</span> <span class="num">1</span> <span class="opt">+</span> <span class="kwd">check</span><span class="opt">(</span>node<span class="opt">[</span><span class="num">0</span><span class="opt">]) +</span> <span class="kwd">check</span><span class="opt">(</span>node<span class="opt">[</span><span class="num">1</span><span class="opt">]);</span>
+<span class="opt">}</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

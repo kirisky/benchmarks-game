@@ -17,6 +17,148 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc">// The Computer Language Benchmarks Game</span>
+<span class="slc">// https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">//</span>
+<span class="slc">// contributed by Renat Galimov</span>
+
+
+<span class="kwa">use</span> std<span class="opt">::</span>sync<span class="opt">::</span>Arc<span class="opt">;</span>
+<span class="kwa">use</span> std<span class="opt">::</span>thread<span class="opt">;</span>
+<span class="kwa">use</span> std<span class="opt">::</span>collections<span class="opt">::</span>HashMap<span class="opt">;</span>
+<span class="kwa">use</span> std<span class="opt">::</span>vec<span class="opt">::</span>Vec<span class="opt">;</span>
+<span class="kwa">use</span> std<span class="opt">::</span>string<span class="opt">::</span>String<span class="opt">;</span>
+
+
+<span class="kwa">fn</span> <span class="kwd">count_nucleotides</span><span class="opt">(</span>input<span class="opt">: &amp;</span>Vec<span class="opt">&lt;</span><span class="kwb">u8</span><span class="opt">&gt;,</span> length<span class="opt">:</span> <span class="kwb">usize</span><span class="opt">) -&gt;</span> HashMap<span class="opt">&lt;</span>Vec<span class="opt">&lt;</span><span class="kwb">u8</span><span class="opt">&gt;,</span> <span class="kwb">usize</span><span class="opt">&gt; {</span>
+    <span class="kwa">let mut</span> nucleotides <span class="opt">=</span> HashMap<span class="opt">::&lt;</span>Vec<span class="opt">&lt;</span><span class="kwb">u8</span><span class="opt">&gt;,</span> <span class="kwb">usize</span><span class="opt">&gt;::</span><span class="kwd">new</span><span class="opt">();</span>
+
+    <span class="kwa">if</span> input<span class="opt">.</span><span class="kwd">len</span><span class="opt">() &lt;</span> length <span class="opt">{</span>
+        <span class="kwa">return</span> nucleotides<span class="opt">;</span>
+    <span class="opt">}</span>
+
+    <span class="kwa">let mut</span> position <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+    <span class="kwa">let</span> end <span class="opt">=</span> input<span class="opt">.</span><span class="kwd">len</span><span class="opt">() -</span> length<span class="opt">;</span>
+
+    <span class="kwa">while</span> position <span class="opt">&lt;=</span> end <span class="opt">{</span>
+        <span class="opt">*</span>nucleotides<span class="opt">.</span><span class="kwd">entry</span><span class="opt">(</span>input<span class="opt">[</span>position <span class="opt">..</span> position <span class="opt">+</span> length<span class="opt">].</span><span class="kwd">to_vec</span><span class="opt">()).</span><span class="kwd">or_insert</span><span class="opt">(</span><span class="num">0</span><span class="opt">) +=</span> <span class="num">1</span><span class="opt">;</span>
+        position <span class="opt">+=</span> <span class="num">1</span><span class="opt">;</span>
+    <span class="opt">}</span>
+
+    nucleotides
+<span class="opt">}</span>
+
+
+<span class="kwa">fn</span> <span class="kwd">read_input</span><span class="opt">() -&gt;</span> Vec<span class="opt">&lt;</span><span class="kwb">u8</span><span class="opt">&gt; {</span>
+    <span class="kwa">let</span> stdin <span class="opt">=</span> std<span class="opt">::</span>io<span class="opt">::</span><span class="kwd">stdin</span><span class="opt">();</span>
+
+    <span class="kwa">let mut</span> input <span class="opt">=</span> String<span class="opt">::</span><span class="kwd">new</span><span class="opt">();</span>
+
+    <span class="kwa">while</span> stdin<span class="opt">.</span><span class="kwd">read_line</span><span class="opt">(&amp;</span><span class="kwa">mut</span> input<span class="opt">)</span><span class="num">.u</span>nwrap<span class="opt">() &gt;</span> <span class="num">0</span> <span class="opt">{</span>
+        <span class="kwa">if</span> input<span class="opt">.</span><span class="kwd">contains</span><span class="opt">(</span><span class="str">&quot;THREE&quot;</span><span class="opt">) {</span>
+            input<span class="opt">.</span><span class="kwd">clear</span><span class="opt">();</span>
+            <span class="kwa">break</span><span class="opt">;</span>
+        <span class="opt">}</span>
+        input<span class="opt">.</span><span class="kwd">clear</span><span class="opt">();</span>
+    <span class="opt">}</span>
+
+    <span class="kwa">let mut</span> data <span class="opt">=</span> Vec<span class="opt">::&lt;</span><span class="kwb">u8</span><span class="opt">&gt;::</span><span class="kwd">new</span><span class="opt">();</span>
+
+    <span class="kwa">loop</span> <span class="opt">{</span>
+        <span class="kwa">let mut</span> input <span class="opt">=</span> String<span class="opt">::</span><span class="kwd">new</span><span class="opt">();</span>
+        <span class="kwa">let</span> bytes_read <span class="opt">=</span> stdin<span class="opt">.</span><span class="kwd">read_line</span><span class="opt">(&amp;</span><span class="kwa">mut</span> input<span class="opt">)</span><span class="num">.u</span>nwrap<span class="opt">();</span>
+
+        <span class="kwa">if</span> bytes_read <span class="opt">==</span> <span class="num">0</span> <span class="opt">{</span>
+            <span class="kwa">break</span>
+        <span class="opt">}</span>
+
+        <span class="kwa">let mut</span> input_bytes <span class="opt">=</span> input<span class="opt">.</span><span class="kwd">to_uppercase</span><span class="opt">()</span><span class="num">.i</span>nto<span class="num">_</span>bytes<span class="opt">();</span>
+
+        <span class="kwa">loop</span> <span class="opt">{</span>
+            <span class="kwa">match</span> input_bytes<span class="opt">.</span><span class="kwd">last</span><span class="opt">() {</span>
+                <span class="kwd">Some</span><span class="opt">(&amp;</span>b&apos;<span class="esc">\</span>r&apos;<span class="opt">) |</span> <span class="kwd">Some</span><span class="opt">(&amp;</span>b&apos;<span class="esc">\</span>n&apos;<span class="opt">) =&gt; {</span> input_bytes<span class="opt">.</span><span class="kwd">pop</span><span class="opt">(); },</span>
+                _ <span class="opt">=&gt;</span> <span class="kwa">break</span>
+            <span class="opt">}</span>
+        <span class="opt">}</span>
+
+        data<span class="opt">.</span><span class="kwd">append</span><span class="opt">(&amp;</span><span class="kwa">mut</span> input_bytes<span class="opt">);</span>
+    <span class="opt">}</span>
+
+    data
+<span class="opt">}</span>
+
+
+<span class="kwa">fn</span> <span class="kwd">print_percents</span><span class="opt">(</span><span class="kwa">mut</span> items<span class="opt">:</span> HashMap<span class="opt">&lt;</span>Vec<span class="opt">&lt;</span><span class="kwb">u8</span><span class="opt">&gt;,</span> <span class="kwb">usize</span><span class="opt">&gt;) {</span>
+    <span class="kwa">let mut</span> sorted_items <span class="opt">=</span> Vec<span class="opt">::&lt;(</span>Vec<span class="opt">&lt;</span><span class="kwb">u8</span><span class="opt">&gt;,</span> <span class="kwb">usize</span><span class="opt">)&gt;::</span><span class="kwd">new</span><span class="opt">();</span>
+
+    <span class="kwa">let mut</span> total_count <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+
+    <span class="kwa">for</span> <span class="opt">(</span>key<span class="opt">,</span> value<span class="opt">)</span> <span class="kwa">in</span> items<span class="opt">.</span><span class="kwd">drain</span><span class="opt">() {</span>
+        total_count <span class="opt">+=</span> value<span class="opt">;</span>
+        sorted_items<span class="opt">.</span><span class="kwd">push</span><span class="opt">((</span>key<span class="opt">,</span> value<span class="opt">));</span>
+    <span class="opt">}</span>
+
+    sorted_items<span class="opt">.</span><span class="kwd">sort_by_key</span><span class="opt">(|</span>item<span class="opt">|</span> item<span class="num">.1</span><span class="opt">);</span>
+
+    <span class="kwa">for</span> item <span class="kwa">in</span> sorted_items<span class="num">.i</span>ter<span class="opt">().</span><span class="kwd">rev</span><span class="opt">() {</span>
+        <span class="kwa">let</span> count <span class="opt">= (</span>item<span class="num">.1</span> <span class="opt">*</span> <span class="num">100</span><span class="opt">)</span> <span class="kwa">as</span> <span class="kwb">f64</span> <span class="opt">/</span> total_count <span class="kwa">as</span> <span class="kwb">f64</span><span class="opt">;</span>
+        println<span class="opt">!(</span><span class="str">&quot;{} {:.3}&quot;</span><span class="opt">,</span> std<span class="opt">::</span><span class="kwb">str</span><span class="opt">::</span><span class="kwd">from_utf8</span><span class="opt">(&amp;</span>item<span class="num">.0</span><span class="opt">)</span><span class="num">.u</span>nwrap<span class="opt">(),</span> count<span class="opt">);</span>
+    <span class="opt">}</span>
+<span class="opt">}</span>
+
+
+<span class="kwa">fn</span> <span class="kwd">print_count</span><span class="opt">(</span>pattern<span class="opt">: &amp;</span><span class="kwb">str</span><span class="opt">,</span> items<span class="opt">:</span> HashMap<span class="opt">&lt;</span>Vec<span class="opt">&lt;</span><span class="kwb">u8</span><span class="opt">&gt;,</span> <span class="kwb">usize</span><span class="opt">&gt;) {</span>
+    <span class="kwa">let</span> count <span class="opt">=</span> <span class="kwa">match</span> items<span class="opt">.</span><span class="kwd">get</span><span class="opt">(</span>pattern<span class="opt">.</span><span class="kwd">as_bytes</span><span class="opt">()) {</span>
+        <span class="kwd">Some</span><span class="opt">(</span>count<span class="opt">) =&gt; *</span>count<span class="opt">,</span>
+        _ <span class="opt">=&gt;</span> <span class="num">0</span>
+    <span class="opt">};</span>
+
+    println<span class="opt">!(</span><span class="str">&quot;{}</span><span class="esc">\</span><span class="str">t{}&quot;</span><span class="opt">,</span> count<span class="opt">,</span> pattern<span class="opt">);</span>
+<span class="opt">}</span>
+
+
+<span class="kwa">fn</span> <span class="kwd">main</span><span class="opt">() {</span>
+
+    <span class="kwa">let</span> data <span class="opt">=</span> Arc<span class="opt">::</span><span class="kwd">new</span><span class="opt">(</span><span class="kwd">read_input</span><span class="opt">());</span>
+
+    <span class="kwa">let mut</span> threads <span class="opt">=</span> HashMap<span class="opt">::&lt;</span><span class="kwb">usize</span><span class="opt">,</span> thread<span class="opt">::</span>JoinHandle<span class="opt">&lt;</span>HashMap<span class="opt">&lt;</span>Vec<span class="opt">&lt;</span><span class="kwb">u8</span><span class="opt">&gt;,</span> <span class="kwb">usize</span><span class="opt">&gt;&gt;&gt;::</span><span class="kwd">new</span><span class="opt">();</span>
+
+    <span class="kwa">for</span> k <span class="kwa">in</span> vec<span class="opt">![</span><span class="num">1</span><span class="opt">,</span> <span class="num">2</span><span class="opt">,</span> <span class="num">3</span><span class="opt">,</span> <span class="num">4</span><span class="opt">,</span> <span class="num">6</span><span class="opt">,</span> <span class="num">12</span><span class="opt">,</span> <span class="num">18</span><span class="opt">] {</span>
+        <span class="kwa">let</span> data_ptr <span class="opt">=</span> data<span class="opt">.</span><span class="kwd">clone</span><span class="opt">();</span>
+
+        <span class="kwa">let</span> handle <span class="opt">=</span> thread<span class="opt">::</span><span class="kwd">spawn</span><span class="opt">(</span><span class="kwa">move</span> <span class="opt">|| {</span>
+            <span class="kwd">count_nucleotides</span><span class="opt">(&amp;</span>data_ptr<span class="opt">,</span> k<span class="opt">)</span>
+        <span class="opt">});</span>
+
+        threads<span class="num">.i</span>nsert<span class="opt">(</span>k<span class="opt">,</span> handle<span class="opt">);</span>
+    <span class="opt">}</span>
+
+    <span class="kwa">let mut</span> results <span class="opt">=</span> HashMap<span class="opt">::&lt;</span><span class="kwb">usize</span><span class="opt">,</span> HashMap<span class="opt">&lt;</span>Vec<span class="opt">&lt;</span><span class="kwb">u8</span><span class="opt">&gt;,</span> <span class="kwb">usize</span><span class="opt">&gt;&gt;::</span><span class="kwd">new</span><span class="opt">();</span>
+
+    <span class="kwa">for</span> <span class="opt">(</span>key<span class="opt">,</span> thread<span class="opt">)</span> <span class="kwa">in</span> threads<span class="opt">.</span><span class="kwd">drain</span><span class="opt">() {</span>
+        thread<span class="opt">.</span><span class="kwd">join</span><span class="opt">().</span><span class="kwd">map</span><span class="opt">(|</span>value<span class="opt">| {</span>
+            results<span class="num">.i</span>nsert<span class="opt">(</span>key<span class="opt">,</span> value<span class="opt">)</span>
+        <span class="opt">});</span>
+    <span class="opt">}</span>
+
+    <span class="kwd">print_percents</span><span class="opt">(</span>results<span class="opt">.</span><span class="kwd">remove</span><span class="opt">(&amp;</span><span class="num">1</span><span class="opt">)</span><span class="num">.u</span>nwrap<span class="num">_</span>or<span class="num">_</span>else<span class="opt">(||</span> HashMap<span class="opt">::&lt;</span>Vec<span class="opt">&lt;</span><span class="kwb">u8</span><span class="opt">&gt;,</span> <span class="kwb">usize</span><span class="opt">&gt;::</span><span class="kwd">new</span><span class="opt">()));</span>
+    println<span class="opt">!(</span><span class="str">&quot;&quot;</span><span class="opt">);</span>
+    <span class="kwd">print_percents</span><span class="opt">(</span>results<span class="opt">.</span><span class="kwd">remove</span><span class="opt">(&amp;</span><span class="num">2</span><span class="opt">)</span><span class="num">.u</span>nwrap<span class="num">_</span>or<span class="num">_</span>else<span class="opt">(||</span> HashMap<span class="opt">::&lt;</span>Vec<span class="opt">&lt;</span><span class="kwb">u8</span><span class="opt">&gt;,</span> <span class="kwb">usize</span><span class="opt">&gt;::</span><span class="kwd">new</span><span class="opt">()));</span>
+    println<span class="opt">!(</span><span class="str">&quot;&quot;</span><span class="opt">);</span>
+
+    <span class="kwd">print_count</span><span class="opt">(</span><span class="str">&quot;GGT&quot;</span><span class="opt">,</span> results<span class="opt">.</span><span class="kwd">remove</span><span class="opt">(&amp;</span><span class="num">3</span><span class="opt">)</span><span class="num">.u</span>nwrap<span class="num">_</span>or<span class="num">_</span>else<span class="opt">(||</span> HashMap<span class="opt">::&lt;</span>Vec<span class="opt">&lt;</span><span class="kwb">u8</span><span class="opt">&gt;,</span> <span class="kwb">usize</span><span class="opt">&gt;::</span><span class="kwd">new</span><span class="opt">()));</span>
+    <span class="kwd">print_count</span><span class="opt">(</span><span class="str">&quot;GGTA&quot;</span><span class="opt">,</span> results<span class="opt">.</span><span class="kwd">remove</span><span class="opt">(&amp;</span><span class="num">4</span><span class="opt">)</span><span class="num">.u</span>nwrap<span class="num">_</span>or<span class="num">_</span>else<span class="opt">(||</span> HashMap<span class="opt">::&lt;</span>Vec<span class="opt">&lt;</span><span class="kwb">u8</span><span class="opt">&gt;,</span> <span class="kwb">usize</span><span class="opt">&gt;::</span><span class="kwd">new</span><span class="opt">()));</span>
+    <span class="kwd">print_count</span><span class="opt">(</span><span class="str">&quot;GGTATT&quot;</span><span class="opt">,</span> results<span class="opt">.</span><span class="kwd">remove</span><span class="opt">(&amp;</span><span class="num">6</span><span class="opt">)</span><span class="num">.u</span>nwrap<span class="num">_</span>or<span class="num">_</span>else<span class="opt">(||</span> HashMap<span class="opt">::&lt;</span>Vec<span class="opt">&lt;</span><span class="kwb">u8</span><span class="opt">&gt;,</span> <span class="kwb">usize</span><span class="opt">&gt;::</span><span class="kwd">new</span><span class="opt">()));</span>
+    <span class="kwd">print_count</span><span class="opt">(</span><span class="str">&quot;GGTATTTTAATT&quot;</span><span class="opt">,</span> results<span class="opt">.</span><span class="kwd">remove</span><span class="opt">(&amp;</span><span class="num">12</span><span class="opt">)</span><span class="num">.u</span>nwrap<span class="num">_</span>or<span class="num">_</span>else<span class="opt">(||</span> HashMap<span class="opt">::&lt;</span>Vec<span class="opt">&lt;</span><span class="kwb">u8</span><span class="opt">&gt;,</span> <span class="kwb">usize</span><span class="opt">&gt;::</span><span class="kwd">new</span><span class="opt">()));</span>
+    <span class="kwd">print_count</span><span class="opt">(</span><span class="str">&quot;GGTATTTTAATTTATAGT&quot;</span><span class="opt">,</span> results<span class="opt">.</span><span class="kwd">remove</span><span class="opt">(&amp;</span><span class="num">18</span><span class="opt">)</span><span class="num">.u</span>nwrap<span class="num">_</span>or<span class="num">_</span>else<span class="opt">(||</span> HashMap<span class="opt">::&lt;</span>Vec<span class="opt">&lt;</span><span class="kwb">u8</span><span class="opt">&gt;,</span> <span class="kwb">usize</span><span class="opt">&gt;::</span><span class="kwd">new</span><span class="opt">()));</span>
+<span class="opt">}</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

@@ -17,6 +17,74 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc">;;   The Computer Language Benchmarks Game</span>
+<span class="slc">;;   https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">;;;</span>
+<span class="slc">;;; contributed by Manuel Giraud</span>
+<span class="slc">;;; modified by Nicolas Neuss</span>
+<span class="slc">;;; modified by Juho Snellman 2005-10-26</span>
+<span class="slc">;;;</span>
+<span class="slc">;;; modified by Witali Kusnezow 2009-01-20</span>
+<span class="slc">;;;  * simplified structure of leaf nodes</span>
+<span class="slc">;;;  * optimize GC usage</span>
+<span class="slc">;;;  * optimize all functions</span>
+<span class="slc">;;;</span>
+<span class="slc">;;; modified by Witali Kusnezow 2009-08-20</span>
+<span class="slc">;;;  * remove GC hacks to satisfy new versions of the sbcl</span>
+<span class="slc">;;;</span>
+<span class="slc">;;; *reset*</span>
+
+<span class="slc">;;; Node is either (DATA) (for leaf nodes) or an improper list (DATA LEFT . RIGHT)</span>
+
+<span class="opt">(</span><span class="kwa">defun</span> <span class="kwb">build-btree</span> <span class="opt">(</span><span class="kwa">item</span> depth<span class="opt">)</span>
+  <span class="opt">(</span><span class="kwa">declare</span> <span class="opt">(</span><span class="kwa">fixnum</span> item depth<span class="opt">))</span>
+  <span class="opt">(</span><span class="kwa">if</span> <span class="opt">(</span><span class="kwa">zerop</span> depth<span class="opt">) (</span><span class="kwa">list</span> item<span class="opt">)</span>
+      <span class="opt">(</span><span class="kwa">let</span> <span class="opt">((</span><span class="kwa">item2</span> <span class="opt">(+</span> item item<span class="opt">))</span>
+            <span class="opt">(</span><span class="kwa">depth-1</span> <span class="opt">(</span><span class="kwa">1-</span> depth<span class="opt">)))</span>
+        <span class="opt">(</span><span class="kwa">declare</span> <span class="opt">(</span><span class="kwa">fixnum</span> item2 depth-1<span class="opt">))</span>
+        <span class="opt">(</span><span class="kwa">cons</span> item
+				<span class="opt">(</span><span class="kwa">cons</span> <span class="opt">(</span><span class="kwa">build-btree</span> <span class="opt">(</span><span class="kwa">the</span> fixnum <span class="opt">(</span><span class="kwa">1-</span> item2<span class="opt">))</span> depth-1<span class="opt">)</span> 
+					  <span class="opt">(</span><span class="kwa">build-btree</span> item2 depth-1<span class="opt">))))))</span>
+
+<span class="opt">(</span><span class="kwa">defun</span> <span class="kwb">check-node</span> <span class="opt">(</span><span class="kwa">node</span><span class="opt">)</span>
+  <span class="opt">(</span><span class="kwa">declare</span> <span class="opt">(</span><span class="kwa">values</span> fixnum<span class="opt">))</span>
+  <span class="opt">(</span><span class="kwa">let</span> <span class="opt">((</span><span class="kwa">data</span> <span class="opt">(</span><span class="kwa">car</span> node<span class="opt">))</span>
+        <span class="opt">(</span><span class="kwa">kids</span> <span class="opt">(</span><span class="kwa">cdr</span> node<span class="opt">)))</span>
+    <span class="opt">(</span><span class="kwa">declare</span> <span class="opt">(</span><span class="kwa">fixnum</span> data<span class="opt">))</span>
+    <span class="opt">(</span><span class="kwa">if</span> kids
+        <span class="opt">(+ (+</span> <span class="num">1</span> <span class="opt">(</span><span class="kwa">check-node</span> <span class="opt">(</span><span class="kwa">car</span> kids<span class="opt">)))</span>
+           <span class="opt">(</span><span class="kwa">check-node</span> <span class="opt">(</span><span class="kwa">cdr</span> kids<span class="opt">)))</span>
+        <span class="num">1</span><span class="opt">)))</span>
+
+<span class="opt">(</span><span class="kwa">defun</span> <span class="kwb">loop-depths</span> <span class="opt">(</span><span class="kwa">max-depth</span> <span class="opt">&amp;</span>key <span class="opt">(</span><span class="kwa">min-depth</span> <span class="num">4</span><span class="opt">))</span>
+  <span class="opt">(</span><span class="kwa">declare</span> <span class="opt">(</span><span class="kwa">type</span> fixnum max-depth min-depth<span class="opt">))</span>
+  <span class="opt">(</span><span class="kwa">loop</span> for d of-type fixnum from min-depth by <span class="num">2</span> upto max-depth do
+       <span class="opt">(</span><span class="kwa">loop</span> with iterations of-type fixnum <span class="opt">= (</span><span class="kwa">ash</span> <span class="num">1</span> <span class="opt">(+</span> max-depth min-depth <span class="opt">(</span><span class="kwa">-</span> d<span class="opt">)))</span>
+          for i of-type fixnum from <span class="num">1</span> upto iterations
+          sum <span class="opt">(</span><span class="kwa">the</span> fixnum <span class="opt">(</span><span class="kwa">check-node</span> <span class="opt">(</span><span class="kwa">build-btree</span> i d<span class="opt">)))</span>
+          into result of-type fixnum
+          finally
+            <span class="opt">(</span><span class="kwa">format</span> t <span class="str">&quot;~D	 trees of depth ~D	 check: ~D~%&quot;</span>
+                    <span class="opt">(</span><span class="kwa">the</span> fixnum iterations<span class="opt">)</span> d result<span class="opt">))))</span>
+
+<span class="opt">(</span><span class="kwa">defun</span> <span class="kwb">main</span> <span class="opt">(&amp;</span>optional <span class="opt">(</span><span class="kwa">n</span> <span class="opt">(</span><span class="kwa">parse-integer</span>
+                           <span class="opt">(</span><span class="kwa">or</span> <span class="opt">(</span><span class="kwa">car</span> <span class="opt">(</span><span class="kwa">last</span> <span class="opt">#+</span>sbcl sb-ext<span class="opt">:*</span>posix-argv<span class="opt">*</span>
+                                          <span class="opt">#+</span>cmu  extensions<span class="opt">:*</span>command-line-strings<span class="opt">*</span>
+                                          <span class="opt">#+</span>gcl  si<span class="opt">::*</span>command-args<span class="opt">*))</span>
+                               <span class="str">&quot;1&quot;</span><span class="opt">))))</span>
+  <span class="opt">(</span><span class="kwa">declare</span> <span class="opt">(</span><span class="kwa">type</span> <span class="opt">(</span><span class="kwa">integer</span> <span class="num">0 255</span><span class="opt">)</span> n<span class="opt">))</span>
+  <span class="opt">(</span><span class="kwa">format</span> t <span class="str">&quot;stretch tree of depth ~D	 check: ~D~%&quot;</span> <span class="opt">(</span><span class="kwa">1</span><span class="opt">+</span> n<span class="opt">) (</span><span class="kwa">check-node</span> <span class="opt">(</span><span class="kwa">build-btree</span> <span class="num">0</span> <span class="opt">(</span><span class="kwa">1</span><span class="opt">+</span> n<span class="opt">))))</span>
+  <span class="opt">(</span><span class="kwa">let</span> <span class="opt">((*</span>print-pretty<span class="opt">*</span> nil<span class="opt">) (</span><span class="kwa">long-lived-tree</span> <span class="opt">(</span><span class="kwa">build-btree</span> <span class="num">0</span> n<span class="opt">)))</span>
+<span class="slc">;    (purify)</span>
+    <span class="opt">(</span><span class="kwa">loop-depths</span> n<span class="opt">)</span>
+    <span class="opt">(</span><span class="kwa">format</span> t <span class="str">&quot;long lived tree of depth ~D	 check: ~D~%&quot;</span> n <span class="opt">(</span><span class="kwa">check-node</span> long-lived-tree<span class="opt">))))</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

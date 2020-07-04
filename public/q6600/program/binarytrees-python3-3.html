@@ -17,6 +17,172 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc"># The Computer Language Benchmarks Game</span>
+<span class="slc"># https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">#</span>
+<span class="slc"># contributed by Diogo</span>
+
+<span class="kwa">from</span> concurrent<span class="opt">.</span>futures <span class="kwa">import</span> ProcessPoolExecutor <span class="kwa">as</span> PoolExecutor
+<span class="kwa">from</span> multiprocessing <span class="kwa">import</span> cpu_count
+<span class="kwa">import</span> sys
+<span class="kwa">import</span> gc
+
+
+<span class="kwa">def</span> <span class="kwd">tree_make</span><span class="opt">(</span>n<span class="opt">:</span> <span class="kwb">int</span><span class="opt">) -&gt;</span> <span class="kwb">list</span><span class="opt">:</span>
+    <span class="str">&quot;&quot;&quot; Creates a tree recursively based on lists of 2 elements</span>
+<span class="str"></span>
+<span class="str">    Data:   Lists are core data sets for python so they use less</span>
+<span class="str">            memory, andalso they provide means for fast iteration</span>
+<span class="str"></span>
+<span class="str">    Advice: List creation is expensive, as much as list appending</span>
+<span class="str">            If we create a list from start with the length required</span>
+<span class="str">            We can avoid mutating list length, because on low-level</span>
+<span class="str">            extending a list length will need to discard existing</span>
+<span class="str">            list and creating a new list with a new length.</span>
+<span class="str">            But mutating existing list element is not as expensive</span>
+<span class="str"></span>
+<span class="str">    Method: Create a list of nones for optimized creation</span>
+<span class="str">            If we are on bottom level return this list</span>
+<span class="str">            Else create the child node recursively</span>
+<span class="str">            Now e overwrite left and right empty nodes with child</span>
+<span class="str">    &quot;&quot;&quot;</span>
+
+    <span class="slc"># Create base node of empty childs</span>
+    node <span class="opt">= [</span><span class="kwa">None</span><span class="opt">,</span> <span class="kwa">None</span><span class="opt">]</span>
+
+    <span class="slc"># If we are on bottom, return empty node</span>
+    <span class="kwa">if</span> n <span class="opt">==</span> <span class="num">0</span><span class="opt">:</span>
+        <span class="kwa">return</span> node
+
+    <span class="slc"># Populate and return populated node</span>
+    node<span class="opt">[</span><span class="num">0</span><span class="opt">] =</span> <span class="kwd">tree_make</span><span class="opt">(</span>n<span class="opt">-</span><span class="num">1</span><span class="opt">)</span>
+    node<span class="opt">[</span><span class="num">1</span><span class="opt">] =</span> <span class="kwd">tree_make</span><span class="opt">(</span>n<span class="opt">-</span><span class="num">1</span><span class="opt">)</span>
+
+    <span class="kwa">return</span> node
+
+
+<span class="kwa">def</span> <span class="kwd">tree_check</span><span class="opt">(</span>n<span class="opt">:</span> <span class="kwb">list</span><span class="opt">) -&gt;</span> <span class="kwb">int</span><span class="opt">:</span>
+    <span class="str">&quot;&quot;&quot; Walkthrough the tree and add 1 for each node found &quot;&quot;&quot;</span>
+    <span class="slc"># If we are at bottom node, return 1</span>
+    <span class="kwa">if</span> n<span class="opt">[</span><span class="num">0</span><span class="opt">]</span> <span class="kwa">is None</span><span class="opt">:</span>
+        <span class="kwa">return</span> <span class="num">1</span>
+    <span class="slc"># Go through left</span>
+    left_result <span class="opt">=</span> <span class="kwd">tree_check</span><span class="opt">(</span>n<span class="opt">[</span><span class="num">0</span><span class="opt">])</span>
+    <span class="slc"># Go through right</span>
+    right_result <span class="opt">=</span> <span class="kwd">tree_check</span><span class="opt">(</span>n<span class="opt">[</span><span class="num">1</span><span class="opt">])</span>
+    <span class="slc"># Append results</span>
+    result <span class="opt">=</span> <span class="num">1</span> <span class="opt">+</span> left_result <span class="opt">+</span> right_result
+    <span class="kwa">return</span> result
+
+
+<span class="kwa">def</span> <span class="kwd">tree_make_and_check</span><span class="opt">(</span>n<span class="opt">:</span> <span class="kwb">int</span><span class="opt">,</span> keep_in_memory<span class="opt">:</span> <span class="kwb">bool</span> <span class="opt">=</span> <span class="kwa">False</span><span class="opt">) -&gt; (</span><span class="kwb">list</span><span class="opt">,</span> <span class="kwb">int</span><span class="opt">):</span>
+    <span class="str">&quot;&quot;&quot; Create a tree and check for its value based on nodes &quot;&quot;&quot;</span>
+    <span class="slc"># Create our tree and get number of nodes</span>
+    tree<span class="opt">:</span> <span class="kwb">list</span> <span class="opt">=</span> <span class="kwd">tree_make</span><span class="opt">(</span>n<span class="opt">)</span>
+    check<span class="opt">:</span> <span class="kwb">int</span> <span class="opt">=</span> <span class="kwd">tree_check</span><span class="opt">(</span>tree<span class="opt">)</span>
+
+    <span class="slc"># Check if we are returning only the value and discarding tree</span>
+    <span class="slc"># Or if we are keeping tree in memory</span>
+    <span class="slc"># In the case of the long lived tree we are going to keep it in memory</span>
+    <span class="kwa">if</span> keep_in_memory<span class="opt">:</span>
+        <span class="kwa">return</span> <span class="opt">(</span>tree<span class="opt">,</span> check<span class="opt">)</span>
+    <span class="kwa">return</span> <span class="opt">(</span><span class="kwa">None</span><span class="opt">,</span> check<span class="opt">)</span>
+
+
+<span class="kwa">def</span> <span class="kwd">data_iter</span><span class="opt">(</span>d<span class="opt">:</span> <span class="kwb">int</span><span class="opt">,</span> n<span class="opt">:</span> <span class="kwb">int</span><span class="opt">):</span>
+    <span class="str">&quot;&quot;&quot; Iterate over tree and check it&apos;s content &quot;&quot;&quot;</span>
+    niter<span class="opt">:</span> <span class="kwb">int</span> <span class="opt">=</span> <span class="num">1</span> <span class="opt">&lt;&lt; (</span>n <span class="opt">-</span> d <span class="opt">+</span> <span class="num">4</span><span class="opt">)</span>
+
+    <span class="slc"># We will have niter results</span>
+    <span class="slc"># Then we can store a list of niter length of 0&apos;s</span>
+    results<span class="opt">:</span> <span class="kwb">list</span> <span class="opt">= [</span><span class="num">0</span><span class="opt">] *</span> niter
+
+    <span class="slc"># Then as we create trees we mutate the zeros</span>
+    <span class="kwa">for</span> index <span class="kwa">in</span> <span class="kwb">range</span><span class="opt">(</span><span class="num">0</span><span class="opt">,</span> niter<span class="opt">):</span>
+        tree<span class="opt">:</span> <span class="kwb">list</span> <span class="opt">=</span> <span class="kwd">tree_make</span><span class="opt">(</span>d<span class="opt">)</span>
+        check<span class="opt">:</span> <span class="kwb">int</span> <span class="opt">=</span> <span class="kwd">tree_check</span><span class="opt">(</span>tree<span class="opt">)</span>
+        results<span class="opt">[</span>index<span class="opt">] =</span> check
+
+    <span class="slc"># At the end we sum all results to get final return</span>
+    c<span class="opt">:</span> <span class="kwb">int</span> <span class="opt">=</span> <span class="kwb">sum</span><span class="opt">(</span>results<span class="opt">)</span>
+
+    <span class="kwa">return</span> niter<span class="opt">,</span> d<span class="opt">,</span> c
+
+
+<span class="kwa">def</span> <span class="kwd">binary_trees_run</span><span class="opt">(</span>n<span class="opt">:</span> <span class="kwb">int</span><span class="opt">,</span> workers<span class="opt">:</span> <span class="kwb">int</span><span class="opt">):</span>
+    <span class="str">&quot;&quot;&quot; Run binary trees benchmark &quot;&quot;&quot;</span>
+
+    <span class="slc"># Disable garbage collection for less overhead</span>
+    gc<span class="opt">.</span><span class="kwd">disable</span><span class="opt">()</span>
+
+    <span class="slc"># Create an executor and a dict to track futures</span>
+    result<span class="opt">:</span> <span class="kwb">dict</span> <span class="opt">= {}</span>
+    executor <span class="opt">=</span> <span class="kwd">PoolExecutor</span><span class="opt">(</span>max_workers<span class="opt">=</span>workers<span class="opt">)</span>
+
+    <span class="slc"># Create stretch tree with the pool and verify its check value</span>
+    <span class="slc"># This first tree we are going to create and discard tree</span>
+    <span class="slc"># result[&apos;stretch&apos;] = executor.submit(tree_make_and_check, n + 1, False)</span>
+    stretch_tree <span class="opt">=</span> <span class="kwd">tree_make_and_check</span><span class="opt">(</span>n <span class="opt">+</span> <span class="num">1</span><span class="opt">,</span> <span class="kwa">False</span><span class="opt">)</span>
+
+    <span class="slc"># Create long lived tree with the pool and verify its check value</span>
+    <span class="slc"># This long lived tree will be kept in memory until the end</span>
+    <span class="slc"># result[&apos;longlived&apos;] = executor.submit(tree_make_and_check, n, True)</span>
+    longlived <span class="opt">=</span> <span class="kwd">tree_make_and_check</span><span class="opt">(</span>n<span class="opt">,</span> <span class="kwa">True</span><span class="opt">)</span>
+
+    <span class="slc"># Loop through tree to make iterations as soon as they arrive</span>
+    <span class="slc"># Trees are stored as {id}</span>
+
+    <span class="slc"># Getting list of depths and storing tuples of (depth, id)</span>
+    depth_list<span class="opt">:</span> <span class="kwb">list</span> <span class="opt">=</span> <span class="kwb">list</span><span class="opt">(</span><span class="kwb">range</span><span class="opt">(</span><span class="num">4</span><span class="opt">,</span> n<span class="opt">,</span> <span class="num">2</span><span class="opt">)</span> <span class="kwa">if</span> n <span class="opt">%</span> <span class="num">2</span> <span class="opt">!=</span> <span class="num">0</span> <span class="kwa">else</span> <span class="kwb">range</span><span class="opt">(</span><span class="num">4</span><span class="opt">,</span> n<span class="opt">+</span><span class="num">1</span><span class="opt">,</span> <span class="num">2</span><span class="opt">))</span>
+    id_list<span class="opt">:</span> <span class="kwb">list</span> <span class="opt">=</span> <span class="kwb">list</span><span class="opt">(</span><span class="kwb">range</span><span class="opt">(</span><span class="num">0</span><span class="opt">,</span> <span class="kwb">len</span><span class="opt">(</span>depth_list<span class="opt">)))</span>
+    iter_list<span class="opt">:</span> <span class="kwb">list</span> <span class="opt">=</span> <span class="kwb">list</span><span class="opt">(</span><span class="kwb">zip</span><span class="opt">(</span>depth_list<span class="opt">,</span> id_list<span class="opt">))</span>
+
+    <span class="slc"># iter_batch will be a tuple of (depth, id)</span>
+    <span class="slc"># Lets submit workers</span>
+    <span class="kwa">for</span> work <span class="kwa">in</span> iter_list<span class="opt">:</span>
+        item <span class="opt">=</span> work<span class="opt">[</span><span class="num">1</span><span class="opt">]</span>
+        d <span class="opt">=</span> work<span class="opt">[</span><span class="num">0</span><span class="opt">]</span>
+        result<span class="opt">[</span>item<span class="opt">] =</span> executor<span class="opt">.</span><span class="kwd">submit</span><span class="opt">(</span>data_iter<span class="opt">,</span> d<span class="opt">,</span> n<span class="opt">)</span>
+
+    <span class="slc"># Time to get results from those futures</span>
+    <span class="slc"># Print stretch tree result as we get it and discard the tree from memory</span>
+    <span class="slc"># stretch_check_val: int = result[&apos;stretch&apos;].result()[1]</span>
+    <span class="slc"># print(f&quot;stretch tree of depth {n+1}\t check: {stretch_check_val}&quot;)</span>
+    <span class="slc"># del result[&apos;stretch&apos;]</span>
+    <span class="kwa">print</span><span class="opt">(</span>f<span class="str">&quot;stretch tree of depth {n+1}</span><span class="esc">\t</span> <span class="str">check: {stretch_tree[1]}&quot;</span><span class="opt">)</span>
+
+    <span class="slc"># Loop through iterations and get results in order for correct output</span>
+    <span class="slc"># Once we get the tree for the moment, discard the tree from memory</span>
+    <span class="kwa">for</span> value <span class="kwa">in</span> id_list<span class="opt">:</span>
+        niter<span class="opt">,</span> d<span class="opt">,</span> c <span class="opt">=</span> result<span class="opt">[</span>value<span class="opt">].</span><span class="kwd">result</span><span class="opt">()</span>
+        <span class="kwa">print</span><span class="opt">(</span>f<span class="str">&quot;</span><span class="ipl">{niter}</span><span class="str"></span><span class="esc">\t</span> <span class="str">trees of depth</span> <span class="ipl">{d}</span><span class="str"></span><span class="esc">\t</span> <span class="str">check:</span> <span class="ipl">{c}</span><span class="str">&quot;</span><span class="opt">)</span>
+        <span class="kwa">del</span> result<span class="opt">[</span>value<span class="opt">]</span>
+
+    <span class="slc"># Now we can print long lived tree and discard the tree</span>
+    <span class="slc"># longlived_check_val: int = result[&apos;longlived&apos;].result()[1]</span>
+    <span class="slc"># print(f&quot;long lived tree of depth {n}\t check: {longlived_check_val}&quot;)</span>
+    <span class="slc"># del result[&apos;longlived&apos;]</span>
+    <span class="kwa">print</span><span class="opt">(</span>f<span class="str">&quot;long lived tree of depth</span> <span class="ipl">{n}</span><span class="str"></span><span class="esc">\t</span> <span class="str">check: {longlived[1]}&quot;</span><span class="opt">)</span>
+    <span class="kwa">del</span> longlived
+
+
+<span class="kwa">if</span> __name__ <span class="opt">==</span> <span class="str">&quot;__main__&quot;</span><span class="opt">:</span>
+
+    <span class="slc"># Get how many cores available</span>
+    logicalcpu_cores<span class="opt">:</span> <span class="kwb">int</span> <span class="opt">=</span> <span class="kwd">cpu_count</span><span class="opt">()</span>
+    workers<span class="opt">:</span> <span class="kwb">int</span> <span class="opt">=</span> <span class="num">2</span>
+    <span class="kwa">if</span> logicalcpu_cores <span class="opt">&gt;</span> <span class="num">2</span><span class="opt">:</span>
+        workers <span class="opt">=</span> logicalcpu_cores
+
+    n<span class="opt">:</span> <span class="kwb">int</span> <span class="opt">=</span> <span class="kwb">int</span><span class="opt">(</span>sys<span class="opt">.</span>argv<span class="opt">[</span><span class="num">1</span><span class="opt">])</span>
+    <span class="kwd">binary_trees_run</span><span class="opt">(</span>n<span class="opt">,</span> workers<span class="opt">)</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

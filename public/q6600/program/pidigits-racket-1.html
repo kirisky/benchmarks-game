@@ -17,6 +17,59 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="opt">#</span>lang racket<span class="opt">/</span>base
+
+<span class="slc">;; The Computer Language Benchmarks Game</span>
+<span class="slc">;; https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+
+<span class="slc">;; Based on the MLton version of the benchmark by Scott Cruzen</span>
+<span class="slc">;;; contributed by Matthew Flatt</span>
+
+<span class="opt">(</span><span class="kwa">require</span> racket<span class="opt">/</span>cmdline<span class="opt">)</span>
+
+<span class="opt">(</span><span class="kwa">define</span> <span class="opt">(</span><span class="kwa">floor_ev</span> q r s t x<span class="opt">)</span>
+  <span class="opt">(</span><span class="kwa">quotient</span> <span class="opt">(+ (*</span> q x<span class="opt">)</span> r<span class="opt">) (+ (*</span> s x<span class="opt">)</span> t<span class="opt">)))</span>
+
+<span class="opt">(</span><span class="kwa">define</span> <span class="opt">(</span><span class="kwa">comp</span> q r s t  q2 r2 s2 t2<span class="opt">)</span>
+  <span class="opt">(</span><span class="kwa">values</span> <span class="opt">(+ (*</span> q q2<span class="opt">) (*</span> r s2<span class="opt">))</span>
+          <span class="opt">(+ (*</span> q r2<span class="opt">) (*</span> r t2<span class="opt">))</span>
+          <span class="opt">(+ (*</span> s q2<span class="opt">) (*</span> t s2<span class="opt">))</span>
+          <span class="opt">(+ (*</span> s r2<span class="opt">) (*</span> t t2<span class="opt">))))</span>
+
+<span class="opt">(</span><span class="kwa">define</span> <span class="opt">(</span><span class="kwa">next</span> q r s t<span class="opt">) (</span><span class="kwa">floor_ev</span> q r s t <span class="num">3</span><span class="opt">))</span>
+<span class="opt">(</span><span class="kwa">define</span> <span class="opt">(</span><span class="kwa">safe</span>? q r s t n<span class="opt">) (=</span> n <span class="opt">(</span><span class="kwa">floor_ev</span> q r s t <span class="num">4</span><span class="opt">)))</span>
+<span class="opt">(</span><span class="kwa">define</span> <span class="opt">(</span><span class="kwa">prod</span> q r s t n<span class="opt">) (</span><span class="kwa">comp</span> <span class="num">10</span> <span class="opt">(*</span> -<span class="num">10</span> n<span class="opt">)</span> <span class="num">0 1</span>  q r s t<span class="opt">))</span>
+<span class="opt">(</span><span class="kwa">define</span> <span class="opt">(</span><span class="kwa">mk</span> q r s t k<span class="opt">) (</span><span class="kwa">comp</span> q r s t k <span class="opt">(*</span> <span class="num">2</span> <span class="opt">(</span><span class="kwa">add1</span> <span class="opt">(*</span> <span class="num">2</span> k<span class="opt">)))</span> <span class="num">0</span> <span class="opt">(</span><span class="kwa">add1</span> <span class="opt">(*</span> <span class="num">2</span> k<span class="opt">))))</span>
+
+<span class="opt">(</span><span class="kwa">define</span> <span class="opt">(</span><span class="kwa">digit</span> k  q r s t  n row col<span class="opt">)</span>
+  <span class="opt">(</span><span class="kwa">if</span> <span class="opt">(&gt;</span> n <span class="num">0</span><span class="opt">)</span>
+      <span class="opt">(</span><span class="kwa">let</span> <span class="opt">([</span>y <span class="opt">(</span><span class="kwa">next</span> q r s t<span class="opt">)])</span>
+        <span class="opt">(</span><span class="kwa">if</span> <span class="opt">(</span><span class="kwa">safe</span>? q r s t y<span class="opt">)</span>
+            <span class="opt">(</span><span class="kwa">let-values</span> <span class="opt">([(</span><span class="kwa">q</span> r s t<span class="opt">) (</span><span class="kwa">prod</span> q r s t y<span class="opt">)])</span>
+              <span class="opt">(</span><span class="kwa">if</span> <span class="opt">(=</span> col <span class="num">10</span><span class="opt">)</span>
+                  <span class="opt">(</span><span class="kwa">let</span> <span class="opt">([</span>row <span class="opt">(+</span> row <span class="num">10</span><span class="opt">)])</span>
+                    <span class="opt">(</span><span class="kwa">printf</span> <span class="str">&quot;</span><span class="esc">\t</span><span class="str">:~a</span><span class="esc">\n</span><span class="str">~a&quot;</span> row y<span class="opt">)</span>
+                    <span class="opt">(</span><span class="kwa">digit</span> k q r s t <span class="opt">(</span><span class="kwa">sub1</span> n<span class="opt">)</span> row <span class="num">1</span><span class="opt">))</span>
+                  <span class="opt">(</span><span class="kwa">begin</span>
+                    <span class="opt">(</span><span class="kwa">printf</span> <span class="str">&quot;~a&quot;</span> y<span class="opt">)</span>
+                    <span class="opt">(</span><span class="kwa">digit</span> k q r s t <span class="opt">(</span><span class="kwa">sub1</span> n<span class="opt">)</span> row <span class="opt">(</span><span class="kwa">add1</span> col<span class="opt">)))))</span>
+            <span class="opt">(</span><span class="kwa">let-values</span> <span class="opt">([(</span><span class="kwa">q</span> r s t<span class="opt">) (</span><span class="kwa">mk</span> q r s t k<span class="opt">)])</span>
+              <span class="opt">(</span><span class="kwa">digit</span> <span class="opt">(</span><span class="kwa">add1</span> k<span class="opt">)</span> q r s t n row col<span class="opt">))))</span>
+      <span class="opt">(</span><span class="kwa">printf</span> <span class="str">&quot;~a</span><span class="esc">\t</span><span class="str">:~a</span><span class="esc">\n</span><span class="str">&quot;</span>
+              <span class="opt">(</span><span class="kwa">make-string</span> <span class="opt">(</span><span class="kwa">-</span> <span class="num">10</span> col<span class="opt">) #</span>\space<span class="opt">)</span>
+              <span class="opt">(+</span> row col<span class="opt">))))</span>
+
+<span class="opt">(</span><span class="kwa">define</span> <span class="opt">(</span><span class="kwa">digits</span> n<span class="opt">)</span>
+  <span class="opt">(</span><span class="kwa">digit</span> <span class="num">1  1 0 0 1</span>  n <span class="num">0 0</span><span class="opt">))</span>
+
+<span class="opt">(</span><span class="kwa">digits</span> <span class="opt">(</span><span class="kwa">command-line</span> <span class="opt">#:</span>args <span class="opt">(</span><span class="kwa">n</span><span class="opt">) (</span><span class="kwa">string-</span><span class="opt">&gt;</span>number n<span class="opt">)))</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

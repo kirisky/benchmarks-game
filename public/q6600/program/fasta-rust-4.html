@@ -17,6 +17,76 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc">// The Computer Language Benchmarks Game</span>
+<span class="slc">// https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">//</span>
+<span class="slc">// Short and simple single-threaded version by leonardo.</span>
+
+<span class="kwa">use</span> std<span class="opt">::</span>io<span class="opt">::{</span>stdout<span class="opt">,</span> Write<span class="opt">,</span> BufWriter <span class="kwa">as</span> BW<span class="opt">,</span> Stdout <span class="kwa">as</span> SO<span class="opt">};</span>
+<span class="kwa">use</span> std<span class="opt">::</span><span class="kwb">str</span><span class="opt">::</span>from_utf8 <span class="kwa">as</span> utf<span class="opt">;</span>
+
+<span class="kwa">const</span> ALU<span class="opt">: &amp;</span><span class="kwb">str</span> <span class="opt">=</span>
+    <span class="str">&quot;GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCC</span><span class="esc">\</span>
+<span class="str">     GAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCA</span><span class="esc">\</span>
+<span class="str">     ACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGCG</span><span class="esc">\</span>
+<span class="str">     TGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGA</span><span class="esc">\</span>
+<span class="str">     GAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCG</span><span class="esc">\</span>
+<span class="str">     CCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA&quot;</span><span class="opt">;</span>
+
+<span class="kwa">fn</span> <span class="kwd">rand_next</span><span class="opt">(</span>seed<span class="opt">: &amp;</span><span class="kwa">mut</span> <span class="kwb">u32</span><span class="opt">) -&gt;</span> <span class="kwb">f64</span> <span class="opt">{</span>
+    <span class="kwa">const</span> IM<span class="opt">:</span> <span class="kwb">u32</span> <span class="opt">=</span> <span class="num">139_968</span><span class="opt">;</span>
+    <span class="opt">*</span>seed <span class="opt">= (*</span>seed <span class="opt">*</span> <span class="num">3_877</span> <span class="opt">+</span> <span class="num">29_573</span><span class="opt">) %</span> IM<span class="opt">;</span>
+    <span class="opt">*</span>seed <span class="kwa">as</span> <span class="kwb">f64</span> <span class="opt">/</span> IM <span class="kwa">as</span> <span class="kwb">f64</span>
+<span class="opt">}</span>
+
+<span class="kwa">fn</span> <span class="kwd">repeat</span><span class="opt">(</span>desc<span class="opt">: &amp;</span><span class="kwb">str</span><span class="opt">,</span> src<span class="opt">: &amp;</span><span class="kwb">str</span><span class="opt">,</span> n<span class="opt">:</span> <span class="kwb">usize</span><span class="opt">,</span> <span class="kwa">mut</span> out<span class="opt">: &amp;</span><span class="kwa">mut</span> BW<span class="opt">&lt;</span>SO<span class="opt">&gt;) {</span>
+    write<span class="opt">!(&amp;</span><span class="kwa">mut</span> out<span class="opt">,</span> <span class="str">&quot;&gt;{}</span><span class="esc">\</span><span class="str">n&quot;</span><span class="opt">,</span> desc<span class="opt">)</span><span class="num">.u</span>nwrap<span class="opt">();</span>
+    src<span class="opt">.</span><span class="kwd">repeat</span><span class="opt">(</span>n <span class="opt">/</span> src<span class="opt">.</span><span class="kwd">len</span><span class="opt">() +</span> <span class="num">1</span><span class="opt">).</span><span class="kwd">as_bytes</span><span class="opt">()[..</span> n<span class="opt">].</span><span class="kwd">chunks</span><span class="opt">(</span><span class="num">60</span><span class="opt">)</span>
+    <span class="num">.f</span>or<span class="num">_</span>each<span class="opt">(|</span>c<span class="opt">|</span> write<span class="opt">!(</span>out<span class="opt">,</span> <span class="str">&quot;{}</span><span class="esc">\</span><span class="str">n&quot;</span><span class="opt">,</span> <span class="kwd">utf</span><span class="opt">(</span>c<span class="opt">)</span><span class="num">.u</span>nwrap<span class="opt">())</span><span class="num">.u</span>nwrap<span class="opt">());</span>
+<span class="opt">}</span>
+
+<span class="kwa">fn</span> <span class="kwd">random</span><span class="opt">(</span>desc<span class="opt">: &amp;</span><span class="kwb">str</span><span class="opt">,</span> tab<span class="opt">: &amp;</span><span class="kwa">mut</span> <span class="opt">[(</span><span class="kwb">u8</span><span class="opt">,</span> <span class="kwb">f64</span><span class="opt">)],</span> n<span class="opt">:</span> <span class="kwb">usize</span><span class="opt">,</span> seed<span class="opt">: &amp;</span><span class="kwa">mut</span> <span class="kwb">u32</span><span class="opt">,</span> <span class="kwa">mut</span> out<span class="opt">: &amp;</span><span class="kwa">mut</span> BW<span class="opt">&lt;</span>SO<span class="opt">&gt;) {</span>
+    write<span class="opt">!(&amp;</span><span class="kwa">mut</span> out<span class="opt">,</span> <span class="str">&quot;&gt;{}</span><span class="esc">\</span><span class="str">n&quot;</span><span class="opt">,</span> desc<span class="opt">)</span><span class="num">.u</span>nwrap<span class="opt">();</span>
+    <span class="opt">(</span><span class="num">1</span> <span class="opt">..</span> tab<span class="opt">.</span><span class="kwd">len</span><span class="opt">())</span><span class="num">.f</span>or<span class="num">_</span>each<span class="opt">(|</span>i<span class="opt">|</span> tab<span class="opt">[</span>i<span class="opt">]</span><span class="num">.1</span> <span class="opt">+=</span> tab<span class="opt">[</span>i <span class="opt">-</span> <span class="num">1</span><span class="opt">]</span><span class="num">.1</span><span class="opt">);</span>
+    <span class="kwa">let mut</span> res <span class="opt">=</span> Vec<span class="opt">::</span><span class="kwd">with_capacity</span><span class="opt">(</span>n<span class="opt">);</span>
+    <span class="kwa">for</span> _ <span class="kwa">in</span> <span class="num">0</span> <span class="opt">..</span> n <span class="opt">{</span>
+        <span class="kwa">let</span> rand <span class="opt">=</span> <span class="kwd">rand_next</span><span class="opt">(</span>seed<span class="opt">);</span>
+        <span class="kwa">for</span> <span class="opt">&amp;(</span>c<span class="opt">,</span> p<span class="opt">)</span> <span class="kwa">in</span> tab<span class="num">.i</span>ter<span class="opt">() {</span>
+            <span class="kwa">if</span> p <span class="opt">&gt;</span> rand <span class="opt">{</span>
+                res<span class="opt">.</span><span class="kwd">push</span><span class="opt">(</span>c<span class="opt">);</span>
+                <span class="kwa">break</span><span class="opt">;</span>
+            <span class="opt">}</span>
+        <span class="opt">}</span>
+    <span class="opt">}</span>
+    res<span class="opt">.</span><span class="kwd">chunks</span><span class="opt">(</span><span class="num">60</span><span class="opt">)</span><span class="num">.f</span>or<span class="num">_</span>each<span class="opt">(|</span>c<span class="opt">|</span> write<span class="opt">!(</span>out<span class="opt">,</span> <span class="str">&quot;{}</span><span class="esc">\</span><span class="str">n&quot;</span><span class="opt">,</span> <span class="kwd">utf</span><span class="opt">(</span>c<span class="opt">)</span><span class="num">.u</span>nwrap<span class="opt">())</span><span class="num">.u</span>nwrap<span class="opt">());</span>
+<span class="opt">}</span>
+
+<span class="kwa">fn</span> <span class="kwd">main</span><span class="opt">() {</span>
+    <span class="kwa">let</span> n<span class="opt">:</span> <span class="kwb">usize</span> <span class="opt">=</span> std<span class="opt">::</span>env<span class="opt">::</span><span class="kwd">args</span><span class="opt">().</span><span class="kwd">nth</span><span class="opt">(</span><span class="num">1</span><span class="opt">)</span><span class="num">.u</span>nwrap<span class="opt">().</span><span class="kwd">parse</span><span class="opt">()</span><span class="num">.u</span>nwrap<span class="opt">();</span>
+    <span class="kwa">let mut</span> seed <span class="opt">=</span> <span class="num">42</span><span class="opt">;</span>
+
+    <span class="kwa">let</span> iub <span class="opt">= &amp;</span><span class="kwa">mut</span> <span class="opt">[</span>
+        <span class="opt">(</span>b&apos;a&apos;<span class="opt">,</span> <span class="num">0.27</span><span class="opt">), (</span>b&apos;c&apos;<span class="opt">,</span> <span class="num">0.12</span><span class="opt">), (</span>b&apos;g&apos;<span class="opt">,</span> <span class="num">0.12</span><span class="opt">), (</span>b&apos;t&apos;<span class="opt">,</span> <span class="num">0.27</span><span class="opt">),</span>
+        <span class="opt">(</span>b&apos;B&apos;<span class="opt">,</span> <span class="num">0.02</span><span class="opt">), (</span>b&apos;D&apos;<span class="opt">,</span> <span class="num">0.02</span><span class="opt">), (</span>b&apos;H&apos;<span class="opt">,</span> <span class="num">0.02</span><span class="opt">), (</span>b&apos;K&apos;<span class="opt">,</span> <span class="num">0.02</span><span class="opt">),</span>
+        <span class="opt">(</span>b&apos;M&apos;<span class="opt">,</span> <span class="num">0.02</span><span class="opt">), (</span>b&apos;N&apos;<span class="opt">,</span> <span class="num">0.02</span><span class="opt">), (</span>b&apos;R&apos;<span class="opt">,</span> <span class="num">0.02</span><span class="opt">), (</span>b&apos;S&apos;<span class="opt">,</span> <span class="num">0.02</span><span class="opt">),</span>
+        <span class="opt">(</span>b&apos;V&apos;<span class="opt">,</span> <span class="num">0.02</span><span class="opt">), (</span>b&apos;W&apos;<span class="opt">,</span> <span class="num">0.02</span><span class="opt">), (</span>b&apos;Y&apos;<span class="opt">,</span> <span class="num">0.02</span><span class="opt">)];</span>
+
+    <span class="kwa">let</span> homo_sapiens <span class="opt">= &amp;</span><span class="kwa">mut</span> <span class="opt">[</span>
+        <span class="opt">(</span>b&apos;a&apos;<span class="opt">,</span> <span class="num">0.3029549426680</span><span class="opt">), (</span>b&apos;c&apos;<span class="opt">,</span> <span class="num">0.1979883004921</span><span class="opt">),</span>
+        <span class="opt">(</span>b&apos;g&apos;<span class="opt">,</span> <span class="num">0.1975473066391</span><span class="opt">), (</span>b&apos;t&apos;<span class="opt">,</span> <span class="num">0.3015094502008</span><span class="opt">)];</span>
+
+    <span class="kwa">let mut</span> out <span class="opt">=</span> BW<span class="opt">::</span><span class="kwd">new</span><span class="opt">(</span><span class="kwd">stdout</span><span class="opt">());</span>
+    <span class="kwd">repeat</span><span class="opt">(</span><span class="str">&quot;ONE Homo sapiens alu&quot;</span><span class="opt">,</span> ALU<span class="opt">,</span> n<span class="opt">*</span><span class="num">2</span><span class="opt">, &amp;</span><span class="kwa">mut</span> out<span class="opt">);</span>
+    <span class="kwd">random</span><span class="opt">(</span><span class="str">&quot;TWO IUB ambiguity codes&quot;</span><span class="opt">,</span> iub<span class="opt">,</span> n<span class="opt">*</span><span class="num">3</span><span class="opt">, &amp;</span><span class="kwa">mut</span> seed<span class="opt">, &amp;</span><span class="kwa">mut</span> out<span class="opt">);</span>
+    <span class="kwd">random</span><span class="opt">(</span><span class="str">&quot;THREE Homo sapiens frequency&quot;</span><span class="opt">,</span> homo_sapiens<span class="opt">,</span> n<span class="opt">*</span><span class="num">5</span><span class="opt">, &amp;</span><span class="kwa">mut</span> seed<span class="opt">, &amp;</span><span class="kwa">mut</span> out<span class="opt">);</span>
+<span class="opt">}</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

@@ -17,6 +17,93 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc">;;   The Computer Language Benchmarks Game</span>
+<span class="slc">;;   https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">;;</span>
+<span class="slc">;;    Adapted from the C (gcc) code by Sebastien Loisel</span>
+<span class="slc">;;</span>
+<span class="slc">;;    Contributed by Christopher Neufeld</span>
+<span class="slc">;;    Modified by Juho Snellman 2005-10-26</span>
+<span class="slc">;;      * Use SIMPLE-ARRAY instead of ARRAY in declarations</span>
+<span class="slc">;;      * Use TRUNCATE instead of / for fixnum division</span>
+<span class="slc">;;      * Rearrange EVAL-A to make it more readable and a bit faster</span>
+
+<span class="slc">;; Note that sbcl is at least 10 times faster than either clisp or gcl</span>
+<span class="slc">;; on this program, running with an argument of 500.  It would be nice</span>
+<span class="slc">;; to know why the others are so slow.</span>
+
+<span class="opt">(</span><span class="kwa">defun</span> <span class="kwb">eval-AtA-times-u</span> <span class="opt">(</span><span class="kwa">n</span> u<span class="opt">)</span>
+  <span class="opt">(</span><span class="kwa">eval-At-times-u</span> n <span class="opt">(</span><span class="kwa">eval-A-times-u</span> n u<span class="opt">)))</span>
+
+<span class="slc">;; This is our most expensive function.  Optimized with the knowledge</span>
+<span class="slc">;; that &apos;n&apos; will never be &quot;huge&quot;.  This will break if &apos;n&apos; exceeds</span>
+<span class="slc">;; approximately half of the square root of the largest fixnum</span>
+<span class="slc">;; supported by the implementation.  On sbcl 0.9.3,</span>
+<span class="slc">;; &apos;most-positive-fixnum&apos; is 536870911, and we can support values of</span>
+<span class="slc">;; &apos;n&apos; above 11000.</span>
+<span class="opt">(</span><span class="kwa">declaim</span> <span class="opt">(</span><span class="kwa">inline</span> eval-A<span class="opt">))</span>
+<span class="opt">(</span><span class="kwa">defun</span> <span class="kwb">eval-A</span> <span class="opt">(</span><span class="kwa">i</span> j<span class="opt">)</span>
+  <span class="opt">(</span><span class="kwa">declare</span> <span class="opt">(</span><span class="kwa">type</span> fixnum i j<span class="opt">))</span>
+  <span class="opt">(</span><span class="kwa">let</span><span class="opt">* ((</span><span class="kwa">n</span> <span class="opt">(+</span> i j<span class="opt">))</span>
+         <span class="opt">(</span><span class="kwa">n</span><span class="opt">+</span><span class="num">1</span> <span class="opt">(</span><span class="kwa">1</span><span class="opt">+</span> n<span class="opt">)))</span>
+    <span class="opt">(</span><span class="kwa">declare</span> <span class="opt">(</span><span class="kwa">fixnum</span> n n<span class="opt">+</span><span class="num">1</span><span class="opt">))</span>
+    <span class="opt">(/ (</span><span class="kwa">float</span> <span class="opt">(+ (</span><span class="kwa">truncate</span> <span class="opt">(</span><span class="kwa">the</span> fixnum <span class="opt">(*</span> n n<span class="opt">+</span><span class="num">1</span><span class="opt">))</span> <span class="num">2</span><span class="opt">)</span> i <span class="num">1</span><span class="opt">)</span> <span class="num">0</span>d0<span class="opt">))))</span>
+
+<span class="opt">(</span><span class="kwa">defun</span> <span class="kwb">eval-A-times-u</span> <span class="opt">(</span><span class="kwa">n</span> u<span class="opt">)</span>
+  <span class="opt">(</span><span class="kwa">declare</span> <span class="opt">(</span><span class="kwa">type</span> fixnum n<span class="opt">)</span>
+           <span class="opt">(</span><span class="kwa">type</span> <span class="opt">(</span><span class="kwa">simple-array</span> double-float<span class="opt">)</span> u<span class="opt">))</span>
+  <span class="opt">(</span><span class="kwa">let</span> <span class="opt">((</span><span class="kwa">retval</span> <span class="opt">(</span><span class="kwa">make-array</span> n <span class="opt">:</span>element-type <span class="opt">&apos;</span>double-float <span class="opt">:</span>initial-element <span class="num">0.0</span>d0<span class="opt">)))</span>
+    <span class="opt">(</span><span class="kwa">dotimes</span> <span class="opt">(</span><span class="kwa">i</span> n<span class="opt">)</span>
+      <span class="opt">(</span><span class="kwa">dotimes</span> <span class="opt">(</span><span class="kwa">j</span> n<span class="opt">)</span>
+        <span class="opt">(</span><span class="kwa">incf</span> <span class="opt">(</span><span class="kwa">aref</span> retval i<span class="opt">) (* (</span><span class="kwa">eval-A</span> i j<span class="opt">) (</span><span class="kwa">aref</span> u j<span class="opt">)))))</span>
+    retval<span class="opt">))</span>
+
+<span class="opt">(</span><span class="kwa">defun</span> <span class="kwb">eval-At-times-u</span> <span class="opt">(</span><span class="kwa">n</span> u<span class="opt">)</span>
+  <span class="opt">(</span><span class="kwa">declare</span> <span class="opt">(</span><span class="kwa">type</span> fixnum n<span class="opt">)</span>
+           <span class="opt">(</span><span class="kwa">type</span> <span class="opt">(</span><span class="kwa">simple-array</span> double-float<span class="opt">)</span> u<span class="opt">))</span>
+  <span class="opt">(</span><span class="kwa">let</span> <span class="opt">((</span><span class="kwa">retval</span> <span class="opt">(</span><span class="kwa">make-array</span> n <span class="opt">:</span>element-type <span class="opt">&apos;</span>double-float <span class="opt">:</span>initial-element <span class="num">0.0</span>d0<span class="opt">)))</span>
+    <span class="opt">(</span><span class="kwa">dotimes</span> <span class="opt">(</span><span class="kwa">i</span> n<span class="opt">)</span>
+      <span class="opt">(</span><span class="kwa">dotimes</span> <span class="opt">(</span><span class="kwa">j</span> n<span class="opt">)</span>
+        <span class="opt">(</span><span class="kwa">incf</span> <span class="opt">(</span><span class="kwa">aref</span> retval i<span class="opt">) (* (</span><span class="kwa">eval-A</span> j i<span class="opt">) (</span><span class="kwa">aref</span> u j<span class="opt">)))))</span>
+    retval<span class="opt">))</span>
+
+
+<span class="opt">(</span><span class="kwa">defun</span> <span class="kwb">main</span> <span class="opt">(&amp;</span>optional n-supplied<span class="opt">)</span>
+  <span class="opt">(</span><span class="kwa">let</span> <span class="opt">((</span><span class="kwa">n</span> <span class="opt">(</span><span class="kwa">or</span> n-supplied
+               <span class="opt">(</span><span class="kwa">parse-integer</span> <span class="opt">(</span><span class="kwa">or</span> <span class="opt">(</span><span class="kwa">car</span> <span class="opt">(</span><span class="kwa">last</span> <span class="opt">#+</span>sbcl sb-ext<span class="opt">:*</span>posix-argv<span class="opt">*</span>
+                                             <span class="opt">#+</span>clisp ext<span class="opt">:*</span>args<span class="opt">*</span>
+                                             <span class="opt">#+</span>cmu extensions<span class="opt">:*</span>command-line-strings<span class="opt">*</span>
+                                             <span class="opt">#+</span>gcl  si<span class="opt">::*</span>command-args<span class="opt">*))</span>
+                                  <span class="str">&quot;2000&quot;</span><span class="opt">)))))</span>
+    <span class="opt">(</span><span class="kwa">or</span> <span class="opt">(</span><span class="kwa">typep</span> <span class="opt">(* (</span><span class="kwa">-</span> <span class="opt">(*</span> <span class="num">2</span> n<span class="opt">)</span> <span class="num">1</span><span class="opt">) (</span><span class="kwa">-</span> <span class="opt">(*</span> <span class="num">2</span> n<span class="opt">)</span> <span class="num">2</span><span class="opt">)) &apos;</span>fixnum<span class="opt">)</span>
+        <span class="opt">(</span><span class="kwa">error</span> <span class="str">&quot;The supplied value of &apos;n&apos; breaks the optimizations in EVAL-A&quot;</span><span class="opt">))</span>
+    <span class="opt">(</span><span class="kwa">let</span> <span class="opt">((</span><span class="kwa">u</span> <span class="opt">(</span><span class="kwa">make-array</span> n <span class="opt">:</span>element-type <span class="opt">&apos;</span>double-float <span class="opt">:</span>initial-element <span class="num">1.0</span>d0<span class="opt">))</span>
+          <span class="opt">(</span><span class="kwa">v</span> <span class="opt">(</span><span class="kwa">make-array</span> n <span class="opt">:</span>element-type <span class="opt">&apos;</span>double-float<span class="opt">)))</span>
+      <span class="opt">(</span><span class="kwa">declare</span> <span class="opt">(</span><span class="kwa">type</span> <span class="opt">(</span><span class="kwa">simple-array</span> double-float<span class="opt">)</span> U V<span class="opt">))</span>
+      <span class="opt">(</span><span class="kwa">dotimes</span> <span class="opt">(</span><span class="kwa">i</span> <span class="num">10</span><span class="opt">)</span>
+        <span class="opt">(</span><span class="kwa">setf</span> v <span class="opt">(</span><span class="kwa">eval-AtA-times-u</span> n u<span class="opt">))</span>
+        <span class="opt">(</span><span class="kwa">setf</span> u <span class="opt">(</span><span class="kwa">eval-AtA-times-u</span> n v<span class="opt">)))</span>
+      <span class="opt">(</span><span class="kwa">let</span> <span class="opt">((</span><span class="kwa">vBv</span> <span class="num">0.0</span>d0<span class="opt">)</span>
+            <span class="opt">(</span><span class="kwa">vv</span> <span class="num">0.0</span>d0<span class="opt">))</span>
+        <span class="opt">(</span><span class="kwa">dotimes</span> <span class="opt">(</span><span class="kwa">i</span> n<span class="opt">)</span>
+          <span class="opt">(</span><span class="kwa">incf</span> vBv <span class="opt">(* (</span><span class="kwa">aref</span> u i<span class="opt">) (</span><span class="kwa">aref</span> v i<span class="opt">)))</span>
+          <span class="opt">(</span><span class="kwa">incf</span> vv <span class="opt">(* (</span><span class="kwa">aref</span> v i<span class="opt">) (</span><span class="kwa">aref</span> v i<span class="opt">))))</span>
+        <span class="opt">(</span><span class="kwa">format</span> t <span class="str">&quot;~11,9F~%&quot;</span> <span class="opt">(</span><span class="kwa">sqrt</span> <span class="opt">(</span><span class="kwa">the</span> <span class="opt">(</span><span class="kwa">double-float</span> <span class="num">0</span>d0<span class="opt">) (/</span> vBv vv<span class="opt">))))))))</span>
+
+<span class="slc">;; #+sbcl (progn</span>
+<span class="slc">;;          (sb-profile:profile eval-AtA-times-u)</span>
+<span class="slc">;;          (sb-profile:profile eval-A)</span>
+<span class="slc">;;          (sb-profile:profile eval-A-times-u)</span>
+<span class="slc">;;          (sb-profile:profile eval-At-times-u)</span>
+<span class="slc">;;          (sb-profile:profile main))</span>
+
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

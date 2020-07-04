@@ -17,6 +17,87 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc"># The Computer Language Benchmarks Game</span>
+<span class="slc"># https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">#</span>
+<span class="slc"># contributed by Joerg Baumann</span>
+
+<span class="kwa">from</span> sys <span class="kwa">import</span> stdin<span class="opt">,</span> stdout
+<span class="kwa">from</span> os <span class="kwa">import</span> cpu_count
+
+reverse_translation <span class="opt">=</span> bytes<span class="opt">.</span><span class="kwd">maketrans</span><span class="opt">(</span>
+   b<span class="str">&apos;ABCDGHKMNRSTUVWYabcdghkmnrstuvwy&apos;</span><span class="opt">,</span>
+   b<span class="str">&apos;TVGHCDMKNYSAABWRTVGHCDMKNYSAABWR&apos;</span><span class="opt">)</span>
+
+<span class="kwa">def</span> <span class="kwd">reverse_complement</span><span class="opt">(</span>header<span class="opt">,</span> sequence<span class="opt">):</span>
+   t <span class="opt">=</span> sequence<span class="opt">.</span><span class="kwd">translate</span><span class="opt">(</span>reverse_translation<span class="opt">,</span> b<span class="str">&apos;</span><span class="esc">\n\r</span> <span class="str">&apos;</span><span class="opt">)</span>
+   output <span class="opt">=</span> <span class="kwd">bytearray</span><span class="opt">()</span>
+   trailing_length <span class="opt">=</span> <span class="kwb">len</span><span class="opt">(</span>t<span class="opt">) %</span> <span class="num">60</span>
+   <span class="kwa">if</span> trailing_length<span class="opt">:</span> output <span class="opt">+=</span> b<span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span> <span class="opt">+</span> t<span class="opt">[:</span>trailing_length<span class="opt">]</span>
+   <span class="kwa">for</span> i <span class="kwa">in</span> <span class="kwb">range</span><span class="opt">(</span>trailing_length<span class="opt">,</span> <span class="kwb">len</span><span class="opt">(</span>t<span class="opt">),</span> <span class="num">60</span><span class="opt">):</span>
+      output <span class="opt">+=</span> b<span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span><span class="opt">+</span> t<span class="opt">[</span>i<span class="opt">:</span>i<span class="opt">+</span><span class="num">60</span><span class="opt">]</span>
+   <span class="kwa">return</span> header<span class="opt">,</span> output<span class="opt">[::-</span><span class="num">1</span><span class="opt">]</span>
+
+<span class="kwa">def</span> <span class="kwd">read_sequences</span><span class="opt">(</span><span class="kwb">file</span><span class="opt">):</span>
+   <span class="kwa">for</span> line <span class="kwa">in</span> <span class="kwb">file</span><span class="opt">:</span>
+      <span class="kwa">if</span> line<span class="opt">[</span><span class="num">0</span><span class="opt">] ==</span> <span class="kwb">ord</span><span class="opt">(</span><span class="str">&apos;&gt;&apos;</span><span class="opt">):</span>
+         header <span class="opt">=</span> line
+         sequence <span class="opt">=</span> <span class="kwd">bytearray</span><span class="opt">()</span>
+         <span class="kwa">for</span> line <span class="kwa">in</span> <span class="kwb">file</span><span class="opt">:</span>
+            <span class="kwa">if</span> line<span class="opt">[</span><span class="num">0</span><span class="opt">] ==</span> <span class="kwb">ord</span><span class="opt">(</span><span class="str">&apos;&gt;&apos;</span><span class="opt">):</span>
+               <span class="kwa">yield</span> header<span class="opt">,</span> sequence
+               header <span class="opt">=</span> line
+               sequence <span class="opt">=</span> <span class="kwd">bytearray</span><span class="opt">()</span>
+            <span class="kwa">else</span><span class="opt">:</span>
+               sequence <span class="opt">+=</span> line
+         <span class="kwa">yield</span> header<span class="opt">,</span> sequence
+         <span class="kwa">break</span>
+
+<span class="kwa">def</span> <span class="kwd">reverse_and_print_task</span><span class="opt">(</span>q<span class="opt">,</span> c<span class="opt">,</span> v<span class="opt">):</span>
+   <span class="kwa">while True</span><span class="opt">:</span>
+      i <span class="opt">=</span> q<span class="opt">.</span><span class="kwd">get</span><span class="opt">()</span>
+      <span class="kwa">if</span> i <span class="opt">==</span> <span class="kwa">None</span><span class="opt">:</span> <span class="kwa">break</span>
+      h<span class="opt">,</span> r <span class="opt">=</span> <span class="kwd">reverse_complement</span><span class="opt">(*</span>data<span class="opt">[</span>i<span class="opt">])</span>
+      with c<span class="opt">:</span>
+         <span class="kwa">while</span> i <span class="opt">!=</span> v<span class="opt">.</span>value<span class="opt">:</span>
+            c<span class="opt">.</span><span class="kwd">wait</span><span class="opt">()</span>
+      <span class="kwd">write</span><span class="opt">(</span>h<span class="opt">);</span> <span class="kwd">write</span><span class="opt">(</span>r<span class="opt">);</span> <span class="kwd">flush</span><span class="opt">()</span>
+      with c<span class="opt">:</span>
+         v<span class="opt">.</span>value <span class="opt">=</span> i <span class="opt">+</span> <span class="num">1</span>
+         c<span class="opt">.</span><span class="kwd">notify_all</span><span class="opt">()</span>
+
+<span class="kwa">if</span> __name__<span class="opt">==</span><span class="str">&apos;__main__&apos;</span> <span class="opt">:</span>
+   write <span class="opt">=</span> stdout<span class="opt">.</span><span class="kwb">buffer</span><span class="opt">.</span>write
+   flush <span class="opt">=</span> stdout<span class="opt">.</span><span class="kwb">buffer</span><span class="opt">.</span>flush
+
+   s <span class="opt">=</span> <span class="kwd">read_sequences</span><span class="opt">(</span>stdin<span class="opt">.</span><span class="kwb">buffer</span><span class="opt">)</span>
+   data <span class="opt">=</span> <span class="kwd">next</span><span class="opt">(</span>s<span class="opt">)</span>
+   <span class="kwa">if</span> <span class="kwd">cpu_count</span><span class="opt">() ==</span> <span class="num">1</span> <span class="kwa">or</span> <span class="kwb">len</span><span class="opt">(</span>data<span class="opt">[</span><span class="num">1</span><span class="opt">]) &lt;</span> <span class="num">1000000</span><span class="opt">:</span>
+      <span class="kwa">from</span> itertools <span class="kwa">import</span> starmap
+      <span class="kwa">def</span> <span class="kwd">merge</span><span class="opt">(</span>v<span class="opt">,</span> g<span class="opt">):</span>
+         <span class="kwa">yield</span> v<span class="opt">;</span> <span class="kwa">yield from</span> g
+      <span class="kwa">for</span> h<span class="opt">,</span> r <span class="kwa">in</span> <span class="kwd">starmap</span><span class="opt">(</span>reverse_complement<span class="opt">,</span> <span class="kwd">merge</span><span class="opt">(</span>data<span class="opt">,</span> s<span class="opt">)):</span>
+         <span class="kwd">write</span><span class="opt">(</span>h<span class="opt">);</span> <span class="kwd">write</span><span class="opt">(</span>r<span class="opt">)</span>
+   <span class="kwa">else</span><span class="opt">:</span>
+      <span class="kwa">from</span> multiprocessing <span class="kwa">import</span> Process<span class="opt">,</span> Queue<span class="opt">,</span> Value<span class="opt">,</span> Condition
+      <span class="kwa">from</span> ctypes <span class="kwa">import</span> c_int
+
+      data <span class="opt">= [</span>data<span class="opt">] +</span> <span class="kwb">list</span><span class="opt">(</span>s<span class="opt">)</span>
+      q<span class="opt">,</span> c<span class="opt">,</span> v <span class="opt">= (</span><span class="kwd">Queue</span><span class="opt">(),</span> <span class="kwd">Condition</span><span class="opt">(),</span> <span class="kwd">Value</span><span class="opt">(</span>c_int<span class="opt">,</span> <span class="num">0</span><span class="opt">))</span>
+      processes <span class="opt">= [</span><span class="kwd">Process</span><span class="opt">(</span>target<span class="opt">=</span>reverse_and_print_task<span class="opt">,</span> args<span class="opt">=(</span>q<span class="opt">,</span> c<span class="opt">,</span> v<span class="opt">))</span>
+         <span class="kwa">for</span> _ <span class="kwa">in</span> <span class="kwb">range</span><span class="opt">(</span><span class="kwb">min</span><span class="opt">(</span><span class="kwb">len</span><span class="opt">(</span>data<span class="opt">),</span> <span class="kwd">cpu_count</span><span class="opt">()))]</span>
+
+      <span class="kwa">for</span> p <span class="kwa">in</span> processes<span class="opt">:</span> p<span class="opt">.</span><span class="kwd">start</span><span class="opt">()</span>
+      <span class="kwa">for</span> i <span class="kwa">in</span> <span class="kwb">range</span><span class="opt">(</span><span class="kwb">len</span><span class="opt">(</span>data<span class="opt">)):</span> q<span class="opt">.</span><span class="kwd">put</span><span class="opt">(</span>i<span class="opt">)</span>
+      <span class="kwa">for</span> p <span class="kwa">in</span> processes<span class="opt">:</span> q<span class="opt">.</span><span class="kwd">put</span><span class="opt">(</span><span class="kwa">None</span><span class="opt">)</span>
+      <span class="kwa">for</span> p <span class="kwa">in</span> processes<span class="opt">:</span> p<span class="opt">.</span><span class="kwd">join</span><span class="opt">()</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

@@ -17,6 +17,154 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc"># The Computer Language Benchmarks Game</span>
+<span class="slc"># https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">#</span>
+<span class="slc"># Contributed by Kristoffer Carlsson</span>
+<span class="slc"># Updated by Adam Beckmeyer</span>
+
+<span class="kwa">import</span> <span class="opt">.</span>Threads<span class="opt">:</span> <span class="kwc">&#64;spawn</span>
+
+<span class="kwa">const</span> LINESIZE <span class="opt">=</span> <span class="num">60</span>
+<span class="kwa">const</span> CHUNKSIZE <span class="opt">=</span> <span class="num">1024L</span>INESIZE
+
+<span class="kwa">const</span> IM <span class="opt">=</span> <span class="num">139968</span> <span class="opt">%</span> <span class="kwb">Int32</span>
+<span class="kwa">const</span> IA <span class="opt">=</span> <span class="num">3877</span> <span class="opt">%</span> <span class="kwb">Int32</span>
+<span class="kwa">const</span> IC <span class="opt">=</span> <span class="num">29573</span> <span class="opt">%</span> <span class="kwb">Int32</span>
+<span class="kwa">const</span> SEED <span class="opt">=</span> <span class="kwd">Ref</span><span class="opt">(</span><span class="num">42</span> <span class="opt">%</span> <span class="kwb">Int32</span><span class="opt">)</span>
+
+<span class="kwd">gen_random</span><span class="opt">() = (</span>SEED<span class="opt">[] = ((</span>SEED<span class="opt">[] *</span> IA<span class="opt">) +</span> IC<span class="opt">) %</span> IM<span class="opt">)</span>
+
+<span class="slc"># Vector{UInt8} faster indexing than Base.CodeUnits{UInt8,String} (julia 1.2)</span>
+<span class="kwa">const</span> alu <span class="opt">=</span> Vector<span class="opt">{</span><span class="kwb">UInt8</span><span class="opt">}(</span><span class="kwd">string</span><span class="opt">(</span>
+   <span class="str">&quot;GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGG&quot;</span><span class="opt">,</span>
+   <span class="str">&quot;GAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGA&quot;</span><span class="opt">,</span>
+   <span class="str">&quot;CCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAAT&quot;</span><span class="opt">,</span>
+   <span class="str">&quot;ACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCA&quot;</span><span class="opt">,</span>
+   <span class="str">&quot;GCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGG&quot;</span><span class="opt">,</span>
+   <span class="str">&quot;AGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCC&quot;</span><span class="opt">,</span>
+   <span class="str">&quot;AGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA&quot;</span><span class="opt">))</span>
+
+<span class="kwa">const</span> iub1 <span class="opt">=</span> Vector<span class="opt">{</span><span class="kwb">UInt8</span><span class="opt">}(</span><span class="str">&quot;acgtBDHKMNRSVWY&quot;</span><span class="opt">)</span>
+<span class="slc"># Instead of the probability, iub2 is the integer upper-bounding the random</span>
+<span class="slc"># integer to the equivalent index in iub1</span>
+<span class="kwa">const</span> iub2 <span class="opt">=</span>
+    floor<span class="opt">.(</span><span class="kwb">Int32</span><span class="opt">,</span> IM <span class="opt">.*</span> <span class="kwd">cumsum</span><span class="opt">([</span><span class="num">0.27</span><span class="opt">,</span> <span class="num">0.12</span><span class="opt">,</span> <span class="num">0.12</span><span class="opt">,</span> <span class="num">0.27</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">,</span>
+                                <span class="num">0.02</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">]))</span>
+<span class="kwa">const</span> homosapiens1 <span class="opt">=</span> Vector<span class="opt">{</span><span class="kwb">UInt8</span><span class="opt">}(</span><span class="str">&quot;acgt&quot;</span><span class="opt">)</span>
+<span class="kwa">const</span> homosapiens2 <span class="opt">=</span>
+    floor<span class="opt">.(</span><span class="kwb">Int32</span><span class="opt">,</span> IM <span class="opt">.*</span> <span class="kwd">cumsum</span><span class="opt">([</span><span class="num">0.3029549426680</span><span class="opt">,</span> <span class="num">0.1979883004921</span><span class="opt">,</span>
+                                <span class="num">0.1975473066391</span><span class="opt">,</span> <span class="num">0.3015094502008</span><span class="opt">]))</span>
+
+<span class="slc"># Defining a function with successive comparisons is faster than getindex lookup</span>
+<span class="kwa">for</span> <span class="opt">(</span>op<span class="opt">,</span> symb<span class="opt">,</span> pr<span class="opt">)</span> <span class="kwa">in</span> <span class="opt">((:</span>iub<span class="opt">,</span> iub1<span class="opt">,</span> iub2<span class="opt">),</span>
+                       <span class="opt">(:</span>homosapiens<span class="opt">,</span> homosapiens1<span class="opt">,</span> homosapiens2<span class="opt">))</span>
+    <span class="slc"># successively compares x with all values in pr and returns value from symb</span>
+    <span class="kwc">&#64;eval</span> <span class="kwa">function</span> $op<span class="opt">(</span>x<span class="opt">)</span>
+        $((:(x &lt;= $p &amp;&amp; return $s) <span class="kwa">for</span> <span class="opt">(</span>p<span class="opt">,</span> s<span class="opt">)</span> <span class="kwa">in</span> <span class="kwd">zip</span><span class="opt">(</span>pr<span class="opt">,</span> symb<span class="opt">))...)</span>
+        &apos;a&apos; <span class="opt">%</span> <span class="kwb">UInt8</span>
+    <span class="kwa">end</span>
+<span class="kwa">end</span>
+
+<span class="kwa">function</span> <span class="kwd">repeat_fasta</span><span class="opt">(</span>io<span class="opt">,</span> src<span class="opt">,</span> n<span class="opt">)</span>
+    len <span class="opt">=</span> <span class="kwd">length</span><span class="opt">(</span>src<span class="opt">)</span>
+    pos <span class="opt">=</span> <span class="num">1</span>
+    <span class="kwa">for</span> i<span class="opt">=</span><span class="num">1</span><span class="opt">:</span>LINESIZE<span class="opt">:</span>n
+        <span class="slc"># l is the number of characters we need to write this iteration</span>
+        l <span class="opt">=</span> <span class="kwd">min</span><span class="opt">(</span>LINESIZE<span class="opt">,</span> n <span class="opt">-</span> i <span class="opt">+</span> <span class="num">1</span><span class="opt">)</span>
+        <span class="slc"># m is the number of characters available to write from src</span>
+        m <span class="opt">=</span> <span class="kwd">min</span><span class="opt">(</span>l<span class="opt">,</span> len <span class="opt">-</span> pos <span class="opt">+</span> <span class="num">1</span><span class="opt">)</span>
+        GC<span class="opt">.</span><span class="kwc">&#64;preserve</span> src <span class="kwd">unsafe_write</span><span class="opt">(</span>io<span class="opt">,</span> <span class="kwd">pointer</span><span class="opt">(</span>src<span class="opt">,</span> pos<span class="opt">),</span> m<span class="opt">)</span>
+
+        <span class="kwa">if</span> l <span class="opt">!=</span> m <span class="slc"># reached end of src</span>
+            <span class="slc"># Loop back around to the start of src and write remaining chars</span>
+            pos <span class="opt">=</span> <span class="num">1</span>
+            m <span class="opt">=</span> l <span class="opt">-</span> m
+            GC<span class="opt">.</span><span class="kwc">&#64;preserve</span> src <span class="kwd">unsafe_write</span><span class="opt">(</span>io<span class="opt">,</span> <span class="kwd">pointer</span><span class="opt">(</span>src<span class="opt">,</span> pos<span class="opt">),</span> m<span class="opt">)</span>
+        <span class="kwa">end</span>
+        pos <span class="opt">+=</span> m
+
+        <span class="kwd">write</span><span class="opt">(</span>io<span class="opt">,</span> &apos;<span class="esc">\n</span>&apos;<span class="opt">)</span>
+    <span class="kwa">end</span>
+<span class="kwa">end</span>
+
+<span class="slc"># Produce chunks of random numbers based on chunk-sizes taken from</span>
+<span class="slc"># c1. Then put tasks into c2 that yield a chunk of random characters</span>
+<span class="slc"># when complete.</span>
+<span class="kwa">function</span> <span class="kwd">random_chunks</span><span class="opt">(</span>f<span class="opt">,</span> c1<span class="opt">,</span> c2<span class="opt">,</span> t<span class="opt">)</span>
+    <span class="kwd">wait</span><span class="opt">(</span>t<span class="opt">)</span>
+    <span class="kwa">for</span> n <span class="kwa">in</span> c1
+        v <span class="opt">=</span> Vector<span class="opt">{</span><span class="kwb">Int32</span><span class="opt">}(</span>undef<span class="opt">,</span> n<span class="opt">)</span>
+        <span class="kwa">for</span> i<span class="opt">=</span><span class="num">1</span><span class="opt">:</span>n
+            <span class="kwc">&#64;inbounds</span> v<span class="opt">[</span>i<span class="opt">] =</span> <span class="kwd">gen_random</span><span class="opt">()</span>
+        <span class="kwa">end</span>
+        <span class="slc"># putting a task into c2 instead of a vector allows multiple</span>
+        <span class="slc"># of these map! calcs to be occurring in parallel.</span>
+        <span class="kwd">put</span><span class="opt">!(</span>c2<span class="opt">,</span> <span class="kwc">&#64;spawn &#64;inbounds</span> <span class="kwd">map</span><span class="opt">!(</span>f<span class="opt">,</span> Vector<span class="opt">{</span><span class="kwb">UInt8</span><span class="opt">}(</span>undef<span class="opt">,</span> n<span class="opt">),</span> v<span class="opt">))</span>
+    <span class="kwa">end</span>
+    <span class="kwd">close</span><span class="opt">(</span>c2<span class="opt">)</span>
+<span class="kwa">end</span>
+
+<span class="slc"># Writes chunks of random characters from c to io with newlines added</span>
+<span class="slc"># every LINESIZE.</span>
+<span class="kwa">function</span> <span class="kwd">print_chunks</span><span class="opt">(</span>io<span class="opt">,</span> firstline<span class="opt">,</span> c<span class="opt">,</span> t<span class="opt">)</span>
+    <span class="kwd">wait</span><span class="opt">(</span>t<span class="opt">)</span>
+    <span class="kwd">write</span><span class="opt">(</span>io<span class="opt">,</span> firstline<span class="opt">)</span>
+    <span class="kwa">for</span> vt <span class="kwa">in</span> c
+        v <span class="opt">=</span> <span class="kwd">fetch</span><span class="opt">(</span>vt<span class="opt">)::</span>Vector<span class="opt">{</span><span class="kwb">UInt8</span><span class="opt">}</span>
+        n <span class="opt">=</span> <span class="kwd">length</span><span class="opt">(</span>v<span class="opt">)</span>
+        <span class="kwa">for</span> i<span class="opt">=</span><span class="num">1</span><span class="opt">:</span>LINESIZE<span class="opt">:</span>n
+            GC<span class="opt">.</span><span class="kwc">&#64;preserve</span> v <span class="kwd">unsafe_write</span><span class="opt">(</span>io<span class="opt">,</span> <span class="kwd">pointer</span><span class="opt">(</span>v<span class="opt">,</span> i<span class="opt">),</span>
+                                        <span class="kwd">min</span><span class="opt">(</span>LINESIZE<span class="opt">,</span> n <span class="opt">-</span> i <span class="opt">+</span> <span class="num">1</span><span class="opt">))</span>
+            <span class="kwd">write</span><span class="opt">(</span>io<span class="opt">,</span> &apos;<span class="esc">\n</span>&apos;<span class="opt">)</span>
+        <span class="kwa">end</span>
+    <span class="kwa">end</span>
+<span class="kwa">end</span>
+
+<span class="kwa">function</span> <span class="kwd">random_fasta</span><span class="opt">(</span>io<span class="opt">,</span> flookup<span class="opt">,</span> n<span class="opt">,</span> firstline<span class="opt">,</span> rtask<span class="opt">,</span> iotask<span class="opt">)</span>
+    chunksize <span class="opt">=</span> <span class="kwd">min</span><span class="opt">(</span>n<span class="opt">,</span> CHUNKSIZE<span class="opt">)</span>
+
+    <span class="slc"># c1 holds Ints indicating chunk size</span>
+    c1 <span class="opt">=</span> Channel<span class="opt">{</span>Int<span class="opt">}(</span><span class="kwd">typemax</span><span class="opt">(</span>Int<span class="opt">))</span>
+    <span class="slc"># c2 holds tasks that yield vectors ready to be written to io</span>
+    c2 <span class="opt">=</span> Channel<span class="opt">{</span>Task<span class="opt">}(</span><span class="num">16</span><span class="opt">)</span>
+
+    t1 <span class="opt">=</span> <span class="kwc">&#64;spawn</span> <span class="kwd">random_chunks</span><span class="opt">(</span>flookup<span class="opt">,</span> c1<span class="opt">,</span> c2<span class="opt">,</span> rtask<span class="opt">)</span>
+    <span class="slc"># Making the IO thread sticky improves timing consistency</span>
+    t3 <span class="opt">=</span> <span class="kwc">&#64;async</span> <span class="kwd">print_chunks</span><span class="opt">(</span>io<span class="opt">,</span> firstline<span class="opt">,</span> c2<span class="opt">,</span> iotask<span class="opt">)</span>
+
+    <span class="kwa">for</span> p<span class="opt">=</span><span class="num">1</span><span class="opt">:</span>chunksize<span class="opt">:</span>n
+        <span class="kwd">put</span><span class="opt">!(</span>c1<span class="opt">,</span> <span class="kwd">min</span><span class="opt">(</span>chunksize<span class="opt">,</span> n <span class="opt">-</span> p <span class="opt">+</span> <span class="num">1</span><span class="opt">))</span>
+    <span class="kwa">end</span>
+    <span class="slc"># This will cascade through to close c2 and end t1 and t3 once all</span>
+    <span class="slc"># work is finished.</span>
+    <span class="kwd">close</span><span class="opt">(</span>c1<span class="opt">)</span>
+    <span class="slc"># Both t1 and t3 returned because we have to wait for all random</span>
+    <span class="slc"># number generation to be finished before we can start generating</span>
+    <span class="slc"># random numbers again, and we have to wait for all io to be</span>
+    <span class="slc"># finished before we can start writing to io again.</span>
+    t1<span class="opt">,</span> t3
+<span class="kwa">end</span>
+
+<span class="kwa">function</span> <span class="kwd">fasta</span><span class="opt">(</span>n<span class="opt">=</span><span class="num">25000000</span><span class="opt">,</span> io<span class="opt">=</span>stdout<span class="opt">)</span>
+    <span class="kwd">write</span><span class="opt">(</span>io<span class="opt">,</span> <span class="str">&quot;&gt;ONE Homo sapiens alu</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">)</span>
+    t1 <span class="opt">=</span> <span class="kwc">&#64;spawn</span> nothing
+    t3 <span class="opt">=</span> <span class="kwc">&#64;spawn</span> <span class="kwd">repeat_fasta</span><span class="opt">(</span>io<span class="opt">,</span> alu<span class="opt">,</span> <span class="num">2</span>n<span class="opt">)</span>
+
+    t1<span class="opt">,</span> t3 <span class="opt">=</span> <span class="kwd">random_fasta</span><span class="opt">(</span>io<span class="opt">,</span> iub<span class="opt">,</span> <span class="num">3</span>n<span class="opt">,</span> <span class="str">&quot;&gt;TWO IUB ambiguity codes</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span> t1<span class="opt">,</span> t3<span class="opt">)</span>
+    t1<span class="opt">,</span> t3 <span class="opt">=</span> <span class="kwd">random_fasta</span><span class="opt">(</span>io<span class="opt">,</span> homosapiens<span class="opt">,</span> <span class="num">5</span>n<span class="opt">,</span> <span class="str">&quot;&gt;THREE Homo sapiens frequency</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span>
+                          t1<span class="opt">,</span> t3<span class="opt">)</span>
+    <span class="kwd">wait</span><span class="opt">(</span>t3<span class="opt">)</span>
+<span class="kwa">end</span>
+
+<span class="kwd">isinteractive</span><span class="opt">() ||</span> <span class="kwd">fasta</span><span class="opt">(</span><span class="kwd">parse</span><span class="opt">(</span>Int<span class="opt">,</span>ARGS<span class="opt">[</span><span class="num">1</span><span class="opt">]))</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

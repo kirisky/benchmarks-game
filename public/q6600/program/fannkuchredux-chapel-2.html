@@ -17,6 +17,133 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="com">/* The Computer Language Benchmarks Game</span>
+<span class="com">   https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="com"></span>
+<span class="com">   contributed by Ben Harshbarger and Brad Chamberlain</span>
+<span class="com">   derived from the Swift implementation by Ralph Ganszky</span>
+<span class="com">*/</span>
+
+<span class="kwa">use</span> DynamicIters<span class="opt">;</span>
+
+<span class="kwa">config const</span> n <span class="opt">=</span> <span class="num">7</span><span class="opt">,</span>           <span class="slc">// the array size over which to compute perms</span>
+             nchunks <span class="opt">=</span> <span class="num">720</span><span class="opt">;</span>   <span class="slc">// the number of chunks of parallelism to use</span>
+
+<span class="kwa">const</span> fact<span class="opt">: [</span><span class="num">1</span><span class="opt">..</span>n<span class="opt">]</span> <span class="kwb">int</span> <span class="opt">=</span> <span class="kwc">computeFact</span><span class="opt">(</span>n<span class="opt">);</span>  <span class="slc">// memoize n! (n-factorial)</span>
+
+
+<span class="kwa">proc</span> <span class="kwc">main</span><span class="opt">() {</span>
+  <span class="kwa">var</span> checkSum <span class="opt">=</span> <span class="num">0</span><span class="opt">,</span>
+      maxFlips <span class="opt">=</span> <span class="num">1</span><span class="opt">;</span>
+
+  <span class="kwa">var</span> chunksz <span class="opt">= (</span><span class="kwc">fact</span><span class="opt">(</span>n<span class="opt">) +</span> nchunks <span class="opt">-</span> <span class="num">1</span><span class="opt">) /</span> nchunks<span class="opt">;</span>
+  chunksz <span class="opt">+=</span> chunksz<span class="opt">%</span><span class="num">2</span><span class="opt">;</span>
+  <span class="kwa">const</span> work <span class="opt">=</span> <span class="num">0</span><span class="opt">..(</span><span class="kwc">fact</span><span class="opt">(</span>n<span class="opt">) -</span> chunksz<span class="opt">)</span> <span class="kwa">by</span> chunksz<span class="opt">;</span>
+
+  <span class="kwa">forall</span> i <span class="kwa">in</span> <span class="kwc">dynamic</span><span class="opt">(</span>work<span class="opt">)</span> <span class="kwa">with</span> <span class="opt">(+</span> <span class="kwa">reduce</span> checkSum<span class="opt">,</span>
+                                  max <span class="kwa">reduce</span> maxFlips<span class="opt">) {</span>
+    <span class="kwa">for</span> <span class="opt">(</span>j<span class="opt">,</span> flips<span class="opt">)</span> <span class="kwa">in</span> <span class="kwc">fannkuch</span><span class="opt">(</span>i<span class="opt">..#</span>chunksz<span class="opt">) {</span>
+      maxFlips <span class="opt">=</span> <span class="kwc">max</span><span class="opt">(</span>maxFlips<span class="opt">,</span> flips<span class="opt">);</span>
+      checkSum <span class="opt">+=</span> <span class="kwa">if</span> j <span class="opt">%</span> <span class="num">2</span> <span class="opt">==</span> <span class="num">0</span> <span class="kwa">then</span> flips <span class="kwa">else</span> <span class="opt">-</span>flips<span class="opt">;</span>
+    <span class="opt">}</span>
+  <span class="opt">}</span>
+
+  <span class="kwc">writeln</span><span class="opt">(</span>checkSum<span class="opt">);</span>
+  <span class="kwc">writeln</span><span class="opt">(</span><span class="str">&quot;Pfannkuchen(&quot;</span><span class="opt">,</span> n<span class="opt">,</span> <span class="str">&quot;) = &quot;</span><span class="opt">,</span> maxFlips<span class="opt">);</span>
+<span class="opt">}</span>
+
+
+<span class="kwa">iter</span> <span class="kwc">fannkuch</span><span class="opt">(</span>inds<span class="opt">) {</span>
+  <span class="kwa">var</span> p<span class="opt">,</span> pp<span class="opt">,</span> count<span class="opt">: [</span><span class="num">0</span><span class="opt">..#</span>n<span class="opt">]</span> <span class="kwb">int</span><span class="opt">;</span>
+  <span class="kwa">for</span> i <span class="kwa">in</span> <span class="num">0</span><span class="opt">..#</span>n <span class="kwa">do</span>
+    p<span class="opt">[</span>i<span class="opt">] =</span> i<span class="opt">;</span>
+
+  <span class="kwc">firstPerm</span><span class="opt">();</span>
+
+  <span class="kwa">for</span> i <span class="kwa">in</span> inds <span class="opt">{</span>
+    <span class="kwa">if</span> p<span class="opt">[</span><span class="num">0</span><span class="opt">] !=</span> <span class="num">0</span> <span class="kwa">then</span>
+      <span class="kwa">yield</span> <span class="opt">(</span>i<span class="opt">,</span> <span class="kwc">countFlips</span><span class="opt">());</span>
+
+    <span class="kwa">if</span> i <span class="opt">!=</span> inds<span class="opt">.</span>high <span class="kwa">then</span>
+      <span class="kwc">nextPerm</span><span class="opt">();</span>
+  <span class="opt">}</span>
+
+
+  <span class="kwa">proc</span> <span class="kwc">firstPerm</span><span class="opt">() {</span>
+    <span class="kwa">var</span> idx <span class="opt">=</span> inds<span class="opt">.</span>low<span class="opt">;</span>
+    <span class="kwa">for</span> i <span class="kwa">in</span> <span class="num">1</span><span class="opt">..</span>n<span class="opt">-</span><span class="num">1</span> <span class="kwa">by</span> <span class="opt">-</span><span class="num">1</span> <span class="opt">{</span>
+      <span class="kwa">const</span> d <span class="opt">=</span> idx <span class="opt">/</span> <span class="kwc">fact</span><span class="opt">(</span>i<span class="opt">);;</span>
+      count<span class="opt">[</span>i<span class="opt">] =</span> d<span class="opt">;</span>
+      idx <span class="opt">%=</span> <span class="kwc">fact</span><span class="opt">(</span>i<span class="opt">);</span>
+
+      pp<span class="opt">[</span><span class="num">0</span><span class="opt">..</span>i<span class="opt">] =</span> p<span class="opt">[</span><span class="num">0</span><span class="opt">..</span>i<span class="opt">];</span>
+
+      <span class="kwa">for</span> j <span class="kwa">in</span> <span class="num">0</span><span class="opt">..</span>i <span class="opt">{</span>
+        <span class="kwa">if</span> j <span class="opt">+</span> d <span class="opt">&lt;=</span> i <span class="kwa">then</span>
+          p<span class="opt">[</span>j<span class="opt">] =</span> pp<span class="opt">[</span>j<span class="opt">+</span>d<span class="opt">];</span>
+        <span class="kwa">else</span>
+          p<span class="opt">[</span>j<span class="opt">] =</span> pp<span class="opt">[</span>j<span class="opt">+</span>d<span class="opt">-</span>i<span class="opt">-</span><span class="num">1</span><span class="opt">];</span>
+      <span class="opt">}</span>
+    <span class="opt">}</span>
+  <span class="opt">}</span>
+
+  <span class="kwa">proc</span> <span class="kwc">countFlips</span><span class="opt">() {</span>
+    <span class="kwa">var</span> locflips <span class="opt">=</span> <span class="num">1</span><span class="opt">,</span>
+        first <span class="opt">=</span> p<span class="opt">[</span><span class="num">0</span><span class="opt">];</span>
+
+    <span class="kwa">if</span> p<span class="opt">[</span>first<span class="opt">] !=</span> <span class="num">0</span> <span class="opt">{</span>
+      <span class="kwa">for</span> i <span class="kwa">in</span> <span class="num">0</span><span class="opt">..#</span>n <span class="kwa">do</span>
+        pp<span class="opt">[</span>i<span class="opt">] =</span> p<span class="opt">[</span>i<span class="opt">];</span>
+      <span class="kwa">do</span> <span class="opt">{</span>
+        locflips <span class="opt">+=</span> <span class="num">1</span><span class="opt">;</span>
+        <span class="kwa">var</span> lo <span class="opt">=</span> <span class="num">1</span><span class="opt">,</span> hi <span class="opt">=</span> first <span class="opt">-</span> <span class="num">1</span><span class="opt">;</span>
+        <span class="kwa">while</span> lo <span class="opt">&lt;</span> hi <span class="opt">{</span>
+          pp<span class="opt">[</span>lo<span class="opt">] &lt;=&gt;</span> pp<span class="opt">[</span>hi<span class="opt">];</span>
+          lo <span class="opt">+=</span> <span class="num">1</span><span class="opt">;</span>
+          hi <span class="opt">-=</span> <span class="num">1</span><span class="opt">;</span>
+        <span class="opt">}</span>
+        pp<span class="opt">[</span>first<span class="opt">] &lt;=&gt;</span> first<span class="opt">;</span>
+      <span class="opt">}</span> <span class="kwa">while</span> pp<span class="opt">[</span>first<span class="opt">] !=</span> <span class="num">0</span><span class="opt">;</span>
+    <span class="opt">}</span>
+    <span class="kwa">return</span> locflips<span class="opt">;</span>
+  <span class="opt">}</span>
+
+  <span class="kwa">proc</span> <span class="kwc">nextPerm</span><span class="opt">() {</span>
+    <span class="kwa">var</span> first <span class="opt">=</span> p<span class="opt">[</span><span class="num">1</span><span class="opt">];</span>
+    p<span class="opt">[</span><span class="num">1</span><span class="opt">] =</span> p<span class="opt">[</span><span class="num">0</span><span class="opt">];</span>
+    p<span class="opt">[</span><span class="num">0</span><span class="opt">] =</span> first<span class="opt">;</span>
+
+    <span class="kwa">var</span> i <span class="opt">=</span> <span class="num">1</span><span class="opt">;</span>
+    count<span class="opt">[</span>i<span class="opt">] +=</span> <span class="num">1</span><span class="opt">;</span>
+    <span class="kwa">while</span> count<span class="opt">[</span>i<span class="opt">] &gt;</span> i <span class="opt">{</span>
+      count<span class="opt">[</span>i<span class="opt">] =</span> <span class="num">0</span><span class="opt">;</span>
+      i <span class="opt">+=</span> <span class="num">1</span><span class="opt">;</span>
+      <span class="kwa">const</span> next <span class="opt">=</span> p<span class="opt">[</span><span class="num">1</span><span class="opt">];</span>
+      p<span class="opt">[</span><span class="num">0</span><span class="opt">] =</span> p<span class="opt">[</span><span class="num">1</span><span class="opt">];</span>
+      <span class="kwa">for</span> j <span class="kwa">in</span> <span class="num">1</span><span class="opt">..</span>i<span class="opt">-</span><span class="num">1</span> <span class="kwa">do</span>
+        p<span class="opt">[</span>j<span class="opt">] =</span> p<span class="opt">[</span>j<span class="opt">+</span><span class="num">1</span><span class="opt">];</span>
+      p<span class="opt">[</span>i<span class="opt">] =</span> first<span class="opt">;</span>
+      first <span class="opt">=</span> next<span class="opt">;</span>
+
+      count<span class="opt">[</span>i<span class="opt">] +=</span> <span class="num">1</span><span class="opt">;</span>
+    <span class="opt">}</span>
+  <span class="opt">}</span>
+<span class="opt">}</span>
+
+<span class="kwa">iter</span> <span class="kwc">computeFact</span><span class="opt">(</span>n<span class="opt">) {</span>
+  <span class="kwa">var</span> f <span class="opt">=</span> <span class="num">1</span><span class="opt">;</span>
+  <span class="kwa">for</span> i <span class="kwa">in</span> <span class="num">1</span><span class="opt">..</span>n <span class="opt">{</span>
+    f <span class="opt">*=</span> i<span class="opt">;</span>
+    <span class="kwa">yield</span> f<span class="opt">;</span>
+  <span class="opt">}</span>
+<span class="opt">}</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

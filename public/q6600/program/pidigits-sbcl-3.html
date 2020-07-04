@@ -17,6 +17,66 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc">;; The Computer Language Benchmarks Game</span>
+<span class="slc">;; https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">;;</span>
+<span class="slc">;; adapted from the C version by Kentaro Nakazawa 2016-11-08</span>
+
+<span class="opt">#+</span>sbcl <span class="opt">(</span><span class="kwa">require</span> <span class="opt">:</span>sb-gmp<span class="opt">)</span>		<span class="slc">; GMP disabled when commenting out</span>
+
+<span class="opt">(</span><span class="kwa">declaim</span> <span class="opt">(</span><span class="kwa">optimize</span> <span class="opt">(</span><span class="kwa">speed</span> <span class="num">3</span><span class="opt">) (</span><span class="kwa">debug</span> <span class="num">0</span><span class="opt">) (</span><span class="kwa">space</span> <span class="num">0</span><span class="opt">) (</span><span class="kwa">safety</span> <span class="num">0</span><span class="opt">)))</span>
+
+<span class="opt">(</span><span class="kwa">declaim</span> <span class="opt">(</span><span class="kwa">type</span> integer acc den num<span class="opt">))</span>
+<span class="opt">(</span><span class="kwa">defparameter</span> acc <span class="num">0</span><span class="opt">)</span>
+<span class="opt">(</span><span class="kwa">defparameter</span> den <span class="num">1</span><span class="opt">)</span>
+<span class="opt">(</span><span class="kwa">defparameter</span> num <span class="num">1</span><span class="opt">)</span>
+
+<span class="opt">(</span><span class="kwa">defun</span> <span class="kwb">extract-digit</span> <span class="opt">(</span><span class="kwa">nth</span><span class="opt">)</span>
+  <span class="opt">(</span><span class="kwa">declare</span> <span class="opt">(</span><span class="kwa">type</span> fixnum nth<span class="opt">))</span>
+  <span class="opt">(</span><span class="kwa">the</span> fixnum <span class="opt">(</span><span class="kwa">truncate</span> <span class="opt">(+ (*</span> num nth<span class="opt">)</span> acc<span class="opt">)</span> den<span class="opt">)))</span>
+
+<span class="opt">(</span><span class="kwa">defun</span> <span class="kwb">eliminate-digit</span> <span class="opt">(</span><span class="kwa">d</span><span class="opt">)</span>
+  <span class="opt">(</span><span class="kwa">declare</span> <span class="opt">(</span><span class="kwa">type</span> fixnum d<span class="opt">))</span>
+  <span class="opt">(</span><span class="kwa">decf</span> acc <span class="opt">(*</span> den d<span class="opt">))</span>
+  <span class="opt">(</span><span class="kwa">setf</span> acc <span class="opt">(*</span> acc <span class="num">10</span><span class="opt">))</span>
+  <span class="opt">(</span><span class="kwa">setf</span> num <span class="opt">(*</span> num <span class="num">10</span><span class="opt">)))</span>
+
+<span class="opt">(</span><span class="kwa">defun</span> <span class="kwb">next-term</span> <span class="opt">(</span><span class="kwa">k</span><span class="opt">)</span>
+  <span class="opt">(</span><span class="kwa">declare</span> <span class="opt">(</span><span class="kwa">type</span> fixnum k<span class="opt">))</span>
+  <span class="opt">(</span><span class="kwa">let</span> <span class="opt">((</span><span class="kwa">k2</span> <span class="opt">(</span><span class="kwa">1</span><span class="opt">+ (*</span> k <span class="num">2</span><span class="opt">))))</span>
+    <span class="opt">(</span><span class="kwa">declare</span> <span class="opt">(</span><span class="kwa">type</span> fixnum k2<span class="opt">))</span>
+    <span class="opt">(</span><span class="kwa">incf</span> acc <span class="opt">(*</span> num <span class="num">2</span><span class="opt">))</span>
+    <span class="opt">(</span><span class="kwa">setf</span> acc <span class="opt">(*</span> acc k2<span class="opt">))</span>
+    <span class="opt">(</span><span class="kwa">setf</span> den <span class="opt">(*</span> den k2<span class="opt">))</span>
+    <span class="opt">(</span><span class="kwa">setf</span> num <span class="opt">(*</span> num k<span class="opt">))))</span>
+
+<span class="opt">(</span><span class="kwa">defun</span> <span class="kwb">main</span> <span class="opt">()</span>
+  <span class="opt">(</span><span class="kwa">do</span> <span class="opt">((</span><span class="kwa">d</span> <span class="num">0</span><span class="opt">) (</span><span class="kwa">k</span> <span class="num">0</span><span class="opt">) (</span><span class="kwa">i</span> <span class="num">0</span><span class="opt">) (</span><span class="kwa">n</span> <span class="num">10000</span><span class="opt">))</span>
+      <span class="opt">((&gt;=</span> i n<span class="opt">))</span>
+    <span class="opt">(</span><span class="kwa">declare</span> <span class="opt">(</span><span class="kwa">type</span> fixnum d k i n<span class="opt">))</span>
+    <span class="opt">(</span><span class="kwa">setf</span> n <span class="opt">(</span><span class="kwa">parse-integer</span> <span class="opt">(</span><span class="kwa">nth</span> <span class="num">1</span> <span class="opt">#+</span>sbcl sb-ext<span class="opt">:*</span>posix-argv<span class="opt">*</span>
+				  <span class="opt">#+</span>cmu extensions<span class="opt">:*</span>command-line-strings<span class="opt">*</span>
+				  <span class="opt">#+</span>gcl si<span class="opt">::*</span>command-args<span class="opt">*)))</span>
+    <span class="opt">(</span><span class="kwa">next-term</span> <span class="opt">(</span><span class="kwa">incf</span> k<span class="opt">))</span>
+    <span class="opt">(</span><span class="kwa">when</span> <span class="opt">(&gt;</span> num acc<span class="opt">)</span>
+      <span class="opt">(</span><span class="kwa">go</span> continue<span class="opt">))</span>
+
+    <span class="opt">(</span><span class="kwa">setf</span> d <span class="opt">(</span><span class="kwa">extract-digit</span> <span class="num">3</span><span class="opt">))</span>
+    <span class="opt">(</span><span class="kwa">when</span> <span class="opt">(/=</span> d <span class="opt">(</span><span class="kwa">extract-digit</span> <span class="num">4</span><span class="opt">))</span>
+      <span class="opt">(</span><span class="kwa">go</span> continue<span class="opt">))</span>
+
+    <span class="opt">(</span><span class="kwa">princ</span> d<span class="opt">)</span>
+    <span class="opt">(</span><span class="kwa">when</span> <span class="opt">(= (</span><span class="kwa">mod</span> <span class="opt">(</span><span class="kwa">incf</span> i<span class="opt">)</span> <span class="num">10</span><span class="opt">)</span> <span class="num">0</span><span class="opt">)</span>
+      <span class="opt">(</span><span class="kwa">format</span> t <span class="str">&quot;~C:~D~%&quot;</span> <span class="opt">#</span>\Tab i<span class="opt">))</span>
+    <span class="opt">(</span><span class="kwa">eliminate-digit</span> d<span class="opt">)</span>
+   continue<span class="opt">))</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

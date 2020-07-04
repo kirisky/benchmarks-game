@@ -17,6 +17,147 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc">// The Computer Language Benchmarks Game</span>
+<span class="slc">// https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">//</span>
+<span class="slc">// contributed by the Rust Project Developers</span>
+<span class="slc">// contributed by TeXitoi</span>
+
+<span class="ppc">#![allow(non_snake_case)]</span>
+
+<span class="kwa">use</span> std<span class="opt">::</span>iter<span class="opt">::</span>repeat<span class="opt">;</span>
+<span class="kwa">use</span> std<span class="opt">::</span>thread<span class="opt">;</span>
+
+<span class="slc">// As std::simd::f64x2 etc. are unstable, we provide a similar interface,</span>
+<span class="slc">// expecting llvm to autovectorize its usage.</span>
+<span class="ppc">#[allow(non_camel_case_types)]</span>
+<span class="ppc">#[derive(Copy, Clone)]</span>
+<span class="kwa">struct</span> <span class="kwd">usizex2</span><span class="opt">(</span><span class="kwb">usize</span><span class="opt">,</span> <span class="kwb">usize</span><span class="opt">);</span>
+<span class="kwa">impl</span> std<span class="opt">::</span>ops<span class="opt">::</span>Add <span class="kwa">for</span> usizex2 <span class="opt">{</span>
+    <span class="kwa">type</span> Output <span class="opt">=</span> <span class="kwa">Self</span><span class="opt">;</span>
+    <span class="kwa">fn</span> <span class="kwd">add</span><span class="opt">(</span><span class="kwa">self</span><span class="opt">,</span> rhs<span class="opt">:</span> <span class="kwa">Self</span><span class="opt">) -&gt;</span> <span class="kwa">Self</span> <span class="opt">{</span>
+        <span class="kwd">usizex2</span><span class="opt">(</span><span class="kwa">self</span><span class="num">.0</span> <span class="opt">+</span> rhs<span class="num">.0</span><span class="opt">,</span> <span class="kwa">self</span><span class="num">.1</span> <span class="opt">+</span> rhs<span class="num">.1</span><span class="opt">)</span>
+    <span class="opt">}</span>
+<span class="opt">}</span>
+<span class="kwa">impl</span> std<span class="opt">::</span>ops<span class="opt">::</span>Mul <span class="kwa">for</span> usizex2 <span class="opt">{</span>
+    <span class="kwa">type</span> Output <span class="opt">=</span> <span class="kwa">Self</span><span class="opt">;</span>
+    <span class="kwa">fn</span> <span class="kwd">mul</span><span class="opt">(</span><span class="kwa">self</span><span class="opt">,</span> rhs<span class="opt">:</span> <span class="kwa">Self</span><span class="opt">) -&gt;</span> <span class="kwa">Self</span> <span class="opt">{</span>
+        <span class="kwd">usizex2</span><span class="opt">(</span><span class="kwa">self</span><span class="num">.0</span> <span class="opt">*</span> rhs<span class="num">.0</span><span class="opt">,</span> <span class="kwa">self</span><span class="num">.1</span> <span class="opt">*</span> rhs<span class="num">.1</span><span class="opt">)</span>
+    <span class="opt">}</span>
+<span class="opt">}</span>
+<span class="kwa">impl</span> std<span class="opt">::</span>ops<span class="opt">::</span>Div <span class="kwa">for</span> usizex2 <span class="opt">{</span>
+    <span class="kwa">type</span> Output <span class="opt">=</span> <span class="kwa">Self</span><span class="opt">;</span>
+    <span class="kwa">fn</span> <span class="kwd">div</span><span class="opt">(</span><span class="kwa">self</span><span class="opt">,</span> rhs<span class="opt">:</span> <span class="kwa">Self</span><span class="opt">) -&gt;</span> <span class="kwa">Self</span> <span class="opt">{</span>
+        <span class="kwd">usizex2</span><span class="opt">(</span><span class="kwa">self</span><span class="num">.0</span> <span class="opt">/</span> rhs<span class="num">.0</span><span class="opt">,</span> <span class="kwa">self</span><span class="num">.1</span> <span class="opt">/</span> rhs<span class="num">.1</span><span class="opt">)</span>
+    <span class="opt">}</span>
+<span class="opt">}</span>
+<span class="kwa">impl</span> From<span class="opt">&lt;</span>usizex2<span class="opt">&gt;</span> <span class="kwa">for</span> f64x2 <span class="opt">{</span>
+    <span class="kwa">fn</span> <span class="kwd">from</span><span class="opt">(</span>i<span class="opt">:</span> usizex2<span class="opt">) -&gt;</span> f64x2 <span class="opt">{</span>
+        <span class="kwd">f64x2</span><span class="opt">(</span>i<span class="num">.0</span> <span class="kwa">as</span> <span class="kwb">f64</span><span class="opt">,</span> i<span class="num">.1</span> <span class="kwa">as</span> <span class="kwb">f64</span><span class="opt">)</span>
+    <span class="opt">}</span>
+<span class="opt">}</span>
+
+<span class="ppc">#[allow(non_camel_case_types)]</span>
+<span class="kwa">struct</span> <span class="kwd">f64x2</span><span class="opt">(</span><span class="kwb">f64</span><span class="opt">,</span> <span class="kwb">f64</span><span class="opt">);</span>
+<span class="kwa">impl</span> std<span class="opt">::</span>ops<span class="opt">::</span>Add <span class="kwa">for</span> f64x2 <span class="opt">{</span>
+    <span class="kwa">type</span> Output <span class="opt">=</span> <span class="kwa">Self</span><span class="opt">;</span>
+    <span class="kwa">fn</span> <span class="kwd">add</span><span class="opt">(</span><span class="kwa">self</span><span class="opt">,</span> rhs<span class="opt">:</span> <span class="kwa">Self</span><span class="opt">) -&gt;</span> <span class="kwa">Self</span> <span class="opt">{</span>
+        <span class="kwd">f64x2</span><span class="opt">(</span><span class="kwa">self</span><span class="num">.0</span> <span class="opt">+</span> rhs<span class="num">.0</span><span class="opt">,</span> <span class="kwa">self</span><span class="num">.1</span> <span class="opt">+</span> rhs<span class="num">.1</span><span class="opt">)</span>
+    <span class="opt">}</span>
+<span class="opt">}</span>
+<span class="kwa">impl</span> std<span class="opt">::</span>ops<span class="opt">::</span>Div <span class="kwa">for</span> f64x2 <span class="opt">{</span>
+    <span class="kwa">type</span> Output <span class="opt">=</span> <span class="kwa">Self</span><span class="opt">;</span>
+    <span class="kwa">fn</span> <span class="kwd">div</span><span class="opt">(</span><span class="kwa">self</span><span class="opt">,</span> rhs<span class="opt">:</span> <span class="kwa">Self</span><span class="opt">) -&gt;</span> <span class="kwa">Self</span> <span class="opt">{</span>
+        <span class="kwd">f64x2</span><span class="opt">(</span><span class="kwa">self</span><span class="num">.0</span> <span class="opt">/</span> rhs<span class="num">.0</span><span class="opt">,</span> <span class="kwa">self</span><span class="num">.1</span> <span class="opt">/</span> rhs<span class="num">.1</span><span class="opt">)</span>
+    <span class="opt">}</span>
+<span class="opt">}</span>
+
+<span class="kwa">fn</span> <span class="kwd">main</span><span class="opt">() {</span>
+    <span class="kwa">let</span> n <span class="opt">=</span> std<span class="opt">::</span>env<span class="opt">::</span><span class="kwd">args_os</span><span class="opt">().</span><span class="kwd">nth</span><span class="opt">(</span><span class="num">1</span><span class="opt">)</span>
+        <span class="opt">.</span><span class="kwd">and_then</span><span class="opt">(|</span>s<span class="opt">|</span> s<span class="num">.i</span>nto<span class="num">_</span>str<span class="num">i</span>ng<span class="opt">().</span><span class="kwd">ok</span><span class="opt">())</span>
+        <span class="opt">.</span><span class="kwd">and_then</span><span class="opt">(|</span>n<span class="opt">|</span> n<span class="opt">.</span><span class="kwd">parse</span><span class="opt">().</span><span class="kwd">ok</span><span class="opt">())</span>
+        <span class="num">.u</span>nwrap<span class="num">_</span>or<span class="opt">(</span><span class="num">100</span><span class="opt">);</span>
+    <span class="kwa">let</span> answer <span class="opt">=</span> <span class="kwd">spectralnorm</span><span class="opt">(</span>n<span class="opt">);</span>
+    println<span class="opt">!(</span><span class="str">&quot;{:.9}&quot;</span><span class="opt">,</span> answer<span class="opt">);</span>
+<span class="opt">}</span>
+
+<span class="kwa">fn</span> <span class="kwd">spectralnorm</span><span class="opt">(</span>n<span class="opt">:</span> <span class="kwb">usize</span><span class="opt">) -&gt;</span> <span class="kwb">f64</span> <span class="opt">{</span>
+    assert<span class="opt">!(</span>n <span class="opt">%</span> <span class="num">2</span> <span class="opt">==</span> <span class="num">0</span><span class="opt">,</span> <span class="str">&quot;only even lengths are accepted&quot;</span><span class="opt">);</span>
+    <span class="kwa">let mut</span> u <span class="opt">=</span> <span class="kwd">repeat</span><span class="opt">(</span><span class="num">1.0</span><span class="opt">).</span><span class="kwd">take</span><span class="opt">(</span>n<span class="opt">).</span>collect<span class="opt">::&lt;</span>Vec<span class="opt">&lt;</span>_<span class="opt">&gt;&gt;();</span>
+    <span class="kwa">let mut</span> v <span class="opt">=</span> u<span class="opt">.</span><span class="kwd">clone</span><span class="opt">();</span>
+    <span class="kwa">let mut</span> tmp <span class="opt">=</span> v<span class="opt">.</span><span class="kwd">clone</span><span class="opt">();</span>
+    <span class="kwa">for</span> _ <span class="kwa">in</span> <span class="num">0</span><span class="opt">.</span><span class="num">.10</span> <span class="opt">{</span>
+        <span class="kwd">mult_AtAv</span><span class="opt">(&amp;</span>u<span class="opt">, &amp;</span><span class="kwa">mut</span> v<span class="opt">, &amp;</span><span class="kwa">mut</span> tmp<span class="opt">);</span>
+        <span class="kwd">mult_AtAv</span><span class="opt">(&amp;</span>v<span class="opt">, &amp;</span><span class="kwa">mut</span> u<span class="opt">, &amp;</span><span class="kwa">mut</span> tmp<span class="opt">);</span>
+    <span class="opt">}</span>
+    <span class="opt">(</span><span class="kwd">dot</span><span class="opt">(&amp;</span>u<span class="opt">, &amp;</span>v<span class="opt">) /</span> <span class="kwd">dot</span><span class="opt">(&amp;</span>v<span class="opt">, &amp;</span>v<span class="opt">)).</span><span class="kwd">sqrt</span><span class="opt">()</span>
+<span class="opt">}</span>
+
+<span class="kwa">fn</span> <span class="kwd">mult_AtAv</span><span class="opt">(</span>v<span class="opt">: &amp;[</span><span class="kwb">f64</span><span class="opt">],</span> out<span class="opt">: &amp;</span><span class="kwa">mut</span> <span class="opt">[</span><span class="kwb">f64</span><span class="opt">],</span> tmp<span class="opt">: &amp;</span><span class="kwa">mut</span> <span class="opt">[</span><span class="kwb">f64</span><span class="opt">]) {</span>
+    <span class="kwd">mult_Av</span><span class="opt">(</span>v<span class="opt">,</span> tmp<span class="opt">);</span>
+    <span class="kwd">mult_Atv</span><span class="opt">(</span>tmp<span class="opt">,</span> out<span class="opt">);</span>
+<span class="opt">}</span>
+
+<span class="kwa">fn</span> <span class="kwd">mult_Av</span><span class="opt">(</span>v<span class="opt">: &amp;[</span><span class="kwb">f64</span><span class="opt">],</span> out<span class="opt">: &amp;</span><span class="kwa">mut</span> <span class="opt">[</span><span class="kwb">f64</span><span class="opt">]) {</span>
+    <span class="kwd">parallel</span><span class="opt">(</span>out<span class="opt">, |</span>start<span class="opt">,</span> out<span class="opt">|</span> <span class="kwd">mult</span><span class="opt">(</span>v<span class="opt">,</span> out<span class="opt">,</span> start<span class="opt">,</span> Ax2<span class="opt">));</span>
+<span class="opt">}</span>
+
+<span class="kwa">fn</span> <span class="kwd">mult_Atv</span><span class="opt">(</span>v<span class="opt">: &amp;[</span><span class="kwb">f64</span><span class="opt">],</span> out<span class="opt">: &amp;</span><span class="kwa">mut</span> <span class="opt">[</span><span class="kwb">f64</span><span class="opt">]) {</span>
+    <span class="kwd">parallel</span><span class="opt">(</span>out<span class="opt">, |</span>start<span class="opt">,</span> out<span class="opt">|</span> <span class="kwd">mult</span><span class="opt">(</span>v<span class="opt">,</span> out<span class="opt">,</span> start<span class="opt">, |</span>i<span class="opt">,</span> j<span class="opt">|</span> <span class="kwd">Ax2</span><span class="opt">(</span>j<span class="opt">,</span> i<span class="opt">)));</span>
+<span class="opt">}</span>
+
+<span class="kwa">fn</span> mult<span class="opt">&lt;</span>F<span class="opt">&gt;(</span>v<span class="opt">: &amp;[</span><span class="kwb">f64</span><span class="opt">],</span> out<span class="opt">: &amp;</span><span class="kwa">mut</span> <span class="opt">[</span><span class="kwb">f64</span><span class="opt">],</span> start<span class="opt">:</span> <span class="kwb">usize</span><span class="opt">,</span> a<span class="opt">:</span> F<span class="opt">)</span>
+           <span class="kwa">where</span> F<span class="opt">:</span> <span class="kwd">Fn</span><span class="opt">(</span>usizex2<span class="opt">,</span> usizex2<span class="opt">) -&gt;</span> f64x2 <span class="opt">{</span>
+    <span class="kwa">for</span> <span class="opt">(</span>i<span class="opt">,</span> slot<span class="opt">)</span> <span class="kwa">in</span> out<span class="num">.i</span>ter<span class="num">_</span>m<span class="num">u</span>t<span class="opt">().</span><span class="kwd">enumerate</span><span class="opt">().</span><span class="kwd">map</span><span class="opt">(|(</span>i<span class="opt">,</span> s<span class="opt">)| (</span>i <span class="opt">+</span> start<span class="opt">,</span> s<span class="opt">)) {</span>
+        <span class="kwa">let mut</span> sum <span class="opt">=</span> <span class="kwd">f64x2</span><span class="opt">(</span><span class="num">0.0</span><span class="opt">,</span> <span class="num">0.0</span><span class="opt">);</span>
+        <span class="kwa">for</span> <span class="opt">(</span>j<span class="opt">,</span> chunk<span class="opt">)</span> <span class="kwa">in</span> v<span class="opt">.</span><span class="kwd">chunks</span><span class="opt">(</span><span class="num">2</span><span class="opt">).</span><span class="kwd">enumerate</span><span class="opt">().</span><span class="kwd">map</span><span class="opt">(|(</span>j<span class="opt">,</span> s<span class="opt">)| (</span><span class="num">2</span> <span class="opt">*</span> j<span class="opt">,</span> s<span class="opt">)) {</span>
+            <span class="kwa">let</span> top <span class="opt">=</span> <span class="kwd">f64x2</span><span class="opt">(</span>chunk<span class="opt">[</span><span class="num">0</span><span class="opt">],</span> chunk<span class="opt">[</span><span class="num">1</span><span class="opt">]);</span>
+            <span class="kwa">let</span> bot <span class="opt">=</span> <span class="kwd">a</span><span class="opt">(</span><span class="kwd">usizex2</span><span class="opt">(</span>i<span class="opt">,</span> i<span class="opt">),</span> <span class="kwd">usizex2</span><span class="opt">(</span>j<span class="opt">,</span> j<span class="opt">+</span><span class="num">1</span><span class="opt">));</span>
+            sum <span class="opt">=</span> sum <span class="opt">+</span> top <span class="opt">/</span> bot<span class="opt">;</span>
+        <span class="opt">}</span>
+        <span class="kwa">let</span> <span class="kwd">f64x2</span><span class="opt">(</span>a<span class="opt">,</span> b<span class="opt">) =</span> sum<span class="opt">;</span>
+        <span class="opt">*</span>slot <span class="opt">=</span> a <span class="opt">+</span> b<span class="opt">;</span>
+    <span class="opt">}</span>
+<span class="opt">}</span>
+
+<span class="kwa">fn</span> <span class="kwd">Ax2</span><span class="opt">(</span>i<span class="opt">:</span> usizex2<span class="opt">,</span> j<span class="opt">:</span> usizex2<span class="opt">) -&gt;</span> f64x2 <span class="opt">{</span>
+    <span class="opt">((</span>i <span class="opt">+</span> j<span class="opt">) * (</span>i <span class="opt">+</span> j <span class="opt">+</span> <span class="kwd">usizex2</span><span class="opt">(</span><span class="num">1</span><span class="opt">,</span> <span class="num">1</span><span class="opt">)) /</span> <span class="kwd">usizex2</span><span class="opt">(</span><span class="num">2</span><span class="opt">,</span> <span class="num">2</span><span class="opt">) +</span> i <span class="opt">+</span> <span class="kwd">usizex2</span><span class="opt">(</span><span class="num">1</span><span class="opt">,</span> <span class="num">1</span><span class="opt">))</span><span class="num">.i</span>nto<span class="opt">()</span>
+<span class="opt">}</span>
+
+<span class="kwa">fn</span> <span class="kwd">dot</span><span class="opt">(</span>v<span class="opt">: &amp;[</span><span class="kwb">f64</span><span class="opt">],</span> u<span class="opt">: &amp;[</span><span class="kwb">f64</span><span class="opt">]) -&gt;</span> <span class="kwb">f64</span> <span class="opt">{</span>
+    v<span class="num">.i</span>ter<span class="opt">().</span><span class="kwd">zip</span><span class="opt">(</span>u<span class="num">.i</span>ter<span class="opt">()).</span><span class="kwd">map</span><span class="opt">(|(</span>a<span class="opt">,</span> b<span class="opt">)| *</span>a <span class="opt">* *</span>b<span class="opt">)</span><span class="num">.f</span>old<span class="opt">(</span><span class="num">0</span><span class="opt">., |</span>acc<span class="opt">,</span> i<span class="opt">|</span> acc <span class="opt">+</span> i<span class="opt">)</span>
+<span class="opt">}</span>
+
+<span class="kwa">struct</span> Racy<span class="opt">&lt;</span>T<span class="opt">&gt;(</span>T<span class="opt">);</span>
+<span class="kwa">unsafe impl</span><span class="opt">&lt;</span>T<span class="opt">:</span> &apos;<span class="kwa">static</span><span class="opt">&gt;</span> Send <span class="kwa">for</span> Racy<span class="opt">&lt;</span>T<span class="opt">&gt; {}</span>
+
+<span class="slc">// Executes a closure in parallel over the given mutable slice. The closure `f`</span>
+<span class="slc">// is run in parallel and yielded the starting index within `v` as well as a</span>
+<span class="slc">// sub-slice of `v`.</span>
+<span class="kwa">fn</span> parallel<span class="opt">&lt;</span>&apos;a<span class="opt">,</span> T<span class="opt">,</span> F<span class="opt">&gt;(</span>v<span class="opt">: &amp;</span><span class="kwa">mut</span> <span class="opt">[</span>T<span class="opt">],</span> <span class="kwa">ref</span> f<span class="opt">:</span> F<span class="opt">)</span>
+    <span class="kwa">where</span> T<span class="opt">:</span> &apos;<span class="kwa">static</span> <span class="opt">+</span> Send <span class="opt">+</span> Sync<span class="opt">,</span>
+          F<span class="opt">:</span> <span class="kwd">Fn</span><span class="opt">(</span><span class="kwb">usize</span><span class="opt">, &amp;</span><span class="kwa">mut</span> <span class="opt">[</span>T<span class="opt">]) +</span> Sync <span class="opt">{</span>
+    <span class="kwa">let</span> size <span class="opt">=</span> v<span class="opt">.</span><span class="kwd">len</span><span class="opt">() /</span> <span class="num">4</span> <span class="opt">+</span> <span class="num">1</span><span class="opt">;</span>
+    <span class="kwa">let</span> jhs <span class="opt">=</span> v<span class="opt">.</span><span class="kwd">chunks_mut</span><span class="opt">(</span>size<span class="opt">).</span><span class="kwd">enumerate</span><span class="opt">().</span><span class="kwd">map</span><span class="opt">(|(</span>i<span class="opt">,</span> chunk<span class="opt">)| {</span>
+        <span class="slc">// Need to convert `f` and `chunk` to something that can cross the task</span>
+        <span class="slc">// boundary.</span>
+        <span class="kwa">let</span> f <span class="opt">=</span> <span class="kwd">Racy</span><span class="opt">(</span>f <span class="kwa">as</span> <span class="opt">*</span><span class="kwa">const</span> F <span class="kwa">as</span> <span class="opt">*</span><span class="kwa">const</span> <span class="kwb">usize</span><span class="opt">);</span>
+        <span class="kwa">let</span> raw <span class="opt">=</span> <span class="kwd">Racy</span><span class="opt">((&amp;</span><span class="kwa">mut</span> chunk<span class="opt">[</span><span class="num">0</span><span class="opt">]</span> <span class="kwa">as</span> <span class="opt">*</span><span class="kwa">mut</span> T<span class="opt">,</span> chunk<span class="opt">.</span><span class="kwd">len</span><span class="opt">()));</span>
+        thread<span class="opt">::</span><span class="kwd">spawn</span><span class="opt">(</span><span class="kwa">move</span><span class="opt">|| {</span>
+            <span class="kwa">let</span> f <span class="opt">=</span> f<span class="num">.0</span> <span class="kwa">as</span> <span class="opt">*</span><span class="kwa">const</span> F<span class="opt">;</span>
+            <span class="kwa">let</span> raw <span class="opt">=</span> raw<span class="num">.0</span><span class="opt">;</span>
+            <span class="kwa">unsafe</span> <span class="opt">{ (*</span>f<span class="opt">)(</span>i <span class="opt">*</span> size<span class="opt">,</span> std<span class="opt">::</span>slice<span class="opt">::</span><span class="kwd">from_raw_parts_mut</span><span class="opt">(</span>raw<span class="num">.0</span><span class="opt">,</span> raw<span class="num">.1</span><span class="opt">)) }</span>
+        <span class="opt">})</span>
+    <span class="opt">}).</span>collect<span class="opt">::&lt;</span>Vec<span class="opt">&lt;</span>_<span class="opt">&gt;&gt;();</span>
+    <span class="kwa">for</span> jh <span class="kwa">in</span> jhs <span class="opt">{</span> jh<span class="opt">.</span><span class="kwd">join</span><span class="opt">()</span><span class="num">.u</span>nwrap<span class="opt">(); }</span>
+<span class="opt">}</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

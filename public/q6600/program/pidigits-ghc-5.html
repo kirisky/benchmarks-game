@@ -17,6 +17,197 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc">-- The Computer Language Benchmarks Game</span>
+<span class="slc">-- https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">-- contributed by W. Gordon Goodsman</span>
+<span class="slc">-- translated from GNU C version by Mr Ledrug</span>
+
+<span class="kwd">import</span> GHC<span class="opt">.</span>Classes
+<span class="kwd">import</span> GHC<span class="opt">.</span>Types
+<span class="kwd">import</span> GHC<span class="opt">.</span>Magic
+<span class="kwd">import</span> GHC<span class="opt">.</span>Exts
+<span class="kwd">import</span> Data<span class="opt">.</span><span class="kwb">Int</span> <span class="opt">(</span>Int32<span class="opt">)</span>
+<span class="kwd">import</span> Data<span class="opt">.</span>Word <span class="opt">(</span>Word32<span class="opt">)</span>
+<span class="kwd">import</span> Foreign<span class="opt">.</span>Ptr
+<span class="kwd">import</span> Foreign<span class="opt">.</span>Storable <span class="opt">(</span>Storable<span class="opt">(..))</span>
+<span class="kwd">import</span> Foreign<span class="opt">.</span>Marshal<span class="opt">.</span>Alloc <span class="opt">(</span>alloca<span class="opt">)</span>
+<span class="kwd">import</span> System<span class="opt">.</span>Environment <span class="opt">(</span><span class="kwc">getArgs</span><span class="opt">)</span>
+
+<span class="slc">-- Pseudo FFI CTypes</span>
+<span class="kwd">type</span> CWord <span class="opt">=</span> Word32
+<span class="kwd">type</span> CInt<span class="opt"># =</span> <span class="kwb">Int</span><span class="opt">#</span>
+narrowCInt<span class="opt"># ::</span> <span class="kwb">Int</span><span class="opt"># -&gt;</span> <span class="kwb">Int</span><span class="opt">#</span>
+narrowCInt<span class="opt"># =</span> narrow32Int<span class="opt">#</span>
+
+<span class="kwd">data</span> MPZ <span class="opt">=</span> MPZ <span class="opt">{</span> alloc <span class="opt">:: !</span>Int32<span class="opt">,</span> size <span class="opt">:: !</span>Int32<span class="opt">,</span> ptr <span class="opt">:: !</span>IntPtr <span class="opt">}</span>
+
+<span class="slc">-- to make foreign pointers work...</span>
+<span class="kwd">instance</span> Storable MPZ <span class="kwd">where</span>
+  sizeOf mpz <span class="opt">= (</span>sizeOf <span class="opt">(</span><span class="num">0</span><span class="opt">::</span> Int32<span class="opt">)) *</span> <span class="num">2</span> <span class="opt">+</span> alignment mpz
+  alignment _ <span class="opt">=</span> sizeOf <span class="opt">(</span><span class="num">0</span> <span class="opt">::</span> IntPtr<span class="opt">)</span>
+  peek mpzp <span class="opt">=</span> <span class="kwd">do</span>
+    a <span class="opt">&lt;-</span> peekElemOff <span class="opt">(</span>castPtr mpzp<span class="opt">)</span> <span class="num">0</span>
+    s <span class="opt">&lt;-</span> peekElemOff <span class="opt">(</span>castPtr mpzp<span class="opt">)</span> <span class="num">1</span>
+    p <span class="opt">&lt;-</span> peekByteOff <span class="opt">(</span>castPtr mpzp<span class="opt">) ((</span>sizeOf <span class="opt">(</span><span class="num">0</span> <span class="opt">::</span> Int32<span class="opt">)) *</span> <span class="num">2</span><span class="opt">)</span>
+    <span class="kwc">return</span> <span class="opt">$!</span> MPZ a s p
+  poke ptrmpz <span class="opt">(</span>MPZ a s p<span class="opt">) =</span> <span class="kwd">do</span>
+    _ <span class="opt">&lt;-</span> pokeElemOff <span class="opt">(</span>castPtr ptrmpz<span class="opt">)</span> <span class="num">0</span> a
+    _ <span class="opt">&lt;-</span> pokeElemOff <span class="opt">(</span>castPtr ptrmpz<span class="opt">)</span> <span class="num">1</span> s
+    _ <span class="opt">&lt;-</span> pokeByteOff <span class="opt">(</span>castPtr ptrmpz<span class="opt">) ((</span>sizeOf <span class="opt">(</span><span class="num">0</span> <span class="opt">::</span> Int32<span class="opt">)) *</span> <span class="num">2</span><span class="opt">)</span> p
+    <span class="kwc">return</span> <span class="opt">()</span>
+
+<span class="kwd">newtype</span> MPZPtr <span class="opt">=</span> MPZPtr <span class="opt">(</span>Ptr MPZ<span class="opt">)</span>
+ 
+<span class="kwd">instance</span> Eq MPZPtr <span class="kwd">where</span>
+  <span class="opt">(==) =</span> eqMPZPtr
+
+<span class="kwd">instance</span> Ord MPZPtr <span class="kwd">where</span>
+  <span class="kwc">compare</span> <span class="opt">=</span> compareMPZPtr
+
+<span class="slc">-- monadic combinators for low-level state threading</span>
+<span class="kwd">type</span> S s a <span class="opt">=</span> State<span class="opt">#</span> s <span class="opt">-&gt; (#</span> State<span class="opt">#</span> s<span class="opt">,</span> a <span class="opt">#)</span>
+
+runS <span class="opt">::</span> S RealWorld a <span class="opt">-&gt;</span> a
+runS m <span class="opt">=</span> <span class="kwd">case</span> runRW<span class="opt">#</span> m <span class="kwd">of</span> <span class="opt">(#</span> _<span class="opt">,</span> a <span class="opt">#) -&gt;</span> a `<span class="kwc">seq</span>` a
+
+<span class="com">{-# INLINE liftIO #-}</span>
+liftIO <span class="opt">::</span> <span class="kwb">IO</span> a <span class="opt">-&gt;</span> S RealWorld a
+liftIO <span class="opt">(</span><span class="kwb">IO</span> m<span class="opt">) =</span> m
+
+<span class="kwd">foreign import</span> ccall unsafe <span class="str">&quot;gmp.h __gmpz_cmp&quot;</span>
+  mpzCmp <span class="opt">::</span> Ptr MPZ <span class="opt">-&gt;</span> Ptr MPZ <span class="opt">-&gt;</span> CInt<span class="opt">#</span>
+
+<span class="kwd">foreign import</span> ccall unsafe <span class="str">&quot;gmp.h __gmpz_init_set_ui&quot;</span>
+  mpzInitSetSi <span class="opt">::</span> Ptr MPZ <span class="opt">-&gt;</span> CWord <span class="opt">-&gt;</span> <span class="kwb">IO</span> <span class="opt">()</span>
+
+<span class="kwd">foreign import</span> ccall unsafe <span class="str">&quot;gmp.h __gmpz_get_ui&quot;</span>
+  mpzGetSi <span class="opt">::</span> Ptr MPZ <span class="opt">-&gt;</span> CWord
+
+<span class="kwd">foreign import</span> ccall unsafe <span class="str">&quot;gmp.h __gmpz_add&quot;</span>
+  mpzAdd <span class="opt">::</span> Ptr MPZ <span class="opt">-&gt;</span> Ptr MPZ <span class="opt">-&gt;</span> Ptr MPZ <span class="opt">-&gt;</span> <span class="kwb">IO</span> <span class="opt">()</span>
+
+<span class="kwd">foreign import</span> ccall unsafe <span class="str">&quot;gmp.h __gmpz_addmul_ui&quot;</span>
+  mpzAddmulUi <span class="opt">::</span> Ptr MPZ <span class="opt">-&gt;</span> Ptr MPZ <span class="opt">-&gt;</span> CWord <span class="opt">-&gt;</span> <span class="kwb">IO</span> <span class="opt">()</span>
+
+<span class="kwd">foreign import</span> ccall unsafe <span class="str">&quot;gmp.h __gmpz_submul_ui&quot;</span>
+  mpzSubmulUi <span class="opt">::</span> Ptr MPZ <span class="opt">-&gt;</span> Ptr MPZ <span class="opt">-&gt;</span> CWord <span class="opt">-&gt;</span> <span class="kwb">IO</span> <span class="opt">()</span>
+
+<span class="kwd">foreign import</span> ccall unsafe <span class="str">&quot;__gmpz_mul_ui&quot;</span>
+  mpzMulUi <span class="opt">::</span> Ptr MPZ <span class="opt">-&gt;</span> Ptr MPZ <span class="opt">-&gt;</span> CWord <span class="opt">-&gt;</span> <span class="kwb">IO</span> <span class="opt">()</span>
+
+<span class="kwd">foreign import</span> ccall unsafe <span class="str">&quot;gmp.h __gmpz_tdiv_q&quot;</span>
+  mpzTdivQ <span class="opt">::</span> Ptr MPZ <span class="opt">-&gt;</span> Ptr MPZ <span class="opt">-&gt;</span> Ptr MPZ <span class="opt">-&gt;</span> <span class="kwb">IO</span> <span class="opt">()</span>
+
+<span class="com">{-# INLINE wrapper2MPZUi #-}</span>
+wrapper2MPZUi <span class="opt">:: (</span>Ptr MPZ <span class="opt">-&gt;</span> Ptr MPZ <span class="opt">-&gt;</span> CWord <span class="opt">-&gt;</span> <span class="kwb">IO</span> <span class="opt">()) -&gt;</span>
+                                        MPZPtr <span class="opt">-&gt;</span> MPZPtr <span class="opt">-&gt;</span> CWord <span class="opt">-&gt;</span> MPZPtr
+wrapper2MPZUi f <span class="opt">(</span>MPZPtr rtrnp<span class="opt">) (</span>MPZPtr passp<span class="opt">)</span> gl <span class="opt">=</span> runS <span class="opt">$ \</span> s0 <span class="opt">-&gt;</span>
+  <span class="kwd">case</span> liftIO <span class="opt">(</span>f rtrnp passp gl<span class="opt">)</span> s0 <span class="kwd">of</span>
+    <span class="opt">(#</span> s1<span class="opt">,</span> _ <span class="opt">#) -&gt;</span> <span class="kwd">case</span> liftIO <span class="opt">(</span>peek rtrnp<span class="opt">)</span> s1 <span class="kwd">of</span>
+      <span class="opt">(#</span> s2<span class="opt">,</span> _ <span class="opt">#) -&gt; (#</span> s2<span class="opt">,</span> MPZPtr <span class="opt">$!</span> rtrnp <span class="opt">#)</span>
+
+<span class="com">{-# INLINE eqMPZPtr #-}</span>
+eqMPZPtr <span class="opt">::</span> MPZPtr <span class="opt">-&gt;</span> MPZPtr <span class="opt">-&gt;</span> <span class="kwb">Bool</span>
+eqMPZPtr mpzptra mpzptrb <span class="opt">=</span>
+  <span class="kwd">case</span> EQ <span class="opt">==</span> compareMPZPtr mpzptra mpzptrb <span class="kwd">of</span> rslt <span class="opt">-&gt;</span> rslt
+
+<span class="com">{-# INLINE compareMPZPtr #-}</span>
+compareMPZPtr <span class="opt">::</span> MPZPtr <span class="opt">-&gt;</span> MPZPtr <span class="opt">-&gt;</span> <span class="kwb">Ordering</span>
+compareMPZPtr <span class="opt">(</span>MPZPtr mpzpa<span class="opt">) (</span>MPZPtr mpzpb<span class="opt">) =</span>
+  <span class="kwd">case</span> compareInt<span class="opt"># (</span>narrowCInt<span class="opt"># (</span>mpzCmp mpzpa mpzpb<span class="opt">))</span> <span class="num">0</span><span class="opt">#</span> <span class="kwd">of</span> r <span class="opt">-&gt;</span> r
+
+setMPZPtr <span class="opt">::</span> Ptr MPZ <span class="opt">-&gt;</span> CWord <span class="opt">-&gt;</span> MPZPtr
+setMPZPtr mpzptr gl <span class="opt">=</span> runS <span class="opt">$ \</span> s0 <span class="opt">-&gt;</span>
+  <span class="kwd">case</span> liftIO <span class="opt">(</span>mpzInitSetSi mpzptr gl<span class="opt">)</span> s0 <span class="kwd">of</span>
+    <span class="opt">(#</span> s1<span class="opt">,</span> _ <span class="opt">#) -&gt;</span> <span class="kwd">case</span> liftIO <span class="opt">(</span>peek mpzptr<span class="opt">)</span> s1 <span class="kwd">of</span>
+      <span class="opt">(#</span> s2<span class="opt">,</span> _ <span class="opt">#) -&gt; (#</span> s2<span class="opt">,</span> MPZPtr mpzptr <span class="opt">#)</span>
+
+<span class="com">{-# INLINE getMPZPtr #-}</span>
+getMPZPtr <span class="opt">::</span> MPZPtr <span class="opt">-&gt;</span> CWord
+getMPZPtr <span class="opt">(</span>MPZPtr mpzp<span class="opt">) =</span> <span class="kwd">case</span> mpzGetSi mpzp <span class="kwd">of</span> rslt <span class="opt">-&gt;</span> rslt
+
+<span class="com">{-# INLINE addMPZPtr #-}</span>
+addMPZPtr <span class="opt">::</span> MPZPtr <span class="opt">-&gt;</span> MPZPtr <span class="opt">-&gt;</span> MPZPtr <span class="opt">-&gt;</span> MPZPtr
+addMPZPtr <span class="opt">(</span>MPZPtr sump<span class="opt">) (</span>MPZPtr frstp<span class="opt">) (</span>MPZPtr scndp<span class="opt">) =</span> runS <span class="opt">$ \</span> s0 <span class="opt">-&gt;</span>
+  <span class="kwd">case</span> liftIO <span class="opt">(</span>mpzAdd sump frstp scndp<span class="opt">)</span> s0 <span class="kwd">of</span>
+    <span class="opt">(#</span> s1<span class="opt">,</span> _ <span class="opt">#) -&gt;</span> <span class="kwd">case</span> liftIO <span class="opt">(</span>peek sump<span class="opt">)</span> s1 <span class="kwd">of</span>
+      <span class="opt">(#</span> s2<span class="opt">,</span> _ <span class="opt">#) -&gt; (#</span> s2<span class="opt">,</span> MPZPtr sump <span class="opt">#)</span>
+
+<span class="com">{-# INLINE divMPZPtr #-}</span>
+divMPZPtr <span class="opt">::</span> MPZPtr <span class="opt">-&gt;</span> MPZPtr <span class="opt">-&gt;</span> MPZPtr <span class="opt">-&gt;</span> MPZPtr
+divMPZPtr <span class="opt">(</span>MPZPtr quotp<span class="opt">) (</span>MPZPtr np<span class="opt">) (</span>MPZPtr dp<span class="opt">) =</span> runS <span class="opt">$ \</span> s0 <span class="opt">-&gt;</span>
+  <span class="kwd">case</span> liftIO <span class="opt">(</span>mpzTdivQ quotp np dp<span class="opt">)</span> s0 <span class="kwd">of</span>
+    <span class="opt">(#</span> s1<span class="opt">,</span> _ <span class="opt">#) -&gt;</span> <span class="kwd">case</span> liftIO <span class="opt">(</span>peek quotp<span class="opt">)</span> s1 <span class="kwd">of</span>
+      <span class="opt">(#</span> s2<span class="opt">,</span> _ <span class="opt">#) -&gt; (#</span> s2<span class="opt">,</span> MPZPtr quotp <span class="opt">#)</span>
+
+main <span class="opt">::</span> <span class="kwb">IO</span> <span class="opt">()</span>
+main <span class="opt">=</span> doit <span class="opt">.</span> <span class="kwc">read</span> <span class="opt">.</span> <span class="kwc">head</span> <span class="opt">=&lt;&lt;</span> <span class="kwc">getArgs</span>
+
+doit <span class="opt">::</span> <span class="kwb">Int</span> <span class="opt">-&gt;</span> <span class="kwb">IO</span> <span class="opt">()</span>
+doit numdgs <span class="opt">=</span>
+    alloca <span class="opt">$ \</span> accptr <span class="opt">-&gt;</span> alloca <span class="opt">$ \</span> denptr <span class="opt">-&gt;</span> alloca <span class="opt">$ \</span> numptr <span class="opt">-&gt;</span>
+      alloca <span class="opt">$ \</span> tmp1ptr <span class="opt">-&gt;</span> alloca <span class="opt">$ \</span> tmp2ptr <span class="opt">-&gt;</span>
+        loop <span class="num">1 9</span> <span class="opt">$</span> digits <span class="num">0</span> <span class="opt">(</span>setMPZPtr accptr <span class="num">0</span><span class="opt">)</span>
+                            <span class="opt">(</span>setMPZPtr denptr <span class="num">1</span><span class="opt">) (</span>setMPZPtr numptr <span class="num">1</span><span class="opt">)</span>
+                            <span class="opt">(</span>setMPZPtr tmp1ptr <span class="num">0</span><span class="opt">) (</span>setMPZPtr tmp2ptr <span class="num">0</span><span class="opt">)</span>
+  <span class="kwd">where</span> loop i n ds <span class="opt">=</span>
+          <span class="kwd">if</span> i <span class="opt">&lt;=</span> numdgs <span class="kwd">then do</span>
+            <span class="kwc">putStr</span> <span class="opt">$</span> <span class="kwc">show</span> <span class="opt">$</span> <span class="kwc">head</span> ds
+            <span class="kwd">if</span> n <span class="opt">&lt;=</span> <span class="num">0</span> <span class="kwd">then</span> <span class="kwc">putStrLn</span> <span class="opt">$</span> <span class="str">&quot;</span><span class="esc">\t</span><span class="str">:&quot;</span> <span class="opt">++</span> <span class="kwc">show</span> i <span class="kwd">else</span> <span class="kwc">return</span> <span class="opt">()</span>
+            loop <span class="opt">(</span>i <span class="opt">+</span> <span class="num">1</span><span class="opt">) (</span><span class="kwd">if</span> n <span class="opt">&lt;=</span> <span class="num">0</span> <span class="kwd">then</span> <span class="num">9</span> <span class="kwd">else</span> n <span class="opt">-</span> <span class="num">1</span><span class="opt">) $! (</span><span class="kwc">tail</span> ds<span class="opt">)</span>
+          <span class="kwd">else do</span>
+            <span class="kwd">if</span> n <span class="opt">&lt;</span> <span class="num">9</span> <span class="kwd">then</span> <span class="kwc">putStrLn</span> <span class="opt">$</span> <span class="kwc">replicate</span> n <span class="opt">&apos; &apos; ++</span> <span class="str">&quot;</span><span class="esc">\t</span><span class="str">:&quot;</span> <span class="opt">++</span> <span class="kwc">show</span> numdgs
+            <span class="kwd">else</span> <span class="kwc">return</span> <span class="opt">()</span>
+
+<span class="slc">-- list iterator of pi digits...</span>
+digits <span class="opt">::</span> CWord <span class="opt">-&gt;</span> MPZPtr <span class="opt">-&gt;</span> MPZPtr <span class="opt">-&gt;</span> MPZPtr <span class="opt">-&gt;</span> MPZPtr <span class="opt">-&gt;</span> MPZPtr <span class="opt">-&gt; [</span>CWord<span class="opt">]</span>
+digits k acc den num tmp1 tmp2 <span class="opt">=</span>
+  <span class="kwd">let</span> nk <span class="opt">=</span> k <span class="opt">+</span> <span class="num">1</span>
+      <span class="opt">(</span>nacc<span class="opt">,</span> nden<span class="opt">,</span> nnum<span class="opt">) =</span> nextTerm nk acc den num <span class="kwd">in</span>
+  <span class="kwd">if</span> nnum <span class="opt">&gt;</span> nacc <span class="kwd">then</span> digits nk nacc nden nnum tmp1 tmp2 <span class="kwd">else</span>
+
+  <span class="kwd">let</span> <span class="opt">(</span>d<span class="opt">,</span> tmp1a<span class="opt">,</span> tmp2a<span class="opt">) =</span> extractDigit <span class="num">3</span> nacc nden nnum tmp1 tmp2 <span class="kwd">in</span>
+  <span class="kwd">let</span> <span class="opt">(</span>t<span class="opt">,</span> tmp1b<span class="opt">,</span> tmp2b<span class="opt">) =</span>
+        d `<span class="kwc">seq</span>` tmp1a `<span class="kwc">seq</span>` tmp2a `<span class="kwc">seq</span>`
+          extractDigit <span class="num">4</span> nacc nden nnum tmp1a tmp2a <span class="kwd">in</span>
+  <span class="kwd">if</span> d <span class="opt">/=</span> t <span class="kwd">then</span> digits nk nacc nden nnum tmp1b tmp2b <span class="kwd">else</span>
+
+  <span class="kwd">let</span> <span class="opt">(</span>nnacc<span class="opt">,</span> nnnum<span class="opt">) =</span> eliminateDigit d nacc nden nnum <span class="kwd">in</span>
+  d <span class="opt">: (</span>nnacc `<span class="kwc">seq</span>` nnnum `<span class="kwc">seq</span>` digits nk nnacc nden nnnum tmp1b tmp2b<span class="opt">)</span>
+
+<span class="com">{-# INLINE nextTerm #-}</span>
+nextTerm <span class="opt">::</span> CWord <span class="opt">-&gt;</span> MPZPtr <span class="opt">-&gt;</span> MPZPtr <span class="opt">-&gt;</span> MPZPtr <span class="opt">-&gt; (</span>MPZPtr<span class="opt">,</span> MPZPtr<span class="opt">,</span> MPZPtr<span class="opt">)</span>
+nextTerm k acc den num <span class="opt">=</span> <span class="slc">-- careful of side effects!...</span>
+  <span class="kwd">let</span> k2 <span class="opt">=</span> k <span class="opt">+</span> k <span class="opt">+</span> <span class="num">1</span>
+      nacc0 <span class="opt">=</span> wrapper2MPZUi mpzAddmulUi acc num <span class="num">2</span>
+      nacc <span class="opt">=</span> nacc0 `<span class="kwc">seq</span>` wrapper2MPZUi mpzMulUi nacc0 nacc0 k2 <span class="kwd">in</span>
+  <span class="kwd">let</span> nden <span class="opt">=</span> wrapper2MPZUi mpzMulUi den den k2
+      nnum <span class="opt">=</span> nacc `<span class="kwc">seq</span>` wrapper2MPZUi mpzMulUi num num k
+  <span class="kwd">in</span> <span class="opt">(</span>nacc<span class="opt">,</span> nden<span class="opt">,</span> nnum<span class="opt">)</span>
+
+<span class="com">{-# INLINE extractDigit #-}</span>
+extractDigit <span class="opt">::</span> CWord <span class="opt">-&gt;</span> MPZPtr <span class="opt">-&gt;</span> MPZPtr <span class="opt">-&gt;</span> MPZPtr <span class="opt">-&gt;</span> MPZPtr <span class="opt">-&gt;</span> MPZPtr
+                                              <span class="opt">-&gt; (</span>CWord<span class="opt">,</span> MPZPtr<span class="opt">,</span> MPZPtr<span class="opt">)</span>
+extractDigit nth acc den num tmp1 tmp2 <span class="opt">=</span> <span class="slc">-- careful of side effects!...</span>
+  <span class="kwd">let</span> tmp1a <span class="opt">=</span> wrapper2MPZUi mpzMulUi tmp1 num nth
+      tmp2a <span class="opt">=</span> tmp1a `<span class="kwc">seq</span>` addMPZPtr tmp2 tmp1a acc
+      tmp1b <span class="opt">=</span> tmp2a `<span class="kwc">seq</span>` divMPZPtr tmp1a tmp2a den
+  <span class="kwd">in</span> <span class="opt">(</span>getMPZPtr tmp1b<span class="opt">,</span> tmp1b<span class="opt">,</span> tmp2a<span class="opt">)</span>
+
+<span class="com">{-# INLINE eliminateDigit #-}</span>
+eliminateDigit <span class="opt">::</span> CWord <span class="opt">-&gt;</span> MPZPtr <span class="opt">-&gt;</span> MPZPtr <span class="opt">-&gt;</span> MPZPtr <span class="opt">-&gt; (</span>MPZPtr<span class="opt">,</span> MPZPtr<span class="opt">)</span>
+eliminateDigit d acc den num <span class="opt">=</span>
+  <span class="kwd">let</span> acc0 <span class="opt">=</span> wrapper2MPZUi mpzSubmulUi acc den d
+      nacc <span class="opt">=</span> wrapper2MPZUi mpzMulUi acc0 acc0 <span class="num">10</span>
+      nnum <span class="opt">=</span> wrapper2MPZUi mpzMulUi num num <span class="num">10</span>
+  <span class="kwd">in</span> <span class="opt">(</span>nacc<span class="opt">,</span> nnum<span class="opt">)</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

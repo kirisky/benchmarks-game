@@ -17,6 +17,86 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="com">{ The Computer Language Benchmark Game</span>
+<span class="com">  https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="com"></span>
+<span class="com">  contributed by Le Duc Hieu</span>
+<span class="com">  a translation of the C program contributed by Mr Ledhug</span>
+<span class="com">}</span>
+
+<span class="ppc">{$OPTIMIZATION LOOPUNROLL,LEVEL3}</span>
+<span class="ppc">{$INLINE+}</span>
+
+<span class="kwa">Uses</span> GMP<span class="opt">;</span>
+
+<span class="kwa">Var</span>
+  tmp1<span class="opt">,</span> tmp2<span class="opt">,</span> acc<span class="opt">,</span> den<span class="opt">,</span> num<span class="opt">:</span> MPZ_T<span class="opt">;</span>
+  <span class="slc">// Main</span>
+  d<span class="opt">,</span> k<span class="opt">,</span> i<span class="opt">:</span> LongWord<span class="opt">;</span>
+  n      <span class="opt">:</span> <span class="kwb">LongInt</span><span class="opt">;</span>
+
+<span class="kwa">Function</span> <span class="kwd">ExtractDigit</span><span class="opt">(</span>nth<span class="opt">:</span> LongWord<span class="opt">):</span> LongWord<span class="opt">;</span> <span class="kwa">inline</span><span class="opt">;</span>
+  <span class="kwa">Begin</span>
+    <span class="slc">// joggling between tmp1 and tmp2, so GMP don&apos;t have to use temp buffers</span>
+    <span class="kwd">mpz_mul_ui</span><span class="opt">(</span>tmp1<span class="opt">,</span> num<span class="opt">,</span> nth<span class="opt">);</span>
+    <span class="kwd">mpz_add</span><span class="opt">(</span>tmp2<span class="opt">,</span> tmp1<span class="opt">,</span> acc<span class="opt">);</span>
+    <span class="kwd">mpz_tdiv_q</span><span class="opt">(</span>tmp1<span class="opt">,</span> tmp2<span class="opt">,</span> den<span class="opt">);</span>
+
+    ExtractDigit <span class="opt">:=</span> <span class="kwd">mpz_get_ui</span><span class="opt">(</span>tmp1<span class="opt">)</span>
+  <span class="kwa">End</span><span class="opt">;</span>
+
+<span class="kwa">Procedure</span> <span class="kwd">EliminateDigit</span><span class="opt">(</span>d<span class="opt">:</span> LongWord<span class="opt">);</span> <span class="kwa">inline</span><span class="opt">;</span>
+  <span class="kwa">Begin</span>
+    <span class="kwd">mpz_submul_ui</span><span class="opt">(</span>acc<span class="opt">,</span> den<span class="opt">,</span> d<span class="opt">);</span>
+    <span class="kwd">mpz_mul_ui</span><span class="opt">(</span>acc<span class="opt">,</span> acc<span class="opt">,</span> <span class="num">10</span><span class="opt">);</span>
+    <span class="kwd">mpz_mul_ui</span><span class="opt">(</span>num<span class="opt">,</span> num<span class="opt">,</span> <span class="num">10</span><span class="opt">);</span>
+  <span class="kwa">End</span><span class="opt">;</span>
+
+<span class="kwa">Procedure</span> <span class="kwd">NextTerm</span><span class="opt">(</span>k<span class="opt">:</span> LongWord<span class="opt">);</span>
+  <span class="kwa">Var</span> k2<span class="opt">:</span> LongWord<span class="opt">;</span>
+
+  <span class="kwa">Begin</span>
+    k2 <span class="opt">:=</span> k <span class="opt">*</span> <span class="num">2</span> <span class="opt">+</span> <span class="num">1</span><span class="opt">;</span>
+
+    <span class="kwd">mpz_addmul_ui</span><span class="opt">(</span>acc<span class="opt">,</span> num<span class="opt">,</span> <span class="num">2</span><span class="opt">);</span>
+    <span class="kwd">mpz_mul_ui</span><span class="opt">(</span>acc<span class="opt">,</span> acc<span class="opt">,</span> k2<span class="opt">);</span>
+    <span class="kwd">mpz_mul_ui</span><span class="opt">(</span>den<span class="opt">,</span> den<span class="opt">,</span> k2<span class="opt">);</span>
+    <span class="kwd">mpz_mul_ui</span><span class="opt">(</span>num<span class="opt">,</span> num<span class="opt">,</span> k<span class="opt">)</span>
+  <span class="kwa">End</span><span class="opt">;</span>
+
+<span class="kwa">Begin</span>
+  <span class="kwd">val</span><span class="opt">(</span><span class="kwd">ParamStr</span><span class="opt">(</span><span class="num">1</span><span class="opt">),</span> n<span class="opt">);</span>
+
+  <span class="kwd">mpz_init</span><span class="opt">(</span>tmp1<span class="opt">);</span>
+  <span class="kwd">mpz_init</span><span class="opt">(</span>tmp2<span class="opt">);</span>
+
+  <span class="kwd">mpz_init_set_ui</span><span class="opt">(</span>acc<span class="opt">,</span> <span class="num">0</span><span class="opt">);</span>
+  <span class="kwd">mpz_init_set_ui</span><span class="opt">(</span>den<span class="opt">,</span> <span class="num">1</span><span class="opt">);</span>
+  <span class="kwd">mpz_init_set_ui</span><span class="opt">(</span>num<span class="opt">,</span> <span class="num">1</span><span class="opt">);</span>
+
+  i <span class="opt">:=</span> <span class="num">0</span><span class="opt">;</span>
+  k <span class="opt">:=</span> <span class="num">0</span><span class="opt">;</span>
+  <span class="kwa">while</span> <span class="opt">(</span>i <span class="opt">&lt;</span> n<span class="opt">)</span> <span class="kwa">do begin</span>
+    <span class="kwd">inc</span><span class="opt">(</span>k<span class="opt">);</span>
+    <span class="kwd">NextTerm</span><span class="opt">(</span>k<span class="opt">);</span>
+    <span class="kwa">if</span> <span class="kwd">mpz_cmp</span><span class="opt">(</span>num<span class="opt">,</span> acc<span class="opt">) &gt;</span> <span class="num">0</span> <span class="kwa">then</span> continue<span class="opt">;</span>
+
+    d <span class="opt">:=</span> <span class="kwd">ExtractDigit</span><span class="opt">(</span><span class="num">3</span><span class="opt">);</span>
+    <span class="kwa">if</span> d <span class="opt">&lt;&gt;</span> <span class="kwd">ExtractDigit</span><span class="opt">(</span><span class="num">4</span><span class="opt">)</span> <span class="kwa">then</span> continue<span class="opt">;</span>
+
+    <span class="kwd">write</span><span class="opt">(</span><span class="kwd">chr</span><span class="opt">(</span><span class="kwd">ord</span><span class="opt">(</span><span class="str">&apos;0&apos;</span><span class="opt">) +</span> d<span class="opt">));</span>
+    <span class="kwd">inc</span><span class="opt">(</span>i<span class="opt">);</span>
+    <span class="kwa">if</span> <span class="opt">(</span>i <span class="kwa">mod</span> <span class="num">10</span> <span class="opt">=</span> <span class="num">0</span><span class="opt">)</span> <span class="kwa">or</span> <span class="opt">(</span>i <span class="opt">=</span> n<span class="opt">)</span> <span class="kwa">then</span> <span class="kwd">writeln</span><span class="opt">(</span><span class="esc">#9</span><span class="opt">+</span><span class="str">&apos;:&apos;</span><span class="opt">,</span> i<span class="opt">);</span>
+    <span class="kwd">EliminateDigit</span><span class="opt">(</span>d<span class="opt">)</span>
+  <span class="kwa">end</span>
+<span class="kwa">End</span><span class="opt">.</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

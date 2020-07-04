@@ -17,6 +17,156 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="com">/* The Computer Language Benchmarks Game</span>
+<span class="com"> * https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="com"> *</span>
+<span class="com"> * Contributed by Tyler Kropp,</span>
+<span class="com"> * based on the C program by Jeremy Zerfas (C gcc #2),</span>
+<span class="com"> * which was based on the C++ program from</span>
+<span class="com"> * Jon Harrop, Alex Mizrahi, and Bruno Coutinho.</span>
+<span class="com"> */</span>
+
+<span class="kwa">package</span> main
+
+<span class="kwa">import</span> <span class="opt">(</span>
+    <span class="str">&quot;fmt&quot;</span>
+    <span class="str">&quot;os&quot;</span>
+    <span class="str">&quot;strconv&quot;</span>
+    <span class="str">&quot;sync&quot;</span>
+<span class="opt">)</span>
+
+<span class="slc">// Node is a binary tree node.</span>
+<span class="kwa">type</span> Node <span class="kwa">struct</span> <span class="opt">{</span>
+    Left  <span class="opt">*</span>Node
+    Right <span class="opt">*</span>Node
+<span class="opt">}</span>
+
+<span class="slc">// CreateTree returns the root of a new binary tree with the given depth.</span>
+<span class="kwa">func</span> <span class="kwd">CreateTree</span><span class="opt">(</span>depth <span class="kwb">int</span><span class="opt">) *</span>Node <span class="opt">{</span>
+    <span class="kwa">if</span> depth <span class="opt">&lt;=</span> <span class="num">0</span> <span class="opt">{</span>
+        <span class="kwa">return</span> <span class="opt">&amp;</span>Node<span class="opt">{}</span>
+    <span class="opt">}</span>
+    <span class="kwa">return</span> <span class="opt">&amp;</span>Node<span class="opt">{</span>
+        Left<span class="opt">:</span>  <span class="kwd">CreateTree</span><span class="opt">(</span>depth <span class="opt">-</span> <span class="num">1</span><span class="opt">),</span>
+        Right<span class="opt">:</span> <span class="kwd">CreateTree</span><span class="opt">(</span>depth <span class="opt">-</span> <span class="num">1</span><span class="opt">),</span>
+    <span class="opt">}</span>
+<span class="opt">}</span>
+
+<span class="slc">// CalculateChecksum returns the total number of nodes in the binary tree.</span>
+<span class="kwa">func</span> <span class="opt">(</span>n Node<span class="opt">)</span> <span class="kwd">CalculateChecksum</span><span class="opt">()</span> <span class="kwb">int</span> <span class="opt">{</span>
+    <span class="kwa">if</span> n<span class="opt">.</span>Left <span class="opt">==</span> <span class="kwb">nil</span> <span class="opt">{</span>
+        <span class="kwa">return</span> <span class="num">1</span>
+    <span class="opt">}</span>
+    <span class="kwa">return</span> n<span class="opt">.</span>Left<span class="opt">.</span><span class="kwd">CalculateChecksum</span><span class="opt">() +</span> n<span class="opt">.</span>Right<span class="opt">.</span><span class="kwd">CalculateChecksum</span><span class="opt">() +</span> <span class="num">1</span>
+<span class="opt">}</span>
+
+<span class="slc">// LongLivedTree is an exported variable used to prevent the long lived tree</span>
+<span class="slc">// from being garbage collected.</span>
+<span class="kwa">var</span> LongLivedTree <span class="opt">*</span>Node
+
+<span class="kwa">func</span> <span class="kwd">main</span><span class="opt">() {</span>
+    <span class="slc">// Set minDepth to 4 and maxDepth to the maximum of what was specified as</span>
+    <span class="slc">// the argument to the program and minDepth+2.</span>
+    <span class="kwa">const</span> minDepth <span class="opt">=</span> <span class="num">4</span>
+
+    <span class="kwa">if</span> <span class="kwb">len</span><span class="opt">(</span>os<span class="opt">.</span>Args<span class="opt">) &lt;</span> <span class="num">2</span> <span class="opt">{</span>
+        <span class="kwb">panic</span><span class="opt">(</span><span class="str">&quot;not enough arguments&quot;</span><span class="opt">)</span>
+    <span class="opt">}</span>
+
+    maxDepth<span class="opt">,</span> err <span class="opt">:=</span> strconv<span class="opt">.</span><span class="kwd">Atoi</span><span class="opt">(</span>os<span class="opt">.</span>Args<span class="opt">[</span><span class="num">1</span><span class="opt">])</span>
+    <span class="kwa">if</span> err <span class="opt">!=</span> <span class="kwb">nil</span> <span class="opt">{</span>
+        <span class="kwb">panic</span><span class="opt">(</span><span class="str">&quot;could not parse first argument&quot;</span><span class="opt">)</span>
+    <span class="opt">}</span>
+
+    <span class="kwa">if</span> maxDepth <span class="opt">&lt;</span> minDepth<span class="opt">+</span><span class="num">2</span> <span class="opt">{</span>
+        maxDepth <span class="opt">=</span> minDepth <span class="opt">+</span> <span class="num">2</span>
+    <span class="opt">}</span>
+
+    <span class="slc">// Create a stretch tree of depth maxDepth+1, compute its checksum, and</span>
+    <span class="slc">// print its statistics.</span>
+    stretch <span class="opt">:=</span> <span class="kwd">CreateTree</span><span class="opt">(</span>maxDepth <span class="opt">+</span> <span class="num">1</span><span class="opt">)</span>
+    check <span class="opt">:=</span> stretch<span class="opt">.</span><span class="kwd">CalculateChecksum</span><span class="opt">()</span>
+    fmt<span class="opt">.</span><span class="kwd">Printf</span><span class="opt">(</span><span class="str">&quot;stretch tree of depth</span> <span class="ipl">%v</span><span class="str"></span><span class="esc">\t</span> <span class="str">check:</span> <span class="ipl">%v</span><span class="str"></span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span> maxDepth<span class="opt">+</span><span class="num">1</span><span class="opt">,</span> check<span class="opt">)</span>
+
+    <span class="slc">// The LongLivedTree will be created while the rest of the trees are also</span>
+    <span class="slc">// being processed. LongLivedTree will remain valid until the end of the</span>
+    <span class="slc">// program, because it is exported from the package.</span>
+    longLivedTreeChecksum <span class="opt">:=</span> <span class="kwb">make</span><span class="opt">(</span><span class="kwa">chan</span> <span class="kwb">int</span><span class="opt">,</span> <span class="num">1</span><span class="opt">)</span>
+    <span class="kwa">go func</span><span class="opt">() {</span>
+        <span class="slc">// Have one thread create the LongLivedTree of depth maxDepth, compute</span>
+        <span class="slc">// the longLivedTreeChecksum, and then just leave the LongLivedTree</span>
+        <span class="slc">// alone for a while while the rest of the binary trees finish</span>
+        <span class="slc">// processing (which should have simultaneously been started to be</span>
+        <span class="slc">// processed by any other available threads).</span>
+        LongLivedTree <span class="opt">=</span> <span class="kwd">CreateTree</span><span class="opt">(</span>maxDepth<span class="opt">)</span>
+        longLivedTreeChecksum <span class="opt">&lt;-</span> LongLivedTree<span class="opt">.</span><span class="kwd">CalculateChecksum</span><span class="opt">()</span>
+    <span class="opt">}()</span>
+
+    <span class="slc">// These will be used to store outputs for the various trees so the</span>
+    <span class="slc">// statistics can be printed in the correct order later.</span>
+    outputBuffer <span class="opt">:=</span> <span class="kwb">make</span><span class="opt">([]</span><span class="kwb">string</span><span class="opt">, (</span>maxDepth<span class="opt">-</span>minDepth<span class="opt">)/</span><span class="num">2</span><span class="opt">+</span><span class="num">1</span><span class="opt">)</span>
+    <span class="kwa">type</span> depthOutput <span class="kwa">struct</span> <span class="opt">{</span>
+        depth <span class="kwb">int</span>
+        s     <span class="kwb">string</span>
+    <span class="opt">}</span>
+
+    out <span class="opt">:=</span> <span class="kwb">make</span><span class="opt">(</span><span class="kwa">chan</span> depthOutput<span class="opt">, (</span>maxDepth<span class="opt">-</span>minDepth<span class="opt">)/</span><span class="num">2</span><span class="opt">+</span><span class="num">1</span><span class="opt">)</span>
+    done <span class="opt">:=</span> <span class="kwb">make</span><span class="opt">(</span><span class="kwa">chan struct</span><span class="opt">{})</span>
+    wg <span class="opt">:= &amp;</span>sync<span class="opt">.</span>WaitGroup<span class="opt">{}</span>
+
+    <span class="kwa">go func</span><span class="opt">() {</span>
+        <span class="kwa">for</span> o <span class="opt">:=</span> <span class="kwa">range</span> out <span class="opt">{</span>
+            <span class="slc">// Record the output for the trees at the given depth.</span>
+            i <span class="opt">:= (</span>o<span class="opt">.</span>depth <span class="opt">-</span> minDepth<span class="opt">) /</span> <span class="num">2</span>
+            outputBuffer<span class="opt">[</span>i<span class="opt">] =</span> o<span class="opt">.</span>s
+        <span class="opt">}</span>
+        done <span class="opt">&lt;-</span> <span class="kwa">struct</span><span class="opt">{}{}</span>
+    <span class="opt">}()</span>
+
+    <span class="kwa">for</span> depth <span class="opt">:=</span> minDepth<span class="opt">;</span> depth <span class="opt">&lt;=</span> maxDepth<span class="opt">;</span> depth <span class="opt">+=</span> <span class="num">2</span> <span class="opt">{</span>
+        wg<span class="opt">.</span><span class="kwd">Add</span><span class="opt">(</span><span class="num">1</span><span class="opt">)</span>
+        <span class="kwa">go func</span><span class="opt">(</span>depth <span class="kwb">int</span><span class="opt">) {</span>
+            iterations <span class="opt">:=</span> <span class="num">1</span> <span class="opt">&lt;&lt; (</span>maxDepth <span class="opt">-</span> depth <span class="opt">+</span> minDepth<span class="opt">)</span>
+            totalChecksum <span class="opt">:=</span> <span class="num">0</span>
+
+            <span class="kwa">for</span> i <span class="opt">:=</span> <span class="num">1</span><span class="opt">;</span> i <span class="opt">&lt;=</span> iterations<span class="opt">;</span> i<span class="opt">++ {</span>
+                <span class="slc">// Create a bunch of binary trees of depth depth, compute each</span>
+                <span class="slc">// of their checksums, and add them to the totalChecksum.</span>
+                tree <span class="opt">:=</span> <span class="kwd">CreateTree</span><span class="opt">(</span>depth<span class="opt">)</span>
+                totalChecksum <span class="opt">+=</span> tree<span class="opt">.</span><span class="kwd">CalculateChecksum</span><span class="opt">()</span>
+            <span class="opt">}</span>
+
+            out <span class="opt">&lt;-</span> depthOutput<span class="opt">{</span>
+                depth<span class="opt">,</span>
+                fmt<span class="opt">.</span><span class="kwd">Sprintf</span><span class="opt">(</span><span class="str">&quot;</span><span class="ipl">%v</span><span class="str"></span><span class="esc">\t</span> <span class="str">trees of depth</span> <span class="ipl">%v</span><span class="str"></span><span class="esc">\t</span> <span class="str">check:</span> <span class="ipl">%v</span><span class="str">&quot;</span><span class="opt">,</span>
+                    iterations<span class="opt">,</span> depth<span class="opt">,</span> totalChecksum<span class="opt">),</span>
+            <span class="opt">}</span>
+            wg<span class="opt">.</span><span class="kwd">Done</span><span class="opt">()</span>
+        <span class="opt">}(</span>depth<span class="opt">)</span>
+    <span class="opt">}</span>
+
+    wg<span class="opt">.</span><span class="kwd">Wait</span><span class="opt">()</span>
+    <span class="kwb">close</span><span class="opt">(</span>out<span class="opt">)</span>
+    <span class="opt">&lt;-</span>done
+
+    <span class="slc">// Print the statistics for all of the various tree depths.</span>
+    <span class="kwa">for</span> _<span class="opt">,</span> s <span class="opt">:=</span> <span class="kwa">range</span> outputBuffer <span class="opt">{</span>
+        fmt<span class="opt">.</span><span class="kwd">Println</span><span class="opt">(</span>s<span class="opt">)</span>
+    <span class="opt">}</span>
+
+    <span class="slc">// Print the statistics for the LongLivedTree that was processed earlier.</span>
+    <span class="slc">// Note that although the LongLivedTree variable isn&apos;t used here, it still</span>
+    <span class="slc">// is in scope and valid to use until the end of the program.</span>
+    fmt<span class="opt">.</span><span class="kwd">Printf</span><span class="opt">(</span><span class="str">&quot;long lived tree of depth</span> <span class="ipl">%v</span><span class="str"></span><span class="esc">\t</span> <span class="str">check:</span> <span class="ipl">%v</span><span class="str"></span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span>
+        maxDepth<span class="opt">, &lt;-</span>longLivedTreeChecksum<span class="opt">)</span>
+<span class="opt">}</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

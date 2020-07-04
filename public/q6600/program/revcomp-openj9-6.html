@@ -17,6 +17,96 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="com">/*</span>
+<span class="com"> * The Computer Language Benchmarks Game</span>
+<span class="com"> * https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="com"></span>
+<span class="com"> * contributed by Jon Edvardsson</span>
+<span class="com"> * added parallel processing to the original</span>
+<span class="com"> * program by Anthony Donnefort and Enotus.</span>
+<span class="com"> */</span>
+
+<span class="kwa">import</span> java<span class="opt">.</span>io<span class="opt">.</span>IOException<span class="opt">;</span>
+<span class="kwa">import</span> java<span class="opt">.</span>util<span class="opt">.</span>LinkedList<span class="opt">;</span>
+<span class="kwa">import</span> java<span class="opt">.</span>util<span class="opt">.</span>List<span class="opt">;</span>
+<span class="kwa">import</span> java<span class="opt">.</span>util<span class="opt">.</span>concurrent<span class="opt">.</span>ForkJoinPool<span class="opt">;</span>
+<span class="kwa">import</span> java<span class="opt">.</span>util<span class="opt">.</span>concurrent<span class="opt">.</span>RecursiveAction<span class="opt">;</span>
+
+<span class="kwa">public final class</span> revcomp <span class="opt">{</span>
+
+    <span class="kwa">static final</span> ForkJoinPool fjPool <span class="opt">=</span> <span class="kwa">new</span> <span class="kwd">ForkJoinPool</span><span class="opt">();</span>
+
+    <span class="kwa">static final byte</span><span class="opt">[]</span> map <span class="opt">=</span> <span class="kwa">new byte</span><span class="opt">[</span><span class="num">128</span><span class="opt">];</span>
+
+    <span class="kwa">static</span> <span class="opt">{</span>
+        String<span class="opt">[]</span> mm <span class="opt">= {</span><span class="str">&quot;ACBDGHK</span><span class="esc">\n</span><span class="str">MNSRUTWVYacbdghkmnsrutwvy&quot;</span><span class="opt">,</span>
+                       <span class="str">&quot;TGVHCDM</span><span class="esc">\n</span><span class="str">KNSYAAWBRTGVHCDMKNSYAAWBR&quot;</span><span class="opt">};</span>
+        <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">int</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> mm<span class="opt">[</span><span class="num">0</span><span class="opt">].</span><span class="kwd">length</span><span class="opt">();</span> i<span class="opt">++)</span>
+            map<span class="opt">[</span>mm<span class="opt">[</span><span class="num">0</span><span class="opt">].</span><span class="kwd">charAt</span><span class="opt">(</span>i<span class="opt">)] = (</span><span class="kwa">byte</span><span class="opt">)</span> mm<span class="opt">[</span><span class="num">1</span><span class="opt">].</span><span class="kwd">charAt</span><span class="opt">(</span>i<span class="opt">);</span>
+    <span class="opt">}</span>
+
+    <span class="kwa">private static class</span> Reverse <span class="kwa">extends</span> RecursiveAction <span class="opt">{</span>
+        <span class="kwa">private byte</span><span class="opt">[]</span> buf<span class="opt">;</span>
+        <span class="kwa">private int</span> begin<span class="opt">;</span>
+        <span class="kwa">private int</span> end<span class="opt">;</span>
+
+        <span class="kwa">public</span> <span class="kwd">Reverse</span><span class="opt">(</span><span class="kwa">byte</span><span class="opt">[]</span> buf<span class="opt">,</span> <span class="kwa">int</span> begin<span class="opt">,</span> <span class="kwa">int</span> end<span class="opt">) {</span>
+            <span class="kwa">this</span><span class="opt">.</span>buf <span class="opt">=</span> buf<span class="opt">;</span>
+            <span class="kwa">this</span><span class="opt">.</span>begin <span class="opt">=</span> begin<span class="opt">;</span>
+            <span class="kwa">this</span><span class="opt">.</span>end <span class="opt">=</span> end<span class="opt">;</span>
+        <span class="opt">}</span>
+
+        <span class="kwa">protected void</span> <span class="kwd">compute</span><span class="opt">() {</span>
+            <span class="kwa">byte</span><span class="opt">[]</span> buf <span class="opt">=</span> <span class="kwa">this</span><span class="opt">.</span>buf<span class="opt">;</span>
+            <span class="kwa">int</span> begin <span class="opt">=</span> <span class="kwa">this</span><span class="opt">.</span>begin<span class="opt">;</span>
+            <span class="kwa">int</span> end <span class="opt">=</span> <span class="kwa">this</span><span class="opt">.</span>end<span class="opt">;</span>
+
+            <span class="kwa">while</span> <span class="opt">(</span><span class="kwb">true</span><span class="opt">) {</span>
+                <span class="kwa">byte</span> bb <span class="opt">=</span> buf<span class="opt">[</span>begin<span class="opt">];</span>
+                <span class="kwa">if</span> <span class="opt">(</span>bb <span class="opt">==</span> <span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span><span class="opt">)</span>
+                    bb <span class="opt">=</span> buf<span class="opt">[++</span>begin<span class="opt">];</span>
+                <span class="kwa">byte</span> be <span class="opt">=</span> buf<span class="opt">[</span>end<span class="opt">];</span>
+                <span class="kwa">if</span> <span class="opt">(</span>be <span class="opt">==</span> <span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span><span class="opt">)</span>
+                    be <span class="opt">=</span> buf<span class="opt">[--</span>end<span class="opt">];</span>
+                <span class="kwa">if</span> <span class="opt">(</span>begin <span class="opt">&gt;</span> end<span class="opt">)</span>
+                    <span class="kwa">break</span><span class="opt">;</span>
+                buf<span class="opt">[</span>begin<span class="opt">++] =</span> be<span class="opt">;</span>
+                buf<span class="opt">[</span>end<span class="opt">--] =</span> bb<span class="opt">;</span>
+            <span class="opt">}</span>
+        <span class="opt">}</span>
+    <span class="opt">}</span>
+
+    <span class="kwa">public static void</span> <span class="kwd">main</span><span class="opt">(</span>String<span class="opt">[]</span> args<span class="opt">)</span> <span class="kwa">throws</span> IOException<span class="opt">,</span> InterruptedException <span class="opt">{</span>
+        <span class="kwa">final byte</span><span class="opt">[]</span> buf <span class="opt">=</span> <span class="kwa">new byte</span><span class="opt">[</span>System<span class="opt">.</span>in<span class="opt">.</span><span class="kwd">available</span><span class="opt">()];</span>
+        System<span class="opt">.</span>in<span class="opt">.</span><span class="kwd">read</span><span class="opt">(</span>buf<span class="opt">);</span>
+        List<span class="opt">&lt;</span>Reverse<span class="opt">&gt;</span> tasks <span class="opt">=</span> <span class="kwa">new</span> LinkedList<span class="opt">&lt;</span>Reverse<span class="opt">&gt;();</span>
+
+        <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">int</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> buf<span class="opt">.</span>length<span class="opt">; ) {</span>
+            <span class="kwa">while</span> <span class="opt">(</span>buf<span class="opt">[</span>i<span class="opt">++] !=</span> <span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span><span class="opt">) ;</span>
+            <span class="kwa">int</span> data <span class="opt">=</span> i<span class="opt">;</span>
+            <span class="kwa">byte</span> b<span class="opt">;</span>
+            <span class="kwa">while</span> <span class="opt">(</span>i <span class="opt">&lt;</span> buf<span class="opt">.</span>length <span class="opt">&amp;&amp; (</span>b <span class="opt">=</span> buf<span class="opt">[</span>i<span class="opt">++]) !=</span> <span class="str">&apos;&gt;&apos;</span><span class="opt">) {</span>
+                buf<span class="opt">[</span>i<span class="opt">-</span><span class="num">1</span><span class="opt">] =</span> map<span class="opt">[</span>b<span class="opt">];</span>
+            <span class="opt">}</span>
+            Reverse task <span class="opt">=</span> <span class="kwa">new</span> <span class="kwd">Reverse</span><span class="opt">(</span>buf<span class="opt">,</span> data<span class="opt">,</span> i <span class="opt">-</span> <span class="num">2</span><span class="opt">);</span>
+            fjPool<span class="opt">.</span><span class="kwd">execute</span><span class="opt">(</span>task<span class="opt">);</span>
+            tasks<span class="opt">.</span><span class="kwd">add</span><span class="opt">(</span>task<span class="opt">);</span>
+        <span class="opt">}</span>
+        <span class="kwa">for</span> <span class="opt">(</span>Reverse task <span class="opt">:</span> tasks<span class="opt">) {</span>
+            task<span class="opt">.</span><span class="kwd">join</span><span class="opt">();</span>
+        <span class="opt">}</span>
+
+        System<span class="opt">.</span>out<span class="opt">.</span><span class="kwd">write</span><span class="opt">(</span>buf<span class="opt">);</span>
+    <span class="opt">}</span>
+<span class="opt">}</span>
+
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

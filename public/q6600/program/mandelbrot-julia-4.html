@@ -17,6 +17,76 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="com">#=</span>
+<span class="com">The Computer Language Benchmarks Game</span>
+<span class="com"> https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="com"></span>
+<span class="com"> direct transliteration of the swift#3 program by Ralph Ganszky and Daniel Muellenborn</span>
+<span class="com"></span>
+<span class="com"> modified for Julia 1.0 by Simon Danisch.</span>
+<span class="com"> tweaked for performance by maltezfaria and Adam Beckmeyer.</span>
+<span class="com">=#</span>
+
+<span class="kwa">const</span> zerov8 <span class="opt">=</span> <span class="kwd">ntuple</span><span class="opt">(</span>x<span class="opt">-&gt;</span> <span class="num">0.0</span><span class="opt">,</span> <span class="num">8</span><span class="opt">)</span>
+<span class="kwa">const</span> masks <span class="opt">= (</span><span class="num">0</span>b01111111<span class="opt">,</span> <span class="num">0</span>b10111111<span class="opt">,</span> <span class="num">0</span>b11011111<span class="opt">,</span> <span class="num">0</span>b11101111<span class="opt">,</span> <span class="num">0</span>b11110111<span class="opt">,</span>
+               <span class="num">0</span>b11111011<span class="opt">,</span> <span class="num">0</span>b11111101<span class="opt">,</span> <span class="num">0</span>b11111110<span class="opt">)</span>
+
+<span class="slc"># Calculate mandelbrot set for one Vec8 into one byte</span>
+Base<span class="opt">.</span><span class="kwc">&#64;propagate_inbounds</span> <span class="kwa">function</span> <span class="kwd">mand8</span><span class="opt">(</span>cr<span class="opt">,</span> ci<span class="opt">)</span>
+    Zr <span class="opt">=</span> Zi <span class="opt">=</span> Tr <span class="opt">=</span> Ti <span class="opt">=</span> t <span class="opt">=</span> zerov8
+    i <span class="opt">=</span> <span class="num">0</span>
+
+    <span class="kwa">for</span> _<span class="opt">=</span><span class="num">1</span><span class="opt">:</span><span class="num">10</span>
+        <span class="kwa">for</span> _<span class="opt">=</span><span class="num">1</span><span class="opt">:</span><span class="num">5</span>
+            Zi <span class="opt">=</span> <span class="num">2.0</span> <span class="opt">.*</span> Zr <span class="opt">.*</span> Zi <span class="opt">.+</span> ci
+            Zr <span class="opt">=</span> Tr <span class="opt">.-</span> Ti <span class="opt">.+</span> cr
+            Tr <span class="opt">=</span> Zr <span class="opt">.*</span> Zr
+            Ti <span class="opt">=</span> Zi <span class="opt">.*</span> Zi
+        <span class="kwa">end</span>
+        t <span class="opt">=</span> Tr <span class="opt">.+</span> Ti
+        <span class="kwd">all</span><span class="opt">(</span>x<span class="opt">-&gt;</span> x <span class="opt">&gt;</span> <span class="num">4.0</span><span class="opt">,</span> t<span class="opt">) &amp;&amp; (</span><span class="kwa">return</span> <span class="num">0x00</span><span class="opt">)</span>
+    <span class="kwa">end</span>
+
+    byte <span class="opt">=</span> <span class="num">0xff</span>
+    <span class="kwa">for</span> i<span class="opt">=</span><span class="num">1</span><span class="opt">:</span><span class="num">8</span>
+        t<span class="opt">[</span>i<span class="opt">] &lt;=</span> <span class="num">4.0</span> <span class="opt">|| (</span>byte <span class="opt">&amp;=</span> masks<span class="opt">[</span>i<span class="opt">])</span>
+    <span class="kwa">end</span>
+    <span class="kwa">return</span> byte
+<span class="kwa">end</span>
+
+<span class="kwa">function</span> <span class="kwd">mandel_inner</span><span class="opt">(</span>rows<span class="opt">,</span> ci<span class="opt">,</span> y<span class="opt">,</span> N<span class="opt">,</span> xvals<span class="opt">)</span>
+    <span class="kwc">&#64;inbounds</span> <span class="kwa">for</span> x<span class="opt">=</span><span class="num">1</span><span class="opt">:</span><span class="num">8</span><span class="opt">:</span>N
+        cr <span class="opt">=</span> <span class="kwd">ntuple</span><span class="opt">(</span>i<span class="opt">-&gt;</span> xvals<span class="opt">[</span>x <span class="opt">+</span> i <span class="opt">-</span> <span class="num">1</span><span class="opt">],</span> <span class="num">8</span><span class="opt">)</span>
+        rows<span class="opt">[((</span>y<span class="opt">-</span><span class="num">1</span><span class="opt">)*</span>N÷<span class="num">8</span><span class="opt">+(</span>x<span class="opt">-</span><span class="num">1</span><span class="opt">)</span>÷<span class="num">8</span><span class="opt">) +</span> <span class="num">1</span><span class="opt">] =</span> <span class="kwd">mand8</span><span class="opt">(</span>cr<span class="opt">,</span> ci<span class="opt">)</span>
+    <span class="kwa">end</span>
+<span class="kwa">end</span>
+
+<span class="kwa">function</span> <span class="kwd">mandelbrot</span><span class="opt">(</span>io<span class="opt">,</span> n <span class="opt">=</span> <span class="num">200</span><span class="opt">)</span>
+    inv_ <span class="opt">=</span> <span class="num">2.0</span> <span class="opt">/</span> n
+    xvals <span class="opt">=</span> Vector<span class="opt">{</span><span class="kwb">Float64</span><span class="opt">}(</span>undef<span class="opt">,</span> n<span class="opt">)</span>
+    yvals <span class="opt">=</span> Vector<span class="opt">{</span><span class="kwb">Float64</span><span class="opt">}(</span>undef<span class="opt">,</span> n<span class="opt">)</span>
+    <span class="kwc">&#64;inbounds</span> <span class="kwa">for</span> i <span class="kwa">in</span> <span class="num">0</span><span class="opt">:(</span>n<span class="opt">-</span><span class="num">1</span><span class="opt">)</span>
+        xvals<span class="opt">[</span>i <span class="opt">+</span> <span class="num">1</span><span class="opt">] =</span> i <span class="opt">*</span> inv_ <span class="opt">-</span> <span class="num">1.5</span>
+        yvals<span class="opt">[</span>i <span class="opt">+</span> <span class="num">1</span><span class="opt">] =</span> i <span class="opt">*</span> inv_ <span class="opt">-</span> <span class="num">1.0</span>
+    <span class="kwa">end</span>
+
+    rows <span class="opt">=</span> Vector<span class="opt">{</span><span class="kwb">UInt8</span><span class="opt">}(</span>undef<span class="opt">,</span> n<span class="opt">^</span><span class="num">2</span> ÷ <span class="num">8</span><span class="opt">)</span>
+    Threads<span class="opt">.</span><span class="kwc">&#64;threads</span> <span class="kwa">for</span> y<span class="opt">=</span><span class="num">1</span><span class="opt">:</span>n
+        <span class="kwc">&#64;inbounds</span> ci <span class="opt">=</span> yvals<span class="opt">[</span>y<span class="opt">]</span>
+        <span class="kwd">mandel_inner</span><span class="opt">(</span>rows<span class="opt">,</span> ci<span class="opt">,</span> y<span class="opt">,</span> n<span class="opt">,</span> xvals<span class="opt">)</span>
+    <span class="kwa">end</span>
+    <span class="kwd">write</span><span class="opt">(</span>io<span class="opt">,</span> <span class="str">&quot;P4</span><span class="esc">\n</span><span class="str"></span><span class="ipl">$n $n</span><span class="str"></span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">)</span>
+    <span class="kwd">write</span><span class="opt">(</span>io<span class="opt">,</span> rows<span class="opt">)</span>
+<span class="kwa">end</span>
+
+<span class="kwd">isinteractive</span><span class="opt">() ||</span> <span class="kwd">mandelbrot</span><span class="opt">(</span>stdout<span class="opt">,</span> <span class="kwd">parse</span><span class="opt">(</span>Int<span class="opt">,</span> ARGS<span class="opt">[</span><span class="num">1</span><span class="opt">]))</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

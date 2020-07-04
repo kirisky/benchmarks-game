@@ -17,6 +17,117 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc">// The Computer Language Benchmarks Game</span>
+<span class="slc">// https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">//</span>
+<span class="slc">// contributed by Matt Watson</span>
+<span class="slc">// contributed by TeXitoi</span>
+
+<span class="kwa">use</span> std<span class="opt">::</span>io<span class="opt">::</span>Write<span class="opt">;</span>
+<span class="kwa">use</span> std<span class="opt">::</span>thread<span class="opt">;</span>
+<span class="kwa">const</span> THREADS<span class="opt">:</span> <span class="kwb">usize</span> <span class="opt">=</span> <span class="num">20</span><span class="opt">;</span>
+<span class="kwa">const</span> MAX_ITER<span class="opt">:</span> <span class="kwb">usize</span> <span class="opt">=</span> <span class="num">50</span><span class="opt">;</span>
+<span class="kwa">const</span> VLEN<span class="opt">:</span> <span class="kwb">usize</span> <span class="opt">=</span> <span class="num">8</span><span class="opt">;</span>
+<span class="kwa">const</span> ZEROS<span class="opt">:</span> Vecf64 <span class="opt">= [</span><span class="num">0.0</span><span class="opt">;</span> VLEN<span class="opt">];</span>
+
+<span class="kwa">pub type</span> Vecf64 <span class="opt">= [</span><span class="kwb">f64</span><span class="opt">;</span> VLEN<span class="opt">];</span>
+
+<span class="kwa">fn</span> <span class="kwd">mul2</span> <span class="opt">(</span>x<span class="opt">:</span> Vecf64<span class="opt">,</span> y<span class="opt">:</span> Vecf64<span class="opt">) -&gt;</span> Vecf64 <span class="opt">{</span>
+    <span class="kwa">let mut</span> res <span class="opt">=</span> ZEROS<span class="opt">;</span>
+    <span class="kwa">for</span> i <span class="kwa">in</span> <span class="num">0</span><span class="opt">..</span>VLEN <span class="opt">{</span> res<span class="opt">[</span>i<span class="opt">] =</span> x<span class="opt">[</span>i<span class="opt">] *</span> y<span class="opt">[</span>i<span class="opt">]; }</span>
+    res
+<span class="opt">}</span>
+<span class="kwa">fn</span> <span class="kwd">add2</span> <span class="opt">(</span>x<span class="opt">:</span> Vecf64<span class="opt">,</span> y<span class="opt">:</span> Vecf64<span class="opt">) -&gt;</span> Vecf64 <span class="opt">{</span>
+    <span class="kwa">let mut</span> res <span class="opt">=</span> ZEROS<span class="opt">;</span>
+    <span class="kwa">for</span> i <span class="kwa">in</span> <span class="num">0</span><span class="opt">..</span>VLEN <span class="opt">{</span> res<span class="opt">[</span>i<span class="opt">] =</span> x<span class="opt">[</span>i<span class="opt">] +</span> y<span class="opt">[</span>i<span class="opt">]; }</span>
+    res
+<span class="opt">}</span>
+<span class="kwa">fn</span> <span class="kwd">sub2</span> <span class="opt">(</span>x<span class="opt">:</span> Vecf64<span class="opt">,</span> y<span class="opt">:</span> Vecf64<span class="opt">) -&gt;</span> Vecf64 <span class="opt">{</span>
+    <span class="kwa">let mut</span> res <span class="opt">=</span> ZEROS<span class="opt">;</span>
+    <span class="kwa">for</span> i <span class="kwa">in</span> <span class="num">0</span><span class="opt">..</span>VLEN <span class="opt">{</span> res<span class="opt">[</span>i<span class="opt">] =</span> x<span class="opt">[</span>i<span class="opt">] -</span> y<span class="opt">[</span>i<span class="opt">]; }</span>
+    res
+<span class="opt">}</span>
+
+<span class="kwa">pub fn</span> <span class="kwd">mbrot8</span><span class="opt">(</span>cr<span class="opt">:</span> Vecf64<span class="opt">,</span> ci<span class="opt">:</span> Vecf64<span class="opt">) -&gt;</span> <span class="kwb">u8</span> <span class="opt">{</span>
+    <span class="kwa">let mut</span> zr <span class="opt">=</span> cr<span class="opt">;</span>
+    <span class="kwa">let mut</span> zi <span class="opt">=</span> ci<span class="opt">;</span>
+    <span class="kwa">let mut</span> esc_bits <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+    <span class="kwa">for</span> _ <span class="kwa">in</span> <span class="num">0</span><span class="opt">..</span>MAX_ITER <span class="opt">{</span>
+        <span class="slc">// Find Re(z)^2 and Im(z)^2</span>
+        <span class="kwa">let</span> rr  <span class="opt">=</span> <span class="kwd">mul2</span><span class="opt">(</span>zr<span class="opt">,</span>zr<span class="opt">);</span>
+        <span class="kwa">let</span> ii  <span class="opt">=</span> <span class="kwd">mul2</span><span class="opt">(</span>zi<span class="opt">,</span>zi<span class="opt">);</span>
+        <span class="slc">// Check if we escape</span>
+        <span class="slc">// May as well store this info in</span>
+        <span class="slc">// same byte as output</span>
+        <span class="kwa">let</span> mag <span class="opt">=</span> <span class="kwd">add2</span><span class="opt">(</span>rr<span class="opt">,</span> ii<span class="opt">);</span>
+        <span class="kwa">for</span> i <span class="kwa">in</span> <span class="num">0</span><span class="opt">..</span>VLEN <span class="opt">{</span>
+            <span class="kwa">if</span> mag<span class="opt">[</span>i<span class="opt">] &gt;</span> <span class="num">4.0</span> <span class="opt">{</span> esc_bits <span class="opt">|=</span> <span class="num">128</span> <span class="opt">&gt;&gt;</span> i<span class="opt">; }</span>
+        <span class="opt">}</span>
+        <span class="slc">// If no more work, break early</span>
+        <span class="kwa">if</span> esc_bits <span class="opt">==</span> <span class="num">0xff</span> <span class="opt">{</span> <span class="kwa">break</span><span class="opt">; }</span>
+        <span class="slc">// Find Im(z^2)</span>
+        <span class="kwa">let</span> ir <span class="opt">=</span> <span class="kwd">mul2</span><span class="opt">(</span>zr<span class="opt">,</span> zi<span class="opt">);</span>
+        <span class="slc">// Set Re(z^2)</span>
+        zr <span class="opt">=</span> <span class="kwd">sub2</span><span class="opt">(</span>rr<span class="opt">,</span> ii<span class="opt">);</span>
+        <span class="slc">// Set Im(z^2)</span>
+        zi <span class="opt">=</span> <span class="kwd">add2</span><span class="opt">(</span>ir<span class="opt">,</span> ir<span class="opt">);</span>
+        <span class="slc">// Add c</span>
+        zr <span class="opt">=</span> <span class="kwd">add2</span><span class="opt">(</span>zr<span class="opt">,</span> cr<span class="opt">);</span>
+        zi <span class="opt">=</span> <span class="kwd">add2</span><span class="opt">(</span>zi<span class="opt">,</span> ci<span class="opt">);</span>
+    <span class="opt">}</span>
+    <span class="opt">!</span>esc_bits
+<span class="opt">}</span>
+
+<span class="kwa">fn</span> <span class="kwd">main</span><span class="opt">() {</span>
+    <span class="kwa">let</span> size <span class="opt">=</span> std<span class="opt">::</span>env<span class="opt">::</span><span class="kwd">args_os</span><span class="opt">().</span><span class="kwd">nth</span><span class="opt">(</span><span class="num">1</span><span class="opt">)</span>
+        <span class="opt">.</span><span class="kwd">and_then</span><span class="opt">(|</span>s<span class="opt">|</span> s<span class="num">.i</span>nto<span class="num">_</span>str<span class="num">i</span>ng<span class="opt">().</span><span class="kwd">ok</span><span class="opt">())</span>
+        <span class="opt">.</span><span class="kwd">and_then</span><span class="opt">(|</span>n<span class="opt">|</span> n<span class="opt">.</span><span class="kwd">parse</span><span class="opt">().</span><span class="kwd">ok</span><span class="opt">())</span>
+        <span class="num">.u</span>nwrap<span class="num">_</span>or<span class="opt">(</span><span class="num">200</span><span class="opt">);</span>
+    <span class="kwa">let</span> inv <span class="opt">=</span> <span class="num">2.0</span> <span class="opt">/</span> size <span class="kwa">as</span> <span class="kwb">f64</span><span class="opt">;</span>
+    <span class="kwa">let mut</span> xvals <span class="opt">=</span> vec<span class="opt">![</span><span class="num">0.0</span><span class="opt">;</span> size<span class="opt">];</span>
+    <span class="kwa">let mut</span> yvals <span class="opt">=</span> vec<span class="opt">![</span><span class="num">0.0</span><span class="opt">;</span> size<span class="opt">];</span>
+    <span class="kwa">for</span> i <span class="kwa">in</span> <span class="num">0</span><span class="opt">..</span>size <span class="opt">{</span>
+        xvals<span class="opt">[</span>i<span class="opt">] =</span> i <span class="kwa">as</span> <span class="kwb">f64</span> <span class="opt">*</span> inv <span class="opt">-</span> <span class="num">1.5</span><span class="opt">;</span>
+        yvals<span class="opt">[</span>i<span class="opt">] =</span> i <span class="kwa">as</span> <span class="kwb">f64</span> <span class="opt">*</span> inv <span class="opt">-</span> <span class="num">1.0</span><span class="opt">;</span>
+    <span class="opt">}</span>
+    <span class="kwa">let</span> xloc <span class="opt">= &amp;</span>xvals<span class="opt">;</span>
+    <span class="kwa">let</span> yloc <span class="opt">= &amp;</span>yvals<span class="opt">;</span>
+
+    assert<span class="opt">!(</span>size <span class="opt">%</span> THREADS <span class="opt">==</span> <span class="num">0</span><span class="opt">);</span><span class="slc">// FIXME</span>
+    <span class="kwa">let</span> handles<span class="opt">:</span> Vec<span class="opt">&lt;</span>_<span class="opt">&gt; = (</span><span class="num">0</span><span class="opt">..</span>THREADS<span class="opt">).</span><span class="kwd">map</span><span class="opt">(|</span>e<span class="opt">| {</span>
+        <span class="kwa">let</span> xloc <span class="opt">=</span> xloc<span class="opt">.</span><span class="kwd">to_vec</span><span class="opt">();</span>
+        <span class="kwa">let</span> yloc <span class="opt">=</span> yloc<span class="opt">.</span><span class="kwd">to_vec</span><span class="opt">();</span>
+        thread<span class="opt">::</span><span class="kwd">spawn</span><span class="opt">(</span><span class="kwa">move</span> <span class="opt">|| {</span>
+            <span class="kwa">let mut</span> rows <span class="opt">=</span> vec<span class="opt">![</span>vec<span class="opt">![</span><span class="num">0</span> <span class="kwa">as</span> <span class="kwb">u8</span><span class="opt">;</span> size <span class="opt">/</span> <span class="num">8</span><span class="opt">];</span> size <span class="opt">/</span> THREADS<span class="opt">];</span>
+            <span class="kwa">for</span> y <span class="kwa">in</span> <span class="num">0</span><span class="opt">..</span>size <span class="opt">/</span> THREADS <span class="opt">{</span>
+                <span class="kwa">for</span> x <span class="kwa">in</span> <span class="num">0</span><span class="opt">..</span>size <span class="opt">/</span> <span class="num">8</span> <span class="opt">{</span>
+                    <span class="kwa">let mut</span> cr <span class="opt">=</span> ZEROS<span class="opt">;</span>
+                    <span class="kwa">let</span> ci <span class="opt">= [</span>yloc<span class="opt">[</span>y <span class="opt">+</span> e <span class="opt">*</span> size <span class="opt">/</span> THREADS<span class="opt">];</span> VLEN<span class="opt">];</span>
+                    <span class="kwa">for</span> i <span class="kwa">in</span> <span class="num">0</span><span class="opt">..</span>VLEN <span class="opt">{</span>
+                        cr<span class="opt">[</span>i<span class="opt">] =</span> xloc<span class="opt">[</span><span class="num">8</span> <span class="opt">*</span> x <span class="opt">+</span> i<span class="opt">];</span>
+                    <span class="opt">}</span>
+                    rows<span class="opt">[</span>y<span class="opt">][</span>x<span class="opt">] =</span> <span class="kwd">mbrot8</span><span class="opt">(</span>cr<span class="opt">,</span> ci<span class="opt">);</span>
+                <span class="opt">}</span>
+            <span class="opt">}</span>
+            rows
+        <span class="opt">})</span>
+    <span class="opt">}).</span><span class="kwd">collect</span><span class="opt">();</span>
+
+    println<span class="opt">!(</span><span class="str">&quot;P4</span><span class="esc">\</span><span class="str">n{} {}&quot;</span><span class="opt">,</span> size<span class="opt">,</span> size<span class="opt">);</span>
+    <span class="kwa">let</span> stdout_unlocked <span class="opt">=</span> std<span class="opt">::</span>io<span class="opt">::</span><span class="kwd">stdout</span><span class="opt">();</span>
+    <span class="kwa">let mut</span> stdout <span class="opt">=</span> stdout_unlocked<span class="opt">.</span><span class="kwd">lock</span><span class="opt">();</span>
+    <span class="kwa">for</span> row <span class="kwa">in</span> handles<span class="num">.i</span>nto<span class="num">_i</span>ter<span class="opt">()</span><span class="num">.f</span>lat<span class="num">_</span>map<span class="opt">(|</span>h<span class="opt">|</span> h<span class="opt">.</span><span class="kwd">join</span><span class="opt">()</span><span class="num">.u</span>nwrap<span class="opt">()</span><span class="num">.i</span>nto<span class="num">_i</span>ter<span class="opt">()) {</span>
+        stdout<span class="opt">.</span><span class="kwd">write_all</span><span class="opt">(&amp;</span>row<span class="opt">)</span><span class="num">.u</span>nwrap<span class="opt">();</span>
+    <span class="opt">}</span>
+    stdout<span class="num">.f</span>l<span class="num">u</span>sh<span class="opt">()</span><span class="num">.u</span>nwrap<span class="opt">();</span>
+<span class="opt">}</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

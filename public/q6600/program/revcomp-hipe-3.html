@@ -17,6 +17,101 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc">% The Computer Language Benchmarks Game</span>
+<span class="slc">% https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">%%</span>
+<span class="slc">%% contributed by Vlad Balin</span>
+<span class="slc">%% optimizations by Fredrik Svahn</span>
+
+<span class="opt">-</span><span class="kwd">module</span><span class="opt">(</span>revcomp<span class="opt">).</span>
+<span class="opt">-</span><span class="kwd">compile</span><span class="opt">( [</span> inline<span class="opt">, {</span> inline_size<span class="opt">,</span> <span class="num">100</span> <span class="opt">} ] ).</span>
+
+<span class="opt">-</span><span class="kwd">export</span><span class="opt">([</span>main<span class="opt">/</span><span class="num">1</span><span class="opt">]).</span>
+
+<span class="kwd">main</span><span class="opt">([</span>_Args<span class="opt">]) -&gt;</span>
+    <span class="kwb">register</span><span class="opt">(</span>print_server<span class="opt">,</span> <span class="kwb">self</span><span class="opt">()),</span>
+    print_server <span class="opt">!</span> flush_queue_empty<span class="opt">,</span>
+    <span class="kwc">io</span><span class="opt">:</span><span class="kwd">setopts</span><span class="opt">( [</span> <span class="kwb">binary</span> <span class="opt">] ),</span>
+    <span class="kwd">loop</span><span class="opt">([]),</span>
+    <span class="kwb">halt</span><span class="opt">().</span>
+
+<span class="kwd">loop</span><span class="opt">(</span> Buffer <span class="opt">) -&gt;</span>
+    <span class="kwa">case</span> <span class="kwc">io</span><span class="opt">:</span><span class="kwd">get_line</span><span class="opt">(</span><span class="str">&apos;&apos;</span><span class="opt">)</span> <span class="kwa">of</span>
+        eof <span class="opt">-&gt;</span> 	    
+	    <span class="slc">% block until previous output process is done</span>
+	    <span class="kwa">receive</span> flush_queue_empty <span class="opt">-&gt;</span> ok <span class="kwa">end</span><span class="opt">,</span>
+	    <span class="kwd">flush</span><span class="opt">(</span> Buffer<span class="opt">, &lt;&lt; &gt;&gt; );</span>
+        <span class="opt">&lt;&lt;</span> <span class="str">&quot;&gt;&quot;</span><span class="opt">,</span> _<span class="opt">/</span>bytes <span class="opt">&gt;&gt; =</span> Head <span class="opt">-&gt;</span>
+	    <span class="slc">% block until previous output process is done</span>
+	    <span class="kwa">receive</span> flush_queue_empty <span class="opt">-&gt;</span> ok <span class="kwa">end</span><span class="opt">,</span>
+	    <span class="slc">% spawn output process and continue to read in main thread</span>
+            <span class="kwb">spawn</span><span class="opt">(</span><span class="kwa">fun</span><span class="opt">()-&gt;</span> <span class="kwd">flush</span><span class="opt">(</span> Buffer<span class="opt">,</span> Head <span class="opt">)</span> <span class="kwa">end</span><span class="opt">),</span>
+	    <span class="kwd">loop</span><span class="opt">( [] );</span>
+        Line <span class="opt">-&gt;</span> <span class="kwd">loop</span><span class="opt">( [</span> <span class="kwd">rev_comp_line</span><span class="opt">(</span> Line<span class="opt">, &lt;&lt;&gt;&gt; ) |</span> Buffer<span class="opt">] )</span>
+    <span class="kwa">end</span><span class="opt">.</span>
+
+<span class="slc">%% flush( Buffer, Suffix ) -&gt; atom().</span>
+<span class="slc">%% Buffer = Suffix = iolist().</span>
+<span class="slc">%% Format and write Buffer with sequence followed by Suffix text</span>
+<span class="kwd">flush</span><span class="opt">(</span> Buffer<span class="opt">,</span> Suffix <span class="opt">) -&gt;</span>
+    <span class="kwc">io</span><span class="opt">:</span><span class="kwd">put_chars</span><span class="opt">(</span> <span class="kwd">format</span><span class="opt">(</span> <span class="kwd">iolist_to_binary</span><span class="opt">(</span>Buffer<span class="opt">),</span> Suffix <span class="opt">) ),</span>
+    print_server <span class="opt">!</span> flush_queue_empty<span class="opt">.</span>
+
+<span class="slc">%% format( Buffer, Suffix ) -&gt; iolist().</span>
+<span class="slc">%% Buffer = bytes(), Suffix = iolist().</span>
+<span class="slc">%% Split Buffer into 60-char lines, append Suffix to the end of buffer.</span>
+<span class="kwd">format</span><span class="opt">( &lt;&lt;</span> <span class="kwc">Line</span><span class="opt">:</span><span class="num">60</span><span class="opt">/</span>bytes<span class="opt">,</span> Rest<span class="opt">/</span>bytes <span class="opt">&gt;&gt;,</span> Suffix <span class="opt">) -&gt; [</span> Line<span class="opt">,</span> <span class="num">10</span> <span class="opt">|</span> <span class="kwd">format</span><span class="opt">(</span> Rest<span class="opt">,</span> Suffix <span class="opt">) ];</span>
+<span class="kwd">format</span><span class="opt">( &lt;&lt; &gt;&gt;,</span> Suffix <span class="opt">) -&gt;</span> Suffix<span class="opt">;</span>
+<span class="kwd">format</span><span class="opt">(</span> Line<span class="opt">,</span> Suffix <span class="opt">) -&gt; [</span> Line<span class="opt">,</span> <span class="num">10</span><span class="opt">,</span> Suffix <span class="opt">].</span>
+
+<span class="slc">%% rev_comp_line( Line, Buffer ) -&gt; Buffer.</span>
+<span class="slc">%% Line = binary().</span>
+<span class="slc">%% Buffer = binary().</span>
+<span class="kwd">rev_comp_line</span><span class="opt">( &lt;&lt;</span> <span class="kwc">_</span><span class="opt">:</span><span class="num">8</span> <span class="opt">&gt;&gt;,</span> Buffer <span class="opt">) -&gt;</span> Buffer<span class="opt">;</span>
+<span class="kwd">rev_comp_line</span><span class="opt">( &lt;&lt;</span> H<span class="opt">,</span> Rest<span class="opt">/</span>bytes <span class="opt">&gt;&gt;,</span> Buffer <span class="opt">) -&gt;</span> 
+    C <span class="opt">=</span> <span class="kwd">rev_comp</span><span class="opt">(</span> H <span class="opt">),</span>
+    <span class="kwd">rev_comp_line</span><span class="opt">(</span> Rest<span class="opt">, &lt;&lt;</span> <span class="kwc">C</span><span class="opt">:</span><span class="num">8</span><span class="opt">,</span> Buffer<span class="opt">/</span><span class="kwb">binary</span> <span class="opt">&gt;&gt; ).</span>
+
+<span class="kwd">rev_comp</span><span class="opt">(</span> $A <span class="opt">) -&gt;</span> $T<span class="opt">;</span>
+<span class="kwd">rev_comp</span><span class="opt">(</span> $C <span class="opt">) -&gt;</span> $G<span class="opt">;</span>
+<span class="kwd">rev_comp</span><span class="opt">(</span> $G <span class="opt">) -&gt;</span> $C<span class="opt">;</span>
+<span class="kwd">rev_comp</span><span class="opt">(</span> $T <span class="opt">) -&gt;</span> $A<span class="opt">;</span>
+<span class="kwd">rev_comp</span><span class="opt">(</span> $U <span class="opt">) -&gt;</span> $A<span class="opt">;</span>
+<span class="kwd">rev_comp</span><span class="opt">(</span> $M <span class="opt">) -&gt;</span> $K<span class="opt">;</span>
+<span class="kwd">rev_comp</span><span class="opt">(</span> $R <span class="opt">) -&gt;</span> $Y<span class="opt">;</span>
+<span class="kwd">rev_comp</span><span class="opt">(</span> $Y <span class="opt">) -&gt;</span> $R<span class="opt">;</span>
+<span class="kwd">rev_comp</span><span class="opt">(</span> $K <span class="opt">) -&gt;</span> $M<span class="opt">;</span>
+<span class="kwd">rev_comp</span><span class="opt">(</span> $V <span class="opt">) -&gt;</span> $B<span class="opt">;</span>
+<span class="kwd">rev_comp</span><span class="opt">(</span> $H <span class="opt">) -&gt;</span> $D<span class="opt">;</span>
+<span class="kwd">rev_comp</span><span class="opt">(</span> $D <span class="opt">) -&gt;</span> $H<span class="opt">;</span>
+<span class="kwd">rev_comp</span><span class="opt">(</span> $B <span class="opt">) -&gt;</span> $V<span class="opt">;</span>
+<span class="kwd">rev_comp</span><span class="opt">(</span> $a <span class="opt">) -&gt;</span> $T<span class="opt">;</span>
+<span class="kwd">rev_comp</span><span class="opt">(</span> $c <span class="opt">) -&gt;</span> $G<span class="opt">;</span>
+<span class="kwd">rev_comp</span><span class="opt">(</span> $g <span class="opt">) -&gt;</span> $C<span class="opt">;</span>
+<span class="kwd">rev_comp</span><span class="opt">(</span> $t <span class="opt">) -&gt;</span> $A<span class="opt">;</span>
+<span class="kwd">rev_comp</span><span class="opt">(</span> $u <span class="opt">) -&gt;</span> $A<span class="opt">;</span>
+<span class="kwd">rev_comp</span><span class="opt">(</span> $m <span class="opt">) -&gt;</span> $K<span class="opt">;</span>
+<span class="kwd">rev_comp</span><span class="opt">(</span> $r <span class="opt">) -&gt;</span> $Y<span class="opt">;</span>
+<span class="kwd">rev_comp</span><span class="opt">(</span> $y <span class="opt">) -&gt;</span> $R<span class="opt">;</span>
+<span class="kwd">rev_comp</span><span class="opt">(</span> $k <span class="opt">) -&gt;</span> $M<span class="opt">;</span>
+<span class="kwd">rev_comp</span><span class="opt">(</span> $v <span class="opt">) -&gt;</span> $B<span class="opt">;</span>
+<span class="kwd">rev_comp</span><span class="opt">(</span> $h <span class="opt">) -&gt;</span> $D<span class="opt">;</span>
+<span class="kwd">rev_comp</span><span class="opt">(</span> $d <span class="opt">) -&gt;</span> $H<span class="opt">;</span>
+<span class="kwd">rev_comp</span><span class="opt">(</span> $b <span class="opt">) -&gt;</span> $V<span class="opt">;</span>
+<span class="kwd">rev_comp</span><span class="opt">(</span> $N <span class="opt">) -&gt;</span> $N<span class="opt">;</span>
+<span class="kwd">rev_comp</span><span class="opt">(</span> $S <span class="opt">) -&gt;</span> $S<span class="opt">;</span>
+<span class="kwd">rev_comp</span><span class="opt">(</span> $W <span class="opt">) -&gt;</span> $W<span class="opt">;</span>
+<span class="kwd">rev_comp</span><span class="opt">(</span> $n <span class="opt">) -&gt;</span> $N<span class="opt">;</span>
+<span class="kwd">rev_comp</span><span class="opt">(</span> $s <span class="opt">) -&gt;</span> $S<span class="opt">;</span>
+<span class="kwd">rev_comp</span><span class="opt">(</span> $w <span class="opt">) -&gt;</span> $W<span class="opt">;</span>
+<span class="kwd">rev_comp</span><span class="opt">(</span> _ <span class="opt">) -&gt;</span> $?<span class="opt">.</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

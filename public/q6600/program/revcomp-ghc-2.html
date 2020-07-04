@@ -17,6 +17,92 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc">--</span>
+<span class="slc">-- The Computer Language Benchmarks Game</span>
+<span class="slc">-- https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">--</span>
+<span class="slc">-- Contributed by Sterling Clover</span>
+<span class="slc">-- Heavily inspired by contribution from Don Stewart</span>
+<span class="slc">-- Inlining improvements by Don Stewart.</span>
+<span class="slc">-- GHC 7.8.1 fix by Ersin Er</span>
+<span class="slc">--</span>
+
+<span class="kwd">import qualified</span> Data<span class="opt">.</span>ByteString<span class="opt">.</span>Char8 <span class="kwd">as</span> S
+<span class="kwd">import</span> Data<span class="opt">.</span>ByteString<span class="opt">.</span>Internal
+<span class="kwd">import</span> Data<span class="opt">.</span>ByteString<span class="opt">.</span>Unsafe
+<span class="kwd">import</span> Foreign
+<span class="kwd">import</span> Control<span class="opt">.</span>Arrow
+<span class="kwd">import</span> GHC<span class="opt">.</span>Base
+<span class="kwd">import</span> GHC<span class="opt">.</span>Ptr
+<span class="kwd">import</span> GHC<span class="opt">.</span><span class="kwb">IO</span>
+
+main <span class="opt">=</span> <span class="kwc">uncurry</span> proc <span class="opt">=&lt;&lt;</span> clines `<span class="kwc">fmap</span>` S<span class="opt">.</span><span class="kwc">getContents</span>
+
+proc <span class="opt">[]</span> _ <span class="opt">=</span> <span class="kwc">return</span> <span class="opt">()</span>
+proc <span class="opt">(</span>h<span class="opt">:</span>hs<span class="opt">) (</span>b<span class="opt">:</span>bs<span class="opt">) =</span> S<span class="opt">.</span><span class="kwc">putStrLn</span> h <span class="opt">&gt;&gt;</span> revcomp b <span class="opt">&gt;&gt;</span> writeFasta b <span class="opt">&gt;&gt;</span> proc hs bs
+
+writeFasta t
+    | S<span class="opt">.</span><span class="kwc">null</span> t  <span class="opt">=</span> <span class="kwc">return</span> <span class="opt">()</span>
+    | <span class="kwc">otherwise</span> <span class="opt">=</span> S<span class="opt">.</span><span class="kwc">putStrLn</span> l <span class="opt">&gt;&gt;</span> writeFasta r
+    <span class="kwd">where</span> <span class="opt">(</span>l<span class="opt">,</span>r<span class="opt">) =</span> S<span class="opt">.</span><span class="kwc">splitAt</span> <span class="num">60</span> t
+
+clines <span class="opt">::</span> ByteString <span class="opt">-&gt; ([</span>ByteString<span class="opt">],[</span>ByteString<span class="opt">])</span>
+clines ps <span class="opt">=</span> clines<span class="opt">&apos;</span> ps <span class="opt">([],[])</span>
+    <span class="kwd">where</span>
+      <span class="com">{-# INLINE clines&apos; #-}</span>
+      clines<span class="opt">&apos;</span> ps <span class="kwc">accum</span><span class="opt">&#64;(</span>f<span class="opt">,</span>s<span class="opt">)</span>
+          | <span class="kwc">otherwise</span> <span class="opt">=</span> <span class="kwd">case</span> S<span class="opt">.</span><span class="kwc">elemIndex</span> <span class="opt">&apos;</span><span class="esc">\n</span><span class="opt">&apos;</span> ps <span class="kwd">of</span>
+                          Just n  <span class="opt">-&gt;</span> clines<span class="opt">&apos;&apos; (</span>S<span class="opt">.</span><span class="kwc">drop</span> <span class="opt">(</span>n<span class="opt">+</span><span class="num">1</span><span class="opt">)</span> ps<span class="opt">) (</span>f<span class="opt">++[</span>S<span class="opt">.</span><span class="kwc">take</span> n ps<span class="opt">],</span>s<span class="opt">)</span>
+      clines<span class="opt">&apos;&apos;</span> ps <span class="kwc">accum</span><span class="opt">&#64;(</span>f<span class="opt">,</span>s<span class="opt">)</span>
+          | <span class="kwc">otherwise</span> <span class="opt">=</span> <span class="kwd">case</span> S<span class="opt">.</span><span class="kwc">elemIndex</span> <span class="opt">&apos;&gt;&apos;</span> ps <span class="kwd">of</span>
+                      Nothing <span class="opt">-&gt; (</span>f<span class="opt">,</span>s<span class="opt">++[</span>S<span class="opt">.</span><span class="kwc">filter</span> <span class="opt">(/=&apos;</span><span class="esc">\n</span><span class="opt">&apos;)</span> ps<span class="opt">])</span>
+                      Just n  <span class="opt">-&gt;</span> clines<span class="opt">&apos; (</span>S<span class="opt">.</span><span class="kwc">drop</span> n ps<span class="opt">) (</span>f<span class="opt">,</span>s<span class="opt">++[</span>S<span class="opt">.</span><span class="kwc">filter</span> <span class="opt">(/=&apos;</span><span class="esc">\n</span><span class="opt">&apos;) .</span> S<span class="opt">.</span><span class="kwc">take</span> n <span class="opt">$</span> ps<span class="opt">])</span>
+
+<span class="com">{-# INLINE comps #-}</span>
+comps <span class="opt">=</span> <span class="kwc">map</span> <span class="opt">(</span><span class="kwc">ord</span> <span class="opt">***</span> c2w<span class="opt">) [</span>
+    <span class="opt">(&apos;</span>A<span class="opt">&apos; , &apos;</span>T<span class="opt">&apos;), ( &apos;</span>a<span class="opt">&apos; , &apos;</span>T<span class="opt">&apos;), ( &apos;</span>C<span class="opt">&apos; , &apos;</span>G<span class="opt">&apos;), ( &apos;</span>c<span class="opt">&apos; , &apos;</span>G<span class="opt">&apos;), ( &apos;</span>G<span class="opt">&apos; , &apos;</span>C<span class="opt">&apos;),</span>
+    <span class="opt">(&apos;</span>g<span class="opt">&apos; , &apos;</span>C<span class="opt">&apos;), ( &apos;</span>T<span class="opt">&apos; , &apos;</span>A<span class="opt">&apos;), ( &apos;</span>t<span class="opt">&apos; , &apos;</span>A<span class="opt">&apos;), ( &apos;</span>U<span class="opt">&apos; , &apos;</span>A<span class="opt">&apos;), ( &apos;</span>u<span class="opt">&apos; , &apos;</span>A<span class="opt">&apos;),</span>
+    <span class="opt">(&apos;</span>M<span class="opt">&apos; , &apos;</span>K<span class="opt">&apos;), ( &apos;</span>m<span class="opt">&apos; , &apos;</span>K<span class="opt">&apos;), ( &apos;</span>R<span class="opt">&apos; , &apos;</span>Y<span class="opt">&apos;), ( &apos;</span>r<span class="opt">&apos; , &apos;</span>Y<span class="opt">&apos;), ( &apos;</span>Y<span class="opt">&apos; , &apos;</span>R<span class="opt">&apos;),</span>
+    <span class="opt">(&apos;</span>y<span class="opt">&apos; , &apos;</span>R<span class="opt">&apos;), ( &apos;</span>K<span class="opt">&apos; , &apos;</span>M<span class="opt">&apos;), ( &apos;</span>k<span class="opt">&apos; , &apos;</span>M<span class="opt">&apos;), ( &apos;</span>V<span class="opt">&apos; , &apos;</span>B<span class="opt">&apos;), ( &apos;</span>v<span class="opt">&apos; , &apos;</span>B<span class="opt">&apos;),</span>
+    <span class="opt">(&apos;</span>H<span class="opt">&apos; , &apos;</span>D<span class="opt">&apos;), ( &apos;</span>h<span class="opt">&apos; , &apos;</span>D<span class="opt">&apos;), ( &apos;</span>D<span class="opt">&apos; , &apos;</span>H<span class="opt">&apos;), ( &apos;</span>d<span class="opt">&apos; , &apos;</span>H<span class="opt">&apos;), ( &apos;</span>B<span class="opt">&apos; , &apos;</span>V<span class="opt">&apos;), ( &apos;</span>b<span class="opt">&apos; , &apos;</span>V<span class="opt">&apos;)]</span>
+
+ca <span class="opt">::</span> Ptr Word8
+ca <span class="opt">=</span> inlinePerformIO <span class="opt">$</span> <span class="kwd">do</span>
+       a <span class="opt">&lt;-</span> mallocArray <span class="num">200</span>
+       <span class="kwc">mapM_</span> <span class="opt">(</span><span class="kwc">uncurry</span> <span class="opt">(</span>pokeByteOff a<span class="opt">)) $</span> <span class="kwc">zip</span> <span class="opt">[</span><span class="num">0</span><span class="opt">.</span><span class="num">.199</span><span class="opt">::</span><span class="kwb">Int</span><span class="opt">] [</span><span class="num">0</span><span class="opt">.</span><span class="num">.199</span><span class="opt">::</span>Word8<span class="opt">]</span>
+       <span class="kwc">mapM_</span> <span class="opt">(</span><span class="kwc">uncurry</span> <span class="opt">(</span>pokeByteOff a<span class="opt">))</span> comps
+       <span class="kwc">return</span> a
+
+comp <span class="opt">::</span> Word<span class="opt"># -&gt;</span> Word<span class="opt">#</span>
+comp c <span class="opt">=</span> rw8 ca <span class="opt">(</span>word2Int<span class="opt">#</span> c<span class="opt">)</span>
+
+revcomp <span class="opt">(</span>PS fp s <span class="opt">(</span>I<span class="opt">#</span> l<span class="opt">)) =</span> withForeignPtr fp <span class="opt">$ \</span>p <span class="opt">-&gt;</span> rc <span class="opt">(</span>p `plusPtr` s<span class="opt">)</span> <span class="num">0</span><span class="opt"># (</span>l <span class="opt">-#</span> <span class="num">1</span><span class="opt">#)</span>
+  <span class="kwd">where</span>
+    rc <span class="opt">::</span> Ptr Word8 <span class="opt">-&gt;</span> <span class="kwb">Int</span><span class="opt"># -&gt;</span> <span class="kwb">Int</span><span class="opt"># -&gt;</span> <span class="kwb">IO</span> <span class="opt">()</span>
+    rc p i j  <span class="opt">=</span> rc<span class="opt">&apos;</span> i j
+        <span class="kwd">where</span>
+          rc<span class="opt">&apos;</span> i j
+              | isTrue<span class="opt"># (</span>i <span class="opt">&lt;#</span> j<span class="opt">) =</span> <span class="kwd">do</span>
+                          <span class="kwd">let</span> x <span class="opt">=</span> rw8 p i
+                          ww8 p i <span class="opt">(</span>comp <span class="opt">(</span>rw8 p j<span class="opt">))</span>
+                          ww8 p j <span class="opt">(</span>comp x<span class="opt">)</span>
+                          rc<span class="opt">&apos; (</span>i <span class="opt">+#</span> <span class="num">1</span><span class="opt">#) (</span>j <span class="opt">-#</span> <span class="num">1</span><span class="opt">#)</span>
+              | isTrue<span class="opt"># (</span>i <span class="opt">==#</span> j<span class="opt">) =</span> ww8 p i <span class="opt">(</span>comp <span class="opt">(</span>rw8 p i<span class="opt">))</span>
+              | <span class="kwc">otherwise</span> <span class="opt">=</span>  <span class="kwc">return</span> <span class="opt">()</span>
+
+rw8 <span class="opt">::</span> Ptr Word8 <span class="opt">-&gt;</span> <span class="kwb">Int</span><span class="opt"># -&gt;</span> Word<span class="opt">#</span>
+rw8 <span class="opt">(</span>Ptr a<span class="opt">)</span> i <span class="opt">=</span> <span class="kwd">case</span> readWord8OffAddr<span class="opt">#</span> a i realWorld<span class="opt">#</span>  <span class="kwd">of</span> <span class="opt">(#</span> _<span class="opt">,</span> x <span class="opt">#) -&gt;</span>  x
+<span class="com">{-# INLINE rw8 #-}</span>
+
+ww8 <span class="opt">::</span> Ptr Word8 <span class="opt">-&gt;</span> <span class="kwb">Int</span><span class="opt"># -&gt;</span> Word<span class="opt"># -&gt;</span> <span class="kwb">IO</span> <span class="opt">()</span>
+ww8 <span class="opt">(</span>Ptr a<span class="opt">)</span> i x  <span class="opt">=</span> <span class="kwb">IO</span> <span class="opt">$ \</span>s <span class="opt">-&gt;</span> <span class="kwd">case</span> writeWord8OffAddr<span class="opt">#</span> a i x s <span class="kwd">of</span> s2 <span class="opt">-&gt; (#</span> s2<span class="opt">, () #)</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

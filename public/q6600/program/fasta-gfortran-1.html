@@ -17,6 +17,186 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc">! The Computer Language Benchmarks Game</span>
+<span class="slc">! https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">!</span>
+<span class="slc">! fasta implementation - translated from the lua program</span>
+<span class="slc">! contributed by Simon Geard, 18/1/05</span>
+<span class="slc">!</span>
+<span class="slc">! Building info.</span>
+<span class="slc">! ==============</span>
+<span class="slc">!</span>
+<span class="slc">! Linux  - using the Intel Fortran90 compiler:</span>
+<span class="slc">!</span>
+<span class="slc">!          ifort fasta.f90 -O3 -static-libcxa -o fasta</span>
+<span class="slc">!</span>
+<span class="slc">! Run</span>
+<span class="slc">! ===</span>
+<span class="slc">!          fasta 1000</span>
+
+<span class="kwa">program</span> fasta
+
+ <span class="kwa">implicit none</span>
+  <span class="kwa">integer</span> num<span class="opt">,</span> m
+  <span class="kwa">character</span><span class="opt">(</span>len<span class="opt">=</span><span class="num">8</span><span class="opt">)</span> argv
+  <span class="kwa">logical</span><span class="opt">,</span> <span class="kwa">dimension</span><span class="opt">(:),</span> allocatable <span class="opt">::</span> flags
+  <span class="kwa">integer</span><span class="opt">,</span> <span class="kwa">parameter</span> <span class="opt">::</span> IM <span class="opt">=</span> <span class="num">139968</span>
+  <span class="kwa">integer</span><span class="opt">,</span> <span class="kwa">parameter</span> <span class="opt">::</span> IA <span class="opt">=</span> <span class="num">3877</span>
+  <span class="kwa">integer</span><span class="opt">,</span> <span class="kwa">parameter</span> <span class="opt">::</span> IC <span class="opt">=</span> <span class="num">29573</span>
+  <span class="kwa">character</span><span class="opt">(</span>len<span class="opt">=*),</span> <span class="kwa">parameter</span> <span class="opt">::</span> alu <span class="opt">= &amp;</span>
+<span class="str">&apos;GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGG&apos;</span> <span class="opt">// &amp;</span>
+<span class="str">&apos;GAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGA&apos;</span> <span class="opt">// &amp;</span>
+<span class="str">&apos;CCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAAT&apos;</span> <span class="opt">// &amp;</span>
+<span class="str">&apos;ACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCA&apos;</span> <span class="opt">// &amp;</span>
+<span class="str">&apos;GCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGG&apos;</span> <span class="opt">// &amp;</span>
+<span class="str">&apos;AGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCC&apos;</span> <span class="opt">// &amp;</span>
+<span class="str">&apos;AGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA&apos;</span>
+
+  <span class="kwa">type</span> pair
+     <span class="kwa">character</span><span class="opt">(</span>len<span class="opt">=</span><span class="num">1</span><span class="opt">)</span> c
+     <span class="kwa">real</span><span class="opt">*</span><span class="num">8</span> p
+  <span class="kwa">end type</span> pair
+  <span class="kwa">type</span><span class="opt">(</span>pair<span class="opt">),</span> <span class="kwa">dimension</span><span class="opt">(</span><span class="num">15</span><span class="opt">) ::</span> iub
+  <span class="kwa">type</span><span class="opt">(</span>pair<span class="opt">),</span> <span class="kwa">dimension</span><span class="opt">(</span><span class="num">4</span><span class="opt">)  ::</span> homosapiens
+  homosapiens <span class="opt">= (/</span> <span class="kwd">pair</span><span class="opt">(</span><span class="str">&apos;a&apos;</span><span class="opt">,</span> <span class="num">0.3029549426680d0</span><span class="opt">), &amp;</span>
+                   <span class="kwd">pair</span><span class="opt">(</span><span class="str">&apos;c&apos;</span><span class="opt">,</span> <span class="num">0.1979883004921d0</span><span class="opt">), &amp;</span>
+                   <span class="kwd">pair</span><span class="opt">(</span><span class="str">&apos;g&apos;</span><span class="opt">,</span> <span class="num">0.1975473066391d0</span><span class="opt">), &amp;</span>
+                   <span class="kwd">pair</span><span class="opt">(</span><span class="str">&apos;t&apos;</span><span class="opt">,</span> <span class="num">0.3015094502008d0</span><span class="opt">) /)</span>
+  <span class="kwa">call</span> <span class="kwd">makeCumulative</span><span class="opt">(</span>homosapiens<span class="opt">)</span>
+  
+  iub <span class="opt">= (/</span> <span class="kwd">pair</span><span class="opt">(</span><span class="str">&apos;a&apos;</span><span class="opt">,</span> <span class="num">0.27d0</span><span class="opt">), &amp;</span>
+           <span class="kwd">pair</span><span class="opt">(</span><span class="str">&apos;c&apos;</span><span class="opt">,</span> <span class="num">0.12d0</span><span class="opt">), &amp;</span>
+           <span class="kwd">pair</span><span class="opt">(</span><span class="str">&apos;g&apos;</span><span class="opt">,</span> <span class="num">0.12d0</span><span class="opt">), &amp;</span>
+           <span class="kwd">pair</span><span class="opt">(</span><span class="str">&apos;t&apos;</span><span class="opt">,</span> <span class="num">0.27d0</span><span class="opt">), &amp;</span>
+           <span class="kwd">pair</span><span class="opt">(</span><span class="str">&apos;B&apos;</span><span class="opt">,</span> <span class="num">0.02d0</span><span class="opt">), &amp;</span>
+           <span class="kwd">pair</span><span class="opt">(</span><span class="str">&apos;D&apos;</span><span class="opt">,</span> <span class="num">0.02d0</span><span class="opt">), &amp;</span>
+           <span class="kwd">pair</span><span class="opt">(</span><span class="str">&apos;H&apos;</span><span class="opt">,</span> <span class="num">0.02d0</span><span class="opt">), &amp;</span>
+           <span class="kwd">pair</span><span class="opt">(</span><span class="str">&apos;K&apos;</span><span class="opt">,</span> <span class="num">0.02d0</span><span class="opt">), &amp;</span>
+           <span class="kwd">pair</span><span class="opt">(</span><span class="str">&apos;M&apos;</span><span class="opt">,</span> <span class="num">0.02d0</span><span class="opt">), &amp;</span>
+           <span class="kwd">pair</span><span class="opt">(</span><span class="str">&apos;N&apos;</span><span class="opt">,</span> <span class="num">0.02d0</span><span class="opt">), &amp;</span>
+           <span class="kwd">pair</span><span class="opt">(</span><span class="str">&apos;R&apos;</span><span class="opt">,</span> <span class="num">0.02d0</span><span class="opt">), &amp;</span>
+           <span class="kwd">pair</span><span class="opt">(</span><span class="str">&apos;S&apos;</span><span class="opt">,</span> <span class="num">0.02d0</span><span class="opt">), &amp;</span>
+           <span class="kwd">pair</span><span class="opt">(</span><span class="str">&apos;V&apos;</span><span class="opt">,</span> <span class="num">0.02d0</span><span class="opt">), &amp;</span>
+           <span class="kwd">pair</span><span class="opt">(</span><span class="str">&apos;W&apos;</span><span class="opt">,</span> <span class="num">0.02d0</span><span class="opt">), &amp;</span>
+           <span class="kwd">pair</span><span class="opt">(</span><span class="str">&apos;Y&apos;</span><span class="opt">,</span> <span class="num">0.02d0</span><span class="opt">) /)</span>
+  <span class="kwa">call</span> <span class="kwd">makeCumulative</span><span class="opt">(</span>iub<span class="opt">)</span>
+
+  <span class="kwa">call</span> <span class="kwd">getarg</span><span class="opt">(</span><span class="num">1</span><span class="opt">,</span>argv<span class="opt">)</span>
+  <span class="kwa">read</span><span class="opt">(</span>argv<span class="opt">,*)</span> num
+ 
+
+  <span class="kwa">call</span> <span class="kwd">makeRepeatFasta</span><span class="opt">(</span><span class="str">&apos;ONE&apos;</span><span class="opt">,</span><span class="str">&apos;Homo sapiens alu&apos;</span><span class="opt">,</span>alu<span class="opt">,</span>num<span class="opt">*</span><span class="num">2</span><span class="opt">)</span>
+
+  <span class="kwa">call</span> <span class="kwd">makeRandomFasta</span><span class="opt">(</span><span class="str">&apos;TWO&apos;</span><span class="opt">,</span><span class="str">&apos;IUB ambiguity codes&apos;</span><span class="opt">,</span>iub<span class="opt">,</span>num<span class="opt">*</span><span class="num">3</span><span class="opt">)</span>
+
+  <span class="kwa">call</span> <span class="kwd">makeRandomFasta</span><span class="opt">(</span><span class="str">&apos;THREE&apos;</span><span class="opt">,</span><span class="str">&apos;Homo sapiens frequency&apos;</span><span class="opt">,</span>homosapiens<span class="opt">,</span>num<span class="opt">*</span><span class="num">5</span><span class="opt">)</span>
+
+     
+<span class="kwa">contains</span>
+
+  <span class="kwa">real</span><span class="opt">*</span><span class="num">8</span> <span class="kwa">function</span> <span class="kwd">getRandom</span> <span class="opt">(</span>maxval<span class="opt">)</span>
+    <span class="kwa">real</span><span class="opt">*</span><span class="num">8</span><span class="opt">,</span> <span class="kwd">intent</span><span class="opt">(</span>in<span class="opt">) ::</span> maxval
+    <span class="kwa">integer</span><span class="opt">,</span> <span class="kwa">save</span> <span class="opt">::</span> last <span class="opt">=</span> <span class="num">42</span>
+
+    last <span class="opt">=</span> <span class="kwd">mod</span><span class="opt">(</span>last <span class="opt">*</span> IA <span class="opt">+</span> IC<span class="opt">,</span> IM<span class="opt">)</span>
+    getRandom <span class="opt">=</span> maxval <span class="opt">*</span> last <span class="opt">/</span> IM
+
+  <span class="kwa">end function</span> getRandom
+
+  <span class="kwa">subroutine</span> <span class="kwd">makeCumulative</span><span class="opt">(</span>a<span class="opt">)</span>
+     <span class="kwa">type</span><span class="opt">(</span>pair<span class="opt">),</span> <span class="kwa">dimension</span><span class="opt">(:),</span> <span class="kwd">intent</span><span class="opt">(</span>inout<span class="opt">) ::</span> a
+     <span class="kwa">integer</span> i
+     <span class="kwa">real</span><span class="opt">*</span><span class="num">8</span> <span class="opt">::</span> cp
+     
+     cp <span class="opt">=</span> <span class="num">0.0d0</span>
+     <span class="kwa">do</span> i<span class="opt">=</span><span class="num">1</span><span class="opt">,</span><span class="kwd">size</span><span class="opt">(</span>a<span class="opt">)</span>
+        cp <span class="opt">=</span> cp <span class="opt">+</span> <span class="kwd">a</span><span class="opt">(</span>i<span class="opt">)%</span>p
+        <span class="kwd">a</span><span class="opt">(</span>i<span class="opt">)%</span>p <span class="opt">=</span> cp
+     <span class="kwa">end do</span>
+  <span class="kwa">end subroutine</span> makeCumulative
+  
+  <span class="kwa">character</span><span class="opt">(</span>len<span class="opt">=</span><span class="num">1</span><span class="opt">)</span> <span class="kwa">function</span> <span class="kwd">selectRandom</span><span class="opt">(</span>a<span class="opt">)</span>
+      <span class="kwa">type</span><span class="opt">(</span>pair<span class="opt">),</span> <span class="kwa">dimension</span><span class="opt">(:),</span> <span class="kwd">intent</span><span class="opt">(</span>inout<span class="opt">) ::</span> a
+     <span class="kwa">integer</span> i
+     <span class="kwa">real</span><span class="opt">*</span><span class="num">8</span> <span class="opt">::</span> r
+     
+     r <span class="opt">=</span> <span class="kwd">getRandom</span><span class="opt">(</span><span class="num">1.0d0</span><span class="opt">)</span>
+     selectRandom <span class="opt">=</span> <span class="str">&apos;J&apos;</span>
+     <span class="kwa">do</span> i<span class="opt">=</span><span class="num">1</span><span class="opt">,</span><span class="kwd">size</span><span class="opt">(</span>a<span class="opt">)</span>
+        <span class="kwa">if</span> <span class="opt">(</span>r <span class="opt">&lt;</span> <span class="kwd">a</span><span class="opt">(</span>i<span class="opt">)%</span>p<span class="opt">)</span> <span class="kwa">then</span>
+           selectRandom <span class="opt">=</span> <span class="kwd">a</span><span class="opt">(</span>i<span class="opt">)%</span>c
+           <span class="kwa">return</span>
+        <span class="kwa">end if</span>
+     <span class="kwa">end do</span>
+  
+  <span class="kwa">end function</span> selectRandom
+  
+  <span class="kwa">subroutine</span> <span class="kwd">makeRandomFasta</span><span class="opt">(</span>id<span class="opt">,</span>desc<span class="opt">,</span>a<span class="opt">,</span>n<span class="opt">)</span>
+     <span class="kwa">character</span><span class="opt">(</span>len<span class="opt">=*),</span> <span class="kwd">intent</span><span class="opt">(</span>in<span class="opt">) ::</span> id
+     <span class="kwa">character</span><span class="opt">(</span>len<span class="opt">=*),</span> <span class="kwd">intent</span><span class="opt">(</span>in<span class="opt">) ::</span> desc
+     <span class="kwa">type</span><span class="opt">(</span>pair<span class="opt">),</span> <span class="kwa">dimension</span><span class="opt">(:),</span> <span class="kwd">intent</span><span class="opt">(</span>inout<span class="opt">) ::</span> a
+     <span class="kwa">integer</span><span class="opt">,</span> <span class="kwd">intent</span><span class="opt">(</span>in<span class="opt">) ::</span> n
+     <span class="kwa">integer</span> <span class="opt">::</span> todo<span class="opt">,</span> i
+     <span class="kwa">integer</span><span class="opt">,</span> <span class="kwa">parameter</span> <span class="opt">::</span> length <span class="opt">=</span> <span class="num">60</span>
+     <span class="kwa">character</span><span class="opt">(</span>len<span class="opt">=</span>length<span class="opt">) ::</span> buff
+
+     <span class="kwa">write</span><span class="opt">(*,</span><span class="str">&apos;(4a)&apos;</span><span class="opt">)</span> <span class="str">&apos;&gt;&apos;</span><span class="opt">,</span>id<span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span>desc
+     todo <span class="opt">=</span> n
+     <span class="kwa">do</span>
+        <span class="kwa">if</span> <span class="opt">(</span>todo <span class="opt">&lt;=</span> <span class="num">0</span><span class="opt">)</span> exit
+        <span class="kwa">if</span> <span class="opt">(</span>todo <span class="opt">&lt;</span> length<span class="opt">)</span> <span class="kwa">then</span>
+           m <span class="opt">=</span> todo
+        <span class="kwa">else</span>
+           m <span class="opt">=</span> length
+        <span class="kwa">end if</span>
+        <span class="kwa">do</span> i<span class="opt">=</span><span class="num">1</span><span class="opt">,</span>m
+           <span class="kwd">buff</span><span class="opt">(</span>i<span class="opt">:</span>i<span class="opt">) =</span> <span class="kwd">selectRandom</span><span class="opt">(</span>a<span class="opt">)</span>
+        <span class="kwa">end do</span>
+        <span class="kwa">write</span><span class="opt">(*,</span><span class="str">&apos;(a)&apos;</span><span class="opt">)</span> <span class="kwd">buff</span><span class="opt">(</span><span class="num">1</span><span class="opt">:</span>m<span class="opt">)</span>
+        todo <span class="opt">=</span> todo <span class="opt">-</span> length
+     <span class="kwa">end do</span>
+  <span class="kwa">end subroutine</span> makeRandomFasta
+
+  <span class="kwa">subroutine</span> <span class="kwd">makeRepeatFasta</span><span class="opt">(</span>id<span class="opt">,</span>desc<span class="opt">,</span>s<span class="opt">,</span>n<span class="opt">)</span>
+     <span class="kwa">character</span><span class="opt">(</span>len<span class="opt">=*),</span> <span class="kwd">intent</span><span class="opt">(</span>in<span class="opt">) ::</span> id
+     <span class="kwa">character</span><span class="opt">(</span>len<span class="opt">=*),</span> <span class="kwd">intent</span><span class="opt">(</span>in<span class="opt">) ::</span> desc
+     <span class="kwa">character</span><span class="opt">(</span>len<span class="opt">=*),</span> <span class="kwd">intent</span><span class="opt">(</span>in<span class="opt">) ::</span> s
+     <span class="kwa">integer</span><span class="opt">,</span> <span class="kwd">intent</span><span class="opt">(</span>in<span class="opt">) ::</span> n
+     <span class="kwa">integer</span> <span class="opt">::</span> todo<span class="opt">,</span> i<span class="opt">,</span> j<span class="opt">,</span> k<span class="opt">,</span> kn
+     <span class="kwa">integer</span><span class="opt">,</span> <span class="kwa">parameter</span> <span class="opt">::</span> length <span class="opt">=</span> <span class="num">60</span>
+     <span class="kwa">character</span><span class="opt">(</span>len<span class="opt">=</span>length<span class="opt">) ::</span> buff
+     <span class="kwa">intrinsic</span> len
+
+     <span class="kwa">write</span><span class="opt">(*,</span><span class="str">&apos;(4a)&apos;</span><span class="opt">)</span> <span class="str">&apos;&gt;&apos;</span><span class="opt">,</span>id<span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span>desc
+     todo <span class="opt">=</span> n<span class="opt">;</span> k <span class="opt">=</span> <span class="num">1</span><span class="opt">;</span> kn <span class="opt">=</span> <span class="kwd">len</span><span class="opt">(</span>s<span class="opt">)</span>
+     <span class="kwa">do</span>
+        <span class="kwa">if</span> <span class="opt">(</span>todo <span class="opt">&lt;=</span> <span class="num">0</span><span class="opt">)</span> exit
+        <span class="kwa">if</span> <span class="opt">(</span>todo <span class="opt">&lt;</span> length<span class="opt">)</span> <span class="kwa">then</span>
+           m <span class="opt">=</span> todo
+        <span class="kwa">else</span>
+           m <span class="opt">=</span> length
+        <span class="kwa">end if</span>
+        <span class="kwa">do</span> j<span class="opt">=</span><span class="num">1</span><span class="opt">,</span>m
+           <span class="kwa">if</span> <span class="opt">(</span>k <span class="opt">&gt;</span> kn<span class="opt">)</span> <span class="kwa">then</span>
+              k <span class="opt">=</span> <span class="num">1</span>
+           <span class="kwa">endif</span>
+           <span class="kwd">buff</span><span class="opt">(</span>j<span class="opt">:</span>j<span class="opt">) =</span> <span class="kwd">s</span><span class="opt">(</span>k<span class="opt">:</span>k<span class="opt">)</span>
+           k <span class="opt">=</span> k <span class="opt">+</span> <span class="num">1</span>
+        <span class="kwa">end do</span>
+        <span class="kwa">write</span><span class="opt">(*,</span><span class="str">&apos;(a)&apos;</span><span class="opt">)</span> <span class="kwd">buff</span><span class="opt">(</span><span class="num">1</span><span class="opt">:</span>m<span class="opt">)</span>
+        todo <span class="opt">=</span> todo <span class="opt">-</span> length
+     <span class="kwa">end do</span>
+
+  <span class="kwa">end subroutine</span> makeRepeatFasta
+
+<span class="kwa">end program</span> fasta
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

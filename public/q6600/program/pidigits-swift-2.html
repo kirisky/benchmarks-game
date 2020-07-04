@@ -17,6 +17,110 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc">// The Computer Language Benchmark Game</span>
+<span class="slc">// https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">//</span>
+<span class="slc">// Inspired by the gcc implementation</span>
+<span class="slc">// contributed by Ralph Ganszky</span>
+
+<span class="kwa">import</span> gmp
+
+<span class="slc">// Get command line options</span>
+<span class="kwa">let</span> <span class="kwc">n</span><span class="opt">:</span> UInt
+<span class="kwa">if</span> CommandLine<span class="opt">.</span>argc <span class="opt">&gt;</span> <span class="num">1</span> <span class="opt">{</span>
+    <span class="kwc">n</span> <span class="opt">=</span> <span class="kwd">UInt</span><span class="opt">(</span>CommandLine<span class="opt">.</span>arguments<span class="opt">[</span><span class="num">1</span><span class="opt">])</span> ?? <span class="num">50</span>
+<span class="opt">}</span> <span class="kwa">else</span> <span class="opt">{</span>
+    <span class="kwc">n</span> <span class="opt">=</span> <span class="num">50</span>
+<span class="opt">}</span>
+
+<span class="slc">// Allocate numbers and defer their destruction</span>
+<span class="kwa">let</span> <span class="kwc">tmp1</span> <span class="opt">=</span> UnsafeMutablePointer<span class="opt">&lt;</span>mpz_t<span class="opt">&gt;.</span><span class="kwd">allocate</span><span class="opt">(</span>capacity<span class="opt">:</span> <span class="num">1</span><span class="opt">)</span>
+<span class="kwa">let</span> <span class="kwc">tmp2</span> <span class="opt">=</span> UnsafeMutablePointer<span class="opt">&lt;</span>mpz_t<span class="opt">&gt;.</span><span class="kwd">allocate</span><span class="opt">(</span>capacity<span class="opt">:</span> <span class="num">1</span><span class="opt">)</span>
+<span class="kwa">let</span> <span class="kwc">acc</span> <span class="opt">=</span> UnsafeMutablePointer<span class="opt">&lt;</span>mpz_t<span class="opt">&gt;.</span><span class="kwd">allocate</span><span class="opt">(</span>capacity<span class="opt">:</span> <span class="num">1</span><span class="opt">)</span>
+<span class="kwa">let</span> <span class="kwc">den</span> <span class="opt">=</span> UnsafeMutablePointer<span class="opt">&lt;</span>mpz_t<span class="opt">&gt;.</span><span class="kwd">allocate</span><span class="opt">(</span>capacity<span class="opt">:</span> <span class="num">1</span><span class="opt">)</span>
+<span class="kwa">let</span> <span class="kwc">num</span> <span class="opt">=</span> UnsafeMutablePointer<span class="opt">&lt;</span>mpz_t<span class="opt">&gt;.</span><span class="kwd">allocate</span><span class="opt">(</span>capacity<span class="opt">:</span> <span class="num">1</span><span class="opt">)</span>
+defer <span class="opt">{</span>
+    <span class="kwd">__gmpz_clear</span><span class="opt">(</span><span class="kwc">tmp1</span><span class="opt">)</span>
+    <span class="kwd">__gmpz_clear</span><span class="opt">(</span><span class="kwc">tmp2</span><span class="opt">)</span>
+    <span class="kwd">__gmpz_clear</span><span class="opt">(</span><span class="kwc">acc</span><span class="opt">)</span>
+    <span class="kwd">__gmpz_clear</span><span class="opt">(</span><span class="kwc">den</span><span class="opt">)</span>
+    <span class="kwd">__gmpz_clear</span><span class="opt">(</span><span class="kwc">num</span><span class="opt">)</span>
+
+    <span class="kwc">tmp1</span><span class="opt">.</span><span class="kwd">deallocate</span><span class="opt">()</span>
+    <span class="kwc">tmp2</span><span class="opt">.</span><span class="kwd">deallocate</span><span class="opt">()</span>
+    <span class="kwc">acc</span><span class="opt">.</span><span class="kwd">deallocate</span><span class="opt">()</span>
+    <span class="kwc">den</span><span class="opt">.</span><span class="kwd">deallocate</span><span class="opt">()</span>
+    <span class="kwc">num</span><span class="opt">.</span><span class="kwd">deallocate</span><span class="opt">()</span>
+<span class="opt">}</span>
+
+<span class="slc">// Initialize numbers</span>
+<span class="kwd">__gmpz_init</span><span class="opt">(</span><span class="kwc">tmp1</span><span class="opt">)</span>
+<span class="kwd">__gmpz_init</span><span class="opt">(</span><span class="kwc">tmp2</span><span class="opt">)</span>
+
+<span class="kwd">__gmpz_init_set_ui</span><span class="opt">(</span><span class="kwc">acc</span><span class="opt">,</span> <span class="num">0</span><span class="opt">)</span>
+<span class="kwd">__gmpz_init_set_ui</span><span class="opt">(</span><span class="kwc">den</span><span class="opt">,</span> <span class="num">1</span><span class="opt">)</span>
+<span class="kwd">__gmpz_init_set_ui</span><span class="opt">(</span><span class="kwc">num</span><span class="opt">,</span> <span class="num">1</span><span class="opt">)</span>
+
+<span class="kwa">func</span> <span class="kwd">extractDigit</span><span class="opt">(</span>_ <span class="kwc">n</span><span class="opt">:</span> UInt<span class="opt">) -&gt;</span> UInt <span class="opt">{</span>
+    <span class="kwd">__gmpz_mul_ui</span><span class="opt">(</span><span class="kwc">tmp1</span><span class="opt">,</span> <span class="kwc">num</span><span class="opt">,</span> <span class="kwc">n</span><span class="opt">)</span>
+    <span class="kwd">__gmpz_add</span><span class="opt">(</span><span class="kwc">tmp2</span><span class="opt">,</span> <span class="kwc">tmp1</span><span class="opt">,</span> <span class="kwc">acc</span><span class="opt">)</span>
+    <span class="kwd">__gmpz_tdiv_q</span><span class="opt">(</span><span class="kwc">tmp1</span><span class="opt">,</span> <span class="kwc">tmp2</span><span class="opt">,</span> <span class="kwc">den</span><span class="opt">)</span>
+    <span class="kwa">return</span> <span class="kwd">__gmpz_get_ui</span><span class="opt">(</span><span class="kwc">tmp1</span><span class="opt">)</span>
+<span class="opt">}</span>
+
+<span class="kwa">func</span> <span class="kwd">eliminateDigit</span><span class="opt">(</span>_ d<span class="opt">:</span> UInt<span class="opt">) {</span>
+    <span class="kwd">__gmpz_submul_ui</span><span class="opt">(</span><span class="kwc">acc</span><span class="opt">,</span> <span class="kwc">den</span><span class="opt">,</span> d<span class="opt">)</span>
+    <span class="kwd">__gmpz_mul_ui</span><span class="opt">(</span><span class="kwc">acc</span><span class="opt">,</span> <span class="kwc">acc</span><span class="opt">,</span> <span class="num">10</span><span class="opt">)</span>
+    <span class="kwd">__gmpz_mul_ui</span><span class="opt">(</span><span class="kwc">num</span><span class="opt">,</span> <span class="kwc">num</span><span class="opt">,</span> <span class="num">10</span><span class="opt">)</span>
+<span class="opt">}</span>
+
+<span class="kwa">func</span> <span class="kwd">nextTerm</span><span class="opt">(</span>_ k<span class="opt">:</span> UInt<span class="opt">) {</span>
+    <span class="kwa">let</span> <span class="kwc">k2</span> <span class="opt">=</span> <span class="num">2</span><span class="opt">*</span>k<span class="opt">+</span><span class="num">1</span>
+    <span class="kwd">__gmpz_addmul_ui</span><span class="opt">(</span><span class="kwc">acc</span><span class="opt">,</span> <span class="kwc">num</span><span class="opt">,</span> <span class="num">2</span><span class="opt">)</span>
+    <span class="kwd">__gmpz_mul_ui</span><span class="opt">(</span><span class="kwc">acc</span><span class="opt">,</span> <span class="kwc">acc</span><span class="opt">,</span> <span class="kwc">k2</span><span class="opt">)</span>
+    <span class="kwd">__gmpz_mul_ui</span><span class="opt">(</span><span class="kwc">den</span><span class="opt">,</span> <span class="kwc">den</span><span class="opt">,</span> <span class="kwc">k2</span><span class="opt">)</span>
+    <span class="kwd">__gmpz_mul_ui</span><span class="opt">(</span><span class="kwc">num</span><span class="opt">,</span> <span class="kwc">num</span><span class="opt">,</span> k<span class="opt">)</span>
+<span class="opt">}</span>
+
+<span class="kwa">var</span> <span class="kwc">d</span><span class="opt">:</span> UInt
+<span class="kwa">var</span> <span class="kwc">d4</span><span class="opt">:</span> UInt
+<span class="kwa">var</span> <span class="kwc">k</span><span class="opt">:</span> UInt <span class="opt">=</span> <span class="num">0</span>
+<span class="kwa">var</span> <span class="kwc">i</span><span class="opt">:</span> UInt <span class="opt">=</span> <span class="num">0</span>
+
+<span class="slc">// Generate digits</span>
+<span class="kwa">for</span> <span class="kwc">i</span> <span class="kwa">in</span> <span class="num">1</span><span class="opt">...</span><span class="kwc">n</span> <span class="opt">{</span>
+    repeat <span class="opt">{</span>
+	repeat <span class="opt">{</span>
+	    <span class="kwc">k</span> <span class="opt">+=</span> <span class="num">1</span>
+	    <span class="kwd">nextTerm</span><span class="opt">(</span><span class="kwc">k</span><span class="opt">)</span>
+	<span class="opt">}</span> <span class="kwa">while</span> <span class="kwd">__gmpz_cmp</span><span class="opt">(</span><span class="kwc">num</span><span class="opt">,</span> <span class="kwc">acc</span><span class="opt">) &gt;</span> <span class="num">0</span>
+
+	<span class="kwc">d</span> <span class="opt">=</span> <span class="kwd">extractDigit</span><span class="opt">(</span><span class="num">3</span><span class="opt">)</span>
+	<span class="kwc">d4</span> <span class="opt">=</span> <span class="kwd">extractDigit</span><span class="opt">(</span><span class="num">4</span><span class="opt">)</span>
+    <span class="opt">}</span> <span class="kwa">while</span> <span class="kwc">d</span> <span class="opt">!=</span> <span class="kwc">d4</span>
+
+    <span class="slc">// Output digit</span>
+    <span class="kwd">print</span><span class="opt">(</span><span class="str">&quot;</span><span class="ipl">\(d)</span><span class="str">&quot;</span><span class="opt">,</span> terminator<span class="opt">:</span> <span class="str">&quot;&quot;</span><span class="opt">)</span>
+    <span class="kwa">if</span> <span class="kwc">i</span> <span class="opt">%</span> <span class="num">10</span> <span class="opt">==</span> <span class="num">0</span> <span class="opt">{</span>
+	<span class="kwd">print</span><span class="opt">(</span><span class="str">&quot;</span><span class="esc">\t</span><span class="str">:</span><span class="ipl">\(i)</span><span class="str">&quot;</span><span class="opt">)</span>
+    <span class="opt">}</span>
+
+    <span class="kwd">eliminateDigit</span><span class="opt">(</span><span class="kwc">d</span><span class="opt">)</span>
+<span class="opt">}</span>
+<span class="kwa">if</span> <span class="kwc">n</span> <span class="opt">%</span> <span class="num">10</span> <span class="opt">!=</span> <span class="num">0</span> <span class="opt">{</span>
+    <span class="kwa">for</span> _ <span class="kwa">in</span> <span class="num">0</span><span class="opt">..&lt;(</span><span class="num">10</span><span class="opt">-(</span><span class="kwc">n</span><span class="opt">%</span><span class="num">10</span><span class="opt">)) {</span>
+	<span class="kwd">print</span><span class="opt">(</span><span class="str">&quot; &quot;</span><span class="opt">,</span> terminator<span class="opt">:</span> <span class="str">&quot;&quot;</span><span class="opt">)</span>
+    <span class="opt">}</span>
+    <span class="kwd">print</span><span class="opt">(</span><span class="str">&quot;</span><span class="esc">\t</span><span class="str">:</span><span class="ipl">\(n)</span><span class="str">&quot;</span><span class="opt">)</span>
+<span class="opt">}</span>
+
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

@@ -17,6 +17,125 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="com">/* The Computer Language Benchmarks Game</span>
+<span class="com"> * https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="com"> *</span>
+<span class="com"> * based on pidigits.c (by Paolo Bonzini &amp; Sean Bartlett,</span>
+<span class="com"> *                      modified by Michael Mellor)</span>
+<span class="com"> *</span>
+<span class="com"> * contributed by The Go Authors.</span>
+<span class="com"> * flag.Arg hack by Isaac Gouy</span>
+<span class="com"> * line printer hack by Sean Lake</span>
+<span class="com"> * &quot;math/big&quot; package replaced by &quot;github.com/ncw/gmp&quot; by pav5000</span>
+<span class="com"> * modified by Bert Gijsbers</span>
+<span class="com"> */</span>
+
+<span class="kwa">package</span> main
+
+<span class="kwa">import</span> <span class="opt">(</span>
+    <span class="str">&quot;bufio&quot;</span>
+    <span class="str">&quot;flag&quot;</span>
+    <span class="str">&quot;fmt&quot;</span>
+    big <span class="str">&quot;github.com/ncw/gmp&quot;</span>
+    <span class="str">&quot;os&quot;</span>
+    <span class="str">&quot;runtime&quot;</span>
+    <span class="str">&quot;strconv&quot;</span>
+<span class="opt">)</span>
+
+<span class="kwa">var</span> n <span class="opt">=</span> <span class="num">0</span>
+<span class="kwa">var</span> silent <span class="opt">=</span> <span class="kwb">false</span>
+
+<span class="kwa">var</span> <span class="opt">(</span>
+    tmp1  <span class="opt">=</span> big<span class="opt">.</span><span class="kwd">NewInt</span><span class="opt">(</span><span class="num">0</span><span class="opt">)</span>
+    tmp2  <span class="opt">=</span> big<span class="opt">.</span><span class="kwd">NewInt</span><span class="opt">(</span><span class="num">0</span><span class="opt">)</span>
+    y2    <span class="opt">=</span> big<span class="opt">.</span><span class="kwd">NewInt</span><span class="opt">(</span><span class="num">1</span><span class="opt">)</span>
+    bigk  <span class="opt">=</span> big<span class="opt">.</span><span class="kwd">NewInt</span><span class="opt">(</span><span class="num">0</span><span class="opt">)</span>
+    accum <span class="opt">=</span> big<span class="opt">.</span><span class="kwd">NewInt</span><span class="opt">(</span><span class="num">0</span><span class="opt">)</span>
+    denom <span class="opt">=</span> big<span class="opt">.</span><span class="kwd">NewInt</span><span class="opt">(</span><span class="num">1</span><span class="opt">)</span>
+    numer <span class="opt">=</span> big<span class="opt">.</span><span class="kwd">NewInt</span><span class="opt">(</span><span class="num">1</span><span class="opt">)</span>
+    ten   <span class="opt">=</span> big<span class="opt">.</span><span class="kwd">NewInt</span><span class="opt">(</span><span class="num">10</span><span class="opt">)</span>
+    three <span class="opt">=</span> big<span class="opt">.</span><span class="kwd">NewInt</span><span class="opt">(</span><span class="num">3</span><span class="opt">)</span>
+    four  <span class="opt">=</span> big<span class="opt">.</span><span class="kwd">NewInt</span><span class="opt">(</span><span class="num">4</span><span class="opt">)</span>
+<span class="opt">)</span>
+
+<span class="kwa">func</span> <span class="kwd">next_term</span><span class="opt">(</span>k <span class="kwb">int64</span><span class="opt">)</span> <span class="kwb">int64</span> <span class="opt">{</span>
+    <span class="kwa">for</span> <span class="opt">{</span>
+        k<span class="opt">++</span>
+        y2<span class="opt">.</span><span class="kwd">SetInt64</span><span class="opt">(</span>k<span class="opt">*</span><span class="num">2</span> <span class="opt">+</span> <span class="num">1</span><span class="opt">)</span>
+        bigk<span class="opt">.</span><span class="kwd">SetInt64</span><span class="opt">(</span>k<span class="opt">)</span>
+
+        tmp1<span class="opt">.</span><span class="kwd">Lsh</span><span class="opt">(</span>numer<span class="opt">,</span> <span class="num">1</span><span class="opt">)</span>
+        accum<span class="opt">.</span><span class="kwd">Add</span><span class="opt">(</span>accum<span class="opt">,</span> tmp1<span class="opt">)</span>
+        accum<span class="opt">.</span><span class="kwd">Mul</span><span class="opt">(</span>accum<span class="opt">,</span> y2<span class="opt">)</span>
+        denom<span class="opt">.</span><span class="kwd">Mul</span><span class="opt">(</span>denom<span class="opt">,</span> y2<span class="opt">)</span>
+        numer<span class="opt">.</span><span class="kwd">Mul</span><span class="opt">(</span>numer<span class="opt">,</span> bigk<span class="opt">)</span>
+
+        <span class="kwa">if</span> accum<span class="opt">.</span><span class="kwd">Cmp</span><span class="opt">(</span>numer<span class="opt">) &gt;</span> <span class="num">0</span> <span class="opt">{</span>
+            <span class="kwa">return</span> k
+        <span class="opt">}</span>
+    <span class="opt">}</span>
+<span class="opt">}</span>
+
+<span class="kwa">func</span> <span class="kwd">extract_digit</span><span class="opt">(</span>nth <span class="opt">*</span>big<span class="opt">.</span>Int<span class="opt">)</span> <span class="kwb">int64</span> <span class="opt">{</span>
+    tmp1<span class="opt">.</span><span class="kwd">Mul</span><span class="opt">(</span>nth<span class="opt">,</span> numer<span class="opt">)</span>
+    tmp2<span class="opt">.</span><span class="kwd">Add</span><span class="opt">(</span>tmp1<span class="opt">,</span> accum<span class="opt">)</span>
+    tmp1<span class="opt">.</span><span class="kwd">Div</span><span class="opt">(</span>tmp2<span class="opt">,</span> denom<span class="opt">)</span>
+    <span class="kwa">return</span> tmp1<span class="opt">.</span><span class="kwd">Int64</span><span class="opt">()</span>
+<span class="opt">}</span>
+
+<span class="kwa">func</span> <span class="kwd">next_digit</span><span class="opt">(</span>k <span class="kwb">int64</span><span class="opt">) (</span><span class="kwb">int64</span><span class="opt">,</span> <span class="kwb">int64</span><span class="opt">) {</span>
+    <span class="kwa">for</span> <span class="opt">{</span>
+        k <span class="opt">=</span> <span class="kwd">next_term</span><span class="opt">(</span>k<span class="opt">)</span>
+        d3 <span class="opt">:=</span> <span class="kwd">extract_digit</span><span class="opt">(</span>three<span class="opt">)</span>
+        d4 <span class="opt">:=</span> <span class="kwd">extract_digit</span><span class="opt">(</span>four<span class="opt">)</span>
+        <span class="kwa">if</span> d3 <span class="opt">==</span> d4 <span class="opt">{</span>
+            <span class="kwa">return</span> d3<span class="opt">,</span> k
+        <span class="opt">}</span>
+    <span class="opt">}</span>
+<span class="opt">}</span>
+
+<span class="kwa">func</span> <span class="kwd">eliminate_digit</span><span class="opt">(</span>d <span class="kwb">int64</span><span class="opt">) {</span>
+    tmp1<span class="opt">.</span><span class="kwd">SetInt64</span><span class="opt">(</span>d<span class="opt">)</span>
+    accum<span class="opt">.</span><span class="kwd">Sub</span><span class="opt">(</span>accum<span class="opt">,</span> tmp1<span class="opt">.</span><span class="kwd">Mul</span><span class="opt">(</span>denom<span class="opt">,</span> tmp1<span class="opt">))</span>
+    accum<span class="opt">.</span><span class="kwd">Mul</span><span class="opt">(</span>accum<span class="opt">,</span> ten<span class="opt">)</span>
+    numer<span class="opt">.</span><span class="kwd">Mul</span><span class="opt">(</span>numer<span class="opt">,</span> ten<span class="opt">)</span>
+<span class="opt">}</span>
+
+<span class="kwa">func</span> <span class="kwd">init</span><span class="opt">() {</span>
+    runtime<span class="opt">.</span><span class="kwd">GOMAXPROCS</span><span class="opt">(</span><span class="num">1</span><span class="opt">)</span>
+    flag<span class="opt">.</span><span class="kwd">Parse</span><span class="opt">()</span>
+    <span class="kwa">if</span> flag<span class="opt">.</span><span class="kwd">NArg</span><span class="opt">() &gt;</span> <span class="num">0</span> <span class="opt">{</span>
+        n<span class="opt">,</span> _ <span class="opt">=</span> strconv<span class="opt">.</span><span class="kwd">Atoi</span><span class="opt">(</span>flag<span class="opt">.</span><span class="kwd">Arg</span><span class="opt">(</span><span class="num">0</span><span class="opt">))</span>
+    <span class="opt">}</span>
+<span class="opt">}</span>
+
+<span class="kwa">func</span> <span class="kwd">main</span><span class="opt">() {</span>
+    w <span class="opt">:=</span> bufio<span class="opt">.</span><span class="kwd">NewWriter</span><span class="opt">(</span>os<span class="opt">.</span>Stdout<span class="opt">)</span>
+    <span class="kwa">defer</span> w<span class="opt">.</span><span class="kwd">Flush</span><span class="opt">()</span>
+    line <span class="opt">:=</span> <span class="kwb">make</span><span class="opt">([]</span><span class="kwb">byte</span><span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> <span class="num">10</span><span class="opt">)</span>
+    <span class="kwa">var</span> d<span class="opt">,</span> k <span class="kwb">int64</span>
+    <span class="kwa">for</span> i <span class="opt">:=</span> <span class="num">1</span><span class="opt">;</span> i <span class="opt">&lt;=</span> n<span class="opt">;</span> i<span class="opt">++ {</span>
+        d<span class="opt">,</span> k <span class="opt">=</span> <span class="kwd">next_digit</span><span class="opt">(</span>k<span class="opt">)</span>
+        line <span class="opt">=</span> <span class="kwd">append</span><span class="opt">(</span>line<span class="opt">,</span> <span class="kwb">byte</span><span class="opt">(</span>d<span class="opt">)+</span><span class="str">&apos;0&apos;</span><span class="opt">)</span>
+        <span class="kwa">if</span> <span class="kwb">len</span><span class="opt">(</span>line<span class="opt">) ==</span> <span class="num">10</span> <span class="opt">{</span>
+            <span class="kwa">if</span> silent <span class="opt">!=</span> <span class="kwb">true</span> <span class="opt">{</span>
+                fmt<span class="opt">.</span><span class="kwd">Fprintf</span><span class="opt">(</span>w<span class="opt">,</span> <span class="str">&quot;</span><span class="ipl">%s</span><span class="str"></span><span class="esc">\t</span><span class="str">:</span><span class="ipl">%d</span><span class="str"></span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span> <span class="kwb">string</span><span class="opt">(</span>line<span class="opt">),</span> i<span class="opt">)</span>
+            <span class="opt">}</span>
+            line <span class="opt">=</span> line<span class="opt">[:</span><span class="num">0</span><span class="opt">]</span>
+        <span class="opt">}</span>
+        <span class="kwd">eliminate_digit</span><span class="opt">(</span>d<span class="opt">)</span>
+    <span class="opt">}</span>
+    <span class="kwa">if</span> <span class="kwb">len</span><span class="opt">(</span>line<span class="opt">) &gt;</span> <span class="num">0</span> <span class="opt">&amp;&amp;</span> silent <span class="opt">!=</span> <span class="kwb">true</span> <span class="opt">{</span>
+        fmt<span class="opt">.</span><span class="kwd">Fprintf</span><span class="opt">(</span>w<span class="opt">,</span> <span class="str">&quot;%-10s</span><span class="esc">\t</span><span class="str">:</span><span class="ipl">%d</span><span class="str"></span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span> <span class="kwb">string</span><span class="opt">(</span>line<span class="opt">),</span> n<span class="opt">)</span>
+    <span class="opt">}</span>
+<span class="opt">}</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

@@ -17,6 +17,101 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc">-- The Computer Language Benchmarks Game</span>
+<span class="slc">-- https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">--</span>
+<span class="slc">-- Contributed by Roman Kashitsyn</span>
+
+<span class="kwd">import qualified</span> Data<span class="opt">.</span>ByteString<span class="opt">.</span>Char8 <span class="kwd">as</span> BS
+<span class="kwd">import</span>           System<span class="opt">.</span>Environment    <span class="opt">(</span><span class="kwc">getArgs</span><span class="opt">)</span>
+<span class="kwd">import</span>           System<span class="opt">.</span><span class="kwb">IO</span>             <span class="opt">(</span><span class="kwc">stdout</span><span class="opt">)</span>
+
+alu <span class="opt">=</span> <span class="str">&quot;GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGG\</span>
+<span class="str">    \TCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGG\</span>
+<span class="str">    \CGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGC\</span>
+<span class="str">    \GGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA&quot;</span>
+
+<span class="kwd">type</span> DistF <span class="opt">=</span> <span class="kwb">Double</span> <span class="opt">-&gt;</span> <span class="kwb">Char</span>
+
+<span class="slc">-- These cumulative distribution functions are not very pretty, but they</span>
+<span class="slc">-- give ~10% speedup in execution time comparing to a list of pairs.</span>
+iubF<span class="opt">,</span> homoF <span class="opt">::</span> DistF
+iubF f
+  | f <span class="opt">&lt;</span> <span class="num">0.27</span> <span class="opt">= &apos;</span>a<span class="opt">&apos;</span>
+  | f <span class="opt">&lt;</span> <span class="num">0.39</span> <span class="opt">= &apos;</span>c<span class="opt">&apos;</span>
+  | f <span class="opt">&lt;</span> <span class="num">0.51</span> <span class="opt">= &apos;</span>g<span class="opt">&apos;</span>
+  | f <span class="opt">&lt;</span> <span class="num">0.78</span> <span class="opt">= &apos;</span>t<span class="opt">&apos;</span>
+  | f <span class="opt">&lt;</span> <span class="num">0.80</span> <span class="opt">= &apos;</span>B<span class="opt">&apos;</span>
+  | f <span class="opt">&lt;</span> <span class="num">0.82</span> <span class="opt">= &apos;</span>D<span class="opt">&apos;</span>
+  | f <span class="opt">&lt;</span> <span class="num">0.84</span> <span class="opt">= &apos;</span>H<span class="opt">&apos;</span>
+  | f <span class="opt">&lt;</span> <span class="num">0.86</span> <span class="opt">= &apos;</span>K<span class="opt">&apos;</span>
+  | f <span class="opt">&lt;</span> <span class="num">0.88</span> <span class="opt">= &apos;</span>M<span class="opt">&apos;</span>
+  | f <span class="opt">&lt;</span> <span class="num">0.90</span> <span class="opt">= &apos;</span>N<span class="opt">&apos;</span>
+  | f <span class="opt">&lt;</span> <span class="num">0.92</span> <span class="opt">= &apos;</span>R<span class="opt">&apos;</span>
+  | f <span class="opt">&lt;</span> <span class="num">0.94</span> <span class="opt">= &apos;</span>S<span class="opt">&apos;</span>
+  | f <span class="opt">&lt;</span> <span class="num">0.96</span> <span class="opt">= &apos;</span>V<span class="opt">&apos;</span>
+  | f <span class="opt">&lt;</span> <span class="num">0.98</span> <span class="opt">= &apos;</span>W<span class="opt">&apos;</span>
+  | <span class="kwc">otherwise</span> <span class="opt">= &apos;</span>Y<span class="opt">&apos;</span>
+
+homoF f
+  | f <span class="opt">&lt;</span> <span class="num">0.302954942668</span>  <span class="opt">= &apos;</span>a<span class="opt">&apos;</span>
+  | f <span class="opt">&lt;</span> <span class="num">0.5009432431601</span> <span class="opt">= &apos;</span>c<span class="opt">&apos;</span>
+  | f <span class="opt">&lt;</span> <span class="num">0.6984905497992</span> <span class="opt">= &apos;</span>g<span class="opt">&apos;</span>
+  | <span class="kwc">otherwise</span> <span class="opt">= &apos;</span>t<span class="opt">&apos;</span>
+
+lineWidth<span class="opt">,</span> <span class="kwa">modulo</span> <span class="opt">::</span> <span class="kwb">Int</span>
+lineWidth <span class="opt">=</span> <span class="num">60</span>
+<span class="kwa">modulo</span> <span class="opt">=</span> <span class="num">139968</span>
+
+nextSeed <span class="opt">::</span> <span class="kwb">Int</span> <span class="opt">-&gt;</span> <span class="kwb">Int</span>
+nextSeed seed <span class="opt">= (</span><span class="num">3877</span> <span class="opt">*</span> seed <span class="opt">+</span> <span class="num">29573</span><span class="opt">)</span> `<span class="kwc">rem</span>` <span class="kwa">modulo</span>
+
+printRepeatedFasta <span class="opt">::</span> BS<span class="opt">.</span>ByteString <span class="opt">-&gt;</span> <span class="kwb">Int</span> <span class="opt">-&gt;</span> <span class="kwb">IO</span> <span class="opt">()</span>
+printRepeatedFasta s <span class="opt">=</span> go lineWidth n
+  <span class="kwd">where</span>
+    <span class="opt">!</span>n <span class="opt">=</span> BS<span class="opt">.</span><span class="kwa">length</span> s
+    go <span class="num">0</span> sn left <span class="opt">=</span> BS<span class="opt">.</span><span class="kwc">putStrLn</span> <span class="str">&quot;&quot;</span> <span class="opt">&gt;&gt;</span> go lineWidth sn left
+    go w  <span class="num">0</span> left <span class="opt">=</span> go w n left
+    go w  _ <span class="num">0</span>    <span class="opt">=</span> <span class="kwd">if</span> w <span class="opt">==</span> lineWidth <span class="kwd">then</span> <span class="kwc">return</span> <span class="opt">()</span> <span class="kwd">else</span> BS<span class="opt">.</span><span class="kwc">putStrLn</span> <span class="str">&quot;&quot;</span>
+    go w sn left <span class="opt">=</span> <span class="kwd">do</span>
+      <span class="kwd">let</span> toTake <span class="opt">=</span> w `<span class="kwc">min</span>` sn `<span class="kwc">min</span>` left
+      BS<span class="opt">.</span><span class="kwc">putStr</span> <span class="opt">(</span>BS<span class="opt">.</span><span class="kwc">take</span> toTake <span class="opt">$</span> BS<span class="opt">.</span><span class="kwc">drop</span> <span class="opt">(</span>n <span class="opt">-</span> sn<span class="opt">)</span> s<span class="opt">)</span>
+      go <span class="opt">(</span>w <span class="opt">-</span> toTake<span class="opt">) (</span>sn <span class="opt">-</span> toTake<span class="opt">) (</span>left <span class="opt">-</span> toTake<span class="opt">)</span>
+
+printRandomFasta <span class="opt">::</span> DistF <span class="opt">-&gt;</span> <span class="kwb">Int</span> <span class="opt">-&gt;</span> <span class="kwb">Int</span> <span class="opt">-&gt;</span> <span class="kwb">IO Int</span>
+printRandomFasta dist seed n <span class="opt">=</span> go n seed
+  <span class="kwd">where</span>
+    genChar seed <span class="opt">=</span> Just <span class="opt">(</span>dist f<span class="opt">,</span> seed<span class="opt">&apos;)</span>
+      <span class="kwd">where</span> <span class="opt">!</span>seed<span class="opt">&apos; =</span> nextSeed seed
+            <span class="opt">!</span>f <span class="opt">=</span> <span class="kwc">fromIntegral</span> seed<span class="opt">&apos; / (</span><span class="kwc">fromIntegral</span> <span class="kwa">modulo</span><span class="opt">)</span>
+
+    go <span class="num">0</span>     <span class="opt">!</span>seed <span class="opt">=</span> <span class="kwc">return</span> seed
+    go total <span class="opt">!</span>seed <span class="opt">=</span> <span class="kwd">do</span>
+      <span class="kwd">let</span> toTake <span class="opt">=</span> total `<span class="kwc">min</span>` lineWidth
+          <span class="opt">(!</span>b<span class="opt">,</span> Just seed<span class="opt">&apos;) =</span> BS<span class="opt">.</span>unfoldrN toTake genChar seed
+      BS<span class="opt">.</span><span class="kwc">putStrLn</span> b
+      go <span class="opt">(</span>total <span class="opt">-</span> toTake<span class="opt">)</span> seed<span class="opt">&apos;</span>
+
+main <span class="opt">::</span> <span class="kwb">IO</span> <span class="opt">()</span>
+main <span class="opt">=</span> <span class="kwd">do</span>
+  n <span class="opt">&lt;-</span> <span class="kwc">getArgs</span> <span class="opt">&gt;&gt;=</span> <span class="kwc">readIO</span> <span class="opt">.</span> <span class="kwc">head</span>
+
+  BS<span class="opt">.</span><span class="kwc">putStrLn</span> <span class="str">&quot;&gt;ONE Homo sapiens alu&quot;</span>
+  printRepeatedFasta alu <span class="opt">(</span><span class="num">2</span> <span class="opt">*</span> n<span class="opt">)</span>
+
+  BS<span class="opt">.</span><span class="kwc">putStrLn</span> <span class="str">&quot;&gt;TWO IUB ambiguity codes&quot;</span>
+  seed<span class="opt">&apos; &lt;-</span> printRandomFasta iubF <span class="num">42</span> <span class="opt">(</span><span class="num">3</span> <span class="opt">*</span> n<span class="opt">)</span>
+
+  BS<span class="opt">.</span><span class="kwc">putStrLn</span> <span class="str">&quot;&gt;THREE Homo sapiens frequency&quot;</span>
+  printRandomFasta homoF seed<span class="opt">&apos; (</span><span class="num">5</span> <span class="opt">*</span> n<span class="opt">)</span>
+  <span class="kwc">return</span> <span class="opt">()</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

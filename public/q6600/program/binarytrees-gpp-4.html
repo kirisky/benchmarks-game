@@ -17,6 +17,177 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="com">/* The Computer Language Benchmarks Game</span>
+<span class="com"> * https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="com"> *</span>
+<span class="com"> * contributed by Danial Klimkin</span>
+<span class="com"> *</span>
+<span class="com"> */</span>
+
+<span class="ppc">#include &lt;functional&gt;</span>
+<span class="ppc">#include &lt;iostream&gt;</span>
+<span class="ppc">#include &lt;memory_resource&gt;</span>
+<span class="ppc">#include &lt;mutex&gt;</span>
+<span class="ppc">#include &lt;queue&gt;</span>
+<span class="ppc">#include &lt;thread&gt;</span>
+
+<span class="kwa">using</span> MemoryPool <span class="opt">=</span> <span class="kwc">std</span><span class="opt">::</span><span class="kwc">pmr</span><span class="opt">::</span>monotonic_buffer_resource<span class="opt">;</span>
+<span class="kwa">using</span> Lambda <span class="opt">=</span> <span class="kwc">std</span><span class="opt">::</span>function<span class="opt">&lt;</span><span class="kwb">void</span><span class="opt">(</span><span class="kwb">void</span><span class="opt">)&gt;;</span>
+
+<span class="kwc">template</span><span class="opt">&lt;</span>typename T<span class="opt">&gt;</span>
+<span class="kwc">class</span> LockingQueue final <span class="opt">{</span>
+<span class="kwc">public</span><span class="opt">:</span>
+  <span class="kwd">LockingQueue</span><span class="opt">() =</span> <span class="kwa">default</span><span class="opt">;</span>
+
+  <span class="kwb">void</span> <span class="kwd">emplace</span><span class="opt">(</span>T item<span class="opt">) {</span>
+    <span class="opt">{</span>
+      <span class="kwc">std</span><span class="opt">::</span>scoped_lock <span class="kwd">lock</span><span class="opt">(</span>mutex<span class="opt">);</span>
+      queue<span class="opt">.</span><span class="kwd">emplace</span><span class="opt">(</span><span class="kwc">std</span><span class="opt">::</span><span class="kwd">move</span><span class="opt">(</span>item<span class="opt">));</span>
+    <span class="opt">}</span>
+    signal<span class="opt">.</span><span class="kwd">notify_one</span><span class="opt">();</span>
+  <span class="opt">}</span>
+
+  <span class="kwb">void</span> <span class="kwd">waitAndPop</span><span class="opt">(</span>T <span class="opt">*</span>out<span class="opt">) {</span>
+    <span class="kwc">std</span><span class="opt">::</span>unique_lock <span class="kwd">lock</span><span class="opt">(</span>mutex<span class="opt">);</span>
+    <span class="kwa">while</span> <span class="opt">(</span>queue<span class="opt">.</span><span class="kwd">empty</span><span class="opt">()) {</span>
+      signal<span class="opt">.</span><span class="kwd">wait</span><span class="opt">(</span>lock<span class="opt">);</span>
+    <span class="opt">}</span>
+    <span class="opt">*</span>out <span class="opt">=</span> queue<span class="opt">.</span><span class="kwd">front</span><span class="opt">();</span>
+    queue<span class="opt">.</span><span class="kwd">pop</span><span class="opt">();</span>
+  <span class="opt">}</span>
+
+<span class="kwc">private</span><span class="opt">:</span>
+  <span class="kwc">std</span><span class="opt">::</span>mutex mutex<span class="opt">;</span>
+  <span class="kwc">std</span><span class="opt">::</span>condition_variable signal<span class="opt">;</span>
+  <span class="kwc">std</span><span class="opt">::</span>queue<span class="opt">&lt;</span>T<span class="opt">&gt;</span> queue<span class="opt">;</span>
+<span class="opt">};</span>
+
+<span class="kwc">class</span> ThreadPool final <span class="opt">{</span>
+<span class="kwc">public</span><span class="opt">:</span>
+  <span class="kwc">explicit</span> <span class="kwd">ThreadPool</span><span class="opt">(</span>
+      <span class="kwb">const unsigned int</span> workers <span class="opt">=</span> <span class="kwc">std</span><span class="opt">::</span><span class="kwc">thread</span><span class="opt">::</span><span class="kwd">hardware_concurrency</span><span class="opt">()) {</span>
+    threads_<span class="opt">.</span><span class="kwd">reserve</span><span class="opt">(</span>workers<span class="opt">);</span>
+    <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">size_t</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> workers<span class="opt">; ++</span>i<span class="opt">)</span>
+      threads_<span class="opt">.</span><span class="kwd">emplace_back</span><span class="opt">(</span><span class="kwc">std</span><span class="opt">::</span><span class="kwd">thread</span><span class="opt">([</span><span class="kwa">this</span><span class="opt">]() {</span>
+        Lambda job<span class="opt">;</span>
+        <span class="kwa">while</span> <span class="opt">(</span><span class="kwa">true</span><span class="opt">) {</span>
+          queue_<span class="opt">.</span><span class="kwd">waitAndPop</span><span class="opt">(&amp;</span>job<span class="opt">);</span>
+          <span class="kwa">if</span> <span class="opt">(</span>job<span class="opt">) {</span>
+            <span class="kwd">job</span><span class="opt">();</span>
+          <span class="opt">}</span> <span class="kwa">else</span> <span class="opt">{</span>
+            <span class="kwd">enqueue_task</span><span class="opt">(</span><span class="kwc">nullptr</span><span class="opt">);</span>
+            <span class="kwa">break</span><span class="opt">;</span>
+          <span class="opt">}</span>
+        <span class="opt">}</span>
+      <span class="opt">}));</span>
+  <span class="opt">}</span>
+
+  <span class="opt">~</span><span class="kwd">ThreadPool</span><span class="opt">()</span> noexcept <span class="opt">{</span>
+    <span class="kwd">enqueue_task</span><span class="opt">(</span><span class="kwc">nullptr</span><span class="opt">);</span>
+    <span class="kwa">for</span> <span class="opt">(</span><span class="kwc">std</span><span class="opt">::</span>thread <span class="opt">&amp;</span>thread <span class="opt">:</span> threads_<span class="opt">) {</span>
+      thread<span class="opt">.</span><span class="kwd">join</span><span class="opt">();</span>
+    <span class="opt">}</span>
+  <span class="opt">}</span>
+
+  <span class="kwb">void</span> <span class="kwd">enqueue_task</span><span class="opt">(</span>Lambda f<span class="opt">) {</span>
+    queue_<span class="opt">.</span><span class="kwd">emplace</span><span class="opt">(</span><span class="kwc">std</span><span class="opt">::</span><span class="kwd">move</span><span class="opt">(</span>f<span class="opt">));</span>
+  <span class="opt">}</span>
+
+<span class="kwc">private</span><span class="opt">:</span>
+  <span class="kwc">std</span><span class="opt">::</span>vector<span class="opt">&lt;</span><span class="kwc">std</span><span class="opt">::</span>thread<span class="opt">&gt;</span> threads_<span class="opt">;</span>
+  LockingQueue<span class="opt">&lt;</span>Lambda<span class="opt">&gt;</span> queue_<span class="opt">;</span>
+<span class="opt">};</span>
+
+<span class="kwb">struct</span> Node <span class="opt">{</span>
+  Node <span class="opt">*</span>l<span class="opt">, *</span>r<span class="opt">;</span>
+
+  <span class="kwb">int</span> <span class="kwd">check</span><span class="opt">()</span> <span class="kwb">const</span> <span class="opt">{</span>
+    <span class="kwa">if</span> <span class="opt">(</span>l<span class="opt">)</span>
+      <span class="kwa">return</span> l<span class="opt">-&gt;</span><span class="kwd">check</span><span class="opt">() +</span> <span class="num">1</span> <span class="opt">+</span> r<span class="opt">-&gt;</span><span class="kwd">check</span><span class="opt">();</span>
+    <span class="kwa">else</span>
+      <span class="kwa">return</span> <span class="num">1</span><span class="opt">;</span>
+  <span class="opt">}</span>
+<span class="opt">};</span>
+
+<span class="kwa">namespace</span> <span class="opt">{</span>
+  <span class="kwc">constexpr</span> <span class="kwb">size_t</span> LINE_SIZE <span class="opt">=</span> <span class="num">64</span><span class="opt">;</span>
+  <span class="kwc">constexpr</span> <span class="kwb">size_t</span> SIZEOF_NODE <span class="opt">=</span> <span class="kwa">sizeof</span><span class="opt">(</span>Node<span class="opt">);</span>
+  <span class="kwc">constexpr auto</span> MIN_DEPTH <span class="opt">=</span> <span class="num">4</span><span class="opt">;</span>
+<span class="opt">}</span>
+
+Node <span class="opt">*</span><span class="kwd">make</span><span class="opt">(</span><span class="kwb">const int</span> d<span class="opt">,</span> MemoryPool <span class="opt">&amp;</span>store<span class="opt">) {</span>
+  Node <span class="opt">*</span>root <span class="opt">=</span> <span class="kwa">static_cast</span><span class="opt">&lt;</span>Node <span class="opt">*&gt;(</span>store<span class="opt">.</span><span class="kwd">allocate</span><span class="opt">(</span>SIZEOF_NODE<span class="opt">));</span>
+  <span class="kwa">if</span> <span class="opt">(</span>d <span class="opt">&gt;</span> <span class="num">0</span><span class="opt">) {</span>
+    root<span class="opt">-&gt;</span>l <span class="opt">=</span> <span class="kwd">make</span><span class="opt">(</span>d <span class="opt">-</span> <span class="num">1</span><span class="opt">,</span> store<span class="opt">);</span>
+    root<span class="opt">-&gt;</span>r <span class="opt">=</span> <span class="kwd">make</span><span class="opt">(</span>d <span class="opt">-</span> <span class="num">1</span><span class="opt">,</span> store<span class="opt">);</span>
+  <span class="opt">}</span> <span class="kwa">else</span> <span class="opt">{</span>
+    root<span class="opt">-&gt;</span>l <span class="opt">=</span> root<span class="opt">-&gt;</span>r <span class="opt">=</span> <span class="kwc">nullptr</span><span class="opt">;</span>
+  <span class="opt">}</span>
+  <span class="kwa">return</span> root<span class="opt">;</span>
+<span class="opt">}</span>
+
+<span class="kwb">int</span> <span class="kwd">main</span><span class="opt">(</span><span class="kwb">int</span> argc<span class="opt">,</span> <span class="kwb">char</span> <span class="opt">*</span>argv<span class="opt">[]) {</span>
+  <span class="kwb">const int</span> max_depth <span class="opt">=</span>
+      <span class="kwc">std</span><span class="opt">::</span><span class="kwd">max</span><span class="opt">(</span>MIN_DEPTH <span class="opt">+</span> <span class="num">2</span><span class="opt">, (</span>argc <span class="opt">==</span> <span class="num">2</span> <span class="opt">?</span> <span class="kwd">atoi</span><span class="opt">(</span>argv<span class="opt">[</span><span class="num">1</span><span class="opt">]) :</span> <span class="num">10</span><span class="opt">));</span>
+  <span class="kwb">const int</span> stretch_depth <span class="opt">=</span> max_depth <span class="opt">+</span> <span class="num">1</span><span class="opt">;</span>
+
+  <span class="slc">// Alloc then dealloc stretchdepth tree.</span>
+  <span class="opt">{</span>
+    MemoryPool store<span class="opt">;</span>
+
+    Node <span class="opt">*</span>c <span class="opt">=</span> <span class="kwd">make</span><span class="opt">(</span>stretch_depth<span class="opt">,</span> store<span class="opt">);</span>
+    <span class="kwc">std</span><span class="opt">::</span>cout <span class="opt">&lt;&lt;</span> <span class="str">&quot;stretch tree of depth &quot;</span> <span class="opt">&lt;&lt;</span> stretch_depth <span class="opt">&lt;&lt;</span> <span class="str">&quot;</span><span class="esc">\t</span> <span class="str">&quot;</span>
+              <span class="opt">&lt;&lt;</span> <span class="str">&quot;check: &quot;</span> <span class="opt">&lt;&lt;</span> c<span class="opt">-&gt;</span><span class="kwd">check</span><span class="opt">() &lt;&lt;</span> <span class="kwc">std</span><span class="opt">::</span>endl<span class="opt">;</span>
+  <span class="opt">}</span>
+
+  MemoryPool long_lived_store<span class="opt">;</span>
+  Node <span class="opt">*</span>long_lived_tree <span class="opt">=</span> <span class="kwd">make</span><span class="opt">(</span>max_depth<span class="opt">,</span> long_lived_store<span class="opt">);</span>
+
+  <span class="slc">// Buffer to store output of each thread.</span>
+  <span class="kwc">std</span><span class="opt">::</span>vector<span class="opt">&lt;</span><span class="kwb">char</span><span class="opt">&gt;</span> <span class="kwd">buf</span><span class="opt">(</span>
+      <span class="kwa">static_cast</span><span class="opt">&lt;</span><span class="kwb">size_t</span><span class="opt">&gt;(</span>LINE_SIZE <span class="opt">* (</span>max_depth <span class="opt">+</span> <span class="num">1</span><span class="opt">) *</span> <span class="kwa">sizeof</span><span class="opt">(</span><span class="kwb">char</span><span class="opt">)),</span> <span class="num">0</span><span class="opt">);</span>
+
+  <span class="opt">{</span>
+    ThreadPool pool<span class="opt">;</span>
+    <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> d <span class="opt">=</span> MIN_DEPTH<span class="opt">;</span> d <span class="opt">&lt;=</span> max_depth<span class="opt">;</span> d <span class="opt">+=</span> <span class="num">2</span><span class="opt">) {</span>
+      <span class="kwb">const int</span> iterations <span class="opt">=</span> <span class="num">1</span> <span class="opt">&lt;&lt; (</span>max_depth <span class="opt">-</span> d <span class="opt">+</span> MIN_DEPTH<span class="opt">);</span>
+      pool<span class="opt">.</span><span class="kwd">enqueue_task</span><span class="opt">([</span>iterations<span class="opt">,</span> d<span class="opt">, &amp;</span>buf<span class="opt">]() {</span>
+        <span class="kwb">int</span> c <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+
+        <span class="slc">// Create a memory pool for this thread to use.</span>
+        MemoryPool store<span class="opt">;</span>
+
+        <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> i <span class="opt">=</span> <span class="num">1</span><span class="opt">;</span> i <span class="opt">&lt;=</span> iterations<span class="opt">; ++</span>i<span class="opt">) {</span>
+          Node <span class="opt">*</span>a <span class="opt">=</span> <span class="kwd">make</span><span class="opt">(</span>d<span class="opt">,</span> store<span class="opt">);</span>
+          c <span class="opt">+=</span> a<span class="opt">-&gt;</span><span class="kwd">check</span><span class="opt">();</span>
+          store<span class="opt">.</span><span class="kwd">release</span><span class="opt">();</span>
+        <span class="opt">}</span>
+
+        <span class="slc">// each thread write to separate location</span>
+        <span class="kwd">sprintf</span><span class="opt">(</span>buf<span class="opt">.</span><span class="kwd">data</span><span class="opt">() +</span> LINE_SIZE <span class="opt">*</span> d<span class="opt">,</span>
+                <span class="str">&quot;%d</span><span class="esc">\t</span> <span class="str">trees of depth %d</span><span class="esc">\t</span> <span class="str">check: %d</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span>
+                iterations<span class="opt">,</span> d<span class="opt">,</span> c<span class="opt">);</span>
+      <span class="opt">});</span>
+    <span class="opt">}</span>
+  <span class="opt">}</span>
+
+  <span class="slc">// print all results</span>
+  <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> d <span class="opt">=</span> MIN_DEPTH<span class="opt">;</span> d <span class="opt">&lt;=</span> max_depth<span class="opt">;</span> d <span class="opt">+=</span> <span class="num">2</span><span class="opt">) {</span>
+    <span class="kwd">printf</span><span class="opt">(</span><span class="str">&quot;%s&quot;</span><span class="opt">,</span> buf<span class="opt">.</span><span class="kwd">data</span><span class="opt">() + (</span>d <span class="opt">*</span> LINE_SIZE<span class="opt">));</span>
+  <span class="opt">}</span>
+
+  <span class="kwc">std</span><span class="opt">::</span>cout <span class="opt">&lt;&lt;</span> <span class="str">&quot;long lived tree of depth &quot;</span> <span class="opt">&lt;&lt;</span> max_depth <span class="opt">&lt;&lt;</span> <span class="str">&quot;</span><span class="esc">\t</span> <span class="str">&quot;</span>
+            <span class="opt">&lt;&lt;</span> <span class="str">&quot;check: &quot;</span> <span class="opt">&lt;&lt; (</span>long_lived_tree<span class="opt">-&gt;</span><span class="kwd">check</span><span class="opt">()) &lt;&lt;</span> <span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">;</span>
+
+  <span class="kwa">return</span> <span class="num">0</span><span class="opt">;</span>
+<span class="opt">}</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

@@ -17,6 +17,83 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="com">#=</span>
+<span class="com"> The Computer Language Benchmarks Game</span>
+<span class="com"> https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="com"></span>
+<span class="com"> based on the C++ program of Alessandro Power</span>
+<span class="com"> with ideas borrowed from the C program of Mr Ledrug</span>
+<span class="com"> modified for Julia 1.0 by Luiz M. Faria</span>
+<span class="com">=#</span>
+
+<span class="slc"># import a few functions from GMP wrapper to do in-place operations</span>
+<span class="kwa">using</span> Base<span class="opt">.</span>GMP<span class="opt">.</span>MPZ<span class="opt">:</span> add_ui<span class="opt">!,</span> mul_ui<span class="opt">!,</span> add<span class="opt">!,</span> tdiv_q<span class="opt">!</span>
+<span class="slc"># and add a few more wrappers for GMP functions not currently in Base</span>
+<span class="kwa">const</span> mpz_t <span class="opt">=</span> Ref<span class="opt">{</span>BigInt<span class="opt">}</span>
+<span class="kwd">addmul_ui</span><span class="opt">!(</span>x<span class="opt">::</span>BigInt<span class="opt">,</span>a<span class="opt">::</span>BigInt<span class="opt">,</span>b<span class="opt">) =</span> <span class="kwd">ccall</span><span class="opt">((:</span>__gmpz_addmul_ui<span class="opt">,</span><span class="str">&quot;libgmp&quot;</span><span class="opt">),</span> Cvoid<span class="opt">, (</span>mpz_t<span class="opt">,</span>mpz_t<span class="opt">,</span>Culong<span class="opt">),</span> x<span class="opt">,</span> a<span class="opt">,</span> b<span class="opt">)</span>
+<span class="kwd">submul_ui</span><span class="opt">!(</span>x<span class="opt">::</span>BigInt<span class="opt">,</span>a<span class="opt">::</span>BigInt<span class="opt">,</span>b<span class="opt">) =</span> <span class="kwd">ccall</span><span class="opt">((:</span>__gmpz_submul_ui<span class="opt">,</span><span class="str">&quot;libgmp&quot;</span><span class="opt">),</span> Cvoid<span class="opt">, (</span>mpz_t<span class="opt">,</span>mpz_t<span class="opt">,</span>Culong<span class="opt">),</span> x<span class="opt">,</span> a<span class="opt">,</span> b<span class="opt">)</span>
+<span class="kwd">get_ui</span><span class="opt">(</span>x<span class="opt">::</span>BigInt<span class="opt">) =</span> <span class="kwd">ccall</span><span class="opt">((:</span>__gmpz_get_ui<span class="opt">,</span><span class="str">&quot;libgmp&quot;</span><span class="opt">),</span> Culong<span class="opt">, (</span>mpz_t<span class="opt">,),</span> x<span class="opt">)</span>
+
+<span class="kwa">function</span> <span class="kwd">next</span><span class="opt">!(</span>q<span class="opt">,</span>r<span class="opt">,</span>t<span class="opt">,</span>k<span class="opt">)</span>
+    mult  <span class="opt">=</span> <span class="num">2</span><span class="opt">*</span>k <span class="opt">+</span> <span class="num">1</span>
+    <span class="kwd">addmul_ui</span><span class="opt">!(</span>r<span class="opt">,</span>q<span class="opt">,</span><span class="num">2</span><span class="opt">)</span>
+    <span class="kwd">mul_ui</span><span class="opt">!(</span>r<span class="opt">,</span>mult<span class="opt">)</span>
+    <span class="kwd">mul_ui</span><span class="opt">!(</span>t<span class="opt">,</span>mult<span class="opt">)</span>
+    <span class="kwd">mul_ui</span><span class="opt">!(</span>q<span class="opt">,</span>k<span class="opt">)</span>
+    <span class="kwa">return</span> nothing
+<span class="kwa">end</span>
+
+<span class="kwa">function</span> <span class="kwd">extract</span><span class="opt">!(</span>q<span class="opt">,</span>r<span class="opt">,</span>t<span class="opt">,</span>tmp1<span class="opt">,</span>tmp2<span class="opt">,</span>n<span class="opt">)</span>
+    <span class="kwd">mul_ui</span><span class="opt">!(</span>tmp1<span class="opt">,</span>q<span class="opt">,</span>n<span class="opt">)</span>
+    <span class="kwd">add</span><span class="opt">!(</span>tmp1<span class="opt">,</span>r<span class="opt">)</span>
+    <span class="kwd">tdiv_q</span><span class="opt">!(</span>tmp2<span class="opt">,</span>tmp1<span class="opt">,</span>t<span class="opt">)</span>
+    <span class="kwa">return</span> <span class="kwd">get_ui</span><span class="opt">(</span>tmp2<span class="opt">)</span>
+<span class="kwa">end</span>
+
+<span class="kwa">function</span> <span class="kwd">produce</span><span class="opt">!(</span>q<span class="opt">,</span>r<span class="opt">,</span>t<span class="opt">,</span>n<span class="opt">)</span>
+    <span class="kwd">mul_ui</span><span class="opt">!(</span>q<span class="opt">,</span><span class="num">10</span><span class="opt">)</span>
+    <span class="kwd">submul_ui</span><span class="opt">!(</span>r<span class="opt">,</span>t<span class="opt">,</span>n<span class="opt">)</span>
+    <span class="kwd">mul_ui</span><span class="opt">!(</span>r<span class="opt">,</span><span class="num">10</span><span class="opt">)</span>
+    <span class="kwa">return</span> nothing
+<span class="kwa">end</span>
+
+<span class="kwa">function</span> <span class="kwd">pidigits</span><span class="opt">(</span>n<span class="opt">::</span>Int<span class="opt">)</span>
+    q<span class="opt">,</span>r<span class="opt">,</span>t<span class="opt">,</span>tmp1<span class="opt">,</span>tmp2 <span class="opt">=</span> <span class="kwd">map</span><span class="opt">(</span>BigInt<span class="opt">,(</span><span class="num">1</span><span class="opt">,</span><span class="num">0</span><span class="opt">,</span><span class="num">1</span><span class="opt">,</span><span class="num">0</span><span class="opt">,</span><span class="num">0</span><span class="opt">))</span>
+    k <span class="opt">=</span> <span class="kwd">UInt</span><span class="opt">(</span><span class="num">0</span><span class="opt">)</span>
+    n_digits<span class="opt">=</span><span class="num">0</span>
+
+    <span class="kwa">while</span> n_digits<span class="opt">&lt;</span>n
+        i<span class="opt">=</span><span class="num">0</span>
+        <span class="kwa">while</span> <span class="opt">(</span>i<span class="opt">&lt;</span><span class="num">10</span> <span class="opt">&amp;&amp;</span> n_digits<span class="opt">&lt;</span>n<span class="opt">)</span>
+            k <span class="opt">+=</span><span class="num">1</span>
+            <span class="kwd">next</span><span class="opt">!(</span>q<span class="opt">,</span>r<span class="opt">,</span>t<span class="opt">,</span>k<span class="opt">)</span>
+            q<span class="opt">&gt;</span>r <span class="opt">&amp;&amp;</span> <span class="kwa">continue</span>
+
+            digit <span class="opt">=</span> <span class="kwd">extract</span><span class="opt">!(</span>q<span class="opt">,</span>r<span class="opt">,</span>t<span class="opt">,</span>tmp1<span class="opt">,</span>tmp2<span class="opt">,</span><span class="num">3</span><span class="opt">)</span>
+            <span class="kwa">if</span> digit <span class="opt">==</span> <span class="kwd">extract</span><span class="opt">!(</span>q<span class="opt">,</span>r<span class="opt">,</span>t<span class="opt">,</span>tmp1<span class="opt">,</span>tmp2<span class="opt">,</span><span class="num">4</span><span class="opt">)</span>
+                <span class="kwd">print</span><span class="opt">(</span>digit<span class="opt">)</span>
+                <span class="kwd">produce</span><span class="opt">!(</span>q<span class="opt">,</span>r<span class="opt">,</span>t<span class="opt">,</span>digit<span class="opt">)</span>
+                i <span class="opt">+=</span><span class="num">1</span>
+                n_digits<span class="opt">+=</span><span class="num">1</span>
+            <span class="kwa">end</span>
+        <span class="kwa">end</span>
+        <span class="kwa">while</span> i <span class="opt">&lt;</span> <span class="num">10</span>
+            i<span class="opt">+=</span><span class="num">1</span>
+            <span class="kwd">print</span><span class="opt">(</span>&apos; &apos;<span class="opt">)</span>
+        <span class="kwa">end</span>
+        <span class="kwd">print</span><span class="opt">(</span><span class="str">&quot;</span><span class="esc">\t</span><span class="str">:</span><span class="ipl">$n_digits</span><span class="str"></span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">)</span>
+    <span class="kwa">end</span>
+<span class="kwa">end</span>
+
+n <span class="opt">=</span> <span class="kwd">parse</span><span class="opt">(</span>Int<span class="opt">,</span>ARGS<span class="opt">[</span><span class="num">1</span><span class="opt">])</span>
+<span class="kwd">pidigits</span><span class="opt">(</span>n<span class="opt">)</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

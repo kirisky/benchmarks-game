@@ -17,6 +17,170 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc">-- The Computer Language Benchmarks Game</span>
+<span class="slc">-- https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">--</span>
+<span class="slc">-- Contributed by Jaro Reinders</span>
+
+<span class="kwd">import qualified</span> Data<span class="opt">.</span>Massiv<span class="opt">.</span><span class="kwb">Array</span><span class="opt">.</span>Mutable <span class="kwd">as</span> M
+<span class="kwd">import qualified</span> Data<span class="opt">.</span>Massiv<span class="opt">.</span><span class="kwb">Array</span><span class="opt">.</span>Unsafe <span class="kwd">as</span> U
+<span class="kwd">import qualified</span> Data<span class="opt">.</span>Massiv<span class="opt">.</span><span class="kwb">Array</span> <span class="kwd">as</span> A
+<span class="kwd">import</span> System<span class="opt">.</span>Environment
+<span class="kwd">import</span> Data<span class="opt">.</span>Word
+<span class="kwd">import</span> Data<span class="opt">.</span><span class="kwb">Char</span>
+<span class="kwd">import</span> Control<span class="opt">.</span>Monad
+<span class="kwd">import</span> Control<span class="opt">.</span>Concurrent
+<span class="kwd">import</span> System<span class="opt">.</span><span class="kwb">IO</span><span class="opt">.</span>Unsafe
+<span class="kwd">import</span> System<span class="opt">.</span>Posix<span class="opt">.</span>Internals
+
+<span class="kwd">type</span> Cumul <span class="opt">=</span> Word32
+<span class="kwd">type</span> MArray a <span class="opt">=</span> M<span class="opt">.</span>MArray M<span class="opt">.</span>RealWorld A<span class="opt">.</span>P <span class="kwb">Int</span> a
+<span class="kwd">type</span> MStr <span class="opt">=</span> M<span class="opt">.</span>MArray M<span class="opt">.</span>RealWorld A<span class="opt">.</span>S <span class="kwb">Int</span> Word8
+<span class="kwd">type</span> Str <span class="opt">=</span> A<span class="opt">.</span><span class="kwb">Array</span> A<span class="opt">.</span>P <span class="kwb">Int</span> Word8
+<span class="kwd">type</span> Dist <span class="opt">=</span> A<span class="opt">.</span><span class="kwb">Array</span> A<span class="opt">.</span>P <span class="kwb">Int</span> Cumul
+
+bufferSize<span class="opt">,</span> linesPerBuffer<span class="opt">,</span> lineLength <span class="opt">::</span> <span class="kwb">Int</span>
+bufferSize <span class="opt">=</span> linesPerBuffer <span class="opt">*</span> lineLength
+linesPerBuffer <span class="opt">=</span> <span class="num">3000</span>
+lineLength <span class="opt">=</span> <span class="num">60</span>
+
+ia<span class="opt">,</span> ic<span class="opt">,</span> im <span class="opt">::</span> Cumul
+ia <span class="opt">=</span> <span class="num">3877</span>
+ic <span class="opt">=</span> <span class="num">29573</span>
+im <span class="opt">=</span> <span class="num">139968</span>
+    
+printRepeatedFasta <span class="opt">::</span> <span class="kwb">Int</span> <span class="opt">-&gt;</span> Str <span class="opt">-&gt;</span> <span class="kwb">IO</span> <span class="opt">()</span>
+printRepeatedFasta n alu <span class="opt">=</span> <span class="kwd">do</span>
+  buf <span class="opt">&lt;-</span> M<span class="opt">.</span>initializeNew Nothing <span class="opt">(</span>A<span class="opt">.</span>Sz m<span class="opt">&apos;)</span>
+  <span class="kwd">let</span>
+    go <span class="num">0</span> i j <span class="opt">=</span> <span class="kwd">do</span>
+      U<span class="opt">.</span>unsafeWrite buf i <span class="opt">(</span><span class="kwc">fromIntegral</span> <span class="opt">(</span><span class="kwc">ord</span> <span class="opt">&apos;</span><span class="esc">\n</span><span class="opt">&apos;))</span>
+      go lineLength <span class="opt">(</span>i <span class="opt">+</span> <span class="num">1</span><span class="opt">)</span> j
+    go x i j
+      | i <span class="opt">&lt;</span> m<span class="opt">&apos; =</span> <span class="kwd">do</span>
+        U<span class="opt">.</span>unsafeWrite buf i <span class="opt">(</span>U<span class="opt">.</span>unsafeIndex alu j<span class="opt">)</span>
+        go <span class="opt">(</span>x <span class="opt">-</span> <span class="num">1</span><span class="opt">) (</span>i <span class="opt">+</span> <span class="num">1</span><span class="opt">) ((</span>j <span class="opt">+</span> <span class="num">1</span><span class="opt">)</span> `<span class="kwc">rem</span>` l<span class="opt">)</span>
+      | <span class="kwc">otherwise</span> <span class="opt">=</span> <span class="kwc">return</span> <span class="opt">()</span>
+  go lineLength <span class="num">0 0</span>
+
+  U<span class="opt">.</span>unsafeWithPtr <span class="opt">(</span>unsafePerformIO <span class="opt">(</span>U<span class="opt">.</span>unsafeFreeze A<span class="opt">.</span>Seq buf<span class="opt">)) $ \</span>ptr <span class="opt">-&gt;</span> <span class="kwd">do</span>
+    replicateM_ q <span class="opt">(</span>c_write <span class="num">1</span> ptr <span class="opt">(</span><span class="kwc">fromIntegral</span> m<span class="opt">&apos;))</span>
+    U<span class="opt">.</span>unsafeWrite buf <span class="opt">(</span>r <span class="opt">+ (</span>r `<span class="kwc">quot</span>` lineLength<span class="opt">)) (</span><span class="kwc">fromIntegral</span> <span class="opt">(</span><span class="kwc">ord</span> <span class="opt">&apos;</span><span class="esc">\n</span><span class="opt">&apos;))</span>
+    void <span class="opt">(</span>c_write <span class="num">1</span> ptr <span class="opt">(</span><span class="kwc">fromIntegral</span> <span class="opt">(</span>r <span class="opt">+ (</span>r `<span class="kwc">quot</span>` lineLength<span class="opt">) +</span> <span class="num">1</span><span class="opt">)))</span>
+  <span class="kwd">where</span>
+    l <span class="opt">=</span> A<span class="opt">.</span>unSz <span class="opt">(</span>A<span class="opt">.</span>size alu<span class="opt">)</span>
+    m <span class="opt">=</span> <span class="kwc">lcm</span> l lineLength
+    m<span class="opt">&apos; =</span> m <span class="opt">+</span> m `<span class="kwc">quot</span>` lineLength
+    <span class="opt">(</span>q<span class="opt">,</span>r<span class="opt">) =</span> <span class="kwc">quotRem</span> n m
+
+worker <span class="opt">::</span> MVar <span class="opt">(</span><span class="kwb">Int</span><span class="opt">,</span> Cumul<span class="opt">,</span> MVar <span class="opt">()) -&gt;</span> MVar <span class="opt">() -&gt;</span> MArray Cumul <span class="opt">-&gt;</span> MStr
+  <span class="opt">-&gt;</span> Str <span class="opt">-&gt;</span> Dist <span class="opt">-&gt;</span> <span class="kwb">IO</span> <span class="opt">()</span>
+worker lock finish rnd out p0 p1 <span class="opt">=</span> loop <span class="kwd">where</span>
+  loop <span class="opt">=</span> <span class="kwd">do</span>
+    o<span class="opt">&apos; &lt;-</span> newEmptyMVar
+    <span class="opt">(</span>n<span class="opt">&apos;,</span> s<span class="opt">,</span> o<span class="opt">) &lt;-</span> takeMVar lock
+    <span class="kwd">let</span> n <span class="opt">=</span> <span class="kwc">min</span> bufferSize n<span class="opt">&apos;</span>
+    s<span class="opt">&apos; &lt;-</span> <span class="kwd">if</span> <span class="opt">(</span>n <span class="opt">&gt;</span> <span class="num">0</span><span class="opt">)</span> <span class="kwd">then</span> prng n <span class="num">0</span> s <span class="kwd">else</span> <span class="kwc">return</span> s
+    putMVar lock <span class="opt">(</span>n<span class="opt">&apos; -</span> n<span class="opt">,</span> s<span class="opt">&apos;,</span> o<span class="opt">&apos;)</span>
+    <span class="kwc">when</span> <span class="opt">(</span>n <span class="opt">&gt;</span> <span class="num">0</span><span class="opt">) $</span> <span class="kwd">do</span>
+      select lineLength <span class="num">0 0</span>
+      takeMVar o
+      U<span class="opt">.</span>unsafeWithPtr out<span class="opt">&apos; $ \</span>ptr <span class="opt">-&gt;</span> c_write <span class="num">1</span> ptr
+        <span class="opt">(</span><span class="kwc">fromIntegral</span> <span class="opt">(</span>n <span class="opt">+</span> n `<span class="kwc">quot</span>` lineLength<span class="opt">))</span>
+      putMVar o<span class="opt">&apos; ()</span>
+      <span class="kwc">when</span> <span class="opt">(</span>n<span class="opt">&apos; -</span> n <span class="opt">&lt;=</span> <span class="num">0</span><span class="opt">) (</span>putMVar finish <span class="opt">())</span>
+      loop
+
+  prng <span class="opt">::</span> <span class="kwb">Int</span> <span class="opt">-&gt;</span> <span class="kwb">Int</span> <span class="opt">-&gt;</span> Cumul <span class="opt">-&gt;</span> <span class="kwb">IO</span> Cumul
+  prng <span class="num">0</span> _ s <span class="opt">=</span> <span class="kwc">return</span> s
+  prng todo n s <span class="opt">=</span> <span class="kwd">let</span> s<span class="opt">&apos; = (</span>ia <span class="opt">*</span> s <span class="opt">+</span> ic<span class="opt">)</span> `<span class="kwc">rem</span>` im <span class="kwd">in do</span>
+    U<span class="opt">.</span>unsafeWrite rnd n s<span class="opt">&apos;</span>
+    prng <span class="opt">(</span>todo <span class="opt">-</span> <span class="num">1</span><span class="opt">) (</span>n <span class="opt">+</span> <span class="num">1</span><span class="opt">)</span> s<span class="opt">&apos;</span>
+
+  select <span class="opt">::</span> <span class="kwb">Int</span> <span class="opt">-&gt;</span> <span class="kwb">Int</span> <span class="opt">-&gt;</span> <span class="kwb">Int</span> <span class="opt">-&gt;</span> <span class="kwb">IO</span> <span class="opt">()</span>
+  select <span class="num">0</span> outi rndi <span class="opt">=</span> <span class="kwd">do</span>
+    U<span class="opt">.</span>unsafeWrite out outi <span class="opt">(</span><span class="kwc">fromIntegral</span> <span class="opt">(</span><span class="kwc">ord</span> <span class="opt">&apos;</span><span class="esc">\n</span><span class="opt">&apos;))</span>
+    select lineLength <span class="opt">(</span>outi <span class="opt">+</span> <span class="num">1</span><span class="opt">)</span> rndi
+  select l outi rndi
+    | rndi <span class="opt">&lt;</span> bufferSize <span class="opt">=</span> <span class="kwd">do</span>
+      rnd <span class="opt">&lt;-</span> U<span class="opt">.</span>unsafeRead rnd rndi
+      U<span class="opt">.</span>unsafeWrite out outi <span class="opt">(</span>lookupCumul rnd<span class="opt">)</span>
+      select <span class="opt">(</span>l <span class="opt">-</span> <span class="num">1</span><span class="opt">) (</span>outi <span class="opt">+</span> <span class="num">1</span><span class="opt">) (</span>rndi <span class="opt">+</span> <span class="num">1</span><span class="opt">)</span>
+    | <span class="kwc">otherwise</span> <span class="opt">=</span> <span class="kwc">return</span> <span class="opt">()</span>
+
+  lookupCumul c <span class="opt">=</span> go <span class="num">0</span> <span class="kwd">where</span>
+    go i
+      | c <span class="opt">&lt;=</span> U<span class="opt">.</span>unsafeIndex p1 i <span class="opt">=</span> U<span class="opt">.</span>unsafeIndex p0 i
+      | <span class="kwc">otherwise</span> <span class="opt">=</span> go <span class="opt">(</span>i <span class="opt">+</span> <span class="num">1</span><span class="opt">)</span>
+
+  out<span class="opt">&apos; =</span> unsafePerformIO <span class="opt">(</span>U<span class="opt">.</span>unsafeFreeze A<span class="opt">.</span>Seq out<span class="opt">)</span>
+
+printRandomFasta <span class="opt">::</span> MVar <span class="opt">(</span><span class="kwb">Int</span><span class="opt">,</span> Cumul<span class="opt">,</span> MVar <span class="opt">()) -&gt;</span> MVar <span class="opt">() -&gt; [</span>MArray Cumul<span class="opt">]</span>
+  <span class="opt">-&gt; [</span>MStr<span class="opt">] -&gt;</span> Str <span class="opt">-&gt;</span> Dist <span class="opt">-&gt;</span> <span class="kwb">Int</span> <span class="opt">-&gt;</span> <span class="kwb">IO</span> <span class="opt">()</span>
+printRandomFasta lock finish rnds outs p0 p1 n <span class="opt">=</span> <span class="kwd">do</span>
+  <span class="opt">(</span>_<span class="opt">,</span>s<span class="opt">,</span>_<span class="opt">) &lt;-</span> takeMVar lock
+  o <span class="opt">&lt;-</span> newMVar <span class="opt">()</span>
+  putMVar lock <span class="opt">(</span>n<span class="opt">,</span>s<span class="opt">,</span>o<span class="opt">)</span>
+  <span class="kwc">mapM_</span> <span class="opt">(\(</span>rnd<span class="opt">,</span>out<span class="opt">) -&gt;</span> forkIO <span class="opt">(</span>worker lock finish rnd out p0 p1<span class="opt">))</span>
+    <span class="opt">(</span><span class="kwc">zip</span> rnds outs<span class="opt">)</span>
+  takeMVar finish
+  <span class="kwc">when</span> <span class="opt">(</span>n `<span class="kwc">rem</span>` lineLength <span class="opt">/=</span> <span class="num">0</span><span class="opt">) (</span><span class="kwc">putStrLn</span> <span class="str">&quot;&quot;</span><span class="opt">)</span>
+
+main <span class="opt">::</span> <span class="kwb">IO</span> <span class="opt">()</span>
+main <span class="opt">=</span> <span class="kwd">do</span>
+  n <span class="opt">&lt;-</span> <span class="kwc">readIO</span> <span class="opt">.</span> <span class="kwc">head</span> <span class="opt">=&lt;&lt;</span> <span class="kwc">getArgs</span>
+
+  U<span class="opt">.</span>unsafeWithPtr <span class="opt">(</span>A<span class="opt">.</span>fromList A<span class="opt">.</span>Seq <span class="opt">$</span> <span class="kwc">map</span> <span class="opt">(</span><span class="kwc">fromIntegral</span> <span class="opt">.</span> <span class="kwc">ord</span><span class="opt">)</span>
+    <span class="str">&quot;&gt;ONE Homo sapiens alu</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">) $ \</span>ptr <span class="opt">-&gt;</span> c_write <span class="num">1</span> ptr <span class="num">22</span>
+  printRepeatedFasta <span class="opt">(</span><span class="num">2</span> <span class="opt">*</span> n<span class="opt">)</span> alu
+
+  rndBufs <span class="opt">&lt;-</span> replicateM workers
+    <span class="opt">(</span>M<span class="opt">.</span>initializeNew Nothing <span class="opt">(</span>A<span class="opt">.</span>Sz bufferSize<span class="opt">))</span>
+  outBufs <span class="opt">&lt;-</span> replicateM workers
+    <span class="opt">(</span>M<span class="opt">.</span>initializeNew Nothing <span class="opt">(</span>A<span class="opt">.</span>Sz <span class="opt">(</span>bufferSize <span class="opt">+</span> linesPerBuffer<span class="opt">)))</span>
+
+  lock <span class="opt">&lt;-</span> newMVar <span class="opt">(</span><span class="kwc">undefined</span><span class="opt">,</span><span class="num">42</span><span class="opt">,</span><span class="kwc">undefined</span><span class="opt">)</span>
+  finish <span class="opt">&lt;-</span> newEmptyMVar
+
+  U<span class="opt">.</span>unsafeWithPtr <span class="opt">(</span>A<span class="opt">.</span>fromList A<span class="opt">.</span>Seq <span class="opt">$</span> <span class="kwc">map</span> <span class="opt">(</span><span class="kwc">fromIntegral</span> <span class="opt">.</span> <span class="kwc">ord</span><span class="opt">)</span>
+    <span class="str">&quot;&gt;TWO IUB ambiguity codes</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">) $ \</span>ptr <span class="opt">-&gt;</span> c_write <span class="num">1</span> ptr <span class="num">25</span>
+  s <span class="opt">&lt;-</span> printRandomFasta lock finish rndBufs outBufs p00 p01 <span class="opt">(</span><span class="num">3</span> <span class="opt">*</span> n<span class="opt">)</span>
+
+  U<span class="opt">.</span>unsafeWithPtr <span class="opt">(</span>A<span class="opt">.</span>fromList A<span class="opt">.</span>Seq <span class="opt">$</span> <span class="kwc">map</span> <span class="opt">(</span><span class="kwc">fromIntegral</span> <span class="opt">.</span> <span class="kwc">ord</span><span class="opt">)</span>
+    <span class="str">&quot;&gt;THREE Homo sapiens frequency</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">) $ \</span>ptr <span class="opt">-&gt;</span> c_write <span class="num">1</span> ptr <span class="num">30</span>
+  void <span class="opt">$</span> printRandomFasta lock finish rndBufs outBufs p10 p11 <span class="opt">(</span><span class="num">5</span> <span class="opt">*</span> n<span class="opt">)</span>
+  <span class="kwd">where</span>
+    workers <span class="opt">=</span> <span class="num">4</span>
+    
+    alu <span class="opt">=</span> A<span class="opt">.</span>fromList A<span class="opt">.</span>Seq <span class="opt">$</span> <span class="kwc">map</span> <span class="opt">(</span><span class="kwc">fromIntegral</span> <span class="opt">.</span> <span class="kwc">ord</span><span class="opt">)</span>
+      <span class="str">&quot;GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGT\</span>
+<span class="str">      \CAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGG\</span>
+<span class="str">      \CGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGG\</span>
+<span class="str">      \CGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAA\</span>
+<span class="str">      \AAA&quot;</span> 
+    
+    cumulativeProbabilities <span class="opt">:: [(</span><span class="kwb">Char</span><span class="opt">,</span> <span class="kwb">Float</span><span class="opt">)] -&gt; (</span>Str<span class="opt">,</span> Dist<span class="opt">)</span>
+    cumulativeProbabilities xs <span class="opt">= (</span>A<span class="opt">.</span>fromList A<span class="opt">.</span>Seq <span class="kwd">as</span><span class="opt">&apos;,</span> A<span class="opt">.</span>fromList A<span class="opt">.</span>Seq bs<span class="opt">&apos;)</span>
+      <span class="kwd">where</span>
+        <span class="kwd">as</span><span class="opt">&apos; =</span> <span class="kwc">map</span> <span class="opt">(</span><span class="kwc">fromIntegral</span> <span class="opt">.</span> <span class="kwc">ord</span><span class="opt">)</span> <span class="kwd">as</span>
+        bs<span class="opt">&apos; =</span> <span class="kwc">init</span> <span class="opt">(</span><span class="kwc">map</span> <span class="opt">(</span><span class="kwa">floor</span> <span class="opt">. (*</span> <span class="kwc">fromIntegral</span> im<span class="opt">)) (</span><span class="kwc">scanl1</span> <span class="opt">(+)</span> bs<span class="opt">)) ++ [</span>im<span class="opt">]</span>
+        <span class="opt">(</span><span class="kwd">as</span><span class="opt">,</span> bs<span class="opt">) =</span> <span class="kwc">unzip</span> xs
+    
+    <span class="opt">(</span>p00<span class="opt">,</span>p01<span class="opt">) =</span> cumulativeProbabilities
+      <span class="opt">[(&apos;</span>a<span class="opt">&apos;,</span> <span class="num">0.27</span><span class="opt">), (&apos;</span>c<span class="opt">&apos;,</span> <span class="num">0.12</span><span class="opt">), (&apos;</span>g<span class="opt">&apos;,</span> <span class="num">0.12</span><span class="opt">), (&apos;</span>t<span class="opt">&apos;,</span> <span class="num">0.27</span><span class="opt">), (&apos;</span>B<span class="opt">&apos;,</span> <span class="num">0.02</span><span class="opt">),</span>
+       <span class="opt">(&apos;</span>D<span class="opt">&apos;,</span> <span class="num">0.02</span><span class="opt">), (&apos;</span>H<span class="opt">&apos;,</span> <span class="num">0.02</span><span class="opt">), (&apos;</span>K<span class="opt">&apos;,</span> <span class="num">0.02</span><span class="opt">), (&apos;</span>M<span class="opt">&apos;,</span> <span class="num">0.02</span><span class="opt">), (&apos;</span>N<span class="opt">&apos;,</span> <span class="num">0.02</span><span class="opt">),</span>
+       <span class="opt">(&apos;</span>R<span class="opt">&apos;,</span> <span class="num">0.02</span><span class="opt">), (&apos;</span>S<span class="opt">&apos;,</span> <span class="num">0.02</span><span class="opt">), (&apos;</span>V<span class="opt">&apos;,</span> <span class="num">0.02</span><span class="opt">), (&apos;</span>W<span class="opt">&apos;,</span> <span class="num">0.02</span><span class="opt">), (&apos;</span>Y<span class="opt">&apos;,</span> <span class="num">0.02</span><span class="opt">)]</span>
+        
+    <span class="opt">(</span>p10<span class="opt">,</span>p11<span class="opt">) =</span> cumulativeProbabilities
+      <span class="opt">[(&apos;</span>a<span class="opt">&apos;,</span> <span class="num">0.3029549426680</span><span class="opt">), (&apos;</span>c<span class="opt">&apos;,</span> <span class="num">0.1979883004921</span><span class="opt">),</span>
+       <span class="opt">(&apos;</span>g<span class="opt">&apos;,</span> <span class="num">0.1975473066391</span><span class="opt">), (&apos;</span>t<span class="opt">&apos;,</span> <span class="num">0.3015094502008</span><span class="opt">)]</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

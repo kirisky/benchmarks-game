@@ -17,6 +17,69 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="opt">&lt;</span>?php
+<span class="slc"># The Computer Language Benchmarks Game</span>
+<span class="slc"># https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">#</span>
+<span class="slc"># contributed by Yuriy Moskalchuk</span>
+
+<span class="kwa">function</span> <span class="kwd">work</span><span class="opt">()</span>
+<span class="opt">{</span>
+    <span class="kwa">global</span> <span class="kwc">$seq</span><span class="opt">,</span> <span class="kwc">$workers</span><span class="opt">;</span>
+    <span class="kwc">$sockets</span> <span class="opt">=</span> <span class="kwd">stream_socket_pair</span><span class="opt">(</span><span class="num">1</span><span class="opt">,</span> <span class="num">1</span><span class="opt">,</span> <span class="num">0</span><span class="opt">);</span>
+    <span class="kwc">$pid</span> <span class="opt">=</span> <span class="kwd">pcntl_fork</span><span class="opt">();</span>
+    <span class="kwa">if</span> <span class="opt">(</span><span class="kwc">$pid</span> <span class="opt">===</span> <span class="num">0</span><span class="opt">) {</span>
+        <span class="kwd">fclose</span><span class="opt">(</span><span class="kwc">$sockets</span><span class="opt">[</span><span class="num">0</span><span class="opt">]);</span>
+        <span class="kwd">fwrite</span><span class="opt">(</span><span class="kwc">$sockets</span><span class="opt">[</span><span class="num">1</span><span class="opt">],</span>
+            <span class="kwd">wordwrap</span><span class="opt">(</span>
+                <span class="kwd">strrev</span><span class="opt">(</span>
+                    <span class="kwd">strtr</span><span class="opt">(</span>
+                        <span class="kwd">str_ireplace</span><span class="opt">(</span><span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span> <span class="str">&apos;&apos;</span><span class="opt">,</span> <span class="kwc">$seq</span><span class="opt">),</span>
+                        <span class="str">&apos;CGATMKRYVBHDcgatmkryvbhd&apos;</span><span class="opt">,</span>
+                        <span class="str">&apos;GCTAKMYRBVDHGCTAKMYRBVDH&apos;</span>
+                    <span class="opt">)</span>
+                <span class="opt">),</span>
+                <span class="num">60</span><span class="opt">,</span> <span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span> <span class="kwa">true</span>
+            <span class="opt">)</span>
+        <span class="opt">);</span>
+        <span class="kwa">exit</span><span class="opt">;</span>
+    <span class="opt">}</span> <span class="kwa">else</span> <span class="opt">{</span>
+        <span class="kwd">fclose</span><span class="opt">(</span><span class="kwc">$sockets</span><span class="opt">[</span><span class="num">1</span><span class="opt">]);</span>
+        <span class="kwc">$workers</span><span class="opt">[] =</span> <span class="kwc">$sockets</span><span class="opt">[</span><span class="num">0</span><span class="opt">];</span>
+    <span class="opt">}</span>
+<span class="opt">}</span>
+
+<span class="kwc">$headers</span> <span class="opt">=</span> <span class="kwc">$workers</span> <span class="opt">= [];</span>
+<span class="kwc">$seq</span> <span class="opt">=</span> <span class="str">&apos;&apos;</span><span class="opt">;</span>
+<span class="kwa">while</span> <span class="opt">(</span><span class="kwa">true</span><span class="opt">) {</span>
+    <span class="kwc">$line</span> <span class="opt">=</span> <span class="kwd">fgets</span><span class="opt">(</span>STDIN<span class="opt">);</span>
+    <span class="kwa">if</span> <span class="opt">(</span><span class="kwc">$line</span><span class="opt">[</span><span class="num">0</span><span class="opt">] ===</span> <span class="str">&apos;&gt;&apos;</span><span class="opt">) {</span>
+        <span class="kwc">$headers</span><span class="opt">[] =</span> <span class="kwc">$line</span><span class="opt">;</span>
+        <span class="kwa">if</span> <span class="opt">(!</span><span class="kwa">empty</span><span class="opt">(</span><span class="kwc">$seq</span><span class="opt">)) {</span>
+            <span class="kwd">work</span><span class="opt">();</span>
+            <span class="kwc">$seq</span> <span class="opt">=</span> <span class="str">&apos;&apos;</span><span class="opt">;</span>
+        <span class="opt">}</span>
+    <span class="opt">}</span> <span class="kwa">else</span> <span class="opt">{</span>
+        <span class="kwc">$seq</span> <span class="opt">.=</span> <span class="kwc">$line</span><span class="opt">;</span>
+        <span class="kwa">if</span> <span class="opt">(!</span><span class="kwc">$line</span><span class="opt">) {</span>
+            <span class="kwa">break</span><span class="opt">;</span>
+        <span class="opt">}</span>
+    <span class="opt">}</span>
+<span class="opt">}</span>
+<span class="kwd">work</span><span class="opt">();</span>
+
+<span class="kwa">foreach</span> <span class="opt">(</span><span class="kwc">$workers</span> <span class="kwa">as</span> <span class="kwc">$n</span> <span class="opt">=&gt;</span> <span class="kwc">$socket</span><span class="opt">) {</span>
+    <span class="kwd">fwrite</span><span class="opt">(</span>STDOUT<span class="opt">,</span> <span class="kwc">$headers</span><span class="opt">[</span><span class="kwc">$n</span><span class="opt">]);</span>
+    <span class="kwd">stream_copy_to_stream</span><span class="opt">(</span><span class="kwc">$socket</span><span class="opt">,</span> STDOUT<span class="opt">);</span>
+    <span class="kwd">fwrite</span><span class="opt">(</span>STDOUT<span class="opt">,</span> <span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">);</span>
+<span class="opt">}</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

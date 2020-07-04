@@ -17,6 +17,90 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="com">/* The Computer Language Benchmarks Game</span>
+<span class="com"> https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="com"> contributed by Ralph Ganszky</span>
+<span class="com"> converted to Swift 3 by Daniel Muellenborn</span>
+<span class="com"> */</span>
+
+<span class="kwa">import</span> Glibc
+<span class="kwa">import</span> Dispatch
+
+<span class="slc">// Get matrix dimension</span>
+<span class="kwa">let</span> <span class="kwc">n</span><span class="opt">:</span> Int
+<span class="kwa">if</span> CommandLine<span class="opt">.</span>arguments<span class="opt">.</span>count <span class="opt">&gt;</span> <span class="num">1</span> <span class="opt">{</span>
+   <span class="kwc">n</span> <span class="opt">=</span> <span class="kwd">Int</span><span class="opt">(</span>CommandLine<span class="opt">.</span>arguments<span class="opt">[</span><span class="num">1</span><span class="opt">])</span> ?? <span class="num">5500</span>
+<span class="opt">}</span> <span class="kwa">else</span> <span class="opt">{</span>
+   <span class="kwc">n</span> <span class="opt">=</span> <span class="num">5500</span>
+<span class="opt">}</span>
+
+<span class="kwa">let</span> <span class="kwc">queue</span> <span class="opt">=</span> DispatchQueue<span class="opt">.</span><span class="kwd">global</span><span class="opt">(</span>qos<span class="opt">: .</span><span class="kwa">default</span><span class="opt">)</span>
+
+<span class="kwa">func</span> <span class="kwd">A</span><span class="opt">(</span>_ i<span class="opt">:</span> Int<span class="opt">,</span> _ j<span class="opt">:</span> Int<span class="opt">) -&gt;</span> Double <span class="opt">{</span>
+   <span class="kwa">return</span> <span class="num">1.0</span> <span class="opt">/</span> <span class="kwd">Double</span><span class="opt">((</span>i<span class="opt">+</span>j<span class="opt">)*(</span>i<span class="opt">+</span>j<span class="opt">+</span><span class="num">1</span><span class="opt">)/</span><span class="num">2</span> <span class="opt">+ (</span>i<span class="opt">+</span><span class="num">1</span><span class="opt">))</span>
+<span class="opt">}</span>
+
+<span class="kwa">func</span> <span class="kwd">multiplyAv</span><span class="opt">(</span>_ <span class="kwc">n</span><span class="opt">:</span> Int<span class="opt">,</span> _ v<span class="opt">: [</span>Double<span class="opt">]) -&gt; [</span>Double<span class="opt">] {</span>
+   <span class="kwa">var</span> <span class="kwc">Av</span> <span class="opt">= [</span>Double<span class="opt">](</span>repeating<span class="opt">:</span> <span class="num">0.0</span><span class="opt">,</span> count<span class="opt">:</span> <span class="kwc">n</span><span class="opt">)</span>
+   DispatchQueue<span class="opt">.</span><span class="kwd">concurrentPerform</span><span class="opt">(</span>iterations<span class="opt">:</span> <span class="kwc">n</span><span class="opt">) {</span> i <span class="kwa">in</span>
+      <span class="kwa">var</span> <span class="kwc">AvTemp</span> <span class="opt">=</span> <span class="num">0.0</span>
+      <span class="kwa">for</span> j <span class="kwa">in</span> <span class="num">0</span><span class="opt">..&lt;</span><span class="kwc">n</span> <span class="opt">{</span>
+         <span class="kwc">AvTemp</span> <span class="opt">+=</span> <span class="kwd">A</span><span class="opt">(</span>i<span class="opt">,</span>j<span class="opt">) *</span> v<span class="opt">[</span>j<span class="opt">]</span>
+      <span class="opt">}</span>
+      <span class="kwc">Av</span><span class="opt">[</span>i<span class="opt">] =</span> <span class="kwc">AvTemp</span>      <span class="slc">// This is unprotected and could cause</span>
+      <span class="slc">// a problem. Maybe here some atomic update</span>
+      <span class="slc">// or a semaphore should be used</span>
+   <span class="opt">}</span>
+   <span class="kwa">return</span> <span class="kwc">Av</span>
+<span class="opt">}</span>
+
+<span class="kwa">func</span> <span class="kwd">multiplyAtv</span><span class="opt">(</span>_ <span class="kwc">n</span><span class="opt">:</span> Int<span class="opt">,</span> _ v<span class="opt">: [</span>Double<span class="opt">]) -&gt; [</span>Double<span class="opt">] {</span>
+   <span class="kwa">var</span> <span class="kwc">Atv</span> <span class="opt">= [</span>Double<span class="opt">](</span>repeating<span class="opt">:</span> <span class="num">0.0</span><span class="opt">,</span> count<span class="opt">:</span> <span class="kwc">n</span><span class="opt">)</span>
+   DispatchQueue<span class="opt">.</span><span class="kwd">concurrentPerform</span><span class="opt">(</span>iterations<span class="opt">:</span> <span class="kwc">n</span><span class="opt">) {</span> i <span class="kwa">in</span>
+      <span class="kwa">var</span> <span class="kwc">AtvTemp</span> <span class="opt">=</span> <span class="num">0.0</span>
+      <span class="kwa">for</span> j <span class="kwa">in</span> <span class="num">0</span><span class="opt">..&lt;</span><span class="kwc">n</span> <span class="opt">{</span>
+         <span class="kwc">AtvTemp</span> <span class="opt">+=</span> <span class="kwd">A</span><span class="opt">(</span>j<span class="opt">,</span>i<span class="opt">) *</span> v<span class="opt">[</span>j<span class="opt">]</span>
+      <span class="opt">}</span>
+      <span class="kwc">Atv</span><span class="opt">[</span>i<span class="opt">] =</span> <span class="kwc">AtvTemp</span>
+   <span class="opt">}</span>
+   <span class="kwa">return</span> <span class="kwc">Atv</span>
+<span class="opt">}</span>
+
+<span class="kwa">func</span> <span class="kwd">multiplyAtAv</span><span class="opt">(</span>_ <span class="kwc">n</span><span class="opt">:</span> Int<span class="opt">,</span> _ v<span class="opt">: [</span>Double<span class="opt">]) -&gt; [</span>Double<span class="opt">] {</span>
+   <span class="kwa">let</span> <span class="kwc">u</span> <span class="opt">=</span> <span class="kwd">multiplyAv</span><span class="opt">(</span><span class="kwc">n</span><span class="opt">,</span> v<span class="opt">)</span>
+   <span class="kwa">return</span> <span class="kwd">multiplyAtv</span><span class="opt">(</span><span class="kwc">n</span><span class="opt">,</span> <span class="kwc">u</span><span class="opt">)</span>
+<span class="opt">}</span>
+
+<span class="kwa">func</span> <span class="kwd">approximate</span><span class="opt">(</span>_ <span class="kwc">n</span><span class="opt">:</span> Int<span class="opt">) -&gt;</span> Double <span class="opt">{</span>
+   <span class="kwa">var</span> <span class="kwc">u</span> <span class="opt">= [</span>Double<span class="opt">](</span>repeating<span class="opt">:</span> <span class="num">1.0</span><span class="opt">,</span> count<span class="opt">:</span> <span class="kwc">n</span><span class="opt">)</span>
+   <span class="kwa">var</span> <span class="kwc">v</span> <span class="opt">= [</span>Double<span class="opt">]()</span>
+   <span class="kwa">for</span> _ <span class="kwa">in</span> <span class="num">0</span><span class="opt">..&lt;</span><span class="num">10</span> <span class="opt">{</span>
+      <span class="kwc">v</span> <span class="opt">=</span> <span class="kwd">multiplyAtAv</span><span class="opt">(</span><span class="kwc">n</span><span class="opt">,</span> <span class="kwc">u</span><span class="opt">)</span>
+      <span class="kwc">u</span> <span class="opt">=</span> <span class="kwd">multiplyAtAv</span><span class="opt">(</span><span class="kwc">n</span><span class="opt">,</span> <span class="kwc">v</span><span class="opt">)</span>
+   <span class="opt">}</span>
+   <span class="kwa">var</span> <span class="kwc">vBv</span> <span class="opt">=</span> <span class="num">0.0</span>
+   <span class="kwa">var</span> <span class="kwc">vv</span> <span class="opt">=</span> <span class="num">0.0</span>
+   <span class="kwa">for</span> i <span class="kwa">in</span> <span class="num">0</span><span class="opt">..&lt;</span><span class="kwc">n</span> <span class="opt">{</span>
+      <span class="kwc">vBv</span> <span class="opt">+=</span> <span class="kwc">u</span><span class="opt">[</span>i<span class="opt">]*</span><span class="kwc">v</span><span class="opt">[</span>i<span class="opt">]</span>
+      <span class="kwc">vv</span> <span class="opt">+=</span> <span class="kwc">v</span><span class="opt">[</span>i<span class="opt">]*</span><span class="kwc">v</span><span class="opt">[</span>i<span class="opt">]</span>
+   <span class="opt">}</span>
+   <span class="kwa">return</span> <span class="kwd">sqrt</span><span class="opt">(</span><span class="kwc">vBv</span><span class="opt">/</span><span class="kwc">vv</span><span class="opt">)</span>
+<span class="opt">}</span>
+
+<span class="kwa">func</span> <span class="kwd">roundDouble</span><span class="opt">(</span>_ num<span class="opt">:</span> Double<span class="opt">,</span> precision<span class="opt">:</span> Int<span class="opt">) -&gt;</span> String <span class="opt">{</span>
+   <span class="kwa">let</span> <span class="kwc">exponent</span> <span class="opt">=</span> <span class="kwd">pow</span><span class="opt">(</span><span class="num">10.0</span><span class="opt">,</span> <span class="kwd">Double</span><span class="opt">(</span>precision<span class="opt">))</span>
+   <span class="kwa">let</span> <span class="kwc">number</span> <span class="opt">=</span> <span class="kwd">Double</span><span class="opt">(</span><span class="kwd">Int</span><span class="opt">(</span>num <span class="opt">*</span> <span class="kwc">exponent</span> <span class="opt">+</span> <span class="num">0.5</span><span class="opt">))/</span><span class="kwc">exponent</span>
+   <span class="kwa">return</span> <span class="str">&quot;</span><span class="ipl">\(number)</span><span class="str">&quot;</span>
+<span class="opt">}</span>
+
+<span class="kwd">print</span><span class="opt">(</span><span class="kwd">roundDouble</span><span class="opt">(</span><span class="kwd">approximate</span><span class="opt">(</span><span class="kwc">n</span><span class="opt">),</span> precision<span class="opt">:</span> <span class="num">9</span><span class="opt">))</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

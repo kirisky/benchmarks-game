@@ -17,6 +17,51 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc"># The Computer Language Benchmarks Game</span>
+<span class="slc"># https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">#</span>
+<span class="slc"># Contributed by Adam Beckmeyer. Based on code by Jarret Revels, Alex</span>
+<span class="slc"># Arslan, Michal Stransky, Jens Adam.</span>
+
+<span class="kwa">using</span> Distributed
+
+<span class="kwc">&#64;everywhere</span> <span class="kwa">struct</span> Node
+    l<span class="opt">::</span>Union<span class="opt">{</span>Node<span class="opt">,</span>Nothing<span class="opt">}</span>
+    r<span class="opt">::</span>Union<span class="opt">{</span>Node<span class="opt">,</span>Nothing<span class="opt">}</span>
+<span class="kwa">end</span>
+
+<span class="kwc">&#64;everywhere</span> <span class="kwd">make</span><span class="opt">(</span>n<span class="opt">) =</span>
+    n <span class="opt">===</span> <span class="num">0</span> <span class="opt">?</span> <span class="kwd">Node</span><span class="opt">(</span>nothing<span class="opt">,</span> nothing<span class="opt">) :</span> <span class="kwd">Node</span><span class="opt">(</span><span class="kwd">make</span><span class="opt">(</span>n<span class="opt">-</span><span class="num">1</span><span class="opt">),</span> <span class="kwd">make</span><span class="opt">(</span>n<span class="opt">-</span><span class="num">1</span><span class="opt">))</span>
+
+<span class="kwc">&#64;everywhere</span> <span class="kwd">check</span><span class="opt">(</span>node<span class="opt">) =</span>
+    node<span class="opt">.</span>l <span class="opt">===</span> nothing <span class="opt">?</span> <span class="num">1</span> <span class="opt">:</span> <span class="num">1</span> <span class="opt">+</span> <span class="kwd">check</span><span class="opt">(</span>node<span class="opt">.</span>l<span class="opt">) +</span> <span class="kwd">check</span><span class="opt">(</span>node<span class="opt">.</span>r<span class="opt">)</span>
+
+<span class="kwa">function</span> <span class="kwd">binary_trees</span><span class="opt">(</span>io<span class="opt">,</span> n<span class="opt">)</span>
+    <span class="kwd">write</span><span class="opt">(</span>io<span class="opt">,</span> <span class="str">&quot;stretch tree of depth</span> <span class="ipl">$(n+1)</span><span class="str"></span><span class="esc">\t</span> <span class="str">check:</span> <span class="ipl">$(check(make(n+1)</span><span class="str">))</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">)</span>
+
+    long_tree <span class="opt">=</span> <span class="kwd">make</span><span class="opt">(</span>n<span class="opt">)</span>
+
+    d <span class="opt">=</span> <span class="num">4</span>
+    <span class="kwa">while</span> d <span class="opt">&lt;=</span> n
+        niter <span class="opt">=</span> <span class="num">1</span> <span class="opt">&lt;&lt; (</span>n <span class="opt">-</span> d <span class="opt">+</span> <span class="num">4</span><span class="opt">)</span>
+        c <span class="opt">=</span> <span class="kwc">&#64;distributed</span> <span class="opt">(+)</span> <span class="kwa">for</span> _ <span class="kwa">in</span> <span class="num">1</span><span class="opt">:</span>niter
+            <span class="kwd">check</span><span class="opt">(</span><span class="kwd">make</span><span class="opt">(</span>d<span class="opt">))</span>
+        <span class="kwa">end</span><span class="slc">#for</span>
+        <span class="kwd">write</span><span class="opt">(</span>io<span class="opt">,</span> <span class="str">&quot;</span><span class="ipl">$niter</span><span class="str"></span><span class="esc">\t</span> <span class="str">trees of depth</span> <span class="ipl">$d</span><span class="str"></span><span class="esc">\t</span> <span class="str">check:</span> <span class="ipl">$c</span><span class="str"></span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">)</span>
+        d <span class="opt">+=</span> <span class="num">2</span>
+    <span class="kwa">end</span>
+
+    <span class="kwd">write</span><span class="opt">(</span>io<span class="opt">,</span> <span class="str">&quot;long lived tree of depth</span> <span class="ipl">$n</span><span class="str"></span><span class="esc">\t</span> <span class="str">check:</span> <span class="ipl">$(check(long_tree)</span><span class="str">)</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">)</span>
+<span class="kwa">end</span><span class="slc">#function</span>
+
+<span class="kwd">isinteractive</span><span class="opt">() ||</span> <span class="kwd">binary_trees</span><span class="opt">(</span>stdout<span class="opt">,</span> <span class="kwd">parse</span><span class="opt">(</span>Int<span class="opt">,</span> ARGS<span class="opt">[</span><span class="num">1</span><span class="opt">]))</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

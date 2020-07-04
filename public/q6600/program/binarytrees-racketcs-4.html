@@ -17,6 +17,118 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="opt">#</span>lang racket<span class="opt">/</span>base
+
+<span class="slc">;;; The Computer Language Benchmarks Game</span>
+<span class="slc">;;; https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+
+<span class="slc">;;; Derived from the Chicken variant by Sven Hartrumpf</span>
+<span class="slc">;;; contributed by Matthew Flatt</span>
+<span class="slc">;;; *reset*</span>
+<span class="slc">;;; improved by Phil Nguyen:</span>
+<span class="slc">;;; - use `cons` instead of struct `node`</span>
+<span class="slc">;;; - remove the confirmed unneccessary field `val`</span>
+<span class="slc">;;; - accumulate part of `check`</span>
+<span class="slc">;;; - use unsafe accessors and fixnum arithmetics</span>
+<span class="slc">;;; - clean up with `define` instead of nested `let`</span>
+<span class="slc">;;; - clean up with `for/sum` instead of `for/fold`</span>
+<span class="slc">;;; Parallelized by Gustavo Massaccesi, 2019</span>
+
+<span class="opt">(</span><span class="kwa">require</span> racket<span class="opt">/</span>cmdline<span class="opt">)</span>
+
+<span class="opt">#</span><span class="slc">;(struct node (left right))</span>
+<span class="opt">(</span><span class="kwa">define</span> node cons<span class="opt">)</span>
+<span class="opt">(</span><span class="kwa">require</span> racket<span class="opt">/</span>place
+         <span class="opt">(</span><span class="kwa">rename-in</span> racket<span class="opt">/</span>unsafe<span class="opt">/</span>ops
+                    <span class="opt">[</span>unsafe-car node-left<span class="opt">]</span>
+                    <span class="opt">[</span>unsafe-cdr node-right<span class="opt">]</span>
+                    <span class="opt">[</span>unsafe-fx<span class="opt">+ +]</span>
+                    <span class="opt">[</span>unsafe-fx- -<span class="opt">]</span>
+                    <span class="opt">[</span>unsafe-fx<span class="opt">= =]))</span>
+
+<span class="opt">(</span><span class="kwa">define</span> <span class="opt">(</span><span class="kwa">make</span> d<span class="opt">)</span>
+  <span class="opt">(</span><span class="kwa">if</span> <span class="opt">(=</span> d <span class="num">0</span><span class="opt">)</span>
+      <span class="opt">(</span><span class="kwa">node</span> <span class="opt">#</span>f <span class="opt">#</span>f<span class="opt">)</span>
+      <span class="opt">(</span><span class="kwa">let</span> <span class="opt">([</span>d2 <span class="opt">(</span><span class="kwa">-</span> d <span class="num">1</span><span class="opt">)])</span>
+        <span class="opt">(</span><span class="kwa">node</span> <span class="opt">(</span><span class="kwa">make</span> d2<span class="opt">) (</span><span class="kwa">make</span> d2<span class="opt">)))))</span>
+
+<span class="opt">(</span><span class="kwa">define</span> <span class="opt">(</span><span class="kwa">check</span> t<span class="opt">)</span>
+  <span class="opt">(</span><span class="kwa">let</span> sum <span class="opt">([</span>t t<span class="opt">] [</span>acc <span class="num">0</span><span class="opt">])</span>
+    <span class="opt">(</span><span class="kwa">cond</span> <span class="opt">[(</span><span class="kwa">node-left</span> t<span class="opt">) (</span><span class="kwa">sum</span> <span class="opt">(</span><span class="kwa">node-right</span> t<span class="opt">) (</span><span class="kwa">sum</span> <span class="opt">(</span><span class="kwa">node-left</span> t<span class="opt">) (+</span> <span class="num">1</span> acc<span class="opt">)))]</span>
+          <span class="opt">[</span>else          <span class="opt">(+</span> <span class="num">1</span> acc<span class="opt">)])))</span>
+
+<span class="opt">(</span><span class="kwa">define</span> <span class="opt">(</span><span class="kwa">make-checking-place</span><span class="opt">)</span>
+  <span class="opt">(</span><span class="kwa">place</span> ch
+    <span class="opt">(</span><span class="kwa">let</span> loop <span class="opt">()</span>
+    <span class="opt">(</span><span class="kwa">define</span> iterations <span class="opt">(</span><span class="kwa">place-channel-get</span> ch<span class="opt">))</span>
+    <span class="opt">(</span><span class="kwa">define</span> d <span class="opt">(</span><span class="kwa">place-channel-get</span> ch<span class="opt">))</span>
+    <span class="opt">(</span><span class="kwa">define</span> out <span class="opt">(</span><span class="kwa">for</span><span class="opt">/</span>sum <span class="opt">([</span>_ <span class="opt">(</span><span class="kwa">in-range</span> iterations<span class="opt">)])</span>
+                  <span class="opt">(</span><span class="kwa">check</span> <span class="opt">(</span><span class="kwa">make</span> d<span class="opt">))))</span>
+      <span class="opt">(</span><span class="kwa">place-channel-put</span> ch out<span class="opt">)</span>
+      <span class="opt">(</span><span class="kwa">loop</span><span class="opt">))))</span>
+
+<span class="opt">(</span><span class="kwa">module</span><span class="opt">+</span> main
+  <span class="opt">(</span><span class="kwa">define</span> <span class="opt">(</span><span class="kwa">main</span> n<span class="opt">)</span>
+    <span class="opt">(</span><span class="kwa">define</span> min-depth <span class="num">4</span><span class="opt">)</span>
+    <span class="opt">(</span><span class="kwa">define</span> max-depth <span class="opt">(</span><span class="kwa">max</span> <span class="opt">(+</span> min-depth <span class="num">2</span><span class="opt">)</span> n<span class="opt">))</span>
+    <span class="opt">(</span><span class="kwa">define</span> stretch-depth <span class="opt">(+</span> max-depth <span class="num">1</span><span class="opt">))</span>
+
+    <span class="slc">;Select how to split the task</span>
+    <span class="slc">;when n=21, we get:</span>
+    <span class="slc">;steps = &apos;(2 2 2 2 1)</span>
+    <span class="slc">;interval = &apos;((4 6) (8 10) (12 14) (16 18) (20))</span>
+    <span class="slc">; the first is calculated in the main program, and the rest in places</span>
+    <span class="opt">(</span><span class="kwa">define</span> total <span class="opt">(+ (</span><span class="kwa">quotient</span> <span class="opt">(</span><span class="kwa">-</span> max-depth min-depth<span class="opt">)</span> <span class="num">2</span><span class="opt">)</span> <span class="num">1</span><span class="opt">))</span>
+    <span class="opt">(</span><span class="kwa">define</span> cpu <span class="num">4</span><span class="opt">)</span>
+    <span class="opt">(</span><span class="kwa">define</span> steps <span class="opt">(</span><span class="kwa">append</span> <span class="opt">(</span><span class="kwa">for</span><span class="opt">/</span>list <span class="opt">([</span>_ <span class="opt">(</span><span class="kwa">in-range</span> cpu<span class="opt">)])</span>
+                            <span class="opt">(</span><span class="kwa">quotient</span> total cpu<span class="opt">))</span>
+                          <span class="opt">(</span><span class="kwa">list</span> <span class="opt">(</span><span class="kwa">remainder</span> total cpu<span class="opt">))))</span>
+    <span class="opt">(</span><span class="kwa">define</span> intervals <span class="opt">(</span><span class="kwa">let-values</span> <span class="opt">([(</span><span class="kwa">rev-out</span> total<span class="opt">)</span>
+                                    <span class="opt">(</span><span class="kwa">for</span><span class="opt">/</span>fold <span class="opt">([</span>rev-out <span class="opt">&apos;()] [</span>total min-depth<span class="opt">]) ([</span>v <span class="opt">(</span><span class="kwa">in-list</span> steps<span class="opt">)])</span>
+                                      <span class="opt">(</span><span class="kwa">define</span> next <span class="opt">(+</span> total <span class="opt">(*</span> v <span class="num">2</span><span class="opt">)))</span>
+                                      <span class="opt">(</span><span class="kwa">values</span> <span class="opt">(</span><span class="kwa">cons</span> <span class="opt">(</span><span class="kwa">for</span><span class="opt">/</span>list <span class="opt">([</span> i <span class="opt">(</span><span class="kwa">in-range</span> total next <span class="num">2</span><span class="opt">)])</span> i<span class="opt">)</span>
+                                                    rev-out<span class="opt">)</span>
+                                              next<span class="opt">))])</span>
+                        <span class="opt">(</span><span class="kwa">reverse</span> rev-out<span class="opt">)))</span>
+
+    <span class="slc">; main part of the program</span>
+    <span class="opt">(</span><span class="kwa">printf</span> <span class="str">&quot;stretch tree of depth ~a</span><span class="esc">\t</span> <span class="str">check: ~a</span><span class="esc">\n</span><span class="str">&quot;</span> stretch-depth <span class="opt">(</span><span class="kwa">check</span> <span class="opt">(</span><span class="kwa">make</span> stretch-depth<span class="opt">)))</span>
+    <span class="opt">(</span><span class="kwa">define</span> long-lived-tree <span class="opt">(</span><span class="kwa">make</span> max-depth<span class="opt">))</span>
+    <span class="opt">(</span><span class="kwa">define</span> chanells <span class="opt">(</span><span class="kwa">for</span><span class="opt">/</span>list <span class="opt">([</span>c <span class="opt">(</span><span class="kwa">in-list</span> <span class="opt">(</span><span class="kwa">cdr</span> intervals<span class="opt">))])</span>
+                       <span class="opt">(</span><span class="kwa">define</span> ch <span class="opt">(</span><span class="kwa">make-checking-place</span><span class="opt">))</span>
+                       <span class="opt">(</span><span class="kwa">for</span><span class="opt">/</span>list <span class="opt">([</span>d <span class="opt">(</span><span class="kwa">in-list</span> c<span class="opt">)])</span>
+                         <span class="opt">(</span><span class="kwa">define</span> iterations <span class="opt">(</span><span class="kwa">arithmetic-shift</span> <span class="num">1</span> <span class="opt">(+ (</span><span class="kwa">-</span> max-depth d<span class="opt">)</span> min-depth<span class="opt">)))</span>
+                         <span class="opt">(</span><span class="kwa">place-channel-put</span> ch iterations<span class="opt">)</span>
+                         <span class="opt">(</span><span class="kwa">place-channel-put</span> ch d<span class="opt">)</span>
+                         <span class="opt">(</span><span class="kwa">list</span> iterations d ch<span class="opt">))))</span>
+    <span class="opt">(</span><span class="kwa">define</span> chanellsx <span class="opt">(</span><span class="kwa">cons</span> <span class="opt">(</span><span class="kwa">let</span> <span class="opt">([</span>c <span class="opt">(</span><span class="kwa">car</span> intervals<span class="opt">)])</span>
+                              <span class="opt">(</span><span class="kwa">for</span><span class="opt">/</span>list <span class="opt">([</span>d <span class="opt">(</span><span class="kwa">in-list</span> c<span class="opt">)])</span>
+                                <span class="opt">(</span><span class="kwa">define</span> iterations <span class="opt">(</span><span class="kwa">arithmetic-shift</span> <span class="num">1</span> <span class="opt">(+ (</span><span class="kwa">-</span> max-depth d<span class="opt">)</span> min-depth<span class="opt">)))</span>
+                                <span class="opt">(</span><span class="kwa">define</span> r <span class="opt">(</span><span class="kwa">for</span><span class="opt">/</span>sum <span class="opt">([</span>_ <span class="opt">(</span><span class="kwa">in-range</span> iterations<span class="opt">)])</span>
+                                            <span class="opt">(</span><span class="kwa">check</span> <span class="opt">(</span><span class="kwa">make</span> d<span class="opt">))))</span>
+                                <span class="opt">(</span><span class="kwa">list</span> iterations d r<span class="opt">)))</span>
+                            chanells<span class="opt">))</span>
+    <span class="opt">(</span><span class="kwa">for</span> <span class="opt">([</span>vs <span class="opt">(</span><span class="kwa">in-list</span> chanellsx<span class="opt">)])</span>
+      <span class="opt">(</span><span class="kwa">for</span> <span class="opt">([</span>v <span class="opt">(</span><span class="kwa">in-list</span> vs<span class="opt">)])</span>
+        <span class="opt">(</span><span class="kwa">printf</span> <span class="str">&quot;~a</span><span class="esc">\t</span> <span class="str">trees of depth ~a</span><span class="esc">\t</span> <span class="str">check: ~a</span><span class="esc">\n</span><span class="str">&quot;</span>
+                <span class="opt">(</span><span class="kwa">car</span> v<span class="opt">)</span>
+                <span class="opt">(</span><span class="kwa">cadr</span> v<span class="opt">)</span>
+                <span class="opt">(</span><span class="kwa">let</span> <span class="opt">([</span>r <span class="opt">(</span><span class="kwa">caddr</span> v<span class="opt">)])</span>
+                  <span class="opt">(</span><span class="kwa">if</span> <span class="opt">(</span><span class="kwa">number</span>? r<span class="opt">)</span>
+                      r
+                      <span class="opt">(</span><span class="kwa">place-channel-get</span> r<span class="opt">))))))</span>
+    <span class="opt">(</span><span class="kwa">printf</span> <span class="str">&quot;long lived tree of depth ~a</span><span class="esc">\t</span> <span class="str">check: ~a</span><span class="esc">\n</span><span class="str">&quot;</span> max-depth <span class="opt">(</span><span class="kwa">check</span> long-lived-tree<span class="opt">)))</span>
+
+  <span class="opt">(</span><span class="kwa">command-line</span> <span class="opt">#:</span>args <span class="opt">(</span><span class="kwa">n</span><span class="opt">)</span> 
+                <span class="opt">(</span><span class="kwa">main</span> <span class="opt">(</span><span class="kwa">string-</span><span class="opt">&gt;</span>number n<span class="opt">)))</span>
+<span class="opt">)</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

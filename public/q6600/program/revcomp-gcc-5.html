@@ -17,6 +17,88 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="com">/* The Computer Language Benchmarks Game</span>
+<span class="com"> * https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="com"></span>
+<span class="com">   contributed by Mr Ledrug</span>
+<span class="com">   modified by Attila Balazs</span>
+<span class="com">*/</span>
+
+<span class="ppc">#define _GNU_SOURCE</span>
+<span class="ppc">#include &lt;sched.h&gt;</span>
+<span class="ppc">#include &lt;stdio.h&gt;</span>
+<span class="ppc">#include &lt;stdlib.h&gt;</span>
+<span class="ppc">#include &lt;ctype.h&gt;</span>
+<span class="ppc">#include &lt;unistd.h&gt;</span>
+<span class="ppc">#include &lt;string.h&gt;</span>
+
+<span class="kwb">char</span> <span class="opt">*</span>pairs <span class="opt">=</span> <span class="str">&quot;ATCGGCTAUAMKRYWWSSYRKMVBHDDHBVNN</span><span class="esc">\n\n</span><span class="str">&quot;</span><span class="opt">;</span>
+<span class="kwb">char</span> tbl<span class="opt">[</span><span class="num">128</span><span class="opt">];</span>
+
+<span class="kwb">void</span> <span class="kwd">process</span><span class="opt">(</span><span class="kwb">char</span> <span class="opt">*</span>from<span class="opt">,</span> <span class="kwb">char</span> <span class="opt">*</span>to<span class="opt">) {</span>
+   <span class="kwa">while</span> <span class="opt">(*</span>from<span class="opt">++ !=</span> <span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span><span class="opt">);</span>
+
+   <span class="kwb">size_t</span> len <span class="opt">=</span> to <span class="opt">-</span> from<span class="opt">;</span>
+   <span class="kwb">size_t</span> off <span class="opt">=</span> <span class="num">60</span> <span class="opt">- (</span>len <span class="opt">%</span> <span class="num">61</span><span class="opt">);</span>
+
+   <span class="kwa">if</span> <span class="opt">(</span>off<span class="opt">) {</span>
+      <span class="kwb">char</span> <span class="opt">*</span>m<span class="opt">;</span>
+      <span class="kwa">for</span> <span class="opt">(</span>m <span class="opt">=</span> from <span class="opt">+</span> <span class="num">60</span> <span class="opt">-</span> off<span class="opt">;</span> m <span class="opt">&lt;</span> to<span class="opt">;</span> m <span class="opt">+=</span> <span class="num">61</span><span class="opt">) {</span>
+         <span class="kwd">memmove</span><span class="opt">(</span>m <span class="opt">+</span> <span class="num">1</span><span class="opt">,</span> m<span class="opt">,</span> off<span class="opt">);</span>
+         <span class="opt">*</span>m <span class="opt">=</span> <span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span><span class="opt">;</span>
+      <span class="opt">}</span>
+   <span class="opt">}</span>
+
+   <span class="kwb">char</span> c<span class="opt">;</span>
+   <span class="kwa">for</span> <span class="opt">(</span>to<span class="opt">--;</span> from <span class="opt">&lt;=</span> to<span class="opt">;</span> from<span class="opt">++,</span> to<span class="opt">--)</span>
+      c <span class="opt">=</span> tbl<span class="opt">[(</span><span class="kwb">int</span><span class="opt">)*</span>from<span class="opt">], *</span>from <span class="opt">=</span> tbl<span class="opt">[(</span><span class="kwb">int</span><span class="opt">)*</span>to<span class="opt">], *</span>to <span class="opt">=</span> c<span class="opt">;</span>
+<span class="opt">}</span>
+
+<span class="kwb">int</span> <span class="kwd">main</span><span class="opt">() {</span>
+   <span class="kwb">char</span> <span class="opt">*</span>s<span class="opt">;</span>
+   <span class="kwa">for</span> <span class="opt">(</span>s <span class="opt">=</span> pairs<span class="opt">; *</span>s<span class="opt">;</span> s <span class="opt">+=</span> <span class="num">2</span><span class="opt">) {</span>
+      tbl<span class="opt">[</span><span class="kwd">toupper</span><span class="opt">(</span>s<span class="opt">[</span><span class="num">0</span><span class="opt">])] =</span> s<span class="opt">[</span><span class="num">1</span><span class="opt">];</span>
+      tbl<span class="opt">[</span><span class="kwd">tolower</span><span class="opt">(</span>s<span class="opt">[</span><span class="num">0</span><span class="opt">])] =</span> s<span class="opt">[</span><span class="num">1</span><span class="opt">];</span>
+   <span class="opt">}</span>
+
+
+   <span class="kwb">const size_t</span> _1M <span class="opt">=</span> <span class="num">1024</span> <span class="opt">*</span> <span class="num">1024</span><span class="opt">;</span>
+   <span class="kwb">size_t</span> buflen <span class="opt">=</span> <span class="num">8</span> <span class="opt">*</span> <span class="num">1024</span><span class="opt">,</span> len<span class="opt">,</span> end <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+   <span class="kwb">char</span> <span class="opt">*</span>buf <span class="opt">=</span> <span class="kwd">malloc</span><span class="opt">(</span>buflen<span class="opt">);</span>
+
+   <span class="kwb">int</span> in <span class="opt">=</span> <span class="kwd">fileno</span><span class="opt">(</span>stdin<span class="opt">);</span>
+   <span class="kwa">while</span> <span class="opt">((</span>len <span class="opt">=</span> <span class="kwd">read</span><span class="opt">(</span>in<span class="opt">,</span> buf <span class="opt">+</span> end<span class="opt">,</span> buflen <span class="opt">-</span> <span class="num">256</span> <span class="opt">-</span> end<span class="opt">))) {</span>
+      <span class="kwa">if</span> <span class="opt">(</span>len <span class="opt">&lt;</span> <span class="num">0</span><span class="opt">)</span> <span class="kwa">break</span><span class="opt">;</span>
+      end <span class="opt">+=</span> len<span class="opt">;</span>
+      <span class="kwa">if</span> <span class="opt">(</span>end <span class="opt">&gt;=</span> buflen <span class="opt">-</span> <span class="num">256</span><span class="opt">) {</span>
+         buflen <span class="opt">= (</span>buflen <span class="opt">&gt;=</span> _1M<span class="opt">) ?</span> buflen <span class="opt">+</span> _1M <span class="opt">:</span> buflen <span class="opt">*</span> <span class="num">2</span><span class="opt">;</span>
+         buf <span class="opt">=</span> <span class="kwd">realloc</span><span class="opt">(</span>buf<span class="opt">,</span> buflen<span class="opt">);</span>
+      <span class="opt">}</span>
+   <span class="opt">}</span>
+   buf<span class="opt">[</span>end<span class="opt">] =</span> <span class="str">&apos;&gt;&apos;</span><span class="opt">;</span>
+
+   <span class="kwb">char</span> <span class="opt">*</span>from<span class="opt">, *</span>to <span class="opt">=</span> buf <span class="opt">+</span> end <span class="opt">-</span> <span class="num">1</span><span class="opt">;</span>
+   <span class="kwa">while</span> <span class="opt">(</span><span class="num">1</span><span class="opt">) {</span>
+      <span class="kwa">for</span> <span class="opt">(</span>from <span class="opt">=</span> to<span class="opt">; *</span>from <span class="opt">!=</span> <span class="str">&apos;&gt;&apos;</span><span class="opt">;</span> from<span class="opt">--);</span>
+
+      <span class="kwd">process</span><span class="opt">(</span>from<span class="opt">,</span> to<span class="opt">);</span>
+
+      to <span class="opt">=</span> from <span class="opt">-</span> <span class="num">1</span><span class="opt">;</span>
+      <span class="kwa">if</span> <span class="opt">(</span>to <span class="opt">&lt;</span> buf<span class="opt">)</span> <span class="kwa">break</span><span class="opt">;</span>
+   <span class="opt">}</span>
+
+   <span class="kwd">write</span><span class="opt">(</span><span class="kwd">fileno</span><span class="opt">(</span>stdout<span class="opt">),</span> buf<span class="opt">,</span> end<span class="opt">);</span>
+   <span class="kwd">free</span><span class="opt">(</span>buf<span class="opt">);</span>
+
+   <span class="kwa">return</span> <span class="num">0</span><span class="opt">;</span>
+<span class="opt">}</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

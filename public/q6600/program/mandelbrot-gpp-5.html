@@ -17,6 +17,95 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc">// The Computer Language Benchmarks Game</span>
+<span class="slc">// https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">//</span>
+<span class="slc">// contributed by Elam Kolenovic</span>
+<span class="slc">//</span>
+<span class="slc">// Changes (2013-04-07):</span>
+<span class="slc">//   - removed unnecessary arrays, faster especially on 32 bits</span>
+<span class="slc">//   - using putchar instead of iostreams, slightly faster</span>
+<span class="slc">//   - using namespace std for readability</span>
+<span class="slc">//   - replaced size_t with unsigned</span>
+<span class="slc">//   - removed some includes</span>
+
+<span class="ppc">#include &lt;cstdio&gt;</span>
+<span class="ppc">#include &lt;cstdlib&gt;</span>
+<span class="ppc">#include &lt;limits&gt;</span>
+<span class="ppc">#include &lt;vector&gt;</span>
+
+<span class="kwc">typedef</span> <span class="kwb">unsigned char</span> Byte<span class="opt">;</span>
+
+<span class="kwa">using namespace</span> std<span class="opt">;</span>
+
+<span class="kwb">int</span> <span class="kwd">main</span><span class="opt">(</span><span class="kwb">int</span> argc<span class="opt">,</span> <span class="kwb">char</span><span class="opt">*</span> argv<span class="opt">[])</span>
+<span class="opt">{</span>
+    <span class="kwb">const unsigned</span> N             <span class="opt">=</span> <span class="kwd">max</span><span class="opt">(</span><span class="num">0</span><span class="opt">, (</span>argc <span class="opt">&gt;</span> <span class="num">1</span><span class="opt">) ?</span> <span class="kwd">atoi</span><span class="opt">(</span>argv<span class="opt">[</span><span class="num">1</span><span class="opt">]) :</span> <span class="num">0</span><span class="opt">);</span>
+    <span class="kwb">const unsigned</span> width         <span class="opt">=</span> N<span class="opt">;</span>
+    <span class="kwb">const unsigned</span> height        <span class="opt">=</span> N<span class="opt">;</span>
+    <span class="kwb">const unsigned</span> maxX          <span class="opt">= (</span>width <span class="opt">+</span> <span class="num">7</span><span class="opt">) /</span> <span class="num">8</span><span class="opt">;</span>
+    <span class="kwb">const unsigned</span> maxIterations <span class="opt">=</span> <span class="num">50</span><span class="opt">;</span>
+    <span class="kwb">const double</span>   limit         <span class="opt">=</span> <span class="num">2.0</span><span class="opt">;</span>
+    <span class="kwb">const double</span>   limitSq       <span class="opt">=</span> limit <span class="opt">*</span> limit<span class="opt">;</span>
+
+    vector<span class="opt">&lt;</span>Byte<span class="opt">&gt;</span> <span class="kwd">data</span><span class="opt">(</span>height <span class="opt">*</span> maxX<span class="opt">);</span>
+
+    <span class="kwd">printf</span><span class="opt">(</span><span class="str">&quot;P4</span><span class="esc">\n</span><span class="str">%u %u</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span> width<span class="opt">,</span> height<span class="opt">);</span>
+
+    <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">unsigned</span> y <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> y <span class="opt">&lt;</span> height<span class="opt">; ++</span>y<span class="opt">)</span>
+    <span class="opt">{</span>
+        <span class="kwb">const double</span> ci0 <span class="opt">=</span> <span class="num">2.0</span> <span class="opt">*</span> y <span class="opt">/</span> height <span class="opt">-</span> <span class="num">1.0</span><span class="opt">;</span>
+
+        <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">unsigned</span> x <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> x <span class="opt">&lt;</span> maxX<span class="opt">; ++</span>x<span class="opt">)</span>
+        <span class="opt">{</span>
+            <span class="kwb">double</span> cr0<span class="opt">[</span><span class="num">8</span><span class="opt">];</span>
+            <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">unsigned</span> k <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> k <span class="opt">&lt;</span> <span class="num">8</span><span class="opt">; ++</span>k<span class="opt">)</span>
+            <span class="opt">{</span>
+                cr0<span class="opt">[</span>k<span class="opt">] =</span> <span class="num">2.0</span> <span class="opt">* (</span><span class="num">8</span> <span class="opt">*</span> x <span class="opt">+</span> k<span class="opt">) /</span> width <span class="opt">-</span> <span class="num">1.5</span><span class="opt">;</span>
+            <span class="opt">}</span>
+
+            <span class="kwb">double</span> cr<span class="opt">[</span><span class="num">8</span><span class="opt">];</span>
+            <span class="kwd">copy</span><span class="opt">(</span>cr0<span class="opt">,</span> cr0 <span class="opt">+</span> <span class="num">8</span><span class="opt">, &amp;</span>cr<span class="opt">[</span><span class="num">0</span><span class="opt">]);</span>
+
+            <span class="kwb">double</span> ci<span class="opt">[</span><span class="num">8</span><span class="opt">];</span>
+            <span class="kwd">fill</span><span class="opt">(</span>ci<span class="opt">,</span> ci <span class="opt">+</span> <span class="num">8</span><span class="opt">,</span> ci0<span class="opt">);</span>
+
+            Byte bits <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+            <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">unsigned</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> maxIterations <span class="opt">&amp;&amp;</span> bits <span class="opt">!=</span> <span class="num">0xFF</span><span class="opt">; ++</span>i<span class="opt">)</span>
+            <span class="opt">{</span>
+                <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">unsigned</span> k <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> k <span class="opt">&lt;</span> <span class="num">8</span><span class="opt">; ++</span>k<span class="opt">)</span>
+                <span class="opt">{</span>
+                    <span class="kwb">const</span> Byte mask <span class="opt">= (</span><span class="num">1</span> <span class="opt">&lt;&lt; (</span><span class="num">7</span> <span class="opt">-</span> k<span class="opt">));</span>
+                    <span class="kwa">if</span> <span class="opt">((</span>bits <span class="opt">&amp;</span> mask<span class="opt">) ==</span> <span class="num">0</span><span class="opt">)</span>
+                    <span class="opt">{</span>
+                        <span class="kwb">const double</span> crk  <span class="opt">=</span> cr<span class="opt">[</span>k<span class="opt">];</span>
+                        <span class="kwb">const double</span> cik  <span class="opt">=</span> ci<span class="opt">[</span>k<span class="opt">];</span>
+                        <span class="kwb">const double</span> cr2k <span class="opt">=</span> crk <span class="opt">*</span> crk<span class="opt">;</span>
+                        <span class="kwb">const double</span> ci2k <span class="opt">=</span> cik <span class="opt">*</span> cik<span class="opt">;</span>
+
+                        cr<span class="opt">[</span>k<span class="opt">] =</span> cr2k <span class="opt">-</span> ci2k <span class="opt">+</span> cr0<span class="opt">[</span>k<span class="opt">];</span>
+                        ci<span class="opt">[</span>k<span class="opt">] =</span> <span class="num">2.0</span> <span class="opt">*</span> crk <span class="opt">*</span> cik <span class="opt">+</span> ci0<span class="opt">;</span>
+
+                        <span class="kwa">if</span> <span class="opt">(</span>cr2k <span class="opt">+</span> ci2k <span class="opt">&gt;</span> limitSq<span class="opt">)</span>
+                        <span class="opt">{</span>
+                            bits <span class="opt">|=</span> mask<span class="opt">;</span>
+                        <span class="opt">}</span>
+                    <span class="opt">}</span>
+                <span class="opt">}</span>
+            <span class="opt">}</span>
+            <span class="kwd">putchar</span><span class="opt">(~</span>bits<span class="opt">);</span>
+        <span class="opt">}</span>
+    <span class="opt">}</span>
+
+    <span class="kwa">return</span> <span class="num">0</span><span class="opt">;</span>
+<span class="opt">}</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

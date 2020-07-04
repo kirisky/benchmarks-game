@@ -17,6 +17,76 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc">;;    The Computer Language Benchmarks Game</span>
+<span class="slc">;;    https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">;;</span>
+<span class="slc">;;    Adapted from the C (gcc) code by Sebastien Loisel</span>
+<span class="slc">;;    Contributed by Christopher Neufeld 2005-08-19</span>
+<span class="slc">;;    Modified by Juho Snellman 2005-10-26</span>
+<span class="slc">;;      * Use SIMPLE-ARRAY instead of ARRAY in declarations</span>
+<span class="slc">;;      * Rearrange EVAL-A to make it more readable and a bit faster</span>
+<span class="slc">;;    Modified by Andy Hefner 2008-09-18</span>
+<span class="slc">;;      * Eliminate array consing</span>
+<span class="slc">;;      * Clean up type declarations in eval-A</span>
+<span class="slc">;;    Modified by Isaac Gouy 2019-10-17</span>
+<span class="slc">;;      * eval-A like C gcc #4 program</span>
+<span class="slc">;;      * posix-argv like Jon Smith&apos;s fannkuch-redux Lisp SBCL #2 program</span>
+<span class="slc">;;      * deftype suggested by tfb on SO</span>
+
+<span class="opt">(</span><span class="kwa">deftype</span> int31 <span class="opt">(&amp;</span>optional <span class="opt">(</span><span class="kwa">bits</span> <span class="num">31</span><span class="opt">))</span>
+  <span class="opt">`(</span><span class="kwa">signed-byte</span> <span class="opt">,</span>bits<span class="opt">))</span>
+
+<span class="opt">(</span><span class="kwa">declaim</span> <span class="opt">(</span><span class="kwa">inline</span> eval-A<span class="opt">))</span>
+<span class="opt">(</span><span class="kwa">defun</span> <span class="kwb">eval-A</span> <span class="opt">(</span><span class="kwa">i</span> j<span class="opt">)</span>
+  <span class="opt">(</span><span class="kwa">declare</span> <span class="opt">(</span><span class="kwa">type</span> int31 i j<span class="opt">))</span>
+  <span class="opt">(/</span> <span class="num">1.0</span>d0 <span class="opt">(+ (</span><span class="kwa">ash</span> <span class="opt">(* (+</span> i j<span class="opt">) (+</span> i j <span class="num">1</span><span class="opt">))</span> -<span class="num">1</span><span class="opt">)</span> i <span class="num">1</span><span class="opt">)))</span>
+
+<span class="opt">(</span><span class="kwa">defun</span> <span class="kwb">eval-A-times-u</span> <span class="opt">(</span><span class="kwa">n</span> u<span class="opt">)</span>
+  <span class="opt">(</span><span class="kwa">declare</span> <span class="opt">(</span><span class="kwa">type</span> int31 n<span class="opt">)</span>
+           <span class="opt">(</span><span class="kwa">type</span> <span class="opt">(</span><span class="kwa">simple-array</span> double-float<span class="opt">)</span> u<span class="opt">))</span>
+  <span class="opt">(</span><span class="kwa">let</span> <span class="opt">((</span><span class="kwa">retval</span> <span class="opt">(</span><span class="kwa">make-array</span> n <span class="opt">:</span>element-type <span class="opt">&apos;</span>double-float <span class="opt">:</span>initial-element <span class="num">0.0</span>d0<span class="opt">)))</span>
+    <span class="opt">(</span><span class="kwa">dotimes</span> <span class="opt">(</span><span class="kwa">i</span> n<span class="opt">)</span>
+      <span class="opt">(</span><span class="kwa">dotimes</span> <span class="opt">(</span><span class="kwa">j</span> n<span class="opt">)</span>
+        <span class="opt">(</span><span class="kwa">incf</span> <span class="opt">(</span><span class="kwa">aref</span> retval i<span class="opt">) (* (</span><span class="kwa">eval-A</span> i j<span class="opt">) (</span><span class="kwa">aref</span> u j<span class="opt">)))))</span>
+    retval<span class="opt">))</span>
+
+<span class="opt">(</span><span class="kwa">defun</span> <span class="kwb">eval-At-times-u</span> <span class="opt">(</span><span class="kwa">n</span> u<span class="opt">)</span>
+  <span class="opt">(</span><span class="kwa">declare</span> <span class="opt">(</span><span class="kwa">type</span> int31 n<span class="opt">)</span>
+           <span class="opt">(</span><span class="kwa">type</span> <span class="opt">(</span><span class="kwa">simple-array</span> double-float<span class="opt">)</span> u<span class="opt">))</span>
+  <span class="opt">(</span><span class="kwa">let</span> <span class="opt">((</span><span class="kwa">retval</span> <span class="opt">(</span><span class="kwa">make-array</span> n <span class="opt">:</span>element-type <span class="opt">&apos;</span>double-float <span class="opt">:</span>initial-element <span class="num">0.0</span>d0<span class="opt">)))</span>
+    <span class="opt">(</span><span class="kwa">dotimes</span> <span class="opt">(</span><span class="kwa">i</span> n<span class="opt">)</span>
+      <span class="opt">(</span><span class="kwa">dotimes</span> <span class="opt">(</span><span class="kwa">j</span> n<span class="opt">)</span>
+        <span class="opt">(</span><span class="kwa">incf</span> <span class="opt">(</span><span class="kwa">aref</span> retval i<span class="opt">) (* (</span><span class="kwa">eval-A</span> j i<span class="opt">) (</span><span class="kwa">aref</span> u j<span class="opt">)))))</span>
+    retval<span class="opt">))</span>
+
+<span class="opt">(</span><span class="kwa">defun</span> <span class="kwb">eval-AtA-times-u</span> <span class="opt">(</span><span class="kwa">n</span> u<span class="opt">)</span>
+  <span class="opt">(</span><span class="kwa">eval-At-times-u</span> n <span class="opt">(</span><span class="kwa">eval-A-times-u</span> n u<span class="opt">)))</span>
+
+<span class="opt">(</span><span class="kwa">defun</span> <span class="kwb">main</span> <span class="opt">()</span> 
+  <span class="opt">(</span><span class="kwa">let</span><span class="opt">* ((</span><span class="kwa">args</span> <span class="opt">(</span><span class="kwa">cdr</span> sb-ext<span class="opt">:*</span>posix-argv<span class="opt">*))</span>
+         <span class="opt">(</span><span class="kwa">n</span> <span class="opt">(</span><span class="kwa">parse-integer</span> <span class="opt">(</span><span class="kwa">car</span> args<span class="opt">))))</span>
+    <span class="opt">(</span><span class="kwa">declare</span> <span class="opt">(</span><span class="kwa">type</span> int31 n<span class="opt">))</span>
+    <span class="opt">(</span><span class="kwa">let</span> <span class="opt">((</span><span class="kwa">u</span> <span class="opt">(</span><span class="kwa">make-array</span> n <span class="opt">:</span>element-type <span class="opt">&apos;</span>double-float <span class="opt">:</span>initial-element <span class="num">1.0</span>d0<span class="opt">))</span>
+          <span class="opt">(</span><span class="kwa">v</span> <span class="opt">(</span><span class="kwa">make-array</span> n <span class="opt">:</span>element-type <span class="opt">&apos;</span>double-float<span class="opt">)))</span>
+      <span class="opt">(</span><span class="kwa">declare</span> <span class="opt">(</span><span class="kwa">type</span> <span class="opt">(</span><span class="kwa">simple-array</span> double-float<span class="opt">)</span> U V<span class="opt">))</span>
+      <span class="opt">(</span><span class="kwa">dotimes</span> <span class="opt">(</span><span class="kwa">i</span> <span class="num">10</span><span class="opt">)</span>
+        <span class="opt">(</span><span class="kwa">setf</span> v <span class="opt">(</span><span class="kwa">eval-AtA-times-u</span> n u<span class="opt">))</span>
+        <span class="opt">(</span><span class="kwa">setf</span> u <span class="opt">(</span><span class="kwa">eval-AtA-times-u</span> n v<span class="opt">)))</span>
+      <span class="opt">(</span><span class="kwa">let</span> <span class="opt">((</span><span class="kwa">vBv</span> <span class="num">0.0</span>d0<span class="opt">)</span>
+            <span class="opt">(</span><span class="kwa">vv</span> <span class="num">0.0</span>d0<span class="opt">))</span>
+        <span class="opt">(</span><span class="kwa">declare</span> <span class="opt">(</span><span class="kwa">type</span> double-float vBv vv<span class="opt">))</span>
+        <span class="opt">(</span><span class="kwa">dotimes</span> <span class="opt">(</span><span class="kwa">i</span> n<span class="opt">)</span>
+          <span class="opt">(</span><span class="kwa">incf</span> vBv <span class="opt">(* (</span><span class="kwa">aref</span> u i<span class="opt">) (</span><span class="kwa">aref</span> v i<span class="opt">)))</span>
+          <span class="opt">(</span><span class="kwa">incf</span> vv <span class="opt">(* (</span><span class="kwa">aref</span> v i<span class="opt">) (</span><span class="kwa">aref</span> v i<span class="opt">))))</span>
+        <span class="opt">(</span><span class="kwa">format</span> t <span class="str">&quot;~11,9F~%&quot;</span> <span class="opt">(</span><span class="kwa">sqrt</span> <span class="opt">(</span><span class="kwa">the</span> <span class="opt">(</span><span class="kwa">double-float</span> <span class="num">0</span>d0<span class="opt">) (/</span> vBv vv<span class="opt">))))))))</span> 
+
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

@@ -17,6 +17,103 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="com">/* The Computer Language Benchmarks Game</span>
+<span class="com"> https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="com"> contributed by Ralph Ganszky</span>
+<span class="com"> modified for Swift 3.0 by Daniel Muellenborn</span>
+<span class="com"> modified for C &amp; gcc by Dominic Letz</span>
+<span class="com"></span>
+<span class="com"> Compile with: gcc -O3 -mno-fma -march=native -fopenmp main.c</span>
+<span class="com"> */</span>
+
+<span class="ppc">#include &lt;stdio.h&gt;</span>
+<span class="ppc">#include &lt;stdlib.h&gt;</span>
+
+<span class="kwb">int</span> Iter <span class="opt">=</span> <span class="num">50</span><span class="opt">;</span>
+
+<span class="kwc">typedef</span> <span class="kwb">double</span> Vec <span class="kwd">__attribute__</span> <span class="opt">((</span><span class="kwd">vector_size</span><span class="opt">(</span><span class="num">16</span><span class="opt">)));</span>
+<span class="kwb">const int</span> Vec__size <span class="opt">=</span> <span class="kwa">sizeof</span><span class="opt">(</span>Vec<span class="opt">)/</span><span class="kwa">sizeof</span><span class="opt">(</span><span class="kwb">double</span><span class="opt">);</span>
+<span class="kwc">typedef</span> <span class="kwb">unsigned char</span> Byte<span class="opt">;</span>
+
+<span class="kwb">int</span> <span class="kwd">bt</span><span class="opt">(</span>Vec lhs<span class="opt">,</span> <span class="kwb">double</span> rhs<span class="opt">) {</span>
+  <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> Vec__size<span class="opt">;</span> i<span class="opt">++)</span>
+    <span class="kwa">if</span> <span class="opt">(</span>lhs<span class="opt">[</span>i<span class="opt">] &lt;=</span> rhs<span class="opt">)</span>
+      <span class="kwa">return</span> <span class="num">0</span><span class="opt">;</span>
+  <span class="kwa">return</span> <span class="num">1</span><span class="opt">;</span>
+<span class="opt">}</span>
+
+<span class="slc">// Calculate mandelbrot set for one Vec into one byte</span>
+Byte <span class="kwd">mand</span><span class="opt">(</span>Vec cr<span class="opt">,</span> Vec ci<span class="opt">) {</span>
+  Vec Zr <span class="opt">= {</span><span class="num">0.0</span><span class="opt">};</span>
+  Vec Zi <span class="opt">= {</span><span class="num">0.0</span><span class="opt">};</span>
+  Vec Tr <span class="opt">= {</span><span class="num">0.0</span><span class="opt">};</span>
+  Vec Ti <span class="opt">= {</span><span class="num">0.0</span><span class="opt">};</span>
+
+  <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> Iter<span class="opt">/</span><span class="num">5</span><span class="opt">;</span> i<span class="opt">++) {</span>
+    <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> j <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> j <span class="opt">&lt;</span> <span class="num">5</span><span class="opt">;</span> j<span class="opt">++) {</span>
+      Zi <span class="opt">= (</span>Zr <span class="opt">+</span> Zr<span class="opt">) *</span> Zi <span class="opt">+</span> ci<span class="opt">;</span>
+      Zr <span class="opt">=</span> Tr <span class="opt">-</span> Ti <span class="opt">+</span> cr<span class="opt">;</span>
+      Tr <span class="opt">=</span> Zr <span class="opt">*</span> Zr<span class="opt">;</span>
+      Ti <span class="opt">=</span> Zi <span class="opt">*</span> Zi<span class="opt">;</span>
+    <span class="opt">}</span>
+    <span class="kwa">if</span> <span class="opt">(</span><span class="kwd">bt</span><span class="opt">(</span>Tr <span class="opt">+</span> Ti<span class="opt">,</span> <span class="num">4.0</span><span class="opt">)) {</span>
+       <span class="kwa">return</span> <span class="num">0</span><span class="opt">;</span>
+    <span class="opt">}</span>
+  <span class="opt">}</span>
+  Byte byte <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+  Vec t <span class="opt">=</span> Tr <span class="opt">+</span> Ti<span class="opt">;</span>
+  <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> Vec__size<span class="opt">;</span> i<span class="opt">++) {</span>
+    byte <span class="opt">|=</span> t<span class="opt">[</span>i<span class="opt">] &lt;=</span> <span class="num">4.0</span> <span class="opt">? (</span><span class="num">0x80</span> <span class="opt">&gt;&gt;</span> i<span class="opt">) :</span> <span class="num">0</span><span class="opt">;</span>
+  <span class="opt">}</span>
+  <span class="kwa">return</span> byte<span class="opt">;</span>
+<span class="opt">}</span>
+
+<span class="slc">// Parse command line arguments</span>
+<span class="kwb">int</span> <span class="kwd">main</span><span class="opt">(</span><span class="kwb">int</span> argc<span class="opt">,</span> <span class="kwb">char</span><span class="opt">*</span> argv<span class="opt">[])</span>
+<span class="opt">{</span>
+  <span class="kwb">int</span> n <span class="opt">= (</span>argc <span class="opt">&gt;</span> <span class="num">1</span><span class="opt">) ?</span> <span class="kwd">atoi</span><span class="opt">(</span>argv<span class="opt">[</span><span class="num">1</span><span class="opt">]) :</span> <span class="num">200</span><span class="opt">;</span>
+  <span class="kwb">int</span> N <span class="opt">= (</span>n <span class="opt">+</span> Vec__size <span class="opt">-</span> <span class="num">1</span><span class="opt">) &amp; ~(</span>Vec__size <span class="opt">-</span> <span class="num">1</span><span class="opt">);</span>
+  <span class="kwb">double</span> inv <span class="opt">=</span> <span class="num">2.0</span> <span class="opt">/ ((</span><span class="kwb">double</span><span class="opt">)</span>n<span class="opt">);</span>
+  Vec xvals<span class="opt">[</span>N<span class="opt">/</span>Vec__size<span class="opt">];</span>
+  Vec yvals<span class="opt">[</span>N<span class="opt">];</span>
+  Byte <span class="opt">*</span>rows <span class="opt">=</span> <span class="kwd">malloc</span><span class="opt">(</span>n<span class="opt">*</span>N<span class="opt">/</span><span class="num">8</span><span class="opt">);</span>
+
+  <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> N<span class="opt">;</span> i<span class="opt">++) {</span>
+    xvals<span class="opt">[</span>i<span class="opt">/</span>Vec__size<span class="opt">][</span>i<span class="opt">%</span>Vec__size<span class="opt">] = ((</span><span class="kwb">double</span><span class="opt">)</span>i<span class="opt">) *</span> inv <span class="opt">-</span> <span class="num">1.5</span><span class="opt">;</span>
+    <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> j <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> j <span class="opt">&lt;</span> Vec__size<span class="opt">;</span> j<span class="opt">++) {</span>
+      yvals<span class="opt">[</span>i<span class="opt">][</span>j<span class="opt">] = ((</span><span class="kwb">double</span><span class="opt">)</span>i<span class="opt">) *</span> inv <span class="opt">-</span> <span class="num">1.0</span><span class="opt">;</span>
+    <span class="opt">}</span>
+  <span class="opt">}</span>
+
+<span class="ppc">#pragma omp parallel for schedule(guided)</span>
+  <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> y <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> y <span class="opt">&lt;</span> n<span class="opt">;</span> y<span class="opt">++) {</span>
+    <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> x <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> x <span class="opt">&lt;</span> N<span class="opt">/</span>Vec__size<span class="opt">;</span> x<span class="opt">+=</span><span class="num">8</span><span class="opt">/</span>Vec__size<span class="opt">) {</span>
+      Byte b <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+      <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> v <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> v <span class="opt">&lt;</span> <span class="num">8</span><span class="opt">/</span>Vec__size<span class="opt">;</span> v<span class="opt">++) {</span>
+        b <span class="opt">|=</span> <span class="kwd">mand</span><span class="opt">(</span>xvals<span class="opt">[</span>x <span class="opt">+</span> v<span class="opt">],</span> yvals<span class="opt">[</span>y<span class="opt">]) &gt;&gt; (</span>v<span class="opt">*</span>Vec__size<span class="opt">);</span>
+      <span class="opt">}</span>
+      rows<span class="opt">[</span>y<span class="opt">*</span>N<span class="opt">/</span><span class="num">8</span><span class="opt">+</span>x<span class="opt">/(</span><span class="num">8</span><span class="opt">/</span>Vec__size<span class="opt">)] =</span> b<span class="opt">;</span>
+    <span class="opt">}</span>
+  <span class="opt">}</span>
+
+  <span class="kwb">FILE</span><span class="opt">*</span> out <span class="opt">= (</span>argc <span class="opt">==</span> <span class="num">3</span><span class="opt">) ?</span> <span class="kwd">fopen</span><span class="opt">(</span>argv<span class="opt">[</span><span class="num">2</span><span class="opt">],</span> <span class="str">&quot;wb&quot;</span><span class="opt">) :</span> stdout<span class="opt">;</span>
+  <span class="kwd">fprintf</span><span class="opt">(</span>out<span class="opt">,</span> <span class="str">&quot;P4</span><span class="esc">\n</span><span class="str">%u %u</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span> n<span class="opt">,</span> n<span class="opt">);</span>
+  <span class="kwd">fwrite</span><span class="opt">(&amp;</span>rows<span class="opt">[</span><span class="num">0</span><span class="opt">],</span> n<span class="opt">*</span>N<span class="opt">/</span><span class="num">8</span><span class="opt">,</span> <span class="num">1</span><span class="opt">,</span> out<span class="opt">);</span>
+
+  <span class="kwa">if</span> <span class="opt">(</span>out <span class="opt">!=</span> stdout<span class="opt">)</span>
+  <span class="opt">{</span>
+      <span class="kwd">fclose</span><span class="opt">(</span>out<span class="opt">);</span>
+  <span class="opt">}</span>
+  <span class="kwd">free</span><span class="opt">(</span>rows<span class="opt">);</span>
+  <span class="kwa">return</span> <span class="num">0</span><span class="opt">;</span>
+<span class="opt">}</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

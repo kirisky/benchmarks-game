@@ -17,6 +17,69 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="opt">#</span>lang racket<span class="opt">/</span>base
+
+<span class="slc">;;; The Computer Language Benchmarks Game</span>
+<span class="slc">;;; https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+
+<span class="slc">;;; based on a version by by Anthony Borla</span>
+<span class="slc">;;; regex-dna program contributed by Matthew Flatt</span>
+<span class="slc">;;; converted from regex-dna program</span>
+
+
+<span class="opt">(</span><span class="kwa">require</span> racket<span class="opt">/</span>port<span class="opt">)</span>
+
+<span class="slc">;; -------------------------------</span>
+
+<span class="opt">(</span><span class="kwa">define</span> VARIANTS
+  <span class="opt">&apos;(#</span><span class="str">&quot;agggtaaa|tttaccct&quot;</span> <span class="opt">#</span><span class="str">&quot;[cgt]gggtaaa|tttaccc[acg]&quot;</span> <span class="opt">#</span><span class="str">&quot;a[act]ggtaaa|tttacc[agt]t&quot;</span>
+    <span class="opt">#</span><span class="str">&quot;ag[act]gtaaa|tttac[agt]ct&quot;</span> <span class="opt">#</span><span class="str">&quot;agg[act]taaa|ttta[agt]cct&quot;</span> <span class="opt">#</span><span class="str">&quot;aggg[acg]aaa|ttt[cgt]ccct&quot;</span>
+    <span class="opt">#</span><span class="str">&quot;agggt[cgt]aa|tt[acg]accct&quot;</span> <span class="opt">#</span><span class="str">&quot;agggta[cgt]a|t[acg]taccct&quot;</span> <span class="opt">#</span><span class="str">&quot;agggtaa[cgt]|[acg]ttaccct&quot;</span><span class="opt">))</span>
+
+
+<span class="opt">(</span><span class="kwa">define</span> IUBS
+  <span class="opt">&apos;((#</span><span class="str">&quot;tHa[Nt]&quot;</span> <span class="opt">#</span><span class="str">&quot;&lt;4&gt;&quot;</span><span class="opt">) (#</span><span class="str">&quot;aND|caN|Ha[DS]|WaS&quot;</span> <span class="opt">#</span><span class="str">&quot;&lt;3&gt;&quot;</span><span class="opt">) (#</span><span class="str">&quot;a[NSt]|BY&quot;</span> <span class="opt">#</span><span class="str">&quot;&lt;2&gt;&quot;</span><span class="opt">)</span>
+    <span class="opt">(#</span><span class="str">&quot;&lt;[^&gt;]*&gt;&quot;</span> <span class="opt">#</span><span class="str">&quot;|&quot;</span><span class="opt">) (#</span><span class="str">&quot;</span><span class="esc">\\</span><span class="str">|[^|][^|]*</span><span class="esc">\\</span><span class="str">|&quot;</span> <span class="opt">#</span><span class="str">&quot;-&quot;</span><span class="opt">)))</span>
+
+<span class="slc">;; -------------------------------</span>
+
+<span class="opt">(</span><span class="kwa">define</span> <span class="opt">(</span><span class="kwa">ci-byte-regexp</span> s<span class="opt">)</span>
+  <span class="opt">(</span><span class="kwa">byte-regexp</span> <span class="opt">(</span><span class="kwa">bytes-append</span> <span class="opt">#</span><span class="str">&quot;(?i:&quot;</span> s <span class="opt">#</span><span class="str">&quot;)&quot;</span><span class="opt">)))</span>
+
+<span class="slc">;; -------------------------------</span>
+
+<span class="opt">(</span><span class="kwa">define</span> <span class="opt">(</span><span class="kwa">match-count</span> str rx offset cnt<span class="opt">)</span>
+  <span class="opt">(</span><span class="kwa">let</span> <span class="opt">([</span>m <span class="opt">(</span><span class="kwa">regexp-match-positions</span> rx str offset<span class="opt">)])</span>
+    <span class="opt">(</span><span class="kwa">if</span> m
+        <span class="opt">(</span><span class="kwa">match-count</span> str rx <span class="opt">(</span><span class="kwa">cdar</span> m<span class="opt">) (</span><span class="kwa">add1</span> cnt<span class="opt">))</span>
+        cnt<span class="opt">)))</span>
+
+<span class="slc">;; -------------------------------</span>
+
+<span class="slc">;; Load sequence and record its length</span>
+<span class="opt">(</span><span class="kwa">let</span><span class="opt">* ([</span>orig <span class="opt">(</span><span class="kwa">port-</span><span class="opt">&gt;</span>bytes<span class="opt">)]</span>
+       <span class="opt">[</span>filtered <span class="opt">(</span><span class="kwa">regexp-replace</span><span class="opt">* #</span>rx<span class="opt">#</span><span class="str">&quot;(?:&gt;.*?</span><span class="esc">\n</span><span class="str">)|</span><span class="esc">\n</span><span class="str">&quot;</span> orig <span class="opt">#</span><span class="str">&quot;&quot;</span><span class="opt">)])</span>
+
+  <span class="slc">;; Perform regexp counts</span>
+  <span class="opt">(</span><span class="kwa">for</span> <span class="opt">([</span>i <span class="opt">(</span><span class="kwa">in-list</span> VARIANTS<span class="opt">)])</span>
+    <span class="opt">(</span><span class="kwa">printf</span> <span class="str">&quot;~a ~a</span><span class="esc">\n</span><span class="str">&quot;</span> i <span class="opt">(</span><span class="kwa">match-count</span> filtered <span class="opt">(</span><span class="kwa">ci-byte-regexp</span> i<span class="opt">)</span> <span class="num">0 0</span><span class="opt">)))</span>
+
+  <span class="slc">;; Perform regexp replacements, and record sequence length</span>
+  <span class="opt">(</span><span class="kwa">let</span> <span class="opt">([</span>replaced
+         <span class="opt">(</span><span class="kwa">for</span><span class="opt">/</span>fold <span class="opt">([</span>sequence filtered<span class="opt">]) ([</span>IUB IUBS<span class="opt">])</span>
+           <span class="opt">(</span><span class="kwa">regexp-replace</span><span class="opt">* (</span><span class="kwa">byte-regexp</span> <span class="opt">(</span><span class="kwa">car</span> IUB<span class="opt">))</span> sequence <span class="opt">(</span><span class="kwa">cadr</span> IUB<span class="opt">)))])</span>
+    <span class="slc">;; Print statistics</span>
+    <span class="opt">(</span><span class="kwa">printf</span> <span class="str">&quot;</span><span class="esc">\n</span><span class="str">~a</span><span class="esc">\n</span><span class="str">~a</span><span class="esc">\n</span><span class="str">~a</span><span class="esc">\n</span><span class="str">&quot;</span> 
+            <span class="opt">(</span><span class="kwa">bytes-length</span> orig<span class="opt">)</span>
+            <span class="opt">(</span><span class="kwa">bytes-length</span> filtered<span class="opt">)</span>
+            <span class="opt">(</span><span class="kwa">bytes-length</span> replaced<span class="opt">))))</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

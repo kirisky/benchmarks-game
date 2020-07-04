@@ -17,6 +17,81 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="com">/* The Computer Language Benchmarks Game</span>
+<span class="com"> * https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="com"> *</span>
+<span class="com"> * contributed by Alessandro Power</span>
+<span class="com"> */</span>
+
+<span class="ppc">#include &lt;gmpxx.h&gt;</span>
+<span class="ppc">#include &lt;cstdlib&gt;</span>
+<span class="ppc">#include &lt;iostream&gt;</span>
+
+<span class="kwc">class</span> LFT <span class="opt">{</span>
+<span class="kwc">public</span><span class="opt">:</span>
+    mpz_class q<span class="opt">;</span>
+    mpz_class r<span class="opt">;</span>
+    mpz_class t<span class="opt">;</span>
+    <span class="kwb">unsigned</span> k<span class="opt">;</span>
+
+<span class="kwc">public</span><span class="opt">:</span>
+    <span class="kwd">LFT</span><span class="opt">() :</span> <span class="kwd">q</span><span class="opt">(</span><span class="num">1</span><span class="opt">),</span> <span class="kwd">r</span><span class="opt">(</span><span class="num">0</span><span class="opt">),</span> <span class="kwd">t</span><span class="opt">(</span><span class="num">1</span><span class="opt">),</span> <span class="kwd">k</span><span class="opt">(</span><span class="num">0</span><span class="opt">){};</span>
+
+    <span class="kwb">void</span> <span class="kwd">next</span><span class="opt">() {</span>
+        <span class="opt">++</span>k<span class="opt">;</span>
+        r <span class="opt">= (</span><span class="num">2</span> <span class="opt">*</span> k <span class="opt">+</span> <span class="num">1</span><span class="opt">) * (</span><span class="num">2</span> <span class="opt">*</span> q <span class="opt">+</span> r<span class="opt">);</span>
+        t <span class="opt">= (</span><span class="num">2</span> <span class="opt">*</span> k <span class="opt">+</span> <span class="num">1</span><span class="opt">) *</span> t<span class="opt">;</span>
+        q <span class="opt">=</span> q <span class="opt">*</span> k<span class="opt">;</span>
+    <span class="opt">}</span>
+
+    <span class="kwb">unsigned</span> <span class="kwd">extract</span><span class="opt">(</span><span class="kwb">unsigned</span> x<span class="opt">)</span> <span class="kwb">const</span> <span class="opt">{</span>
+        <span class="kwb">static</span> mpz_class tmp0<span class="opt">,</span> tmp1<span class="opt">;</span>
+        tmp0 <span class="opt">=</span> q <span class="opt">*</span> x <span class="opt">+</span> r<span class="opt">;</span>
+        tmp1 <span class="opt">=</span> tmp0 <span class="opt">/</span> t<span class="opt">;</span>
+        <span class="kwa">return</span> tmp1<span class="opt">.</span><span class="kwd">get_ui</span><span class="opt">();</span>
+    <span class="opt">}</span>
+
+    <span class="kwb">void</span> <span class="kwd">produce</span><span class="opt">(</span><span class="kwb">unsigned</span> n<span class="opt">) {</span>
+        q <span class="opt">=</span> <span class="num">10</span> <span class="opt">*</span> q<span class="opt">;</span>
+        r <span class="opt">=</span> <span class="num">10</span> <span class="opt">* (</span>r <span class="opt">-</span> n <span class="opt">*</span> t<span class="opt">);</span>
+    <span class="opt">}</span>
+<span class="opt">};</span>
+
+<span class="kwb">int</span> <span class="kwd">main</span><span class="opt">(</span><span class="kwb">int</span><span class="opt">,</span> <span class="kwb">char</span><span class="opt">**</span> argv<span class="opt">) {</span>
+    <span class="kwc">std</span><span class="opt">::</span><span class="kwc">ios_base</span><span class="opt">::</span><span class="kwd">sync_with_stdio</span><span class="opt">(</span><span class="kwa">false</span><span class="opt">);</span>
+
+    <span class="kwb">const</span> <span class="kwc">std</span><span class="opt">::</span><span class="kwb">size_t</span> TOTAL_DIGITS <span class="opt">=</span> <span class="kwc">std</span><span class="opt">::</span><span class="kwd">atol</span><span class="opt">(</span>argv<span class="opt">[</span><span class="num">1</span><span class="opt">]);</span>
+
+    LFT lft<span class="opt">;</span>
+    <span class="kwc">std</span><span class="opt">::</span><span class="kwb">size_t</span> n_digits <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+    <span class="kwa">while</span> <span class="opt">(</span>n_digits <span class="opt">&lt;</span> TOTAL_DIGITS<span class="opt">) {</span>
+        <span class="kwc">std</span><span class="opt">::</span><span class="kwb">size_t</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+        <span class="kwa">while</span> <span class="opt">(</span>i <span class="opt">&lt;</span> <span class="num">10</span> <span class="kwa">and</span> n_digits <span class="opt">&lt;</span> TOTAL_DIGITS<span class="opt">) {</span>
+            lft<span class="opt">.</span><span class="kwd">next</span><span class="opt">();</span>
+            <span class="kwa">if</span> <span class="opt">(</span>lft<span class="opt">.</span>q <span class="opt">&gt;</span> lft<span class="opt">.</span>r<span class="opt">)</span> <span class="kwa">continue</span><span class="opt">;</span>
+
+            <span class="kwc">auto</span> digit <span class="opt">=</span> lft<span class="opt">.</span><span class="kwd">extract</span><span class="opt">(</span><span class="num">3</span><span class="opt">);</span>
+            <span class="kwa">if</span> <span class="opt">(</span>digit <span class="opt">==</span> lft<span class="opt">.</span><span class="kwd">extract</span><span class="opt">(</span><span class="num">4</span><span class="opt">)) {</span>
+                <span class="kwc">std</span><span class="opt">::</span>cout <span class="opt">&lt;&lt;</span> digit<span class="opt">;</span>
+                lft<span class="opt">.</span><span class="kwd">produce</span><span class="opt">(</span>digit<span class="opt">);</span>
+                <span class="opt">++</span>i<span class="opt">;</span>
+                <span class="opt">++</span>n_digits<span class="opt">;</span>
+            <span class="opt">}</span>
+        <span class="opt">}</span>
+
+        <span class="slc">// Pad digits with extra spaces if TOTAL_DIGITS was not a</span>
+        <span class="slc">// multiple of 10.</span>
+        <span class="kwa">for</span> <span class="opt">(;</span> i <span class="opt">&lt;</span> <span class="num">10</span><span class="opt">; ++</span>i<span class="opt">)</span> <span class="kwc">std</span><span class="opt">::</span>cout <span class="opt">&lt;&lt;</span> <span class="str">&apos; &apos;</span><span class="opt">;</span>
+        <span class="kwc">std</span><span class="opt">::</span>cout <span class="opt">&lt;&lt;</span> <span class="str">&quot;</span><span class="esc">\t</span><span class="str">:&quot;</span> <span class="opt">&lt;&lt;</span> n_digits <span class="opt">&lt;&lt;</span> <span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span><span class="opt">;</span>
+    <span class="opt">}</span>
+<span class="opt">}</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

@@ -17,6 +17,89 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="com">/* The Computer Language Benchmarks Game</span>
+<span class="com"> * https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="com"> *</span>
+<span class="com"> * contributed by The Go Authors.</span>
+<span class="com"> */</span>
+
+<span class="kwa">package</span> main
+
+<span class="kwa">import</span> <span class="opt">(</span>
+   <span class="str">&quot;bufio&quot;</span>
+   <span class="str">&quot;os&quot;</span>
+<span class="opt">)</span>
+
+<span class="kwa">const</span> lineSize <span class="opt">=</span> <span class="num">60</span>
+
+<span class="kwa">var</span> complement <span class="opt">= [</span><span class="num">256</span><span class="opt">]</span><span class="kwb">uint8</span><span class="opt">{</span>
+   <span class="str">&apos;A&apos;</span><span class="opt">:</span> <span class="str">&apos;T&apos;</span><span class="opt">,</span> <span class="str">&apos;a&apos;</span><span class="opt">:</span> <span class="str">&apos;T&apos;</span><span class="opt">,</span>
+   <span class="str">&apos;C&apos;</span><span class="opt">:</span> <span class="str">&apos;G&apos;</span><span class="opt">,</span> <span class="str">&apos;c&apos;</span><span class="opt">:</span> <span class="str">&apos;G&apos;</span><span class="opt">,</span>
+   <span class="str">&apos;G&apos;</span><span class="opt">:</span> <span class="str">&apos;C&apos;</span><span class="opt">,</span> <span class="str">&apos;g&apos;</span><span class="opt">:</span> <span class="str">&apos;C&apos;</span><span class="opt">,</span>
+   <span class="str">&apos;T&apos;</span><span class="opt">:</span> <span class="str">&apos;A&apos;</span><span class="opt">,</span> <span class="str">&apos;t&apos;</span><span class="opt">:</span> <span class="str">&apos;A&apos;</span><span class="opt">,</span>
+   <span class="str">&apos;U&apos;</span><span class="opt">:</span> <span class="str">&apos;A&apos;</span><span class="opt">,</span> <span class="str">&apos;u&apos;</span><span class="opt">:</span> <span class="str">&apos;A&apos;</span><span class="opt">,</span>
+   <span class="str">&apos;M&apos;</span><span class="opt">:</span> <span class="str">&apos;K&apos;</span><span class="opt">,</span> <span class="str">&apos;m&apos;</span><span class="opt">:</span> <span class="str">&apos;K&apos;</span><span class="opt">,</span>
+   <span class="str">&apos;R&apos;</span><span class="opt">:</span> <span class="str">&apos;Y&apos;</span><span class="opt">,</span> <span class="str">&apos;r&apos;</span><span class="opt">:</span> <span class="str">&apos;Y&apos;</span><span class="opt">,</span>
+   <span class="str">&apos;W&apos;</span><span class="opt">:</span> <span class="str">&apos;W&apos;</span><span class="opt">,</span> <span class="str">&apos;w&apos;</span><span class="opt">:</span> <span class="str">&apos;W&apos;</span><span class="opt">,</span>
+   <span class="str">&apos;S&apos;</span><span class="opt">:</span> <span class="str">&apos;S&apos;</span><span class="opt">,</span> <span class="str">&apos;s&apos;</span><span class="opt">:</span> <span class="str">&apos;S&apos;</span><span class="opt">,</span>
+   <span class="str">&apos;Y&apos;</span><span class="opt">:</span> <span class="str">&apos;R&apos;</span><span class="opt">,</span> <span class="str">&apos;y&apos;</span><span class="opt">:</span> <span class="str">&apos;R&apos;</span><span class="opt">,</span>
+   <span class="str">&apos;K&apos;</span><span class="opt">:</span> <span class="str">&apos;M&apos;</span><span class="opt">,</span> <span class="str">&apos;k&apos;</span><span class="opt">:</span> <span class="str">&apos;M&apos;</span><span class="opt">,</span>
+   <span class="str">&apos;V&apos;</span><span class="opt">:</span> <span class="str">&apos;B&apos;</span><span class="opt">,</span> <span class="str">&apos;v&apos;</span><span class="opt">:</span> <span class="str">&apos;B&apos;</span><span class="opt">,</span>
+   <span class="str">&apos;H&apos;</span><span class="opt">:</span> <span class="str">&apos;D&apos;</span><span class="opt">,</span> <span class="str">&apos;h&apos;</span><span class="opt">:</span> <span class="str">&apos;D&apos;</span><span class="opt">,</span>
+   <span class="str">&apos;D&apos;</span><span class="opt">:</span> <span class="str">&apos;H&apos;</span><span class="opt">,</span> <span class="str">&apos;d&apos;</span><span class="opt">:</span> <span class="str">&apos;H&apos;</span><span class="opt">,</span>
+   <span class="str">&apos;B&apos;</span><span class="opt">:</span> <span class="str">&apos;V&apos;</span><span class="opt">,</span> <span class="str">&apos;b&apos;</span><span class="opt">:</span> <span class="str">&apos;V&apos;</span><span class="opt">,</span>
+   <span class="str">&apos;N&apos;</span><span class="opt">:</span> <span class="str">&apos;N&apos;</span><span class="opt">,</span> <span class="str">&apos;n&apos;</span><span class="opt">:</span> <span class="str">&apos;N&apos;</span><span class="opt">,</span>
+<span class="opt">}</span>
+
+<span class="kwa">func</span> <span class="kwd">main</span><span class="opt">() {</span>
+   in <span class="opt">:=</span> bufio<span class="opt">.</span><span class="kwd">NewReader</span><span class="opt">(</span>os<span class="opt">.</span>Stdin<span class="opt">)</span>
+   buf <span class="opt">:=</span> <span class="kwb">make</span><span class="opt">([]</span><span class="kwb">byte</span><span class="opt">,</span> <span class="num">1024</span><span class="opt">*</span><span class="num">1024</span><span class="opt">)</span>
+   line<span class="opt">,</span> err <span class="opt">:=</span> in<span class="opt">.</span><span class="kwd">ReadSlice</span><span class="opt">(</span><span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span><span class="opt">)</span>
+   <span class="kwa">for</span> err <span class="opt">==</span> <span class="kwb">nil</span> <span class="opt">{</span>
+      os<span class="opt">.</span>Stdout<span class="opt">.</span><span class="kwd">Write</span><span class="opt">(</span>line<span class="opt">)</span>
+
+      <span class="slc">// Accumulate reversed complement in buf[w:]</span>
+      nchar <span class="opt">:=</span> <span class="num">0</span>
+      w <span class="opt">:=</span> <span class="kwb">len</span><span class="opt">(</span>buf<span class="opt">)</span>
+      <span class="kwa">for</span> <span class="opt">{</span>
+         line<span class="opt">,</span> err <span class="opt">=</span> in<span class="opt">.</span><span class="kwd">ReadSlice</span><span class="opt">(</span><span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span><span class="opt">)</span>
+         <span class="kwa">if</span> err <span class="opt">!=</span> <span class="kwb">nil</span> || line<span class="opt">[</span><span class="num">0</span><span class="opt">] ==</span> <span class="str">&apos;&gt;&apos;</span> <span class="opt">{</span>
+            <span class="kwa">break</span>
+         <span class="opt">}</span>
+         line <span class="opt">=</span> line<span class="opt">[</span><span class="num">0</span> <span class="opt">:</span> <span class="kwb">len</span><span class="opt">(</span>line<span class="opt">)-</span><span class="num">1</span><span class="opt">]</span>
+         nchar <span class="opt">+=</span> <span class="kwb">len</span><span class="opt">(</span>line<span class="opt">)</span>
+         <span class="kwa">if</span> <span class="kwb">len</span><span class="opt">(</span>line<span class="opt">)+</span>nchar<span class="opt">/</span><span class="num">60</span><span class="opt">+</span><span class="num">128</span> <span class="opt">&gt;=</span> w <span class="opt">{</span>
+            nbuf <span class="opt">:=</span> <span class="kwb">make</span><span class="opt">([]</span><span class="kwb">byte</span><span class="opt">,</span> <span class="kwb">len</span><span class="opt">(</span>buf<span class="opt">)*</span><span class="num">5</span><span class="opt">)</span>
+            <span class="kwd">copy</span><span class="opt">(</span>nbuf<span class="opt">[</span><span class="kwb">len</span><span class="opt">(</span>nbuf<span class="opt">)-</span><span class="kwb">len</span><span class="opt">(</span>buf<span class="opt">):],</span> buf<span class="opt">)</span>
+            w <span class="opt">+=</span> <span class="kwb">len</span><span class="opt">(</span>nbuf<span class="opt">) -</span> <span class="kwb">len</span><span class="opt">(</span>buf<span class="opt">)</span>
+            buf <span class="opt">=</span> nbuf
+         <span class="opt">}</span>
+
+         <span class="slc">// This loop is the bottleneck.</span>
+         <span class="kwa">for</span> _<span class="opt">,</span> c <span class="opt">:=</span> <span class="kwa">range</span> line <span class="opt">{</span>
+            w<span class="opt">--</span>
+            buf<span class="opt">[</span>w<span class="opt">] =</span> complement<span class="opt">[</span>c<span class="opt">]</span>
+         <span class="opt">}</span>
+      <span class="opt">}</span>
+
+      <span class="slc">// Copy down to beginning of buffer, inserting newlines.</span>
+      <span class="slc">// The loop left room for the newlines and 128 bytes of padding.</span>
+      i <span class="opt">:=</span> <span class="num">0</span>
+      <span class="kwa">for</span> j <span class="opt">:=</span> w<span class="opt">;</span> j <span class="opt">&lt;</span> <span class="kwb">len</span><span class="opt">(</span>buf<span class="opt">);</span> j <span class="opt">+=</span> <span class="num">60</span> <span class="opt">{</span>
+         n <span class="opt">:=</span> <span class="kwd">copy</span><span class="opt">(</span>buf<span class="opt">[</span>i<span class="opt">:</span>i<span class="opt">+</span><span class="num">60</span><span class="opt">],</span> buf<span class="opt">[</span>j<span class="opt">:])</span>
+         buf<span class="opt">[</span>i<span class="opt">+</span>n<span class="opt">] =</span> <span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span>
+         i <span class="opt">+=</span> n <span class="opt">+</span> <span class="num">1</span>
+      <span class="opt">}</span>
+      os<span class="opt">.</span>Stdout<span class="opt">.</span><span class="kwd">Write</span><span class="opt">(</span>buf<span class="opt">[</span><span class="num">0</span><span class="opt">:</span>i<span class="opt">])</span>
+   <span class="opt">}</span>
+<span class="opt">}</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

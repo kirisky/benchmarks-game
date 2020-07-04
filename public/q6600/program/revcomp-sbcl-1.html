@@ -17,6 +17,88 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc">;;; The Computer Language Benchmarks Game</span>
+<span class="slc">;;; https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">;;; Michael Weber 2006-07-18</span>
+<span class="slc">;;; Changes by Stefan Lang 2007-02-08</span>
+
+<span class="opt">(</span><span class="kwa">defconstant</span> <span class="opt">+</span>buffer-size<span class="opt">+ (</span><span class="kwa">expt</span> <span class="num">2 15</span><span class="opt">))</span>
+<span class="opt">(</span><span class="kwa">defconstant</span> <span class="opt">+</span>newline<span class="opt">+ (</span><span class="kwa">char-code</span> <span class="opt">#</span>\Newline<span class="opt">))</span>
+<span class="opt">(</span><span class="kwa">defconstant</span> <span class="opt">+</span>ub<span class="opt">+ &apos;(</span><span class="kwa">unsigned-byte</span> <span class="num">8</span><span class="opt">))</span>
+
+<span class="opt">(</span><span class="kwa">defconstant</span> <span class="opt">+</span>lut<span class="opt">+</span>
+  <span class="opt">(</span><span class="kwa">let</span> <span class="opt">((</span><span class="kwa">lut</span> <span class="opt">(</span><span class="kwa">make-array</span> <span class="num">256</span> <span class="opt">:</span>element-type <span class="opt">+</span>ub<span class="opt">+)))</span>
+    <span class="opt">(</span><span class="kwa">loop</span> for a across <span class="str">&quot;wsatugcyrkmbdhvnWSATUGCYRKMBDHVN&quot;</span>
+          for b across <span class="str">&quot;WSTAACGRYMKVHDBNWSTAACGRYMKVHDBN&quot;</span>
+          do <span class="opt">(</span><span class="kwa">setf</span> <span class="opt">(</span><span class="kwa">aref</span> lut <span class="opt">(</span><span class="kwa">char-code</span> a<span class="opt">)) (</span><span class="kwa">char-code</span> b<span class="opt">)))</span>
+    lut<span class="opt">))</span>
+
+<span class="opt">(</span><span class="kwa">defun</span> <span class="kwb">slice</span> <span class="opt">(</span><span class="kwa">array</span> start end<span class="opt">)</span>
+  <span class="opt">(</span><span class="kwa">declare</span> <span class="opt">(</span><span class="kwa">optimize</span> <span class="opt">(</span><span class="kwa">speed</span> <span class="num">3</span><span class="opt">) (</span><span class="kwa">safety</span> <span class="num">0</span><span class="opt">))</span>
+           <span class="opt">((</span><span class="kwa">simple-array</span> <span class="opt">#</span>.<span class="opt">+</span>ub<span class="opt">+)</span> array<span class="opt">)</span>
+           <span class="opt">(</span><span class="kwa">fixnum</span> start end<span class="opt">))</span>
+  <span class="opt">(</span><span class="kwa">let</span> <span class="opt">((</span><span class="kwa">res</span> <span class="opt">(</span><span class="kwa">make-array</span> <span class="opt">(</span><span class="kwa">-</span> end start<span class="opt">) :</span>element-type <span class="opt">+</span>ub<span class="opt">+)))</span>
+    <span class="opt">(</span><span class="kwa">loop</span> for i from start below end
+          for j from <span class="num">0</span>
+          do <span class="opt">(</span><span class="kwa">setf</span> <span class="opt">(</span><span class="kwa">aref</span> res j<span class="opt">) (</span><span class="kwa">aref</span> array i<span class="opt">)))</span>
+    res<span class="opt">))</span>
+
+<span class="opt">(</span><span class="kwa">defun</span> <span class="kwb">main</span> <span class="opt">()</span>
+  <span class="opt">(</span><span class="kwa">declare</span> <span class="opt">(</span><span class="kwa">optimize</span> <span class="opt">(</span><span class="kwa">speed</span> <span class="num">3</span><span class="opt">) (</span><span class="kwa">safety</span> <span class="num">0</span><span class="opt">)))</span>
+  <span class="opt">(</span><span class="kwa">with-open-file</span> <span class="opt">(</span><span class="kwa">in</span> <span class="str">&quot;/dev/stdin&quot;</span> <span class="opt">:</span>element-type <span class="opt">+</span>ub<span class="opt">+)</span>
+    <span class="opt">(</span><span class="kwa">with-open-file</span> <span class="opt">(</span><span class="kwa">out</span> <span class="str">&quot;/dev/stdout&quot;</span> <span class="opt">:</span>element-type <span class="opt">+</span>ub<span class="opt">+ :</span>direction <span class="opt">:</span>output <span class="opt">:</span>if-exists <span class="opt">:</span>append<span class="opt">)</span>
+      <span class="opt">(</span><span class="kwa">let</span> <span class="opt">((</span><span class="kwa">i-buf</span> <span class="opt">(</span><span class="kwa">make-array</span> <span class="opt">+</span>buffer-size<span class="opt">+ :</span>element-type <span class="opt">+</span>ub<span class="opt">+))</span>
+            <span class="opt">(</span><span class="kwa">o-buf</span> <span class="opt">(</span><span class="kwa">make-array</span> <span class="opt">+</span>buffer-size<span class="opt">+ :</span>element-type <span class="opt">+</span>ub<span class="opt">+))</span>
+            <span class="opt">(</span><span class="kwa">chunks</span> nil<span class="opt">))</span>
+        <span class="opt">(</span><span class="kwa">declare</span> <span class="opt">(</span><span class="kwa">list</span> chunks<span class="opt">))</span>
+        <span class="opt">(</span><span class="kwa">flet</span> <span class="opt">((</span><span class="kwa">flush-chunks</span> <span class="opt">()</span>
+                 <span class="opt">(</span><span class="kwa">let</span> <span class="opt">((</span><span class="kwa">j</span> <span class="num">0</span><span class="opt">) (</span><span class="kwa">k</span> <span class="num">0</span><span class="opt">))</span>
+                   <span class="opt">(</span><span class="kwa">declare</span> <span class="opt">(</span><span class="kwa">fixnum</span> j k<span class="opt">))</span>
+                   <span class="slc">;; reverse, complement, filter out old newlines, put newlines back in after 60 chars,</span>
+                   <span class="slc">;; buffer output, and write buffers.  all in one go :(</span>
+                   <span class="opt">(</span><span class="kwa">loop</span> for chunk in chunks
+                         do <span class="opt">(</span><span class="kwa">loop</span> for i from <span class="opt">(</span><span class="kwa">1-</span> <span class="opt">(</span><span class="kwa">length</span> <span class="opt">(</span><span class="kwa">the</span> <span class="opt">(</span><span class="kwa">simple-array</span> <span class="opt">#</span>.<span class="opt">+</span>ub<span class="opt">+)</span> chunk<span class="opt">)))</span> downto <span class="num">0</span>
+                                  for byte <span class="opt">= (</span><span class="kwa">aref</span> chunk i<span class="opt">)</span>
+                                  unless <span class="opt">(=</span> byte <span class="opt">+</span>newline<span class="opt">+)</span>
+				  do <span class="opt">(</span><span class="kwa">setf</span> <span class="opt">(</span><span class="kwa">aref</span> o-buf k<span class="opt">) (</span><span class="kwa">aref</span> <span class="opt">+</span>lut<span class="opt">+</span> byte<span class="opt">)</span> j <span class="opt">(</span><span class="kwa">1</span><span class="opt">+</span> j<span class="opt">)</span> k <span class="opt">(</span><span class="kwa">1</span><span class="opt">+</span> k<span class="opt">))</span>
+                                  if <span class="opt">(=</span> j <span class="num">60</span><span class="opt">)</span> do <span class="opt">(</span><span class="kwa">setf</span> <span class="opt">(</span><span class="kwa">aref</span> o-buf k<span class="opt">) +</span>newline<span class="opt">+</span> j <span class="num">0</span> k <span class="opt">(</span><span class="kwa">1</span><span class="opt">+</span> k<span class="opt">))</span>
+                                  if <span class="opt">(&gt;</span> k <span class="opt">(</span><span class="kwa">-</span> <span class="opt">+</span>buffer-size<span class="opt">+</span> <span class="num">2</span><span class="opt">))</span> do <span class="opt">(</span><span class="kwa">write-sequence</span> o-buf out <span class="opt">:</span>end <span class="opt">(</span><span class="kwa">shiftf</span> k <span class="num">0</span><span class="opt">)))</span>
+                         finally <span class="opt">(</span><span class="kwa">when</span> <span class="opt">(</span><span class="kwa">plusp</span> k<span class="opt">)</span>
+                                   <span class="opt">(</span><span class="kwa">write-sequence</span> o-buf out <span class="opt">:</span>end k<span class="opt">))</span>
+                                 <span class="opt">(</span><span class="kwa">when</span> <span class="opt">(</span><span class="kwa">plusp</span> j<span class="opt">)</span>
+                                   <span class="opt">(</span><span class="kwa">write-byte</span> <span class="opt">+</span>newline<span class="opt">+</span> out<span class="opt">)))</span>
+                   <span class="opt">(</span><span class="kwa">setf</span> chunks nil<span class="opt">))))</span>
+          <span class="opt">(</span><span class="kwa">prog</span> <span class="opt">((</span><span class="kwa">start</span> <span class="num">0</span><span class="opt">) (</span><span class="kwa">end</span> <span class="num">0</span><span class="opt">))</span>
+           read-chunk
+             <span class="opt">(</span><span class="kwa">setf</span> end <span class="opt">(</span><span class="kwa">read-sequence</span> i-buf in<span class="opt">))</span>
+             <span class="opt">(</span><span class="kwa">when</span> <span class="opt">(</span><span class="kwa">zerop</span> end<span class="opt">) (</span><span class="kwa">go</span> end-of-input<span class="opt">))</span>
+           parse-chunk
+             <span class="opt">(</span><span class="kwa">let</span> <span class="opt">((</span><span class="kwa">bod</span> <span class="opt">(</span><span class="kwa">position</span> <span class="opt">#</span>.<span class="opt">(</span><span class="kwa">char-code</span> <span class="opt">#</span>\<span class="opt">&gt;)</span> i-buf <span class="opt">:</span>start start <span class="opt">:</span>end end<span class="opt">)))</span>
+               <span class="opt">(</span><span class="kwa">cond</span> <span class="opt">((</span><span class="kwa">numberp</span> bod<span class="opt">)</span>
+                      <span class="opt">(</span><span class="kwa">push</span> <span class="opt">(</span><span class="kwa">slice</span> i-buf start bod<span class="opt">)</span> chunks<span class="opt">)</span>
+                      <span class="opt">(</span><span class="kwa">setf</span> start bod<span class="opt">)</span>
+                      <span class="opt">(</span><span class="kwa">flush-chunks</span><span class="opt">)</span>
+                      <span class="slc">;; parse description</span>
+                      <span class="opt">(</span><span class="kwa">loop</span> for eod <span class="opt">= (</span><span class="kwa">position</span> <span class="opt">+</span>newline<span class="opt">+</span> i-buf <span class="opt">:</span>start start <span class="opt">:</span>end end<span class="opt">)</span>
+                            do <span class="opt">(</span><span class="kwa">cond</span> <span class="opt">((</span><span class="kwa">numberp</span> eod<span class="opt">)</span>
+                                      <span class="opt">(</span><span class="kwa">write-sequence</span> i-buf out <span class="opt">:</span>start start <span class="opt">:</span>end <span class="opt">(</span><span class="kwa">incf</span> eod<span class="opt">))</span>
+                                      <span class="opt">(</span><span class="kwa">setf</span> start eod<span class="opt">)</span>
+                                      <span class="opt">(</span><span class="kwa">go</span> parse-chunk<span class="opt">))</span>
+                                     <span class="opt">(</span><span class="kwa">t</span> <span class="opt">(</span><span class="kwa">write-sequence</span> i-buf out <span class="opt">:</span>start start <span class="opt">:</span>end end<span class="opt">)</span>
+                                        <span class="opt">(</span><span class="kwa">setf</span> start <span class="num">0</span><span class="opt">)</span>
+                                        <span class="opt">(</span><span class="kwa">setf</span> end <span class="opt">(</span><span class="kwa">read-sequence</span> i-buf in<span class="opt">))))))</span>
+                     <span class="opt">(</span><span class="kwa">t</span> <span class="opt">(</span><span class="kwa">push</span> <span class="opt">(</span><span class="kwa">slice</span> i-buf start end<span class="opt">)</span> chunks<span class="opt">)</span>
+                        <span class="opt">(</span><span class="kwa">setf</span> start <span class="num">0</span><span class="opt">)</span>
+                        <span class="opt">(</span><span class="kwa">go</span> read-chunk<span class="opt">))))</span>
+           end-of-input
+             <span class="opt">(</span><span class="kwa">flush-chunks</span><span class="opt">)))))))</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

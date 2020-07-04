@@ -17,6 +17,155 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="com">/* The Computer Language Benchmarks Game</span>
+<span class="com">   https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="com"></span>
+<span class="com">   contributed by Andrey Filatkin</span>
+<span class="com">   based on mandelbrot.go-4.go contributed by Martin Koistinen and others</span>
+<span class="com">*/</span>
+
+<span class="kwa">const</span> <span class="opt">{</span> Worker<span class="opt">,</span> isMainThread<span class="opt">,</span> parentPort<span class="opt">,</span> workerData <span class="opt">} =</span> <span class="kwd">require</span><span class="opt">(</span><span class="str">&apos;worker_threads&apos;</span><span class="opt">);</span>
+<span class="kwa">const</span> os <span class="opt">=</span> <span class="kwd">require</span><span class="opt">(</span><span class="str">&apos;os&apos;</span><span class="opt">);</span>
+
+<span class="kwa">const</span> limit <span class="opt">=</span> <span class="num">4</span><span class="opt">;</span>
+<span class="kwa">const</span> maxIter <span class="opt">=</span> <span class="num">50</span><span class="opt">;</span>
+<span class="kwa">const</span> bytesPerFloat <span class="opt">=</span> Float64Array<span class="opt">.</span>BYTES_PER_ELEMENT<span class="opt">;</span>
+
+<span class="kwa">if</span> <span class="opt">(</span>isMainThread<span class="opt">) {</span>
+    <span class="kwd">mainThread</span><span class="opt">(+</span>process<span class="opt">.</span>argv<span class="opt">[</span><span class="num">2</span><span class="opt">]);</span>
+<span class="opt">}</span> <span class="kwa">else</span> <span class="opt">{</span>
+    <span class="kwd">workerThread</span><span class="opt">(</span>workerData<span class="opt">);</span>
+<span class="opt">}</span>
+
+async <span class="kwa">function</span> <span class="kwd">mainThread</span><span class="opt">(</span>size<span class="opt">) {</span>
+    <span class="kwa">const</span> bytesPerRow <span class="opt">=</span> size <span class="opt">&gt;&gt;</span> <span class="num">3</span><span class="opt">;</span>
+
+    <span class="kwa">const</span> nextYSize <span class="opt">=</span> bytesPerFloat<span class="opt">;</span>
+    <span class="kwa">const</span> initialSize <span class="opt">=</span> size <span class="opt">*</span> bytesPerFloat<span class="opt">;</span>
+    <span class="kwa">const</span> rowsStart <span class="opt">=</span> nextYSize <span class="opt">+</span> <span class="num">2</span> <span class="opt">*</span> initialSize<span class="opt">;</span>
+    <span class="kwa">const</span> rowsSize <span class="opt">=</span> size <span class="opt">*</span> bytesPerRow<span class="opt">;</span>
+
+    <span class="kwa">const</span> sab <span class="opt">=</span> <span class="kwa">new</span> <span class="kwd">SharedArrayBuffer</span><span class="opt">(</span>nextYSize <span class="opt">+</span> <span class="num">2</span> <span class="opt">*</span> initialSize <span class="opt">+</span> rowsSize<span class="opt">);</span>
+    <span class="kwa">const</span> initialR <span class="opt">=</span> <span class="kwa">new</span> <span class="kwd">Float64Array</span><span class="opt">(</span>sab<span class="opt">,</span> nextYSize<span class="opt">,</span> size<span class="opt">);</span>
+    <span class="kwa">const</span> initialI <span class="opt">=</span> <span class="kwa">new</span> <span class="kwd">Float64Array</span><span class="opt">(</span>sab<span class="opt">,</span> nextYSize <span class="opt">+</span> initialSize<span class="opt">,</span> size<span class="opt">);</span>
+    <span class="kwa">const</span> inv <span class="opt">=</span> <span class="num">2</span> <span class="opt">/</span> size<span class="opt">;</span>
+    <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">let</span> xy <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> xy <span class="opt">&lt;</span> size<span class="opt">;</span> xy<span class="opt">++) {</span>
+        <span class="kwa">const</span> i <span class="opt">=</span> inv <span class="opt">*</span> xy<span class="opt">;</span>
+        initialR<span class="opt">[</span>xy<span class="opt">] =</span> i <span class="opt">-</span> <span class="num">1.5</span><span class="opt">;</span>
+        initialI<span class="opt">[</span>xy<span class="opt">] =</span> i <span class="opt">-</span> <span class="num">1.0</span><span class="opt">;</span>
+    <span class="opt">}</span>
+
+    await <span class="kwd">work</span><span class="opt">();</span>
+
+    process<span class="opt">.</span>stdout<span class="opt">.</span><span class="kwd">write</span><span class="opt">(</span><span class="str">`P4</span><span class="esc">\n</span><span class="str"></span><span class="ipl">${size} ${size}</span><span class="str"></span><span class="esc">\n</span><span class="str">`</span><span class="opt">);</span>
+    process<span class="opt">.</span>stdout<span class="opt">.</span><span class="kwd">write</span><span class="opt">(</span><span class="kwa">new</span> <span class="kwd">Uint8Array</span><span class="opt">(</span>sab<span class="opt">,</span> rowsStart<span class="opt">,</span> rowsSize<span class="opt">));</span>
+
+    async <span class="kwa">function</span> <span class="kwd">work</span><span class="opt">() {</span>
+        <span class="kwa">return new</span> <span class="kwd">Promise</span><span class="opt">(</span>resolve <span class="opt">=&gt; {</span>
+            <span class="kwa">const</span> cpus <span class="opt">=</span> os<span class="opt">.</span><span class="kwd">cpus</span><span class="opt">().</span>length<span class="opt">;</span>
+            <span class="kwa">let</span> wait <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+            <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">let</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> cpus<span class="opt">;</span> i<span class="opt">++) {</span>
+                <span class="kwa">const</span> worker <span class="opt">=</span> <span class="kwa">new</span> <span class="kwd">Worker</span><span class="opt">(</span>__filename<span class="opt">, {</span>workerData<span class="opt">: {</span>size<span class="opt">,</span> bytesPerRow<span class="opt">}});</span>
+                worker<span class="opt">.</span><span class="kwd">postMessage</span><span class="opt">({</span>name<span class="opt">:</span> <span class="str">&apos;sab&apos;</span><span class="opt">,</span> data<span class="opt">:</span> sab<span class="opt">});</span>
+                worker<span class="opt">.</span><span class="kwd">on</span><span class="opt">(</span><span class="str">&apos;exit&apos;</span><span class="opt">, () =&gt; {</span>
+                    wait<span class="opt">--;</span>
+                    <span class="kwa">if</span> <span class="opt">(</span>wait <span class="opt">===</span> <span class="num">0</span><span class="opt">) {</span>
+                        <span class="kwd">resolve</span><span class="opt">();</span>
+                    <span class="opt">}</span>
+                <span class="opt">});</span>
+                wait<span class="opt">++;</span>
+            <span class="opt">}</span>
+        <span class="opt">});</span>
+    <span class="opt">}</span>
+<span class="opt">}</span>
+
+<span class="kwa">function</span> <span class="kwd">workerThread</span><span class="opt">({</span>size<span class="opt">,</span> bytesPerRow<span class="opt">}) {</span>
+    <span class="kwa">const</span> nextYSize <span class="opt">=</span> bytesPerFloat<span class="opt">;</span>
+    <span class="kwa">const</span> initialSize <span class="opt">=</span> size <span class="opt">*</span> bytesPerFloat<span class="opt">;</span>
+    <span class="kwa">const</span> rowsStart <span class="opt">=</span> nextYSize <span class="opt">+</span> <span class="num">2</span> <span class="opt">*</span> initialSize<span class="opt">;</span>
+
+    <span class="kwa">let</span> sab<span class="opt">;</span>
+    <span class="kwa">let</span> nextY<span class="opt">;</span>
+    <span class="kwa">let</span> initialR<span class="opt">;</span>
+    <span class="kwa">let</span> initialI<span class="opt">;</span>
+
+    parentPort<span class="opt">.</span><span class="kwd">on</span><span class="opt">(</span><span class="str">&apos;message&apos;</span><span class="opt">,</span> message <span class="opt">=&gt; {</span>
+        <span class="kwa">if</span> <span class="opt">(</span>message<span class="opt">.</span>name <span class="opt">===</span> <span class="str">&apos;sab&apos;</span><span class="opt">) {</span>
+            sab <span class="opt">=</span> message<span class="opt">.</span>data<span class="opt">;</span>
+            nextY <span class="opt">=</span> <span class="kwa">new</span> <span class="kwd">Int32Array</span><span class="opt">(</span>sab<span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> <span class="num">1</span><span class="opt">);</span>
+            initialR <span class="opt">=</span> <span class="kwa">new</span> <span class="kwd">Float64Array</span><span class="opt">(</span>sab<span class="opt">,</span> nextYSize<span class="opt">,</span> size<span class="opt">);</span>
+            initialI <span class="opt">=</span> <span class="kwa">new</span> <span class="kwd">Float64Array</span><span class="opt">(</span>sab<span class="opt">,</span> nextYSize <span class="opt">+</span> initialSize<span class="opt">,</span> size<span class="opt">);</span>
+
+            <span class="kwd">renderRows</span><span class="opt">();</span>
+        <span class="opt">}</span>
+    <span class="opt">});</span>
+
+    <span class="kwa">function</span> <span class="kwd">renderRows</span><span class="opt">() {</span>
+        <span class="kwa">let</span> y<span class="opt">;</span>
+        <span class="kwa">while</span> <span class="opt">((</span>y <span class="opt">=</span> Atomics<span class="opt">.</span><span class="kwd">load</span><span class="opt">(</span>nextY<span class="opt">,</span> <span class="num">0</span><span class="opt">)) &lt;</span> size<span class="opt">) {</span>
+            <span class="kwa">if</span> <span class="opt">(</span>Atomics<span class="opt">.</span><span class="kwd">compareExchange</span><span class="opt">(</span>nextY<span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> y<span class="opt">,</span> y <span class="opt">+</span> <span class="num">1</span><span class="opt">) ===</span> y<span class="opt">) {</span>
+                <span class="kwa">const</span> row <span class="opt">=</span> <span class="kwa">new</span> <span class="kwd">Uint8Array</span><span class="opt">(</span>sab<span class="opt">,</span> rowsStart <span class="opt">+</span> y <span class="opt">*</span> bytesPerRow<span class="opt">,</span> bytesPerRow<span class="opt">);</span>
+                <span class="kwd">renderRow</span><span class="opt">(</span>row<span class="opt">,</span> y<span class="opt">);</span>
+            <span class="opt">}</span>
+        <span class="opt">}</span>
+        process<span class="opt">.</span><span class="kwd">exit</span><span class="opt">();</span>
+    <span class="opt">}</span>
+
+    <span class="kwa">function</span> <span class="kwd">renderRow</span><span class="opt">(</span>row<span class="opt">,</span> y0<span class="opt">) {</span>
+        <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">let</span> xByte <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> xByte <span class="opt">&lt;</span> bytesPerRow<span class="opt">;</span> xByte<span class="opt">++) {</span>
+            <span class="kwa">const</span> ci <span class="opt">=</span> initialI<span class="opt">[</span>y0<span class="opt">];</span>
+            <span class="kwa">let</span> res <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+            <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">let</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> <span class="num">8</span><span class="opt">;</span> i <span class="opt">+=</span> <span class="num">2</span><span class="opt">) {</span>
+                <span class="kwa">const</span> x <span class="opt">=</span> xByte <span class="opt">&lt;&lt;</span> <span class="num">3</span><span class="opt">;</span>
+                <span class="kwa">const</span> cr1 <span class="opt">=</span> initialR<span class="opt">[</span>x <span class="opt">+</span> i<span class="opt">];</span>
+                <span class="kwa">const</span> cr2 <span class="opt">=</span> initialR<span class="opt">[</span>x <span class="opt">+</span> i <span class="opt">+</span> <span class="num">1</span><span class="opt">];</span>
+
+                <span class="kwa">let</span> zr1 <span class="opt">=</span> cr1<span class="opt">;</span>
+                <span class="kwa">let</span> zi1 <span class="opt">=</span> ci<span class="opt">;</span>
+
+                <span class="kwa">let</span> zr2 <span class="opt">=</span> cr2<span class="opt">;</span>
+                <span class="kwa">let</span> zi2 <span class="opt">=</span> ci<span class="opt">;</span>
+
+                <span class="kwa">let</span> b <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+
+                <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">let</span> j <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> j <span class="opt">&lt;</span> maxIter<span class="opt">;</span> j<span class="opt">++) {</span>
+                    <span class="kwa">const</span> tr1 <span class="opt">=</span> zr1 <span class="opt">*</span> zr1<span class="opt">;</span>
+                    <span class="kwa">const</span> ti1 <span class="opt">=</span> zi1 <span class="opt">*</span> zi1<span class="opt">;</span>
+                    zi1 <span class="opt">=</span> <span class="num">2</span> <span class="opt">*</span> zr1 <span class="opt">*</span> zi1 <span class="opt">+</span> ci<span class="opt">;</span>
+                    zr1 <span class="opt">=</span> tr1 <span class="opt">-</span> ti1 <span class="opt">+</span> cr1<span class="opt">;</span>
+
+                    <span class="kwa">if</span> <span class="opt">(</span>tr1 <span class="opt">+</span> ti1 <span class="opt">&gt;</span> limit<span class="opt">) {</span>
+                        b <span class="opt">|=</span> <span class="num">2</span><span class="opt">;</span>
+                        <span class="kwa">if</span> <span class="opt">(</span>b <span class="opt">===</span> <span class="num">3</span><span class="opt">) {</span>
+                            <span class="kwa">break</span><span class="opt">;</span>
+                        <span class="opt">}</span>
+                    <span class="opt">}</span>
+
+                    <span class="kwa">const</span> tr2 <span class="opt">=</span> zr2 <span class="opt">*</span> zr2<span class="opt">;</span>
+                    <span class="kwa">const</span> ti2 <span class="opt">=</span> zi2 <span class="opt">*</span> zi2<span class="opt">;</span>
+                    zi2 <span class="opt">=</span> <span class="num">2</span> <span class="opt">*</span> zr2 <span class="opt">*</span> zi2 <span class="opt">+</span> ci<span class="opt">;</span>
+                    zr2 <span class="opt">=</span> tr2 <span class="opt">-</span> ti2 <span class="opt">+</span> cr2<span class="opt">;</span>
+
+                    <span class="kwa">if</span> <span class="opt">(</span>tr2 <span class="opt">+</span> ti2 <span class="opt">&gt;</span> limit<span class="opt">) {</span>
+                        b <span class="opt">|=</span> <span class="num">1</span><span class="opt">;</span>
+                        <span class="kwa">if</span> <span class="opt">(</span>b <span class="opt">===</span> <span class="num">3</span><span class="opt">) {</span>
+                            <span class="kwa">break</span><span class="opt">;</span>
+                        <span class="opt">}</span>
+                    <span class="opt">}</span>
+                <span class="opt">}</span>
+                res <span class="opt">= (</span>res <span class="opt">&lt;&lt;</span> <span class="num">2</span><span class="opt">) |</span> b<span class="opt">;</span>
+            <span class="opt">}</span>
+            row<span class="opt">[</span>xByte<span class="opt">] = ~</span>res<span class="opt">;</span>
+        <span class="opt">}</span>
+    <span class="opt">}</span>
+<span class="opt">}</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

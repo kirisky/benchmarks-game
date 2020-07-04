@@ -17,6 +17,112 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc"># The Computer Language Benchmarks Game</span>
+<span class="slc"># https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">#</span>
+<span class="slc"># contributed by A. Sinan Unur</span>
+<span class="slc">#</span>
+
+<span class="slc"># This version forks three children which each do a third of</span>
+<span class="slc"># the matching work. Parent does the substitution work, collects</span>
+<span class="slc"># results, and prints them. It has the advantage of working on</span>
+<span class="slc"># non-threaded perls.</span>
+
+<span class="kwa">use</span> strict<span class="opt">;</span>
+
+<span class="kwa">use</span> constant N_MATCH_WORKERS <span class="opt">=&gt;</span> <span class="num">3</span><span class="opt">;</span>
+
+<span class="kwa">use</span> IO<span class="opt">::</span>Select<span class="opt">;</span>
+
+run<span class="opt">();</span>
+
+<span class="kwa">sub</span> run <span class="opt">{</span>
+    <span class="kwc">my</span> <span class="kwb">&#64;variants</span> <span class="opt">=</span> qw<span class="opt">/</span>
+           agggtaaa<span class="opt">|</span>tttaccct
+       <span class="opt">[</span>cgt<span class="opt">]</span>gggtaaa<span class="opt">|</span>tttaccc<span class="opt">[</span>acg<span class="opt">]</span>
+       a<span class="opt">[</span>act<span class="opt">]</span>ggtaaa<span class="opt">|</span>tttacc<span class="opt">[</span>agt<span class="opt">]</span>t
+       ag<span class="opt">[</span>act<span class="opt">]</span>gtaaa<span class="opt">|</span>tttac<span class="opt">[</span>agt<span class="opt">]</span>ct
+       agg<span class="opt">[</span>act<span class="opt">]</span>taaa<span class="opt">|</span>ttta<span class="opt">[</span>agt<span class="opt">]</span>cct
+       aggg<span class="opt">[</span>acg<span class="opt">]</span>aaa<span class="opt">|</span>ttt<span class="opt">[</span>cgt<span class="opt">]</span>ccct
+       agggt<span class="opt">[</span>cgt<span class="opt">]</span>aa<span class="opt">|</span>tt<span class="opt">[</span>acg<span class="opt">]</span>accct
+       agggta<span class="opt">[</span>cgt<span class="opt">]</span>a<span class="opt">|</span>t<span class="opt">[</span>acg<span class="opt">]</span>taccct
+       agggtaa<span class="opt">[</span>cgt<span class="opt">]|[</span>acg<span class="opt">]</span>ttaccct
+    <span class="opt">/;</span>
+
+    <span class="kwc">my</span> <span class="kwb">&#64;variants_re</span> <span class="opt">=</span> <span class="kwc">map</span> <span class="kwd">qr/$_/xiaa</span><span class="opt">,</span> <span class="kwb">&#64;variants</span><span class="opt">;</span>
+
+    <span class="kwc">my</span> <span class="kwb">&#64;iub</span> <span class="opt">= (</span>
+        <span class="opt">[</span> <span class="str">&apos;tHa [Nt]&apos;</span><span class="opt">,</span>                 <span class="str">&apos;&lt;4&gt;&apos;</span> <span class="opt">],</span>
+        <span class="opt">[</span> <span class="str">&apos;aND | caN | Ha[DS] | WaS&apos;</span><span class="opt">,</span> <span class="str">&apos;&lt;3&gt;&apos;</span> <span class="opt">],</span>
+        <span class="opt">[</span> <span class="str">&apos;a [NSt] | BY&apos;</span><span class="opt">,</span>             <span class="str">&apos;&lt;2&gt;&apos;</span> <span class="opt">],</span>
+        <span class="opt">[</span> <span class="str">&apos;&lt; [^&gt;]* &gt;&apos;</span><span class="opt">,</span>                <span class="str">&apos;|&apos;</span>   <span class="opt">],</span>
+        <span class="opt">[</span> <span class="str">&apos;\| [^|] [^|]* \|&apos;</span><span class="opt">,</span>         <span class="str">&apos;-&apos;</span>   <span class="opt">],</span>
+    <span class="opt">);</span>
+
+    <span class="kwc">my</span> <span class="kwb">$seq</span> <span class="opt">=</span> <span class="kwa">do</span> <span class="opt">{</span> <span class="kwc">local</span> <span class="opt">$/; &lt;</span>STDIN<span class="opt">&gt; };</span>
+
+    <span class="kwc">my</span> <span class="kwb">&#64;report</span> <span class="opt">= (</span><span class="kwc">length</span> <span class="kwb">$seq</span><span class="opt">);</span>
+
+    <span class="kwb">$seq</span> <span class="opt">=~</span> <span class="kwd">s/&gt;.*\n|\n//g</span><span class="opt">;</span>
+
+    <span class="kwc">push</span> <span class="kwb">&#64;report</span><span class="opt">,</span> <span class="kwc">length</span><span class="opt">(</span> <span class="kwb">$seq</span> <span class="opt">);</span>
+
+    <span class="kwc">my</span> <span class="kwb">%readers</span><span class="opt">;</span>
+
+    <span class="kwa">for</span> <span class="kwc">my</span> <span class="kwb">$worker</span> <span class="opt">(</span><span class="num">1</span> <span class="opt">..</span> N_MATCH_WORKERS<span class="opt">) {</span>
+        <span class="kwc">pipe</span><span class="opt">(</span><span class="kwc">my</span> <span class="kwb">$reader</span><span class="opt">,</span> <span class="kwc">my</span> <span class="kwb">$writer</span><span class="opt">);</span>
+        <span class="kwc">my</span> <span class="kwb">$pid</span> <span class="opt">=</span> <span class="kwc">fork</span><span class="opt">;</span>
+        <span class="kwa">if</span> <span class="opt">(</span> <span class="kwb">$pid</span> <span class="opt">) {</span>
+            <span class="kwb">$readers</span><span class="opt">{</span> <span class="kwb">$pid</span> <span class="opt">} =</span> <span class="kwb">$reader</span><span class="opt">;</span>
+            <span class="kwc">close</span> <span class="kwb">$writer</span>
+                <span class="kwc">or die</span> <span class="str">&quot;Failed to close worker</span> <span class="ipl">$worker</span><span class="str">&apos;s writer in parent: $!&quot;</span><span class="opt">;</span>
+        <span class="opt">}</span>
+        <span class="kwa">else</span> <span class="opt">{</span>
+            <span class="kwc">die</span> <span class="str">&quot;Fork failed: $?&quot;</span> <span class="kwa">unless</span> <span class="kwc">defined</span> <span class="kwb">$pid</span><span class="opt">;</span>
+            <span class="kwc">close</span> <span class="kwb">$reader</span>
+                <span class="kwc">or die</span> <span class="str">&quot;Failed to close parent&apos;s reader in worker</span> <span class="ipl">$worker</span><span class="str">: $!&quot;</span><span class="opt">;</span>
+            <span class="kwa">for</span> <span class="opt">(</span>N_MATCH_WORKERS<span class="opt">*(</span><span class="kwb">$worker</span> <span class="opt">-</span> <span class="num">1</span><span class="opt">) .. (</span>N_MATCH_WORKERS<span class="opt">*</span><span class="kwb">$worker</span> <span class="opt">-</span> <span class="num">1</span><span class="opt">)) {</span>
+                <span class="kwc">printf</span> <span class="kwb">$writer</span> <span class="str">&quot;</span><span class="ipl">%s</span><span class="str"></span><span class="esc">\t</span><span class="str"></span><span class="ipl">%d</span><span class="str"></span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span> <span class="kwb">$variants</span><span class="opt">[</span><span class="kwb">$_</span><span class="opt">],</span>
+                    <span class="kwc">scalar</span><span class="opt">( () =</span> <span class="kwb">$seq</span> <span class="opt">=~</span> <span class="kwd">/$variants_re[$_]/g</span> <span class="opt">);</span>
+            <span class="opt">}</span>
+            <span class="kwc">close</span> <span class="kwb">$writer</span>
+                <span class="kwc">or die</span> <span class="str">&quot;Failed to close worker ${worker}&apos;s writer in worker: $!&quot;</span><span class="opt">;</span>
+            <span class="kwa">exit</span><span class="opt">(</span> <span class="num">0</span> <span class="opt">);</span>
+        <span class="opt">}</span>
+    <span class="opt">}</span>
+
+    <span class="slc"># do our own work</span>
+    <span class="kwb">$seq</span> <span class="opt">=~</span> <span class="kwd">s/$_-&gt;[0]/$_-&gt;[1]/gx</span> <span class="kwa">for</span> <span class="kwb">&#64;iub</span><span class="opt">;</span>
+    <span class="kwc">push</span> <span class="kwb">&#64;report</span><span class="opt">,</span> <span class="kwc">length</span><span class="opt">(</span> <span class="kwb">$seq</span> <span class="opt">);</span>
+    <span class="kwc">unshift</span> <span class="kwb">&#64;report</span><span class="opt">,</span> <span class="str">&apos;&apos;</span><span class="opt">;</span>
+
+    <span class="slc"># collect output from match workers</span>
+    <span class="kwc">my</span> <span class="kwb">%match_results</span><span class="opt">;</span>
+
+    <span class="kwa">for</span> <span class="kwc">my</span> <span class="kwb">$reader</span> <span class="opt">(</span> <span class="kwc">values</span> <span class="kwb">%readers</span> <span class="opt">) {</span>
+        <span class="kwa">while</span> <span class="opt">(&lt;</span><span class="kwb">$reader</span><span class="opt">&gt;) {</span>
+            <span class="kwc">chomp</span><span class="opt">;</span>
+            <span class="kwc">my</span> <span class="opt">(</span><span class="kwb">$v</span><span class="opt">,</span> <span class="kwb">$n</span><span class="opt">) =</span> <span class="kwc">split</span> <span class="kwd">/\t/</span><span class="opt">;</span>
+            <span class="kwb">$match_results</span><span class="opt">{</span> <span class="kwb">$v</span> <span class="opt">} =</span> <span class="kwb">$n</span><span class="opt">;</span>
+        <span class="opt">}</span>
+        <span class="kwc">close</span> <span class="kwb">$reader</span>
+            <span class="kwc">or die</span> <span class="str">&quot;Failed to close reader in parent: $!&quot;</span><span class="opt">;</span>
+    <span class="opt">}</span>
+
+    <span class="kwc">waitpid</span><span class="opt">(</span><span class="kwb">$_</span><span class="opt">,</span> <span class="num">0</span><span class="opt">)</span> <span class="kwa">for</span> <span class="kwc">keys</span> <span class="kwb">%readers</span><span class="opt">;</span>
+
+    <span class="kwc">unshift</span> <span class="kwb">&#64;report</span><span class="opt">,</span> <span class="kwc">map</span> <span class="str">&quot;</span><span class="ipl">$variants</span><span class="str">[</span><span class="ipl">$_</span><span class="str">]</span> <span class="ipl">$match_results</span><span class="str">{</span> <span class="ipl">$variants</span><span class="str">[</span><span class="ipl">$_</span><span class="str">] }&quot;</span><span class="opt">,</span>
+        <span class="num">0</span> <span class="opt">..</span> <span class="kwb">$#variants</span><span class="opt">;</span>
+    <span class="kwc">print join</span><span class="opt">(</span><span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span> <span class="kwb">&#64;report</span><span class="opt">),</span> <span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">;</span>
+<span class="opt">}</span>
+
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

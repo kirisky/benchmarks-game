@@ -17,6 +17,228 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc">// The Computer Language Benchmarks Game</span>
+<span class="slc">// https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">//</span>
+<span class="slc">// contributed by John Schmerge</span>
+
+<span class="ppc">#include &lt;cstdint&gt;</span>
+<span class="ppc">#include &lt;cstdio&gt;</span>
+<span class="ppc">#include &lt;iostream&gt;</span>
+<span class="ppc">#include &lt;atomic&gt;</span>
+<span class="ppc">#include &lt;vector&gt;</span>
+<span class="ppc">#include &lt;algorithm&gt;</span>
+<span class="ppc">#include &lt;string&gt;</span>
+<span class="ppc">#include &lt;mutex&gt;</span>
+<span class="ppc">#include &lt;thread&gt;</span>
+<span class="ppc">#include &lt;list&gt;</span>
+<span class="ppc">#include &lt;condition_variable&gt;</span>
+
+<span class="kwc">constexpr</span> <span class="kwb">size_t</span> line_length <span class="opt">=</span> <span class="num">60</span><span class="opt">;</span>
+<span class="kwc">constexpr</span> <span class="kwb">unsigned long</span> expected_chunk_size <span class="opt">= (</span><span class="num">1</span> <span class="opt">&lt;&lt;</span> <span class="num">11</span><span class="opt">);</span>
+
+<span class="kwb">static</span> <span class="kwc">constexpr</span> <span class="kwb">char</span> lookup<span class="opt">[] = {</span>
+    <span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span> <span class="slc">// 0</span>
+    <span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span> <span class="slc">// 16</span>
+    <span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span> <span class="slc">// 32</span>
+    <span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span> <span class="slc">// 48</span>
+
+    <span class="str">&apos; &apos;</span><span class="opt">,</span> <span class="str">&apos;T&apos;</span><span class="opt">,</span> <span class="str">&apos;V&apos;</span><span class="opt">,</span> <span class="str">&apos;G&apos;</span><span class="opt">,</span> <span class="str">&apos;H&apos;</span><span class="opt">,</span> <span class="str">&apos; &apos;</span><span class="opt">,</span> <span class="str">&apos; &apos;</span><span class="opt">,</span> <span class="str">&apos;C&apos;</span><span class="opt">,</span> <span class="slc">// &#64;ABCDEFG (64-71)</span>
+    <span class="str">&apos;D&apos;</span><span class="opt">,</span> <span class="str">&apos; &apos;</span><span class="opt">,</span> <span class="str">&apos; &apos;</span><span class="opt">,</span> <span class="str">&apos;M&apos;</span><span class="opt">,</span> <span class="str">&apos; &apos;</span><span class="opt">,</span> <span class="str">&apos;K&apos;</span><span class="opt">,</span> <span class="str">&apos;N&apos;</span><span class="opt">,</span> <span class="str">&apos; &apos;</span><span class="opt">,</span> <span class="slc">// HIJKLMNO (72-79)</span>
+    <span class="str">&apos; &apos;</span><span class="opt">,</span> <span class="str">&apos; &apos;</span><span class="opt">,</span> <span class="str">&apos;Y&apos;</span><span class="opt">,</span> <span class="str">&apos;S&apos;</span><span class="opt">,</span> <span class="str">&apos;A&apos;</span><span class="opt">,</span> <span class="str">&apos;A&apos;</span><span class="opt">,</span> <span class="str">&apos;B&apos;</span><span class="opt">,</span> <span class="str">&apos;W&apos;</span><span class="opt">,</span> <span class="slc">// PQRSTUVW (80-87)</span>
+    <span class="str">&apos; &apos;</span><span class="opt">,</span> <span class="str">&apos;R&apos;</span><span class="opt">,</span> <span class="str">&apos; &apos;</span><span class="opt">,</span> <span class="str">&apos; &apos;</span><span class="opt">,</span> <span class="str">&apos; &apos;</span><span class="opt">,</span> <span class="str">&apos; &apos;</span><span class="opt">,</span> <span class="str">&apos; &apos;</span><span class="opt">,</span> <span class="str">&apos; &apos;</span><span class="opt">,</span> <span class="slc">// XYZ[\]^_ (88-95)</span>
+    <span class="str">&apos; &apos;</span><span class="opt">,</span> <span class="str">&apos;T&apos;</span><span class="opt">,</span> <span class="str">&apos;V&apos;</span><span class="opt">,</span> <span class="str">&apos;G&apos;</span><span class="opt">,</span> <span class="str">&apos;H&apos;</span><span class="opt">,</span> <span class="str">&apos; &apos;</span><span class="opt">,</span> <span class="str">&apos; &apos;</span><span class="opt">,</span> <span class="str">&apos;C&apos;</span><span class="opt">,</span> <span class="slc">// `abcdefg (96-103)</span>
+    <span class="str">&apos;D&apos;</span><span class="opt">,</span> <span class="str">&apos; &apos;</span><span class="opt">,</span> <span class="str">&apos; &apos;</span><span class="opt">,</span> <span class="str">&apos;M&apos;</span><span class="opt">,</span> <span class="str">&apos; &apos;</span><span class="opt">,</span> <span class="str">&apos;K&apos;</span><span class="opt">,</span> <span class="str">&apos;N&apos;</span><span class="opt">,</span> <span class="str">&apos; &apos;</span><span class="opt">,</span> <span class="slc">// hijklmno (104-111)</span>
+    <span class="str">&apos; &apos;</span><span class="opt">,</span> <span class="str">&apos; &apos;</span><span class="opt">,</span> <span class="str">&apos;Y&apos;</span><span class="opt">,</span> <span class="str">&apos;S&apos;</span><span class="opt">,</span> <span class="str">&apos;A&apos;</span><span class="opt">,</span> <span class="str">&apos;A&apos;</span><span class="opt">,</span> <span class="str">&apos;B&apos;</span><span class="opt">,</span> <span class="str">&apos;W&apos;</span><span class="opt">,</span> <span class="slc">// pqrstuvw (112-119)</span>
+    <span class="str">&apos; &apos;</span><span class="opt">,</span> <span class="str">&apos;R&apos;</span><span class="opt">,</span> <span class="str">&apos; &apos;</span><span class="opt">,</span> <span class="str">&apos; &apos;</span><span class="opt">,</span> <span class="str">&apos; &apos;</span><span class="opt">,</span> <span class="str">&apos; &apos;</span><span class="opt">,</span> <span class="str">&apos; &apos;</span><span class="opt">,</span> <span class="str">&apos; &apos;</span><span class="opt">,</span> <span class="slc">// xyz{|}~  (120-127)</span>
+
+    <span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span> <span class="slc">// 128</span>
+    <span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span> <span class="slc">// 144</span>
+    <span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span> <span class="slc">// 160</span>
+    <span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span> <span class="slc">// 176</span>
+    <span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span> <span class="slc">// 192</span>
+    <span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span> <span class="slc">// 208</span>
+    <span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span> <span class="slc">// 224</span>
+    <span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span><span class="str">&apos; &apos;</span><span class="opt">,</span> <span class="slc">// 240</span>
+<span class="opt">};</span>
+
+<span class="kwb">const struct</span> complement <span class="opt">{</span>
+    <span class="kwb">unsigned char</span> <span class="kwc">operator</span> <span class="opt">() (</span><span class="kwb">unsigned char</span> c<span class="opt">)</span> <span class="kwb">const</span> <span class="opt">{</span>
+        <span class="kwa">return</span> lookup<span class="opt">[</span><span class="kwa">static_cast</span><span class="opt">&lt;</span><span class="kwb">unsigned</span><span class="opt">&gt;(</span>c<span class="opt">)];</span>
+    <span class="opt">}</span>
+<span class="opt">}</span> complement_functor<span class="opt">{};</span>
+
+<span class="kwb">struct</span> item <span class="opt">{</span>
+    <span class="kwc">std</span><span class="opt">::</span>string name<span class="opt">;</span>
+    <span class="kwc">std</span><span class="opt">::</span>string sequence<span class="opt">;</span>
+<span class="opt">};</span>
+
+<span class="kwb">struct</span> item_block <span class="opt">{</span>
+    <span class="kwd">item_block</span><span class="opt">(</span><span class="kwb">uint32_t</span> seq<span class="opt">)</span>
+      <span class="opt">:</span> <span class="kwd">sequence_number</span><span class="opt">(</span>seq<span class="opt">)</span>
+      <span class="opt">,</span> <span class="kwd">unprocessed_count</span><span class="opt">(</span><span class="num">0</span><span class="opt">)</span>
+      <span class="opt">,</span> <span class="kwd">item_list</span><span class="opt">() { }</span>
+
+    <span class="kwd">item_block</span><span class="opt">(</span><span class="kwb">uint32_t</span> seq<span class="opt">,</span> <span class="kwc">std</span><span class="opt">::</span>vector<span class="opt">&lt;</span>item<span class="opt">&gt; &amp;&amp;</span> items<span class="opt">)</span>
+      <span class="opt">:</span> <span class="kwd">sequence_number</span><span class="opt">(</span>seq<span class="opt">)</span>
+      <span class="opt">,</span> <span class="kwd">unprocessed_count</span><span class="opt">(</span>items<span class="opt">.</span><span class="kwd">size</span><span class="opt">())</span>
+      <span class="opt">,</span> <span class="kwd">item_list</span><span class="opt">(</span><span class="kwc">std</span><span class="opt">::</span><span class="kwd">move</span><span class="opt">(</span>items<span class="opt">)) { }</span>
+
+    <span class="kwd">item_block</span><span class="opt">(</span><span class="kwb">const</span> item_block <span class="opt">&amp;</span> other<span class="opt">) =</span> <span class="kwa">delete</span><span class="opt">;</span>
+    item_block <span class="opt">&amp;</span> <span class="kwc">operator</span> <span class="opt">= (</span><span class="kwb">const</span> item_block <span class="opt">&amp;</span> other<span class="opt">) =</span> <span class="kwa">delete</span><span class="opt">;</span>
+
+    <span class="kwb">uint32_t</span> sequence_number<span class="opt">;</span>
+    <span class="kwc">std</span><span class="opt">::</span>atomic<span class="opt">&lt;</span><span class="kwb">uint32_t</span><span class="opt">&gt;</span> unprocessed_count<span class="opt">;</span>
+    <span class="kwc">std</span><span class="opt">::</span>vector<span class="opt">&lt;</span>item<span class="opt">&gt;</span> item_list<span class="opt">;</span>
+<span class="opt">};</span>
+
+<span class="kwc">std</span><span class="opt">::</span>mutex input_lock<span class="opt">;</span>
+<span class="kwc">std</span><span class="opt">::</span>condition_variable input_available<span class="opt">;</span>
+<span class="kwc">std</span><span class="opt">::</span>list<span class="opt">&lt;</span>item_block<span class="opt">&gt;</span> input_chunks<span class="opt">;</span>
+
+<span class="kwc">std</span><span class="opt">::</span>mutex output_lock<span class="opt">;</span>
+<span class="kwc">std</span><span class="opt">::</span>condition_variable output_available<span class="opt">;</span>
+<span class="kwc">std</span><span class="opt">::</span>list<span class="opt">&lt;</span><span class="kwc">std</span><span class="opt">::</span>vector<span class="opt">&lt;</span>item<span class="opt">&gt;&gt;</span> output_chunks<span class="opt">;</span>
+
+<span class="kwb">void</span> <span class="kwd">do_reverse_complement</span><span class="opt">(</span>item <span class="opt">&amp;</span> w<span class="opt">) {</span>
+    <span class="kwc">std</span><span class="opt">::</span><span class="kwd">reverse</span><span class="opt">(</span>w<span class="opt">.</span>sequence<span class="opt">.</span><span class="kwd">begin</span><span class="opt">(),</span> w<span class="opt">.</span>sequence<span class="opt">.</span><span class="kwd">end</span><span class="opt">());</span>
+    <span class="kwc">std</span><span class="opt">::</span><span class="kwd">transform</span><span class="opt">(</span>w<span class="opt">.</span>sequence<span class="opt">.</span><span class="kwd">begin</span><span class="opt">(),</span> w<span class="opt">.</span>sequence<span class="opt">.</span><span class="kwd">end</span><span class="opt">(),</span> w<span class="opt">.</span>sequence<span class="opt">.</span><span class="kwd">begin</span><span class="opt">(),</span>
+                   complement_functor<span class="opt">);</span>
+
+    w<span class="opt">.</span>name <span class="opt">+=</span> <span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span><span class="opt">;</span>
+    <span class="kwc">std</span><span class="opt">::</span>string s<span class="opt">;</span>
+    s<span class="opt">.</span><span class="kwd">reserve</span><span class="opt">(</span>w<span class="opt">.</span>sequence<span class="opt">.</span><span class="kwd">size</span><span class="opt">() +</span> <span class="num">1</span> <span class="opt">+ (</span>w<span class="opt">.</span>sequence<span class="opt">.</span><span class="kwd">size</span><span class="opt">() /</span> line_length<span class="opt">));</span>
+
+    <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">size_t</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> w<span class="opt">.</span>sequence<span class="opt">.</span><span class="kwd">size</span><span class="opt">();</span> i <span class="opt">+=</span> line_length<span class="opt">) {</span>
+        s <span class="opt">+=</span> w<span class="opt">.</span>sequence<span class="opt">.</span><span class="kwd">substr</span><span class="opt">(</span>i<span class="opt">,</span> <span class="kwc">std</span><span class="opt">::</span><span class="kwd">min</span><span class="opt">(</span>line_length<span class="opt">,</span> w<span class="opt">.</span>sequence<span class="opt">.</span><span class="kwd">size</span><span class="opt">() -</span> i<span class="opt">));</span>
+        s <span class="opt">+=</span> <span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span><span class="opt">;</span>
+    <span class="opt">}</span>
+
+    w<span class="opt">.</span>sequence<span class="opt">.</span><span class="kwd">swap</span><span class="opt">(</span>s<span class="opt">);</span>
+<span class="opt">}</span>
+
+<span class="kwb">void</span> <span class="kwd">process_input</span><span class="opt">(</span><span class="kwb">const size_t</span> num_workers<span class="opt">,</span> <span class="kwc">std</span><span class="opt">::</span>istream <span class="opt">&amp;</span> f<span class="opt">) {</span>
+    <span class="kwb">uint32_t</span> sequence_number <span class="opt">= ~</span><span class="num">0</span><span class="opt">;</span>
+    <span class="kwc">std</span><span class="opt">::</span>string line<span class="opt">;</span>
+    <span class="kwc">std</span><span class="opt">::</span>vector<span class="opt">&lt;</span>item<span class="opt">&gt;</span> items<span class="opt">;</span>
+    items<span class="opt">.</span><span class="kwd">reserve</span><span class="opt">(</span>expected_chunk_size<span class="opt">);</span>
+
+    <span class="kwa">while</span> <span class="opt">(</span><span class="kwc">std</span><span class="opt">::</span><span class="kwd">getline</span><span class="opt">(</span>f<span class="opt">,</span> line<span class="opt">)) {</span>
+        <span class="opt">++</span>sequence_number<span class="opt">;</span>
+        <span class="kwa">if</span> <span class="opt">(!</span> line<span class="opt">.</span><span class="kwd">empty</span><span class="opt">() &amp;&amp;</span> line<span class="opt">[</span><span class="num">0</span><span class="opt">] ==</span> <span class="str">&apos;&gt;&apos;</span><span class="opt">) {</span>
+            <span class="kwa">if</span> <span class="opt">(</span>items<span class="opt">.</span><span class="kwd">size</span><span class="opt">() ==</span> expected_chunk_size<span class="opt">) {</span>
+                <span class="kwc">std</span><span class="opt">::</span>unique_lock<span class="opt">&lt;</span><span class="kwc">std</span><span class="opt">::</span>mutex<span class="opt">&gt;</span> <span class="kwd">ul</span><span class="opt">(</span>input_lock<span class="opt">);</span>
+                input_chunks<span class="opt">.</span><span class="kwd">emplace_back</span><span class="opt">(</span>sequence_number<span class="opt">,</span> <span class="kwc">std</span><span class="opt">::</span><span class="kwd">move</span><span class="opt">(</span>items<span class="opt">));</span>
+                input_available<span class="opt">.</span><span class="kwd">notify_all</span><span class="opt">();</span>
+                items<span class="opt">.</span><span class="kwd">clear</span><span class="opt">();</span>
+                items<span class="opt">.</span><span class="kwd">reserve</span><span class="opt">(</span>expected_chunk_size<span class="opt">);</span>
+            <span class="opt">}</span>
+
+            items<span class="opt">.</span><span class="kwd">emplace_back</span><span class="opt">();</span>
+            items<span class="opt">.</span><span class="kwd">back</span><span class="opt">().</span>name <span class="opt">=</span> <span class="kwc">std</span><span class="opt">::</span><span class="kwd">move</span><span class="opt">(</span>line<span class="opt">);</span>
+            items<span class="opt">.</span><span class="kwd">back</span><span class="opt">().</span>sequence<span class="opt">.</span><span class="kwd">reserve</span><span class="opt">(</span><span class="num">1024</span><span class="opt">);</span>
+        <span class="opt">}</span> <span class="kwa">else</span> <span class="opt">{</span>
+            items<span class="opt">.</span><span class="kwd">back</span><span class="opt">().</span>sequence <span class="opt">+=</span> line<span class="opt">;</span>
+        <span class="opt">}</span>
+    <span class="opt">}</span>
+    <span class="kwc">std</span><span class="opt">::</span>unique_lock<span class="opt">&lt;</span><span class="kwc">std</span><span class="opt">::</span>mutex<span class="opt">&gt;</span> <span class="kwd">ul</span><span class="opt">(</span>input_lock<span class="opt">);</span>
+    input_chunks<span class="opt">.</span><span class="kwd">emplace_back</span><span class="opt">(</span>sequence_number<span class="opt">,</span> <span class="kwc">std</span><span class="opt">::</span><span class="kwd">move</span><span class="opt">(</span>items<span class="opt">));</span>
+    <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">size_t</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> num_workers<span class="opt">; ++</span>i<span class="opt">)</span>
+        input_chunks<span class="opt">.</span><span class="kwd">emplace_back</span><span class="opt">(</span>sequence_number <span class="opt">+</span> i<span class="opt">);</span>
+    input_available<span class="opt">.</span><span class="kwd">notify_all</span><span class="opt">();</span>
+<span class="opt">}</span>
+
+<span class="kwb">void</span> <span class="kwd">worker_main</span><span class="opt">(</span><span class="kwb">const size_t</span> id<span class="opt">,</span> <span class="kwb">const size_t</span> num_workers<span class="opt">) {</span>
+    <span class="kwb">uint32_t</span> last_sequence <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+    <span class="kwb">size_t</span> chunk_size <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+
+    <span class="kwc">std</span><span class="opt">::</span>unique_lock<span class="opt">&lt;</span><span class="kwc">std</span><span class="opt">::</span>mutex<span class="opt">&gt;</span> <span class="kwd">ul</span><span class="opt">(</span>input_lock<span class="opt">);</span>
+
+    <span class="kwa">do</span> <span class="opt">{</span>
+        input_available<span class="opt">.</span><span class="kwd">wait</span><span class="opt">(</span>ul<span class="opt">, [&amp;] {</span>
+            <span class="kwa">return</span> <span class="opt">( (!</span> input_chunks<span class="opt">.</span><span class="kwd">empty</span><span class="opt">())</span> 
+                  <span class="opt">&amp;&amp;</span> last_sequence <span class="opt">&lt;</span> input_chunks<span class="opt">.</span><span class="kwd">front</span><span class="opt">().</span>sequence_number<span class="opt">);</span>
+        <span class="opt">} );</span>
+        <span class="kwc">auto</span> chunk <span class="opt">=</span> input_chunks<span class="opt">.</span><span class="kwd">begin</span><span class="opt">();</span>
+        chunk_size <span class="opt">=</span> chunk<span class="opt">-&gt;</span>item_list<span class="opt">.</span><span class="kwd">size</span><span class="opt">();</span>
+        last_sequence <span class="opt">=</span> chunk<span class="opt">-&gt;</span>sequence_number<span class="opt">;</span>
+        ul<span class="opt">.</span><span class="kwd">unlock</span><span class="opt">();</span>
+
+        <span class="kwb">uint32_t</span> items_processed <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+
+        <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">size_t</span> i <span class="opt">=</span> id<span class="opt">;</span> i <span class="opt">&lt;</span> chunk_size<span class="opt">;</span> i <span class="opt">+=</span> num_workers<span class="opt">)</span>
+        <span class="opt">{</span>
+            <span class="kwd">do_reverse_complement</span><span class="opt">(</span>chunk<span class="opt">-&gt;</span>item_list<span class="opt">[</span>i<span class="opt">]);</span>
+            <span class="opt">++</span>items_processed<span class="opt">;</span>
+        <span class="opt">}</span>
+
+        <span class="kwc">auto</span> old_value <span class="opt">=</span> chunk<span class="opt">-&gt;</span>unprocessed_count<span class="opt">.</span><span class="kwd">fetch_sub</span><span class="opt">(</span>
+                           items_processed<span class="opt">,</span> <span class="kwc">std</span><span class="opt">::</span>memory_order_acq_rel<span class="opt">);</span>
+
+        ul<span class="opt">.</span><span class="kwd">lock</span><span class="opt">();</span>
+        <span class="kwa">if</span> <span class="opt">(</span>old_value <span class="opt">==</span> items_processed<span class="opt">) {</span>
+            <span class="kwc">std</span><span class="opt">::</span>unique_lock<span class="opt">&lt;</span><span class="kwc">std</span><span class="opt">::</span>mutex<span class="opt">&gt;</span> <span class="kwd">oul</span><span class="opt">(</span>output_lock<span class="opt">);</span>
+            output_chunks<span class="opt">.</span><span class="kwd">emplace_back</span><span class="opt">(</span><span class="kwc">std</span><span class="opt">::</span><span class="kwd">move</span><span class="opt">(</span>chunk<span class="opt">-&gt;</span>item_list<span class="opt">));</span>
+            output_available<span class="opt">.</span><span class="kwd">notify_one</span><span class="opt">();</span>
+            oul<span class="opt">.</span><span class="kwd">unlock</span><span class="opt">();</span>
+            input_chunks<span class="opt">.</span><span class="kwd">erase</span><span class="opt">(</span>chunk<span class="opt">);</span>
+        <span class="opt">}</span>
+    <span class="opt">}</span> <span class="kwa">while</span> <span class="opt">(</span>chunk_size <span class="opt">==</span> expected_chunk_size<span class="opt">);</span>
+<span class="opt">}</span>
+
+<span class="kwb">void</span> <span class="kwd">output</span><span class="opt">()</span>
+<span class="opt">{</span>
+    <span class="kwb">size_t</span> chunk_size <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+    <span class="kwc">std</span><span class="opt">::</span>unique_lock<span class="opt">&lt;</span><span class="kwc">std</span><span class="opt">::</span>mutex<span class="opt">&gt;</span> <span class="kwd">ul</span><span class="opt">(</span>output_lock<span class="opt">);</span>
+    <span class="kwa">do</span> <span class="opt">{</span>
+        output_available<span class="opt">.</span><span class="kwd">wait</span><span class="opt">(</span>ul<span class="opt">, [&amp;] {</span> <span class="kwa">return</span> <span class="opt">(!</span> output_chunks<span class="opt">.</span><span class="kwd">empty</span><span class="opt">()); } );</span>
+        chunk_size <span class="opt">=</span> output_chunks<span class="opt">.</span><span class="kwd">front</span><span class="opt">().</span><span class="kwd">size</span><span class="opt">();</span>
+        ul<span class="opt">.</span><span class="kwd">unlock</span><span class="opt">();</span>
+
+        <span class="kwa">for</span> <span class="opt">(</span><span class="kwc">auto</span> <span class="opt">&amp;</span> seq <span class="opt">:</span> output_chunks<span class="opt">.</span><span class="kwd">front</span><span class="opt">()) {</span>
+            <span class="kwd">fwrite</span><span class="opt">(</span>seq<span class="opt">.</span>name<span class="opt">.</span><span class="kwd">c_str</span><span class="opt">(),</span> <span class="num">1</span><span class="opt">,</span> seq<span class="opt">.</span>name<span class="opt">.</span><span class="kwd">size</span><span class="opt">(),</span> stdout<span class="opt">);</span>
+            <span class="kwd">fwrite</span><span class="opt">(</span>seq<span class="opt">.</span>sequence<span class="opt">.</span><span class="kwd">c_str</span><span class="opt">(),</span> <span class="num">1</span><span class="opt">,</span> seq<span class="opt">.</span>sequence<span class="opt">.</span><span class="kwd">size</span><span class="opt">(),</span> stdout<span class="opt">);</span>
+        <span class="opt">}</span>
+
+        ul<span class="opt">.</span><span class="kwd">lock</span><span class="opt">();</span>
+        output_chunks<span class="opt">.</span><span class="kwd">pop_front</span><span class="opt">();</span>
+    <span class="opt">}</span> <span class="kwa">while</span> <span class="opt">(</span>chunk_size <span class="opt">==</span> expected_chunk_size<span class="opt">);</span>
+<span class="opt">}</span>
+
+<span class="kwc">template</span><span class="opt">&lt;</span>typename T<span class="opt">&gt;</span>
+ <span class="kwc">constexpr</span> T <span class="kwd">saturate</span><span class="opt">(</span><span class="kwb">const</span> T <span class="opt">&amp;</span> value<span class="opt">,</span> <span class="kwb">size_t</span> shift <span class="opt">=</span> <span class="num">1</span><span class="opt">) {</span>
+    <span class="kwa">return</span> <span class="opt">( (</span> shift <span class="opt">&gt;= (</span><span class="kwa">sizeof</span><span class="opt">(</span>value<span class="opt">) &lt;&lt;</span> <span class="num">3</span><span class="opt">) ) ?</span> value <span class="opt">:</span>
+             <span class="kwd">saturate</span><span class="opt">(</span><span class="kwa">static_cast</span><span class="opt">&lt;</span>T<span class="opt">&gt;(</span>value <span class="opt">| (</span>value <span class="opt">&gt;&gt;</span> shift<span class="opt">)),</span> shift <span class="opt">&lt;&lt;</span> <span class="num">1</span><span class="opt">) );</span>
+<span class="opt">}</span>
+
+<span class="kwc">template</span> <span class="opt">&lt;</span>typename T<span class="opt">&gt;</span>
+ <span class="kwc">constexpr</span> T <span class="kwd">next_power_of_two</span><span class="opt">(</span><span class="kwb">const</span> T <span class="opt">&amp;</span> x<span class="opt">) {</span>
+    <span class="kwa">return</span> <span class="opt">(</span><span class="num">1</span> <span class="opt">+</span> <span class="kwd">saturate</span><span class="opt">(</span>x <span class="opt">-</span> <span class="num">1</span><span class="opt">));</span>
+<span class="opt">}</span>
+
+<span class="kwb">int</span> <span class="kwd">main</span><span class="opt">()</span>
+<span class="opt">{</span>
+    <span class="kwb">size_t</span> num_workers <span class="opt">=</span> <span class="kwd">next_power_of_two</span><span class="opt">(</span><span class="kwc">std</span><span class="opt">::</span><span class="kwc">thread</span><span class="opt">::</span><span class="kwd">hardware_concurrency</span><span class="opt">());</span>
+    <span class="kwc">std</span><span class="opt">::</span><span class="kwc">ios</span><span class="opt">::</span><span class="kwd">sync_with_stdio</span><span class="opt">(</span><span class="kwa">false</span><span class="opt">);</span>
+    <span class="kwc">std</span><span class="opt">::</span>thread <span class="kwd">input_thread</span><span class="opt">(</span>process_input<span class="opt">,</span> num_workers<span class="opt">,</span> <span class="kwc">std</span><span class="opt">::</span><span class="kwd">ref</span><span class="opt">(</span><span class="kwc">std</span><span class="opt">::</span>cin<span class="opt">));</span>
+    <span class="kwc">std</span><span class="opt">::</span>thread <span class="kwd">output_thread</span><span class="opt">(</span>output<span class="opt">);</span>
+    <span class="kwc">std</span><span class="opt">::</span>vector<span class="opt">&lt;</span><span class="kwc">std</span><span class="opt">::</span>thread<span class="opt">&gt;</span> workers<span class="opt">;</span>
+
+    <span class="kwd">fprintf</span><span class="opt">(</span>stderr<span class="opt">,</span> <span class="str">&quot;Num workers = %zu</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span> num_workers<span class="opt">);</span>
+    <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">size_t</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> num_workers<span class="opt">; ++</span>i<span class="opt">)</span>
+        workers<span class="opt">.</span><span class="kwd">emplace_back</span><span class="opt">(</span>worker_main<span class="opt">,</span> i<span class="opt">,</span> num_workers<span class="opt">);</span>
+
+    <span class="kwa">for</span> <span class="opt">(</span><span class="kwc">auto</span> <span class="opt">&amp;</span> t <span class="opt">:</span> workers<span class="opt">)</span> t<span class="opt">.</span><span class="kwd">join</span><span class="opt">();</span>
+    input_thread<span class="opt">.</span><span class="kwd">join</span><span class="opt">();</span>
+    output_thread<span class="opt">.</span><span class="kwd">join</span><span class="opt">();</span>
+<span class="opt">}</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

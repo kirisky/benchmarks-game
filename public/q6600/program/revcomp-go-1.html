@@ -17,6 +17,212 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="com">/* The Computer Language Benchmarks Game</span>
+<span class="com"> * https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="com"> *</span>
+<span class="com"> * contributed by Krzysztof Kowalczyk</span>
+<span class="com"> */</span>
+
+<span class="kwa">package</span> main
+
+<span class="kwa">import</span> <span class="opt">(</span>
+   <span class="str">&quot;bytes&quot;</span>
+   <span class="str">&quot;fmt&quot;</span>
+   <span class="str">&quot;io&quot;</span>
+   <span class="str">&quot;log&quot;</span>
+   <span class="str">&quot;os&quot;</span>
+   <span class="str">&quot;runtime&quot;</span>
+<span class="opt">)</span>
+
+<span class="kwa">var</span> comptbl <span class="opt">= [</span><span class="num">256</span><span class="opt">]</span><span class="kwb">uint8</span><span class="opt">{}</span>
+
+<span class="kwa">func</span> <span class="kwd">build_comptbl</span><span class="opt">() {</span>
+   l1 <span class="opt">:= []</span><span class="kwb">byte</span><span class="opt">(</span><span class="str">&quot;UACBDKRWSN&quot;</span><span class="opt">)</span>
+   l2 <span class="opt">:= []</span><span class="kwb">byte</span><span class="opt">(</span><span class="str">&quot;ATGVHMYWSN&quot;</span><span class="opt">)</span>
+   l1_lower <span class="opt">:=</span> bytes<span class="opt">.</span><span class="kwd">ToLower</span><span class="opt">(</span>l1<span class="opt">)</span>
+   l2_lower <span class="opt">:=</span> bytes<span class="opt">.</span><span class="kwd">ToLower</span><span class="opt">(</span>l2<span class="opt">)</span>
+   <span class="kwa">for</span> i<span class="opt">,</span> c1 <span class="opt">:=</span> <span class="kwa">range</span> l1 <span class="opt">{</span>
+      c2 <span class="opt">:=</span> l2<span class="opt">[</span>i<span class="opt">]</span>
+      comptbl<span class="opt">[</span>c1<span class="opt">] =</span> c2
+      comptbl<span class="opt">[</span>c2<span class="opt">] =</span> c1
+      comptbl<span class="opt">[</span>l1_lower<span class="opt">[</span>i<span class="opt">]] =</span> c2
+      comptbl<span class="opt">[</span>l2_lower<span class="opt">[</span>i<span class="opt">]] =</span> c1
+   <span class="opt">}</span>
+   comptbl<span class="opt">[</span><span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span><span class="opt">] =</span> <span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span>
+<span class="opt">}</span>
+
+<span class="kwa">const</span> CHUNK_SIZE <span class="opt">=</span> <span class="num">1024</span> <span class="opt">*</span> <span class="num">128</span>
+<span class="kwa">const</span> BUF_SIZE <span class="opt">=</span> <span class="num">1024</span> <span class="opt">*</span> <span class="num">1024</span> <span class="opt">*</span> <span class="num">243</span>
+<span class="kwa">const</span> <span class="opt">(</span>
+   START   <span class="opt">=</span> <span class="num">0</span>
+   IN_HDR  <span class="opt">=</span> <span class="num">1</span>
+   IN_DATA <span class="opt">=</span> <span class="num">2</span>
+<span class="opt">)</span>
+
+<span class="kwa">type</span> ChunkInfo <span class="kwa">struct</span> <span class="opt">{</span>
+   i<span class="opt">,</span> end <span class="kwb">int</span>
+   last   <span class="kwb">bool</span>
+<span class="opt">}</span>
+
+<span class="kwa">type</span> PrintJob <span class="kwa">struct</span> <span class="opt">{</span>
+   data <span class="opt">[]</span><span class="kwb">byte</span>
+   last <span class="kwb">bool</span>
+<span class="opt">}</span>
+
+<span class="kwa">var</span> buf <span class="opt">[]</span><span class="kwb">byte</span>
+<span class="kwa">var</span> start_fasta_hdr <span class="kwb">int</span>
+<span class="kwa">var</span> start_fasta_data <span class="kwb">int</span>
+<span class="kwa">var</span> state <span class="kwb">int</span> <span class="opt">=</span> START
+<span class="kwa">var</span> chunker_chan <span class="kwa">chan</span> ChunkInfo
+<span class="kwa">var</span> printer_chan <span class="kwa">chan</span> PrintJob
+<span class="kwa">var</span> done_chan <span class="kwa">chan</span> <span class="kwb">bool</span>
+
+<span class="kwa">func</span> <span class="kwd">printer</span><span class="opt">(</span>jobs <span class="kwa">chan</span> PrintJob<span class="opt">,</span> done <span class="kwa">chan</span> <span class="kwb">bool</span><span class="opt">) {</span>
+   <span class="kwa">for</span> <span class="opt">{</span>
+      job <span class="opt">:= &lt;-</span>jobs
+      <span class="kwa">if</span> <span class="kwb">nil</span> <span class="opt">!=</span> job<span class="opt">.</span>data <span class="opt">{</span>
+         os<span class="opt">.</span>Stdout<span class="opt">.</span><span class="kwd">Write</span><span class="opt">(</span>job<span class="opt">.</span>data<span class="opt">)</span>
+      <span class="opt">}</span>
+      <span class="kwa">if</span> job<span class="opt">.</span>last <span class="opt">{</span>
+         done <span class="opt">&lt;-</span> <span class="kwb">true</span>
+         <span class="kwa">return</span>
+      <span class="opt">}</span>
+   <span class="opt">}</span>
+<span class="opt">}</span>
+
+<span class="kwa">func</span> <span class="kwd">add_printer_job</span><span class="opt">(</span>data <span class="opt">[]</span><span class="kwb">byte</span><span class="opt">,</span> last <span class="kwb">bool</span><span class="opt">) {</span>
+   <span class="kwa">var</span> j PrintJob
+   j<span class="opt">.</span>data <span class="opt">=</span> data
+   j<span class="opt">.</span>last <span class="opt">=</span> last
+   printer_chan <span class="opt">&lt;-</span> j
+<span class="opt">}</span>
+
+<span class="slc">// TODO: this one can print a bit earlier</span>
+<span class="kwa">func</span> <span class="kwd">reverse</span><span class="opt">(</span>strand <span class="opt">[]</span><span class="kwb">byte</span><span class="opt">) {</span>
+   i <span class="opt">:=</span> <span class="num">0</span>
+   end <span class="opt">:=</span> <span class="kwb">len</span><span class="opt">(</span>strand<span class="opt">) -</span> <span class="num">1</span>
+   <span class="kwa">for</span> i <span class="opt">&lt;</span> end <span class="opt">{</span>
+      c <span class="opt">:=</span> strand<span class="opt">[</span>i<span class="opt">]</span>
+      <span class="kwa">if</span> c <span class="opt">==</span> <span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span> <span class="opt">{</span>
+         i <span class="opt">+=</span> <span class="num">1</span>
+         c <span class="opt">=</span> strand<span class="opt">[</span>i<span class="opt">]</span>
+      <span class="opt">}</span>
+      cend <span class="opt">:=</span> strand<span class="opt">[</span>end<span class="opt">]</span>
+      <span class="kwa">if</span> cend <span class="opt">==</span> <span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span> <span class="opt">{</span>
+         end <span class="opt">-=</span> <span class="num">1</span>
+         cend <span class="opt">=</span> strand<span class="opt">[</span>end<span class="opt">]</span>
+      <span class="opt">}</span>
+      strand<span class="opt">[</span>i<span class="opt">] =</span> comptbl<span class="opt">[</span>cend<span class="opt">]</span>
+      strand<span class="opt">[</span>end<span class="opt">] =</span> comptbl<span class="opt">[</span>c<span class="opt">]</span>
+      i <span class="opt">+=</span> <span class="num">1</span>
+      end <span class="opt">-=</span> <span class="num">1</span>
+   <span class="opt">}</span>
+<span class="opt">}</span>
+
+<span class="kwa">func</span> <span class="kwd">print_fasta</span><span class="opt">(</span>start<span class="opt">,</span> end <span class="kwb">int</span><span class="opt">) {</span>
+   <span class="kwd">reverse</span><span class="opt">(</span>buf<span class="opt">[</span>start<span class="opt">:</span>end<span class="opt">])</span>
+   <span class="kwd">add_printer_job</span><span class="opt">(</span>buf<span class="opt">[</span>start<span class="opt">:</span>end<span class="opt">],</span> <span class="kwb">false</span><span class="opt">)</span>
+<span class="opt">}</span>
+
+<span class="kwa">func</span> <span class="kwd">process_chunk_data</span><span class="opt">(</span>i<span class="opt">,</span> end <span class="kwb">int</span><span class="opt">)</span> <span class="kwb">int</span> <span class="opt">{</span>
+   pos <span class="opt">:=</span> bytes<span class="opt">.</span><span class="kwd">IndexByte</span><span class="opt">(</span>buf<span class="opt">[</span>i<span class="opt">:</span>end<span class="opt">],</span> <span class="str">&apos;&gt;&apos;</span><span class="opt">)</span>
+   <span class="kwa">if</span> <span class="opt">-</span><span class="num">1</span> <span class="opt">==</span> pos <span class="opt">{</span>
+      i <span class="opt">=</span> end
+      <span class="kwa">return</span> IN_DATA
+   <span class="opt">}</span>
+   i <span class="opt">=</span> i <span class="opt">+</span> pos
+   <span class="kwd">print_fasta</span><span class="opt">(</span>start_fasta_data<span class="opt">,</span> i<span class="opt">)</span>
+   start_fasta_hdr <span class="opt">=</span> i
+   <span class="kwa">return</span> <span class="kwd">process_chunk_start</span><span class="opt">(</span>i<span class="opt">,</span> end<span class="opt">)</span>
+<span class="opt">}</span>
+
+<span class="kwa">func</span> <span class="kwd">process_chunk_hdr</span><span class="opt">(</span>i<span class="opt">,</span> end <span class="kwb">int</span><span class="opt">)</span> <span class="kwb">int</span> <span class="opt">{</span>
+   <span class="kwa">for</span> <span class="opt">;</span> i <span class="opt">&lt;</span> end<span class="opt">;</span> i<span class="opt">++ {</span>
+      <span class="kwa">if</span> buf<span class="opt">[</span>i<span class="opt">] ==</span> <span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span> <span class="opt">{</span>
+         <span class="kwd">add_printer_job</span><span class="opt">(</span>buf<span class="opt">[</span>start_fasta_hdr<span class="opt">:</span>i<span class="opt">+</span><span class="num">1</span><span class="opt">],</span> <span class="kwb">false</span><span class="opt">)</span>
+         start_fasta_data <span class="opt">=</span> i <span class="opt">+</span> <span class="num">1</span>
+         <span class="kwa">return</span> <span class="kwd">process_chunk_data</span><span class="opt">(</span>i<span class="opt">+</span><span class="num">1</span><span class="opt">,</span> end<span class="opt">)</span>
+      <span class="opt">}</span>
+   <span class="opt">}</span>
+   <span class="kwa">return</span> IN_HDR
+<span class="opt">}</span>
+
+<span class="kwa">func</span> <span class="kwd">process_chunk_start</span><span class="opt">(</span>i<span class="opt">,</span> end <span class="kwb">int</span><span class="opt">)</span> <span class="kwb">int</span> <span class="opt">{</span>
+   <span class="kwa">if</span> buf<span class="opt">[</span>i<span class="opt">] !=</span> <span class="str">&apos;&gt;&apos;</span> <span class="opt">{</span>
+      <span class="kwb">panic</span><span class="opt">(</span><span class="str">&quot;Unexpected&quot;</span><span class="opt">)</span>
+   <span class="opt">}</span>
+   start_fasta_hdr <span class="opt">=</span> i
+   <span class="kwa">return</span> <span class="kwd">process_chunk_hdr</span><span class="opt">(</span>i<span class="opt">+</span><span class="num">1</span><span class="opt">,</span> end<span class="opt">)</span>
+<span class="opt">}</span>
+
+<span class="kwa">func</span> <span class="kwd">process_chunk</span><span class="opt">(</span>i<span class="opt">,</span> end <span class="kwb">int</span><span class="opt">) {</span>
+   <span class="kwa">if</span> state <span class="opt">==</span> START <span class="opt">{</span>
+      state <span class="opt">=</span> <span class="kwd">process_chunk_start</span><span class="opt">(</span>i<span class="opt">,</span> end<span class="opt">)</span>
+   <span class="opt">}</span> <span class="kwa">else if</span> state <span class="opt">==</span> IN_HDR <span class="opt">{</span>
+      state <span class="opt">=</span> <span class="kwd">process_chunk_hdr</span><span class="opt">(</span>i<span class="opt">,</span> end<span class="opt">)</span>
+   <span class="opt">}</span> <span class="kwa">else</span> <span class="opt">{</span>
+      state <span class="opt">=</span> <span class="kwd">process_chunk_data</span><span class="opt">(</span>i<span class="opt">,</span> end<span class="opt">)</span>
+   <span class="opt">}</span>
+<span class="opt">}</span>
+
+<span class="kwa">func</span> <span class="kwd">chunker</span><span class="opt">(</span>chunks <span class="kwa">chan</span> ChunkInfo<span class="opt">,</span> done <span class="kwa">chan</span> <span class="kwb">bool</span><span class="opt">) {</span>
+   <span class="kwa">for</span> <span class="opt">{</span>
+      ci <span class="opt">:= &lt;-</span>chunks
+      <span class="kwa">if</span> ci<span class="opt">.</span>last <span class="opt">{</span>
+         <span class="kwa">if</span> state <span class="opt">!=</span> IN_DATA <span class="opt">{</span>
+            <span class="kwb">panic</span><span class="opt">(</span><span class="str">&quot;unexpected state&quot;</span><span class="opt">)</span>
+         <span class="opt">}</span>
+         <span class="kwd">print_fasta</span><span class="opt">(</span>start_fasta_data<span class="opt">,</span> ci<span class="opt">.</span>end<span class="opt">)</span>
+         <span class="kwd">add_printer_job</span><span class="opt">(</span><span class="kwb">nil</span><span class="opt">,</span> <span class="kwb">true</span><span class="opt">)</span>
+         done <span class="opt">&lt;-</span> <span class="kwb">true</span>
+         <span class="kwa">return</span>
+      <span class="opt">}</span> <span class="kwa">else</span> <span class="opt">{</span>
+         <span class="kwd">process_chunk</span><span class="opt">(</span>ci<span class="opt">.</span>i<span class="opt">,</span> ci<span class="opt">.</span>end<span class="opt">)</span>
+      <span class="opt">}</span>
+   <span class="opt">}</span>
+<span class="opt">}</span>
+
+<span class="kwa">func</span> <span class="kwd">main</span><span class="opt">() {</span>
+   runtime<span class="opt">.</span><span class="kwd">GOMAXPROCS</span><span class="opt">(</span><span class="num">4</span><span class="opt">)</span>
+   <span class="kwd">build_comptbl</span><span class="opt">()</span>
+   buf <span class="opt">=</span> <span class="kwb">make</span><span class="opt">([]</span><span class="kwb">byte</span><span class="opt">,</span> BUF_SIZE<span class="opt">,</span> BUF_SIZE<span class="opt">)</span>
+   chunker_chan <span class="opt">=</span> <span class="kwb">make</span><span class="opt">(</span><span class="kwa">chan</span> ChunkInfo<span class="opt">,</span> <span class="num">128</span><span class="opt">)</span>
+   printer_chan <span class="opt">=</span> <span class="kwb">make</span><span class="opt">(</span><span class="kwa">chan</span> PrintJob<span class="opt">,</span> <span class="num">16</span><span class="opt">)</span>
+   done_chan <span class="opt">=</span> <span class="kwb">make</span><span class="opt">(</span><span class="kwa">chan</span> <span class="kwb">bool</span><span class="opt">,</span> <span class="num">2</span><span class="opt">)</span>
+   <span class="kwa">go</span> <span class="kwd">chunker</span><span class="opt">(</span>chunker_chan<span class="opt">,</span> done_chan<span class="opt">)</span>
+   <span class="kwa">go</span> <span class="kwd">printer</span><span class="opt">(</span>printer_chan<span class="opt">,</span> done_chan<span class="opt">)</span>
+   i <span class="opt">:=</span> <span class="num">0</span>
+   <span class="kwa">for</span> <span class="opt">{</span>
+      n<span class="opt">,</span> err <span class="opt">:=</span> os<span class="opt">.</span>Stdin<span class="opt">.</span><span class="kwd">Read</span><span class="opt">(</span>buf<span class="opt">[</span>i <span class="opt">:</span> i<span class="opt">+</span>CHUNK_SIZE<span class="opt">])</span>
+      <span class="kwa">if</span> n <span class="opt">&gt;</span> <span class="num">0</span> <span class="opt">{</span>
+         <span class="kwa">var</span> ci ChunkInfo
+         ci<span class="opt">.</span>i <span class="opt">=</span> i
+         ci<span class="opt">.</span>end <span class="opt">=</span> i <span class="opt">+</span> n
+         ci<span class="opt">.</span>last <span class="opt">=</span> <span class="kwb">false</span>
+         chunker_chan <span class="opt">&lt;-</span> ci
+         i <span class="opt">+=</span> n
+      <span class="opt">}</span> <span class="kwa">else</span> <span class="opt">{</span>
+         <span class="kwa">if</span> err <span class="opt">==</span> io<span class="opt">.</span>EOF <span class="opt">{</span>
+            <span class="kwa">var</span> ci ChunkInfo
+            ci<span class="opt">.</span>end <span class="opt">=</span> i
+            ci<span class="opt">.</span>last <span class="opt">=</span> <span class="kwb">true</span>
+            chunker_chan <span class="opt">&lt;-</span> ci
+            <span class="kwa">break</span>
+         <span class="opt">}</span>
+         log<span class="opt">.</span><span class="kwd">Fatalf</span><span class="opt">(</span>fmt<span class="opt">.</span><span class="kwd">Sprintf</span><span class="opt">(</span><span class="str">&quot;Unexpected error:</span> <span class="ipl">%s</span><span class="str"></span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">),</span> err<span class="opt">.</span><span class="kwd">Error</span><span class="opt">())</span>
+      <span class="opt">}</span>
+   <span class="opt">}</span>
+   <span class="slc">// wait for both chunker and printer</span>
+   <span class="opt">&lt;-</span>done_chan
+   <span class="opt">&lt;-</span>done_chan
+<span class="opt">}</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

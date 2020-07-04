@@ -17,6 +17,107 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="com">/* The Computer Language Benchmarks Game</span>
+<span class="com">* https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="com">*</span>
+<span class="com">* Contributed by Jon Harrop</span>
+<span class="com">* Modified by Alex Mizrahi</span>
+<span class="com">* Modified by Andreas Schäfer</span>
+<span class="com">* Modified by aardsplat-guest</span>
+<span class="com">*  *reset*</span>
+<span class="com">*/</span>
+
+<span class="ppc">#include &lt;iostream&gt;</span>
+<span class="ppc">#include &lt;algorithm&gt;</span>
+<span class="ppc">#include &lt;future&gt;</span>
+<span class="ppc">#include &lt;vector&gt;</span>
+
+<span class="ppc">#include &lt;boost/pool/object_pool.hpp&gt;</span>
+
+<span class="kwc">constexpr</span> <span class="kwb">int</span> threads<span class="opt">{</span><span class="num">16</span><span class="opt">};</span>
+
+<span class="kwb">struct</span> Node <span class="opt">{</span>
+   Node <span class="opt">*</span>l<span class="opt">,*</span>r<span class="opt">;</span>
+   <span class="kwd">Node</span><span class="opt">() :</span> <span class="kwd">l</span><span class="opt">(</span><span class="num">0</span><span class="opt">),</span><span class="kwd">r</span><span class="opt">(</span><span class="num">0</span><span class="opt">) {}</span>
+   <span class="kwd">Node</span><span class="opt">(</span>Node <span class="opt">*</span>l<span class="opt">,</span>Node <span class="opt">*</span>r<span class="opt">) :</span> <span class="kwd">l</span><span class="opt">(</span>l<span class="opt">),</span><span class="kwd">r</span><span class="opt">(</span>r<span class="opt">) {}</span>
+   <span class="kwb">int</span> <span class="kwd">check</span><span class="opt">()</span> <span class="kwb">const</span>
+   <span class="opt">{</span>
+      <span class="kwa">if</span> <span class="opt">(</span>l<span class="opt">)</span>
+         <span class="kwa">return</span> l<span class="opt">-&gt;</span><span class="kwd">check</span><span class="opt">() +</span> <span class="num">1</span> <span class="opt">+</span> r<span class="opt">-&gt;</span><span class="kwd">check</span><span class="opt">();</span>
+      <span class="kwa">else return</span> <span class="num">1</span><span class="opt">;</span>
+   <span class="opt">}</span>
+<span class="opt">};</span>
+
+<span class="kwa">using</span> Node_pool <span class="opt">=</span> <span class="kwc">boost</span><span class="opt">::</span>object_pool<span class="opt">&lt;</span>Node<span class="opt">&gt;;</span>
+
+Node <span class="opt">*</span><span class="kwd">make</span><span class="opt">(</span><span class="kwb">int</span> d<span class="opt">,</span>Node_pool<span class="opt">&amp;</span> pool<span class="opt">)</span>
+<span class="opt">{</span>
+   <span class="kwa">if</span> <span class="opt">(</span>d<span class="opt">==</span><span class="num">0</span><span class="opt">)</span>
+      <span class="kwa">return</span> pool<span class="opt">.</span><span class="kwd">construct</span><span class="opt">();</span>
+   <span class="kwa">return</span> pool<span class="opt">.</span><span class="kwd">construct</span><span class="opt">(</span><span class="kwd">make</span><span class="opt">(</span>d<span class="opt">-</span><span class="num">1</span><span class="opt">,</span>pool<span class="opt">),</span><span class="kwd">make</span><span class="opt">(</span>d<span class="opt">-</span><span class="num">1</span><span class="opt">,</span>pool<span class="opt">));</span>
+<span class="opt">}</span>
+
+<span class="kwb">int</span> <span class="kwd">make_iteration</span><span class="opt">(</span><span class="kwb">int</span> from<span class="opt">,</span><span class="kwb">int</span> to<span class="opt">,</span><span class="kwb">int</span> d<span class="opt">,</span><span class="kwb">bool</span> thread<span class="opt">)</span>
+<span class="opt">{</span>
+   <span class="kwb">int</span> c<span class="opt">{</span><span class="num">0</span><span class="opt">};</span>
+   <span class="kwa">if</span> <span class="opt">(</span>thread<span class="opt">) {</span>
+      <span class="kwc">std</span><span class="opt">::</span>vector<span class="opt">&lt;</span><span class="kwc">std</span><span class="opt">::</span>future<span class="opt">&lt;</span><span class="kwb">int</span><span class="opt">&gt;&gt;</span>futures<span class="opt">{};</span>
+      <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> j<span class="opt">=</span><span class="num">0</span><span class="opt">;</span> j<span class="opt">&lt;</span>threads<span class="opt">; ++</span>j<span class="opt">) {</span>
+         <span class="kwb">int</span> span<span class="opt">{(</span>to<span class="opt">-</span>from<span class="opt">+</span><span class="num">1</span><span class="opt">)/</span>threads<span class="opt">};</span>
+         futures<span class="opt">.</span><span class="kwd">emplace_back</span><span class="opt">(</span><span class="kwc">std</span><span class="opt">::</span><span class="kwd">async</span><span class="opt">(</span><span class="kwc">std</span><span class="opt">::</span><span class="kwc">launch</span><span class="opt">::</span>async<span class="opt">,</span>
+            make_iteration<span class="opt">,</span>from<span class="opt">+</span>span<span class="opt">*</span>j<span class="opt">,</span>span<span class="opt">+</span>span<span class="opt">*</span>j<span class="opt">,</span>d<span class="opt">,</span><span class="kwa">false</span><span class="opt">));</span>
+      <span class="opt">}</span>
+      <span class="kwa">for</span> <span class="opt">(</span><span class="kwc">auto</span><span class="opt">&amp;</span> fti <span class="opt">:</span> futures<span class="opt">) {</span>
+         c <span class="opt">+=</span> fti<span class="opt">.</span><span class="kwd">get</span><span class="opt">();</span>
+      <span class="opt">}</span>
+   <span class="opt">}</span>
+   <span class="kwa">else</span> <span class="opt">{</span>
+      Node_pool pool<span class="opt">;</span>
+      <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> i<span class="opt">=</span>from<span class="opt">;</span> i<span class="opt">&lt;=</span>to<span class="opt">; ++</span>i<span class="opt">) {</span>
+         Node <span class="opt">*</span>a <span class="opt">=</span> <span class="kwd">make</span><span class="opt">(</span>d<span class="opt">,</span>pool<span class="opt">);</span>
+         c <span class="opt">+=</span> a<span class="opt">-&gt;</span><span class="kwd">check</span><span class="opt">();</span>
+      <span class="opt">}</span>
+   <span class="opt">}</span>
+   <span class="kwa">return</span> c<span class="opt">;</span>
+<span class="opt">}</span>
+
+<span class="kwb">int</span> <span class="kwd">main</span><span class="opt">(</span><span class="kwb">int</span> argc<span class="opt">,</span><span class="kwb">char</span> <span class="opt">*</span>argv<span class="opt">[])</span>
+<span class="opt">{</span>
+   <span class="kwb">int</span> min_depth <span class="opt">=</span> <span class="num">4</span><span class="opt">,</span>
+      max_depth <span class="opt">=</span> <span class="kwc">std</span><span class="opt">::</span><span class="kwd">max</span><span class="opt">(</span>min_depth<span class="opt">+</span><span class="num">2</span><span class="opt">,</span>
+         <span class="opt">(</span>argc <span class="opt">==</span> <span class="num">2</span> <span class="opt">?</span> <span class="kwd">atoi</span><span class="opt">(</span>argv<span class="opt">[</span><span class="num">1</span><span class="opt">]) :</span> <span class="num">10</span><span class="opt">)),</span>
+      stretch_depth <span class="opt">=</span> max_depth<span class="opt">+</span><span class="num">1</span><span class="opt">;</span>
+
+   <span class="opt">{</span>
+      Node_pool pool<span class="opt">;</span>
+      Node <span class="opt">*</span>c <span class="opt">=</span> <span class="kwd">make</span><span class="opt">(</span>stretch_depth<span class="opt">,</span>pool<span class="opt">);</span>
+      <span class="kwc">std</span><span class="opt">::</span>cout <span class="opt">&lt;&lt;</span> <span class="str">&quot;stretch tree of depth &quot;</span> <span class="opt">&lt;&lt;</span> stretch_depth <span class="opt">&lt;&lt;</span> <span class="str">&quot;</span><span class="esc">\t</span> <span class="str">&quot;</span>
+         <span class="opt">&lt;&lt;</span> <span class="str">&quot;check: &quot;</span> <span class="opt">&lt;&lt;</span> c<span class="opt">-&gt;</span><span class="kwd">check</span><span class="opt">() &lt;&lt;</span> <span class="kwc">std</span><span class="opt">::</span>endl<span class="opt">;</span>
+   <span class="opt">}</span>
+
+   Node_pool long_lived_pool<span class="opt">;</span>
+   Node <span class="opt">*</span>long_lived_tree<span class="opt">=</span><span class="kwd">make</span><span class="opt">(</span>max_depth<span class="opt">,</span>long_lived_pool<span class="opt">);</span>
+
+   <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> d<span class="opt">=</span>min_depth<span class="opt">;</span> d<span class="opt">&lt;=</span>max_depth<span class="opt">;</span> d<span class="opt">+=</span><span class="num">2</span><span class="opt">) {</span>
+      <span class="kwb">int</span> iterations <span class="opt">=</span> <span class="num">1</span> <span class="opt">&lt;&lt; (</span>max_depth <span class="opt">-</span> d <span class="opt">+</span> min_depth<span class="opt">);</span>
+      <span class="kwb">int</span>   c<span class="opt">=</span><span class="num">0</span><span class="opt">;</span>
+      c <span class="opt">=</span> <span class="kwd">make_iteration</span><span class="opt">(</span><span class="num">1</span><span class="opt">,</span>iterations<span class="opt">,</span>d<span class="opt">,</span><span class="kwa">true</span><span class="opt">);</span>
+      <span class="kwc">std</span><span class="opt">::</span>cout <span class="opt">&lt;&lt;</span> iterations <span class="opt">&lt;&lt;</span> <span class="str">&quot;</span><span class="esc">\t</span> <span class="str">trees of depth &quot;</span> <span class="opt">&lt;&lt;</span> d <span class="opt">&lt;&lt;</span> <span class="str">&quot;</span><span class="esc">\t</span> <span class="str">&quot;</span>
+         <span class="opt">&lt;&lt;</span> <span class="str">&quot;check: &quot;</span> <span class="opt">&lt;&lt;</span> c <span class="opt">&lt;&lt;</span> <span class="kwc">std</span><span class="opt">::</span>endl<span class="opt">;</span>
+   <span class="opt">}</span>
+
+   <span class="kwc">std</span><span class="opt">::</span>cout <span class="opt">&lt;&lt;</span> <span class="str">&quot;long lived tree of depth &quot;</span> <span class="opt">&lt;&lt;</span> max_depth <span class="opt">&lt;&lt;</span> <span class="str">&quot;</span><span class="esc">\t</span> <span class="str">&quot;</span>
+      <span class="opt">&lt;&lt;</span> <span class="str">&quot;check: &quot;</span> <span class="opt">&lt;&lt; (</span>long_lived_tree<span class="opt">-&gt;</span><span class="kwd">check</span><span class="opt">()) &lt;&lt;</span> <span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">;</span>
+
+   <span class="kwa">return</span> <span class="num">0</span><span class="opt">;</span>
+<span class="opt">}</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

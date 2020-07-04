@@ -17,6 +17,183 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="com">/*</span>
+<span class="com"> * The Computer Language Benchmarks Game</span>
+<span class="com"> * https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="com"> *</span>
+<span class="com"> * contributed by Oleg Mazurov, June 2010</span>
+<span class="com"> * flag.Arg hack by Isaac Gouy</span>
+<span class="com"> * Stack allocation and atomic synchronization by Jan Pfeifer (2020)</span>
+<span class="com"> *</span>
+<span class="com"> */</span>
+
+<span class="kwa">package</span> main
+
+<span class="kwa">import</span> <span class="opt">(</span>
+    <span class="str">&quot;flag&quot;</span>
+    <span class="str">&quot;fmt&quot;</span>
+    <span class="str">&quot;log&quot;</span>
+    <span class="str">&quot;runtime&quot;</span>
+    <span class="str">&quot;strconv&quot;</span>
+    <span class="str">&quot;sync/atomic&quot;</span>
+<span class="opt">)</span>
+
+<span class="slc">// Constant maximum size for N. Compile time known value allow us to allocate</span>
+<span class="slc">// arrays in stack. It helps making it multiple of 64bits and memory aligned</span>
+<span class="slc">// (hence 16).</span>
+<span class="kwa">const</span> MAX_N <span class="opt">=</span> <span class="num">16</span>
+
+<span class="kwa">var</span> <span class="opt">(</span>
+    NCHUNKS <span class="opt">=</span> <span class="num">720</span>
+    CHUNKSZ <span class="opt">=</span> <span class="num">0</span>
+    NTASKS  <span class="opt">=</span> <span class="num">0</span>
+
+    n    <span class="opt">=</span> <span class="num">12</span>
+    Fact <span class="opt">[]</span><span class="kwb">int</span>
+
+    <span class="slc">// Accumulated results.</span>
+    res <span class="opt">=</span> <span class="kwb">int64</span><span class="opt">(</span><span class="num">0</span><span class="opt">)</span>
+    chk <span class="opt">=</span> <span class="kwb">int64</span><span class="opt">(</span><span class="num">0</span><span class="opt">)</span>
+<span class="opt">)</span>
+
+<span class="kwa">func</span> <span class="kwd">fannkuch</span><span class="opt">(</span>idxMin <span class="kwb">int</span><span class="opt">,</span> ch <span class="kwa">chan</span> <span class="kwb">bool</span><span class="opt">) {</span>
+    idxMax <span class="opt">:=</span> idxMin <span class="opt">+</span> CHUNKSZ
+    <span class="kwa">if</span> idxMax <span class="opt">&lt;</span> Fact<span class="opt">[</span>n<span class="opt">] {</span>
+        <span class="kwa">go</span> <span class="kwd">fannkuch</span><span class="opt">(</span>idxMax<span class="opt">,</span> ch<span class="opt">)</span>
+    <span class="opt">}</span> <span class="kwa">else</span> <span class="opt">{</span>
+        idxMax <span class="opt">=</span> Fact<span class="opt">[</span>n<span class="opt">]</span>
+    <span class="opt">}</span>
+
+    <span class="slc">// Stack allocation.</span>
+    <span class="kwa">var</span> p<span class="opt">,</span> pp<span class="opt">,</span> count <span class="opt">[</span>MAX_N<span class="opt">]</span><span class="kwb">int</span>
+
+    <span class="slc">// First permutation.</span>
+    <span class="kwa">for</span> i <span class="opt">:=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> n<span class="opt">;</span> i<span class="opt">++ {</span>
+        p<span class="opt">[</span>i<span class="opt">] =</span> i
+    <span class="opt">}</span>
+    <span class="kwa">for</span> i<span class="opt">,</span> idx <span class="opt">:=</span> n<span class="opt">-</span><span class="num">1</span><span class="opt">,</span> idxMin<span class="opt">;</span> i <span class="opt">&gt;</span> <span class="num">0</span><span class="opt">;</span> i<span class="opt">-- {</span>
+        d <span class="opt">:=</span> idx <span class="opt">/</span> Fact<span class="opt">[</span>i<span class="opt">]</span>
+        count<span class="opt">[</span>i<span class="opt">] =</span> d
+        idx <span class="opt">=</span> idx <span class="opt">%</span> Fact<span class="opt">[</span>i<span class="opt">]</span>
+
+        <span class="kwd">copy</span><span class="opt">(</span>pp<span class="opt">[:],</span> p<span class="opt">[:])</span> <span class="slc">// One could copy only p[:n], but it is slower.</span>
+        <span class="kwa">for</span> j <span class="opt">:=</span> <span class="num">0</span><span class="opt">;</span> j <span class="opt">&lt;=</span> i<span class="opt">;</span> j<span class="opt">++ {</span>
+            <span class="kwa">if</span> j<span class="opt">+</span>d <span class="opt">&lt;=</span> i <span class="opt">{</span>
+                p<span class="opt">[</span>j<span class="opt">] =</span> pp<span class="opt">[</span>j<span class="opt">+</span>d<span class="opt">]</span>
+            <span class="opt">}</span> <span class="kwa">else</span> <span class="opt">{</span>
+                p<span class="opt">[</span>j<span class="opt">] =</span> pp<span class="opt">[</span>j<span class="opt">+</span>d<span class="opt">-</span>i<span class="opt">-</span><span class="num">1</span><span class="opt">]</span>
+            <span class="opt">}</span>
+        <span class="opt">}</span>
+    <span class="opt">}</span>
+
+    maxFlips <span class="opt">:=</span> <span class="num">1</span>
+    checkSum <span class="opt">:=</span> <span class="num">0</span>
+
+    <span class="kwa">for</span> idx<span class="opt">,</span> sign <span class="opt">:=</span> idxMin<span class="opt">,</span> <span class="kwb">true</span><span class="opt">; ;</span> sign <span class="opt">= !</span>sign <span class="opt">{</span>
+
+        <span class="slc">// Count flips.</span>
+        first <span class="opt">:=</span> p<span class="opt">[</span><span class="num">0</span><span class="opt">]</span>
+        <span class="kwa">if</span> first <span class="opt">!=</span> <span class="num">0</span> <span class="opt">{</span>
+            flips <span class="opt">:=</span> <span class="num">1</span>
+            <span class="kwa">if</span> p<span class="opt">[</span>first<span class="opt">] !=</span> <span class="num">0</span> <span class="opt">{</span>
+                <span class="kwd">copy</span><span class="opt">(</span>pp<span class="opt">[:],</span> p<span class="opt">[:])</span>
+                p0 <span class="opt">:=</span> first
+                <span class="kwa">for</span> <span class="opt">{</span>
+                    flips<span class="opt">++</span>
+                    <span class="kwa">for</span> i<span class="opt">,</span> j <span class="opt">:=</span> <span class="num">1</span><span class="opt">,</span> p0<span class="opt">-</span><span class="num">1</span><span class="opt">;</span> i <span class="opt">&lt;</span> j<span class="opt">;</span> i<span class="opt">,</span> j <span class="opt">=</span> i<span class="opt">+</span><span class="num">1</span><span class="opt">,</span> j<span class="opt">-</span><span class="num">1</span> <span class="opt">{</span>
+                        pp<span class="opt">[</span>i<span class="opt">],</span> pp<span class="opt">[</span>j<span class="opt">] =</span> pp<span class="opt">[</span>j<span class="opt">],</span> pp<span class="opt">[</span>i<span class="opt">]</span>
+                    <span class="opt">}</span>
+                    t <span class="opt">:=</span> pp<span class="opt">[</span>p0<span class="opt">]</span>
+                    pp<span class="opt">[</span>p0<span class="opt">] =</span> p0
+                    p0 <span class="opt">=</span> t
+                    <span class="kwa">if</span> pp<span class="opt">[</span>p0<span class="opt">] ==</span> <span class="num">0</span> <span class="opt">{</span>
+                        <span class="kwa">break</span>
+                    <span class="opt">}</span>
+                <span class="opt">}</span>
+            <span class="opt">}</span>
+            <span class="kwa">if</span> maxFlips <span class="opt">&lt;</span> flips <span class="opt">{</span>
+                maxFlips <span class="opt">=</span> flips
+            <span class="opt">}</span>
+            <span class="kwa">if</span> sign <span class="opt">{</span>
+                checkSum <span class="opt">+=</span> flips
+            <span class="opt">}</span> <span class="kwa">else</span> <span class="opt">{</span>
+                checkSum <span class="opt">-=</span> flips
+            <span class="opt">}</span>
+        <span class="opt">}</span>
+
+        <span class="kwa">if</span> idx<span class="opt">++;</span> idx <span class="opt">==</span> idxMax <span class="opt">{</span>
+            <span class="kwa">break</span>
+        <span class="opt">}</span>
+
+        <span class="slc">// Next permutation.</span>
+        <span class="kwa">if</span> sign <span class="opt">{</span>
+            p<span class="opt">[</span><span class="num">0</span><span class="opt">],</span> p<span class="opt">[</span><span class="num">1</span><span class="opt">] =</span> p<span class="opt">[</span><span class="num">1</span><span class="opt">],</span> first
+        <span class="opt">}</span> <span class="kwa">else</span> <span class="opt">{</span>
+            p<span class="opt">[</span><span class="num">1</span><span class="opt">],</span> p<span class="opt">[</span><span class="num">2</span><span class="opt">] =</span> p<span class="opt">[</span><span class="num">2</span><span class="opt">],</span> p<span class="opt">[</span><span class="num">1</span><span class="opt">]</span>
+            <span class="kwa">for</span> k <span class="opt">:=</span> <span class="num">2</span><span class="opt">; ;</span> k<span class="opt">++ {</span>
+                <span class="kwa">if</span> count<span class="opt">[</span>k<span class="opt">]++;</span> count<span class="opt">[</span>k<span class="opt">] &lt;=</span> k <span class="opt">{</span>
+                    <span class="kwa">break</span>
+                <span class="opt">}</span>
+                count<span class="opt">[</span>k<span class="opt">] =</span> <span class="num">0</span>
+                <span class="kwa">for</span> j <span class="opt">:=</span> <span class="num">0</span><span class="opt">;</span> j <span class="opt">&lt;=</span> k<span class="opt">;</span> j<span class="opt">++ {</span>
+                    p<span class="opt">[</span>j<span class="opt">] =</span> p<span class="opt">[</span>j<span class="opt">+</span><span class="num">1</span><span class="opt">]</span>
+                <span class="opt">}</span>
+                p<span class="opt">[</span>k<span class="opt">+</span><span class="num">1</span><span class="opt">] =</span> first
+                first <span class="opt">=</span> p<span class="opt">[</span><span class="num">0</span><span class="opt">]</span>
+            <span class="opt">}</span>
+        <span class="opt">}</span>
+    <span class="opt">}</span>
+
+    <span class="slc">// Atomic update.</span>
+    atomic<span class="opt">.</span><span class="kwd">AddInt64</span><span class="opt">(&amp;</span>chk<span class="opt">,</span> <span class="kwb">int64</span><span class="opt">(</span>checkSum<span class="opt">))</span>
+    newFlips <span class="opt">:=</span> <span class="kwb">int64</span><span class="opt">(</span>maxFlips<span class="opt">)</span>
+    <span class="kwa">for</span> newFlips <span class="opt">&gt;</span> res <span class="opt">{</span>
+        newFlips <span class="opt">=</span> atomic<span class="opt">.</span><span class="kwd">SwapInt64</span><span class="opt">(&amp;</span>res<span class="opt">,</span> newFlips<span class="opt">)</span>
+    <span class="opt">}</span>
+    ch <span class="opt">&lt;-</span> <span class="kwb">true</span>
+<span class="opt">}</span>
+
+<span class="kwa">func</span> <span class="kwd">printResult</span><span class="opt">(</span>n <span class="kwb">int</span><span class="opt">,</span> res <span class="kwb">int64</span><span class="opt">,</span> chk <span class="kwb">int64</span><span class="opt">) {</span>
+    fmt<span class="opt">.</span><span class="kwd">Printf</span><span class="opt">(</span><span class="str">&quot;</span><span class="ipl">%d</span><span class="str"></span><span class="esc">\n</span><span class="str">Pfannkuchen(</span><span class="ipl">%d</span><span class="str">) =</span> <span class="ipl">%d</span><span class="str"></span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span> chk<span class="opt">,</span> n<span class="opt">,</span> res<span class="opt">)</span>
+<span class="opt">}</span>
+
+<span class="kwa">func</span> <span class="kwd">main</span><span class="opt">() {</span>
+    flag<span class="opt">.</span><span class="kwd">Parse</span><span class="opt">()</span>
+    <span class="kwa">if</span> flag<span class="opt">.</span><span class="kwd">NArg</span><span class="opt">() ==</span> <span class="num">1</span> <span class="opt">{</span>
+        n<span class="opt">,</span> _ <span class="opt">=</span> strconv<span class="opt">.</span><span class="kwd">Atoi</span><span class="opt">(</span>flag<span class="opt">.</span><span class="kwd">Arg</span><span class="opt">(</span><span class="num">0</span><span class="opt">))</span>
+    <span class="opt">}</span>
+    <span class="kwa">if</span> n <span class="opt">&gt;</span> MAX_N <span class="opt">{</span>
+        log<span class="opt">.</span><span class="kwd">Fatalf</span><span class="opt">(</span><span class="str">&quot;Max value accepted for N:</span> <span class="ipl">%d</span><span class="str">&quot;</span><span class="opt">,</span> MAX_N<span class="opt">)</span>
+    <span class="opt">}</span>
+    runtime<span class="opt">.</span><span class="kwd">GOMAXPROCS</span><span class="opt">(</span><span class="num">4</span><span class="opt">)</span>
+
+    Fact <span class="opt">=</span> <span class="kwb">make</span><span class="opt">([]</span><span class="kwb">int</span><span class="opt">,</span> n<span class="opt">+</span><span class="num">1</span><span class="opt">)</span>
+    Fact<span class="opt">[</span><span class="num">0</span><span class="opt">] =</span> <span class="num">1</span>
+    <span class="kwa">for</span> i <span class="opt">:=</span> <span class="num">1</span><span class="opt">;</span> i <span class="opt">&lt;</span> <span class="kwb">len</span><span class="opt">(</span>Fact<span class="opt">);</span> i<span class="opt">++ {</span>
+        Fact<span class="opt">[</span>i<span class="opt">] =</span> Fact<span class="opt">[</span>i<span class="opt">-</span><span class="num">1</span><span class="opt">] *</span> i
+    <span class="opt">}</span>
+
+    CHUNKSZ <span class="opt">= (</span>Fact<span class="opt">[</span>n<span class="opt">] +</span> NCHUNKS <span class="opt">-</span> <span class="num">1</span><span class="opt">) /</span> NCHUNKS
+    CHUNKSZ <span class="opt">+=</span> CHUNKSZ <span class="opt">%</span> <span class="num">2</span>
+    NTASKS <span class="opt">= (</span>Fact<span class="opt">[</span>n<span class="opt">] +</span> CHUNKSZ <span class="opt">-</span> <span class="num">1</span><span class="opt">) /</span> CHUNKSZ
+
+    ch <span class="opt">:=</span> <span class="kwb">make</span><span class="opt">(</span><span class="kwa">chan</span> <span class="kwb">bool</span><span class="opt">,</span> NTASKS<span class="opt">)</span>
+    <span class="kwa">go</span> <span class="kwd">fannkuch</span><span class="opt">(</span><span class="num">0</span><span class="opt">,</span> ch<span class="opt">)</span>
+
+    <span class="slc">// Wait for all results to be calculated.</span>
+    <span class="kwa">for</span> i <span class="opt">:=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> NTASKS<span class="opt">;</span> i<span class="opt">++ {</span>
+        <span class="opt">&lt;-</span>ch
+    <span class="opt">}</span>
+
+    <span class="kwd">printResult</span><span class="opt">(</span>n<span class="opt">,</span> res<span class="opt">,</span> chk<span class="opt">)</span>
+<span class="opt">}</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

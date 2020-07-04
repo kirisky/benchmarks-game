@@ -17,6 +17,93 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc">// The Computer Language Benchmarks Game</span>
+<span class="slc">// https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">//</span>
+<span class="slc">// contributed by the Rust Project Developers</span>
+<span class="slc">// contributed by TeXitoi</span>
+<span class="slc">// *reset*</span>
+
+<span class="kwa">extern crate</span> typed_arena<span class="opt">;</span>
+
+<span class="kwa">use</span> std<span class="opt">::</span>thread<span class="opt">;</span>
+<span class="kwa">use</span> typed_arena<span class="opt">::</span>Arena<span class="opt">;</span>
+
+<span class="kwa">struct</span> Tree<span class="opt">&lt;</span>&apos;a<span class="opt">&gt; {</span>
+    l<span class="opt">:</span> Option<span class="opt">&lt;&amp;</span>&apos;a Tree<span class="opt">&lt;</span>&apos;a<span class="opt">&gt;&gt;,</span>
+    r<span class="opt">:</span> Option<span class="opt">&lt;&amp;</span>&apos;a Tree<span class="opt">&lt;</span>&apos;a<span class="opt">&gt;&gt;,</span>
+<span class="opt">}</span>
+
+<span class="kwa">fn</span> <span class="kwd">item_check</span><span class="opt">(</span>t<span class="opt">: &amp;</span>Option<span class="opt">&lt;&amp;</span>Tree<span class="opt">&gt;) -&gt;</span> <span class="kwb">i32</span> <span class="opt">{</span>
+    <span class="kwa">match</span> <span class="opt">*</span>t <span class="opt">{</span>
+        None <span class="opt">=&gt;</span> <span class="num">0</span><span class="opt">,</span>
+        <span class="kwd">Some</span><span class="opt">(&amp;</span>Tree <span class="opt">{</span> <span class="kwa">ref</span> l<span class="opt">,</span> <span class="kwa">ref</span> r <span class="opt">}) =&gt;</span> <span class="num">1</span> <span class="opt">+</span> <span class="kwd">item_check</span><span class="opt">(</span>l<span class="opt">) +</span> <span class="kwd">item_check</span><span class="opt">(</span>r<span class="opt">)</span>
+    <span class="opt">}</span>
+<span class="opt">}</span>
+
+<span class="kwa">fn</span> bottom_up_tree<span class="opt">&lt;</span>&apos;r<span class="opt">&gt;(</span>arena<span class="opt">: &amp;</span>&apos;r Arena<span class="opt">&lt;</span>Tree<span class="opt">&lt;</span>&apos;r<span class="opt">&gt;&gt;,</span> depth<span class="opt">:</span> <span class="kwb">i32</span><span class="opt">)</span>
+                  <span class="opt">-&gt;</span> Option<span class="opt">&lt;&amp;</span>&apos;r Tree<span class="opt">&lt;</span>&apos;r<span class="opt">&gt;&gt; {</span>
+    <span class="kwa">if</span> depth <span class="opt">&gt;=</span> <span class="num">0</span> <span class="opt">{</span>
+        <span class="kwa">let</span> t<span class="opt">: &amp;</span>Tree<span class="opt">&lt;</span>&apos;r<span class="opt">&gt; =</span> arena<span class="opt">.</span><span class="kwd">alloc</span><span class="opt">(</span>Tree <span class="opt">{</span>
+            l<span class="opt">:</span> <span class="kwd">bottom_up_tree</span><span class="opt">(</span>arena<span class="opt">,</span> depth <span class="opt">-</span> <span class="num">1</span><span class="opt">),</span>
+            r<span class="opt">:</span> <span class="kwd">bottom_up_tree</span><span class="opt">(</span>arena<span class="opt">,</span> depth <span class="opt">-</span> <span class="num">1</span><span class="opt">)</span>
+        <span class="opt">});</span>
+        <span class="kwd">Some</span><span class="opt">(</span>t<span class="opt">)</span>
+    <span class="opt">}</span> <span class="kwa">else</span> <span class="opt">{</span>
+        None
+    <span class="opt">}</span>
+<span class="opt">}</span>
+
+<span class="kwa">fn</span> <span class="kwd">inner</span><span class="opt">(</span>depth<span class="opt">:</span> <span class="kwb">i32</span><span class="opt">,</span> iterations<span class="opt">:</span> <span class="kwb">i32</span><span class="opt">) -&gt;</span> String <span class="opt">{</span>
+    <span class="kwa">let mut</span> chk <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+    <span class="kwa">for</span> i <span class="kwa">in</span> <span class="num">1</span> <span class="opt">..</span> iterations <span class="opt">+</span> <span class="num">1</span> <span class="opt">{</span>
+        <span class="kwa">let</span> arena <span class="opt">=</span> Arena<span class="opt">::</span><span class="kwd">new</span><span class="opt">();</span>
+        <span class="kwa">let</span> a <span class="opt">=</span> <span class="kwd">bottom_up_tree</span><span class="opt">(&amp;</span>arena<span class="opt">,</span> depth<span class="opt">);</span>
+        chk <span class="opt">+=</span> <span class="kwd">item_check</span><span class="opt">(&amp;</span>a<span class="opt">);</span>
+    <span class="opt">}</span>
+    format<span class="opt">!(</span><span class="str">&quot;{}</span><span class="esc">\</span><span class="str">t trees of depth {}</span><span class="esc">\</span><span class="str">t check: {}&quot;</span><span class="opt">,</span>
+            iterations<span class="opt">,</span> depth<span class="opt">,</span> chk<span class="opt">)</span>
+<span class="opt">}</span>
+
+<span class="kwa">fn</span> <span class="kwd">main</span><span class="opt">() {</span>
+    <span class="kwa">let</span> n <span class="opt">=</span> std<span class="opt">::</span>env<span class="opt">::</span><span class="kwd">args_os</span><span class="opt">().</span><span class="kwd">nth</span><span class="opt">(</span><span class="num">1</span><span class="opt">)</span>
+        <span class="opt">.</span><span class="kwd">and_then</span><span class="opt">(|</span>s<span class="opt">|</span> s<span class="num">.i</span>nto<span class="num">_</span>str<span class="num">i</span>ng<span class="opt">().</span><span class="kwd">ok</span><span class="opt">())</span>
+        <span class="opt">.</span><span class="kwd">and_then</span><span class="opt">(|</span>n<span class="opt">|</span> n<span class="opt">.</span><span class="kwd">parse</span><span class="opt">().</span><span class="kwd">ok</span><span class="opt">())</span>
+        <span class="num">.u</span>nwrap<span class="num">_</span>or<span class="opt">(</span><span class="num">10</span><span class="opt">);</span>
+    <span class="kwa">let</span> min_depth <span class="opt">=</span> <span class="num">4</span><span class="opt">;</span>
+    <span class="kwa">let</span> max_depth <span class="opt">=</span> <span class="kwa">if</span> min_depth <span class="opt">+</span> <span class="num">2</span> <span class="opt">&gt;</span> n <span class="opt">{</span>min_depth <span class="opt">+</span> <span class="num">2</span><span class="opt">}</span> <span class="kwa">else</span> <span class="opt">{</span>n<span class="opt">};</span>
+
+    <span class="opt">{</span>
+        <span class="kwa">let</span> arena <span class="opt">=</span> Arena<span class="opt">::</span><span class="kwd">new</span><span class="opt">();</span>
+        <span class="kwa">let</span> depth <span class="opt">=</span> max_depth <span class="opt">+</span> <span class="num">1</span><span class="opt">;</span>
+        <span class="kwa">let</span> tree <span class="opt">=</span> <span class="kwd">bottom_up_tree</span><span class="opt">(&amp;</span>arena<span class="opt">,</span> depth<span class="opt">);</span>
+
+        println<span class="opt">!(</span><span class="str">&quot;stretch tree of depth {}</span><span class="esc">\</span><span class="str">t check: {}&quot;</span><span class="opt">,</span>
+                 depth<span class="opt">,</span> <span class="kwd">item_check</span><span class="opt">(&amp;</span>tree<span class="opt">));</span>
+    <span class="opt">}</span>
+
+    <span class="kwa">let</span> long_lived_arena <span class="opt">=</span> Arena<span class="opt">::</span><span class="kwd">new</span><span class="opt">();</span>
+    <span class="kwa">let</span> long_lived_tree <span class="opt">=</span> <span class="kwd">bottom_up_tree</span><span class="opt">(&amp;</span>long_lived_arena<span class="opt">,</span> max_depth<span class="opt">);</span>
+
+    <span class="kwa">let</span> messages <span class="opt">= (</span>min_depth<span class="opt">..</span>max_depth <span class="opt">+</span> <span class="num">1</span><span class="opt">)</span><span class="num">.fi</span>lter<span class="opt">(|&amp;</span>d<span class="opt">|</span> d <span class="opt">%</span> <span class="num">2</span> <span class="opt">==</span> <span class="num">0</span><span class="opt">).</span><span class="kwd">map</span><span class="opt">(|</span>depth<span class="opt">| {</span>
+        <span class="kwa">let</span> iterations <span class="opt">=</span> <span class="num">1</span> <span class="opt">&lt;&lt; ((</span>max_depth <span class="opt">-</span> depth <span class="opt">+</span> min_depth<span class="opt">)</span> <span class="kwa">as</span> <span class="kwb">u32</span><span class="opt">);</span>
+        thread<span class="opt">::</span><span class="kwd">spawn</span><span class="opt">(</span><span class="kwa">move</span> <span class="opt">||</span> <span class="kwd">inner</span><span class="opt">(</span>depth<span class="opt">,</span> iterations<span class="opt">))</span>
+    <span class="opt">}).</span>collect<span class="opt">::&lt;</span>Vec<span class="opt">&lt;</span>_<span class="opt">&gt;&gt;();</span>
+
+    <span class="kwa">for</span> message <span class="kwa">in</span> messages<span class="num">.i</span>nto<span class="num">_i</span>ter<span class="opt">() {</span>
+        println<span class="opt">!(</span><span class="str">&quot;{}&quot;</span><span class="opt">,</span> message<span class="opt">.</span><span class="kwd">join</span><span class="opt">()</span><span class="num">.u</span>nwrap<span class="opt">());</span>
+    <span class="opt">}</span>
+
+    println<span class="opt">!(</span><span class="str">&quot;long lived tree of depth {}</span><span class="esc">\</span><span class="str">t check: {}&quot;</span><span class="opt">,</span>
+             max_depth<span class="opt">,</span> <span class="kwd">item_check</span><span class="opt">(&amp;</span>long_lived_tree<span class="opt">));</span>
+<span class="opt">}</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

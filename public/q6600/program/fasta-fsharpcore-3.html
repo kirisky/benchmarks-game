@@ -17,6 +17,127 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+﻿<span class="slc">// The Computer Language Benchmarks Game</span>
+<span class="slc">// https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">//</span>
+<span class="slc">// Contributed by Valentin Kraevskiy</span>
+<span class="slc">// Multithreaded by Anthony Lloyd</span>
+
+<span class="opt">[&lt;</span><span class="kwd">Literal</span><span class="opt">&gt;]</span>
+<span class="kwa">let</span> <span class="kwc">Width</span> <span class="opt">=</span> <span class="num">60</span>
+<span class="opt">[&lt;</span><span class="kwd">Literal</span><span class="opt">&gt;]</span>
+<span class="kwa">let</span> <span class="kwc">Width1</span> <span class="opt">=</span> <span class="num">61</span>
+<span class="opt">[&lt;</span><span class="kwd">Literal</span><span class="opt">&gt;]</span>
+<span class="kwa">let</span> <span class="kwc">LinesPerBlock</span> <span class="opt">=</span> <span class="num">1024</span>
+
+<span class="kwa">open</span> <span class="kwd">System</span>
+<span class="kwa">open</span> <span class="kwd">System</span><span class="opt">.</span><span class="kwd">Threading</span><span class="opt">.</span><span class="kwd">Tasks</span>
+
+<span class="opt">[&lt;</span><span class="kwd">EntryPoint</span><span class="opt">&gt;]</span>
+<span class="kwa">let</span> <span class="kwc">main</span> args <span class="opt">=</span>
+    <span class="kwa">let</span> <span class="kwc">n</span> <span class="opt">=</span> <span class="kwa">if</span> args<span class="opt">.</span><span class="kwd">Length</span><span class="opt">=</span><span class="num">0</span> <span class="kwa">then</span> <span class="num">1000</span> <span class="kwa">else</span> <span class="kwc">Int32</span><span class="opt">.</span><span class="kwd">Parse</span><span class="opt">(</span>args<span class="opt">.[</span><span class="num">0</span><span class="opt">])</span>
+    <span class="kwa">let</span> <span class="kwc">out</span> <span class="opt">=</span> <span class="kwd">Console</span><span class="opt">.</span><span class="kwd">OpenStandardOutput</span><span class="opt">()</span>
+    <span class="kwa">let</span> <span class="kwc">blockSize</span> <span class="opt">=</span> <span class="kwc">Width</span><span class="opt">*</span><span class="kwc">LinesPerBlock</span>
+    <span class="kwa">let</span> <span class="kwc">noTasks</span> <span class="opt">= (</span><span class="num">3</span><span class="opt">*</span><span class="kwc">n</span><span class="opt">-</span><span class="num">1</span><span class="opt">)/</span><span class="kwc">blockSize</span><span class="opt">+(</span><span class="num">5</span><span class="opt">*</span><span class="kwc">n</span><span class="opt">-</span><span class="num">1</span><span class="opt">)/</span><span class="kwc">blockSize</span><span class="opt">+</span><span class="num">3</span>
+    <span class="kwa">let</span> <span class="kwc">tasks</span> <span class="opt">=</span> <span class="kwd">Array</span><span class="opt">.</span>zeroCreate<span class="opt">&lt;</span><span class="kwd">Task</span><span class="opt">&lt;</span>_<span class="opt">&gt;&gt;</span> <span class="kwc">noTasks</span>
+    <span class="kwa">let</span> <span class="kwc">bytePool</span> <span class="opt">=</span> <span class="kwd">System</span><span class="opt">.</span><span class="kwd">Buffers</span><span class="opt">.</span><span class="kwd">ArrayPool</span><span class="opt">.</span><span class="kwd">Shared</span>
+    
+    <span class="kwd">Task</span><span class="opt">.</span><span class="kwd">Run</span><span class="opt">(</span><span class="kwa">fun</span> <span class="opt">() -&gt;</span>
+        <span class="kwa">let</span> <span class="kwc">writeRandom n</span> offset <span class="kwc">d</span> seed <span class="opt">(</span>vs<span class="opt">:</span>byte<span class="opt">[]) (</span>ps<span class="opt">:</span><span class="kwb">float</span><span class="opt">[]) =</span>
+            <span class="slc">// cumulative probability</span>
+            <span class="kwa">let mutable</span> <span class="kwc">total</span> <span class="opt">=</span> ps<span class="opt">.[</span><span class="num">0</span><span class="opt">]</span>
+            <span class="kwa">for</span> i <span class="opt">=</span> <span class="num">1</span> <span class="kwa">to</span> ps<span class="opt">.</span><span class="kwd">Length</span><span class="opt">-</span><span class="num">1</span> <span class="kwa">do</span>
+                <span class="kwc">total</span> <span class="opt">&lt;-</span> <span class="kwc">total</span> <span class="opt">+</span> ps<span class="opt">.[</span>i<span class="opt">]</span>
+                ps<span class="opt">.[</span>i<span class="opt">] &lt;-</span> <span class="kwc">total</span>
+            
+            <span class="kwa">let</span> <span class="kwc">intPool</span> <span class="opt">=</span> <span class="kwd">System</span><span class="opt">.</span><span class="kwd">Buffers</span><span class="opt">.</span><span class="kwd">ArrayPool</span><span class="opt">.</span><span class="kwd">Shared</span>
+            <span class="kwa">let mutable</span> <span class="kwc">seed</span> <span class="opt">=</span> <span class="kwc">seed</span>
+            <span class="kwa">let inline</span> rnds <span class="kwc">l</span> <span class="opt">=</span>
+                <span class="kwa">let</span> <span class="kwc">a</span> <span class="opt">=</span> <span class="kwc">intPool</span><span class="opt">.</span><span class="kwd">Rent</span> <span class="kwc">l</span>
+                <span class="kwa">for</span> i <span class="opt">=</span> <span class="num">0</span> <span class="kwa">to</span> <span class="kwc">l</span><span class="opt">-</span><span class="num">1</span> <span class="kwa">do</span>
+                    <span class="kwc">seed</span> <span class="opt">&lt;- (</span><span class="kwc">seed</span> <span class="opt">*</span> <span class="num">3877</span> <span class="opt">+</span> <span class="num">29573</span><span class="opt">) %</span> <span class="num">139968</span>
+                    <span class="kwc">a</span><span class="opt">.[</span>i<span class="opt">] &lt;-</span> <span class="kwc">seed</span>
+                <span class="kwc">a</span>
+            <span class="kwa">let inline</span> bytes <span class="kwc">l d</span> <span class="opt">(</span>rnds<span class="opt">:</span><span class="kwb">int</span><span class="opt">[]) =</span>
+                <span class="kwa">let</span> <span class="kwc">a</span> <span class="opt">=</span> <span class="kwc">bytePool</span><span class="opt">.</span><span class="kwd">Rent</span> <span class="opt">(</span><span class="kwc">l</span><span class="opt">+(</span><span class="kwc">l</span><span class="opt">+</span><span class="kwc">d</span><span class="opt">)/</span><span class="kwc">Width</span><span class="opt">)</span>
+                <span class="kwa">let inline</span> lookup <span class="kwc">probability</span> <span class="opt">=</span>
+                    <span class="kwa">let rec</span> search i <span class="opt">=</span>
+                        <span class="kwa">if</span> ps<span class="opt">.[</span>i<span class="opt">]&gt;=</span><span class="kwc">probability</span> <span class="kwa">then</span> i
+                        <span class="kwa">else</span> <span class="kwc">search</span> <span class="opt">(</span>i<span class="opt">+</span><span class="num">1</span><span class="opt">)</span>
+                    vs<span class="opt">.[</span><span class="kwc">search</span> <span class="num">0</span><span class="opt">]</span>
+                <span class="kwa">for</span> i <span class="opt">=</span> <span class="num">0</span> <span class="kwa">to</span> <span class="kwc">l</span><span class="opt">-</span><span class="num">1</span> <span class="kwa">do</span>
+                    <span class="kwc">a</span><span class="opt">.[</span>i<span class="opt">+</span>i<span class="opt">/</span><span class="kwc">Width</span><span class="opt">] &lt;-</span> <span class="num">1.0</span><span class="opt">/</span><span class="num">139968.0</span> <span class="opt">*</span> <span class="kwb">float</span> <span class="kwc">rnds</span><span class="opt">.[</span>i<span class="opt">] |&gt;</span> lookup
+                <span class="kwc">intPool</span><span class="opt">.</span><span class="kwd">Return</span> <span class="kwc">rnds</span>
+                <span class="kwa">for</span> i <span class="opt">=</span> <span class="num">1</span> <span class="kwa">to</span> <span class="opt">(</span><span class="kwc">l</span><span class="opt">+</span><span class="kwc">d</span><span class="opt">)/</span><span class="kwc">Width</span> <span class="kwa">do</span>
+                    <span class="kwc">a</span><span class="opt">.[</span>i<span class="opt">*</span><span class="kwc">Width1</span><span class="opt">-</span><span class="num">1</span><span class="opt">] &lt;-</span> <span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span><span class="kwd">B</span>
+                <span class="kwc">a</span>        
+            <span class="kwa">for</span> i <span class="opt">=</span> offset <span class="kwa">to</span> offset<span class="opt">+(</span><span class="kwc">n</span><span class="opt">-</span><span class="num">1</span><span class="opt">)/</span><span class="kwc">blockSize</span><span class="opt">-</span><span class="num">1</span> <span class="kwa">do</span>
+                <span class="kwa">let</span> <span class="kwc">rnds</span> <span class="opt">=</span> <span class="kwc">rnds blockSize</span>
+                <span class="kwc">tasks</span><span class="opt">.[</span>i<span class="opt">] &lt;-</span> <span class="kwd">Task</span><span class="opt">.</span><span class="kwd">Run</span><span class="opt">(</span><span class="kwa">fun</span> <span class="opt">() -&gt;</span>
+                    bytes <span class="kwc">blockSize</span> <span class="num">0</span> <span class="kwc">rnds</span><span class="opt">,</span> <span class="kwc">blockSize</span><span class="opt">+</span><span class="kwc">blockSize</span><span class="opt">/</span><span class="kwc">Width</span><span class="opt">)</span>
+            <span class="kwa">let</span> <span class="kwc">remaining</span> <span class="opt">= (</span><span class="kwc">n</span><span class="opt">-</span><span class="num">1</span><span class="opt">)</span>%blockSize<span class="opt">+</span><span class="num">1</span>
+            <span class="kwa">let</span> <span class="kwc">rnds</span> <span class="opt">=</span> <span class="kwc">rnds remaining</span>
+            <span class="kwc">tasks</span><span class="opt">.[</span>offset<span class="opt">+(</span><span class="kwc">n</span><span class="opt">-</span><span class="num">1</span><span class="opt">)/</span><span class="kwc">blockSize</span><span class="opt">] &lt;-</span> <span class="kwd">Task</span><span class="opt">.</span><span class="kwd">Run</span><span class="opt">(</span><span class="kwa">fun</span> <span class="opt">() -&gt;</span>
+                bytes <span class="kwc">remaining d rnds</span><span class="opt">,</span> <span class="kwc">remaining</span><span class="opt">+(</span><span class="kwc">remaining</span><span class="opt">+</span><span class="kwc">d</span><span class="opt">)/</span><span class="kwc">Width</span><span class="opt">)</span>
+            <span class="kwc">seed</span> 
+    
+        <span class="kwa">let</span> <span class="kwc">seed</span> <span class="opt">=</span>
+            <span class="opt">[|</span><span class="num">0.27</span><span class="opt">;</span><span class="num">0.12</span><span class="opt">;</span><span class="num">0.12</span><span class="opt">;</span><span class="num">0.27</span><span class="opt">;</span><span class="num">0.02</span><span class="opt">;</span><span class="num">0.02</span><span class="opt">;</span><span class="num">0.02</span><span class="opt">;</span>
+              <span class="num">0.02</span><span class="opt">;</span><span class="num">0.02</span><span class="opt">;</span><span class="num">0.02</span><span class="opt">;</span><span class="num">0.02</span><span class="opt">;</span><span class="num">0.02</span><span class="opt">;</span><span class="num">0.02</span><span class="opt">;</span><span class="num">0.02</span><span class="opt">;</span><span class="num">0.02</span><span class="opt">|]</span>
+            <span class="opt">|&gt;</span> <span class="kwc">writeRandom</span> <span class="opt">(</span><span class="num">3</span><span class="opt">*</span><span class="kwc">n</span><span class="opt">)</span> <span class="num">0</span> <span class="opt">-</span><span class="num">1 42</span> <span class="str">&quot;acgtBDHKMNRSVWY&quot;</span><span class="kwd">B</span>
+          
+        <span class="kwc">tasks</span><span class="opt">.[(</span><span class="num">3</span><span class="opt">*</span><span class="kwc">n</span><span class="opt">-</span><span class="num">1</span><span class="opt">)/</span><span class="kwc">blockSize</span><span class="opt">+</span><span class="num">1</span><span class="opt">] &lt;-</span>
+            <span class="str">&quot;</span><span class="esc">\n</span><span class="str">&gt;THREE Homo sapiens frequency</span><span class="esc">\n</span><span class="str">&quot;</span><span class="kwd">B</span>
+            <span class="opt">|&gt;</span> <span class="kwa">fun</span> i <span class="opt">-&gt;</span> <span class="kwd">Task</span><span class="opt">.</span><span class="kwd">FromResult</span><span class="opt">(</span>i<span class="opt">,</span>i<span class="opt">.</span><span class="kwd">Length</span><span class="opt">)</span>
+
+        <span class="opt">[|</span><span class="num">0.3029549426680</span><span class="opt">;</span><span class="num">0.1979883004921</span><span class="opt">;</span><span class="num">0.1975473066391</span><span class="opt">;</span><span class="num">0.3015094502008</span><span class="opt">|]</span>
+        <span class="opt">|&gt;</span> <span class="kwc">writeRandom</span> <span class="opt">(</span><span class="num">5</span><span class="opt">*</span><span class="kwc">n</span><span class="opt">) ((</span><span class="num">3</span><span class="opt">*</span><span class="kwc">n</span><span class="opt">-</span><span class="num">1</span><span class="opt">)/</span><span class="kwc">blockSize</span><span class="opt">+</span><span class="num">2</span><span class="opt">)</span> <span class="num">0</span> <span class="kwc">seed</span> <span class="str">&quot;acgt&quot;</span><span class="kwd">B</span>
+        <span class="opt">|&gt;</span> ignore
+    <span class="opt">) |&gt;</span> ignore
+
+    <span class="str">&quot;&gt;ONE Homo sapiens alu</span><span class="esc">\n</span><span class="str">&quot;</span><span class="kwd">B</span> <span class="opt">|&gt;</span> <span class="kwa">fun</span> i <span class="opt">-&gt;</span> <span class="kwc">out</span><span class="opt">.</span><span class="kwd">Write</span><span class="opt">(</span>i<span class="opt">,</span><span class="num">0</span><span class="opt">,</span>i<span class="opt">.</span><span class="kwd">Length</span><span class="opt">)</span>
+    <span class="kwa">let</span> <span class="kwc">table</span> <span class="opt">=</span>
+        <span class="str">&quot;GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGG\</span>
+<span class="str">         GAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGA\</span>
+<span class="str">         CCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAAT\</span>
+<span class="str">         ACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCA\</span>
+<span class="str">         GCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGG\</span>
+<span class="str">         AGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCC\</span>
+<span class="str">         AGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA&quot;</span><span class="kwd">B</span>
+    <span class="kwa">let</span> <span class="kwc">tableLength</span> <span class="opt">=</span> <span class="num">287</span>
+    <span class="kwa">let</span> <span class="kwc">linesPerBlock</span> <span class="opt">= (</span><span class="kwc">LinesPerBlock</span><span class="opt">/</span><span class="kwc">tableLength</span><span class="opt">+</span><span class="num">1</span><span class="opt">) *</span> <span class="kwc">tableLength</span>
+    <span class="kwa">let</span> <span class="kwc">repeatedBytes</span> <span class="opt">=</span> <span class="kwc">bytePool</span><span class="opt">.</span><span class="kwd">Rent</span> <span class="opt">(</span><span class="kwc">Width1</span><span class="opt">*</span><span class="kwc">linesPerBlock</span><span class="opt">)</span>
+    <span class="kwa">for</span> i <span class="opt">=</span> <span class="num">0</span> <span class="kwa">to</span> <span class="kwc">linesPerBlock</span><span class="opt">*</span><span class="kwc">Width</span><span class="opt">-</span><span class="num">1</span> <span class="kwa">do</span>
+        <span class="kwc">repeatedBytes</span><span class="opt">.[</span>i<span class="opt">+</span>i<span class="opt">/</span><span class="kwc">Width</span><span class="opt">] &lt;-</span> <span class="kwc">table</span><span class="opt">.[</span>i%tableLength<span class="opt">]</span>
+    <span class="kwa">for</span> i <span class="opt">=</span> <span class="num">1</span> <span class="kwa">to</span> <span class="kwc">linesPerBlock</span> <span class="kwa">do</span>
+        <span class="kwc">repeatedBytes</span><span class="opt">.[</span>i<span class="opt">*</span><span class="kwc">Width1</span><span class="opt">-</span><span class="num">1</span><span class="opt">] &lt;-</span> <span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span><span class="kwd">B</span>
+    <span class="kwa">for</span> __ <span class="opt">=</span> <span class="num">1</span> <span class="kwa">to</span> <span class="opt">(</span><span class="num">2</span><span class="opt">*</span><span class="kwc">n</span><span class="opt">-</span><span class="num">1</span><span class="opt">)/(</span><span class="kwc">Width</span><span class="opt">*</span><span class="kwc">linesPerBlock</span><span class="opt">)</span> <span class="kwa">do</span>
+        <span class="kwc">out</span><span class="opt">.</span><span class="kwd">Write</span><span class="opt">(</span><span class="kwc">repeatedBytes</span><span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> <span class="kwc">Width1</span><span class="opt">*</span><span class="kwc">linesPerBlock</span><span class="opt">)</span>
+    <span class="kwa">let</span> <span class="kwc">remaining</span> <span class="opt">= (</span><span class="num">2</span><span class="opt">*</span><span class="kwc">n</span><span class="opt">-</span><span class="num">1</span><span class="opt">)%(</span><span class="kwc">Width</span><span class="opt">*</span><span class="kwc">linesPerBlock</span><span class="opt">)+</span><span class="num">1</span>
+    <span class="kwa">if</span> <span class="kwc">remaining</span><span class="opt">&lt;&gt;</span><span class="num">0</span> <span class="kwa">then</span>
+        <span class="kwc">out</span><span class="opt">.</span><span class="kwd">Write</span><span class="opt">(</span><span class="kwc">repeatedBytes</span><span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> <span class="kwc">remaining</span><span class="opt">+(</span><span class="kwc">remaining</span><span class="opt">-</span><span class="num">1</span><span class="opt">)/</span><span class="kwc">Width</span><span class="opt">)</span>
+    <span class="kwc">bytePool</span><span class="opt">.</span><span class="kwd">Return</span> <span class="kwc">repeatedBytes</span>
+    <span class="str">&quot;</span><span class="esc">\n</span><span class="str">&gt;TWO IUB ambiguity codes</span><span class="esc">\n</span><span class="str">&quot;</span><span class="kwd">B</span> <span class="opt">|&gt;</span> <span class="kwa">fun</span> i <span class="opt">-&gt;</span> <span class="kwc">out</span><span class="opt">.</span><span class="kwd">Write</span><span class="opt">(</span>i<span class="opt">,</span><span class="num">0</span><span class="opt">,</span>i<span class="opt">.</span><span class="kwd">Length</span><span class="opt">)</span>
+
+    <span class="kwa">let rec</span> write <span class="kwc">i</span> <span class="opt">=</span>
+      <span class="kwa">if</span> <span class="kwc">i</span><span class="opt">&lt;&gt;</span><span class="kwc">noTasks</span> <span class="kwa">then</span>
+        <span class="kwa">let</span> <span class="kwc">t</span> <span class="opt">=</span> <span class="kwc">tasks</span><span class="opt">.[</span><span class="kwc">i</span><span class="opt">]</span>
+        <span class="opt">(</span><span class="kwa">if</span> isNull <span class="kwc">t</span> <span class="kwa">then</span> <span class="kwc">i</span>
+         <span class="kwa">else</span>
+           <span class="kwa">let</span> <span class="kwc">bs</span><span class="opt">,</span><span class="kwc">l</span> <span class="opt">=</span> <span class="kwc">t</span><span class="opt">.</span><span class="kwd">Result</span>
+           <span class="kwc">out</span><span class="opt">.</span><span class="kwd">Write</span><span class="opt">(</span><span class="kwc">bs</span><span class="opt">,</span><span class="num">0</span><span class="opt">,</span><span class="kwc">l</span><span class="opt">)</span>
+           <span class="kwa">if</span> <span class="kwc">l</span><span class="opt">&gt;</span><span class="num">200</span> <span class="kwa">then</span> <span class="kwc">bytePool</span><span class="opt">.</span><span class="kwd">Return</span> <span class="kwc">bs</span>
+           <span class="kwc">i</span><span class="opt">+</span><span class="num">1</span><span class="opt">) |&gt;</span> write
+    write <span class="kwc">0</span>
+    <span class="kwc">out</span><span class="opt">.</span><span class="kwd">WriteByte</span> <span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span><span class="kwd">B</span>
+    <span class="num">0</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

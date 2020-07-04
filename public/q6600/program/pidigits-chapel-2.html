@@ -17,6 +17,83 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="com">/* The Computer Language Benchmarks Game</span>
+<span class="com">   https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="com"></span>
+<span class="com">   contributed by Thomas Van Doren, Michael Noakes, Brad Chamberlain, and</span>
+<span class="com">     Elliot Ronaghan</span>
+<span class="com">   derived from the Chapel version by Tom Hildebrandt et al. and the</span>
+<span class="com">     GNU C version by Mr Ledrug</span>
+<span class="com">*/</span>
+
+<span class="kwa">use</span> BigInteger<span class="opt">;</span>
+
+<span class="kwa">config const</span> n <span class="opt">=</span> <span class="num">50</span><span class="opt">;</span>         <span class="slc">// Compute n digits of pi, 50 by default</span>
+
+<span class="kwa">proc</span> <span class="kwc">main</span><span class="opt">() {</span>
+  <span class="kwa">param</span> digitsPerLine <span class="opt">=</span> <span class="num">10</span><span class="opt">;</span>
+
+  <span class="slc">// Generate n digits, printing them in groups of digitsPerLine</span>
+  <span class="kwa">for</span> <span class="opt">(</span>d<span class="opt">,</span> i<span class="opt">)</span> <span class="kwa">in</span> <span class="kwc">genDigits</span><span class="opt">(</span>n<span class="opt">) {</span>
+    <span class="kwc">write</span><span class="opt">(</span>d<span class="opt">);</span>
+    <span class="kwa">if</span> i <span class="opt">%</span> digitsPerLine <span class="opt">==</span> <span class="num">0</span> <span class="kwa">then</span>
+      <span class="kwc">writeln</span><span class="opt">(</span><span class="str">&quot;</span><span class="esc">\t</span><span class="str">:&quot;</span><span class="opt">,</span> i<span class="opt">);</span>
+  <span class="opt">}</span>
+
+  <span class="slc">// Pad out any trailing digits for the final line</span>
+  <span class="kwa">if</span> n <span class="opt">%</span> digitsPerLine <span class="kwa">then</span>
+    <span class="kwc">writeln</span><span class="opt">(</span><span class="str">&quot; &quot;</span> <span class="opt">* (</span>digitsPerLine <span class="opt">-</span> n <span class="opt">%</span> digitsPerLine<span class="opt">),</span> <span class="str">&quot;</span><span class="esc">\t</span><span class="str">:&quot;</span><span class="opt">,</span> n<span class="opt">);</span>
+<span class="opt">}</span>
+
+
+<span class="kwa">iter</span> <span class="kwc">genDigits</span><span class="opt">(</span>numDigits<span class="opt">) {</span>
+  <span class="kwa">var</span> numer<span class="opt">,</span> denom<span class="opt">:</span> bigint <span class="opt">=</span> <span class="num">1</span><span class="opt">,</span>
+      accum<span class="opt">,</span> tmp1<span class="opt">,</span> tmp2<span class="opt">:</span> bigint<span class="opt">;</span>
+
+  <span class="kwa">var</span> i<span class="opt">,</span> k <span class="opt">=</span> <span class="num">1</span><span class="opt">;</span>
+  <span class="kwa">while</span> i <span class="opt">&lt;=</span> numDigits <span class="opt">{</span>
+    <span class="kwc">nextTerm</span><span class="opt">(</span>k<span class="opt">);</span>
+    k <span class="opt">+=</span> <span class="num">1</span><span class="opt">;</span>
+    <span class="kwa">if</span> numer <span class="opt">&lt;=</span> accum <span class="opt">{</span>
+      <span class="kwa">const</span> d <span class="opt">=</span> <span class="kwc">extractDigit</span><span class="opt">(</span><span class="num">3</span><span class="opt">);</span>
+      <span class="kwa">if</span> d <span class="opt">==</span> <span class="kwc">extractDigit</span><span class="opt">(</span><span class="num">4</span><span class="opt">) {</span>
+        <span class="kwa">yield</span><span class="opt">(</span>d<span class="opt">,</span> i<span class="opt">);</span>
+        <span class="kwc">eliminateDigit</span><span class="opt">(</span>d<span class="opt">);</span>
+        i <span class="opt">+=</span> <span class="num">1</span><span class="opt">;</span>
+      <span class="opt">}</span>
+    <span class="opt">}</span>
+  <span class="opt">}</span>
+
+  <span class="kwa">proc</span> <span class="kwc">nextTerm</span><span class="opt">(</span>k<span class="opt">) {</span>
+    <span class="kwa">const</span> k2 <span class="opt">=</span> <span class="num">2</span> <span class="opt">*</span> k <span class="opt">+</span> <span class="num">1</span><span class="opt">;</span>
+
+    accum<span class="opt">.</span><span class="kwc">addmul</span><span class="opt">(</span>numer<span class="opt">,</span> <span class="num">2</span><span class="opt">);</span>
+    accum <span class="opt">*=</span> k2<span class="opt">;</span>
+    denom <span class="opt">*=</span> k2<span class="opt">;</span>
+    numer <span class="opt">*=</span> k<span class="opt">;</span>
+  <span class="opt">}</span>
+
+  <span class="kwa">proc</span> <span class="kwc">extractDigit</span><span class="opt">(</span>nth<span class="opt">) {</span>
+    tmp1<span class="opt">.</span><span class="kwc">mul</span><span class="opt">(</span>numer<span class="opt">,</span> nth<span class="opt">);</span>
+    tmp2<span class="opt">.</span><span class="kwc">add</span><span class="opt">(</span>tmp1<span class="opt">,</span>accum<span class="opt">);</span>
+    tmp1<span class="opt">.</span><span class="kwc">div_q</span><span class="opt">(</span>tmp2<span class="opt">,</span> denom<span class="opt">);</span>
+
+    <span class="kwa">return</span> tmp1<span class="opt">:</span> <span class="kwb">int</span><span class="opt">;</span>
+  <span class="opt">}</span>
+
+  <span class="kwa">proc</span> <span class="kwc">eliminateDigit</span><span class="opt">(</span>d<span class="opt">) {</span>
+    accum<span class="opt">.</span><span class="kwc">submul</span><span class="opt">(</span>denom<span class="opt">,</span> d<span class="opt">);</span>
+    accum <span class="opt">*=</span> <span class="num">10</span><span class="opt">;</span>
+    numer <span class="opt">*=</span> <span class="num">10</span><span class="opt">;</span>
+  <span class="opt">}</span>
+<span class="opt">}</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

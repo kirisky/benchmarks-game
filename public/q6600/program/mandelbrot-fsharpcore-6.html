@@ -17,6 +17,87 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc">// The Computer Language Benchmarks Game</span>
+<span class="slc">// https://benchmarksgame-team.pages.debian.net/benchmarksgame/</span>
+<span class="slc">//</span>
+<span class="slc">// Adapted by Antti Lankila from the earlier Isaac Gouy&apos;s implementation</span>
+<span class="slc">// Add multithread &amp; tweaks from C++ by The Anh Tran</span>
+<span class="slc">// Credits: Anthony Lloyd, Jomo Fisher, Peter Kese</span>
+<span class="kwa">module</span> <span class="kwc">Mandelbrot</span>
+
+<span class="ppc">#nowarn</span> <span class="pps">&quot;9&quot;</span><span class="ppc"></span>
+
+<span class="kwa">open</span> <span class="kwd">System</span>
+<span class="kwa">open</span> <span class="kwd">System</span><span class="opt">.</span><span class="kwd">Numerics</span>
+<span class="kwa">open</span> <span class="kwd">System</span><span class="opt">.</span><span class="kwd">Runtime</span><span class="opt">.</span><span class="kwd">CompilerServices</span>
+<span class="kwa">open</span> <span class="kwd">System</span><span class="opt">.</span><span class="kwd">Threading</span><span class="opt">.</span><span class="kwd">Tasks</span>
+<span class="kwa">open</span> <span class="kwd">Microsoft</span><span class="opt">.</span><span class="kwd">FSharp</span><span class="opt">.</span><span class="kwd">NativeInterop</span>
+
+<span class="kwa">let inline</span> padd p i <span class="opt">=</span> p<span class="opt">+</span><span class="num">8n</span><span class="opt">*</span>i
+<span class="kwa">let inline</span> ptrGet <span class="kwc">p</span> i <span class="opt">=</span> <span class="kwd">Unsafe</span><span class="opt">.</span><span class="kwd">Read</span><span class="opt">((</span><span class="kwc">p</span><span class="opt">+</span><span class="num">8n</span><span class="opt">*</span>i<span class="opt">).</span><span class="kwd">ToPointer</span><span class="opt">())</span>
+<span class="kwa">let inline</span> ptrSet <span class="kwc">p</span> i v <span class="opt">=</span> <span class="kwd">Unsafe</span><span class="opt">.</span><span class="kwd">Write</span><span class="opt">((</span><span class="kwc">p</span><span class="opt">+</span><span class="num">8n</span><span class="opt">*</span>i<span class="opt">).</span><span class="kwd">ToPointer</span><span class="opt">(),</span> v<span class="opt">)</span>
+
+<span class="kwa">let inline</span> getByte <span class="opt">(</span>ciby<span class="opt">:</span><span class="kwb">float</span><span class="opt">)</span> pcrbi <span class="opt">=</span>
+    <span class="kwa">let rec</span> calc i res <span class="opt">=</span>
+        <span class="kwa">let</span> <span class="kwc">vCrbx</span> <span class="opt">=</span> ptrGet <span class="kwc">pcrbi</span> i
+        <span class="kwa">let</span> <span class="kwc">vCiby</span> <span class="opt">=</span> <span class="kwd">Vector</span> ciby
+        <span class="kwa">let mutable</span> <span class="kwc">zr</span> <span class="opt">=</span> <span class="kwc">vCrbx</span>
+        <span class="kwa">let mutable</span> <span class="kwc">zi</span> <span class="opt">=</span> <span class="kwc">vCiby</span>
+        <span class="kwa">let mutable</span> <span class="kwc">zrzr</span> <span class="opt">=</span> <span class="kwc">zr</span><span class="opt">*</span><span class="kwc">zr</span>
+        <span class="kwa">let mutable</span> <span class="kwc">zizi</span> <span class="opt">=</span> <span class="kwc">zi</span><span class="opt">*</span><span class="kwc">zi</span>
+        <span class="kwa">let mutable</span> <span class="kwc">j</span> <span class="opt">=</span> <span class="num">49</span>
+        <span class="kwa">let mutable</span> <span class="kwc">b</span> <span class="opt">=</span> <span class="num">0</span>
+        <span class="kwa">while</span> <span class="kwc">b</span><span class="opt">&lt;&gt;</span><span class="num">3</span> <span class="opt">&amp;&amp;</span> <span class="kwc">j</span><span class="opt">&gt;</span><span class="num">0</span> <span class="kwa">do</span>
+            <span class="kwc">j</span> <span class="opt">&lt;-</span> <span class="kwc">j</span><span class="opt">-</span><span class="num">1</span>
+            <span class="kwa">let</span> <span class="kwc">zr</span><span class="str">&apos; = zrzr - zizi + vCrbx</span>
+<span class="str">            zi &lt;- let zrzi = zr * zi in zrzi + zrzi + vCiby</span>
+<span class="str">            zr &lt;- zr&apos;</span>
+            <span class="kwc">zrzr</span> <span class="opt">&lt;-</span> <span class="kwc">zr</span><span class="opt">*</span><span class="kwc">zr</span>
+            <span class="kwc">zizi</span> <span class="opt">&lt;-</span> <span class="kwc">zi</span><span class="opt">*</span><span class="kwc">zi</span>
+            <span class="kwa">let</span> <span class="kwc">t</span> <span class="opt">=</span> <span class="kwc">zrzr</span> <span class="opt">+</span> <span class="kwc">zizi</span>
+            <span class="kwc">b</span> <span class="opt">&lt;-</span> <span class="kwc">b</span> <span class="opt">|||</span> <span class="kwa">if</span> <span class="kwc">t</span><span class="opt">.[</span><span class="num">0</span><span class="opt">]&gt;</span><span class="num">4.0</span> <span class="kwa">then</span> <span class="num">2</span> <span class="kwa">else</span> <span class="kwc">0</span>
+                   <span class="opt">|||</span> <span class="kwa">if</span> <span class="kwc">t</span><span class="opt">.[</span><span class="num">1</span><span class="opt">]&gt;</span><span class="num">4.0</span> <span class="kwa">then</span> <span class="num">1</span> <span class="kwa">else</span> <span class="kwc">0</span>
+        <span class="kwa">let</span> <span class="kwc">res</span><span class="str">&apos; = (res &lt;&lt;&lt; 2) + b</span>
+<span class="str">        let i&apos;</span> <span class="opt">=</span> <span class="kwc">i</span> <span class="opt">+</span> <span class="num">2n</span>
+        <span class="kwa">if</span> <span class="kwc">i</span><span class="str">&apos;=8n then res&apos;</span>
+        <span class="kwa">else</span> <span class="kwc">calc i</span><span class="str">&apos; res&apos;</span>
+    <span class="kwc">calc</span> <span class="num">0n 0</span> <span class="opt">^^^ -</span><span class="num">1</span> <span class="opt">|&gt;</span> byte
+
+
+<span class="opt">[&lt;</span><span class="kwd">EntryPoint</span><span class="opt">&gt;]</span>
+<span class="kwa">let</span> <span class="kwc">main</span> args <span class="opt">=</span>
+    <span class="kwa">let</span> <span class="kwc">size</span> <span class="opt">=</span> <span class="kwa">if</span> args<span class="opt">.</span><span class="kwd">Length</span><span class="opt">=</span><span class="num">0</span> <span class="kwa">then</span> <span class="num">200</span> <span class="kwa">else</span> <span class="kwb">int</span> args<span class="opt">.[</span><span class="num">0</span><span class="opt">]</span>
+    <span class="kwa">let</span> <span class="kwc">lineLength</span> <span class="opt">=</span> <span class="kwc">size</span> <span class="opt">&gt;&gt;&gt;</span> <span class="num">3</span>
+    <span class="kwa">let</span> <span class="kwc">s</span> <span class="opt">=</span> <span class="str">&quot;P4</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">+</span><span class="kwb">string</span> <span class="kwc">size</span><span class="opt">+</span><span class="str">&quot; &quot;</span><span class="opt">+</span><span class="kwb">string</span> <span class="kwc">size</span><span class="opt">+</span><span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span>
+    <span class="kwa">let</span> <span class="kwc">data</span> <span class="opt">=</span> <span class="kwd">Array</span><span class="opt">.</span>zeroCreate <span class="opt">(</span><span class="kwc">size</span><span class="opt">*</span><span class="kwc">lineLength</span><span class="opt">+</span><span class="kwc">s</span><span class="opt">.</span><span class="kwd">Length</span><span class="opt">)</span>
+    <span class="kwd">Text</span><span class="opt">.</span><span class="kwd">ASCIIEncoding</span><span class="opt">.</span><span class="kwd">ASCII</span><span class="opt">.</span><span class="kwd">GetBytes</span><span class="opt">(</span><span class="kwc">s</span><span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> <span class="kwc">s</span><span class="opt">.</span><span class="kwd">Length</span><span class="opt">,</span> <span class="kwc">data</span><span class="opt">,</span> <span class="num">0</span><span class="opt">) |&gt;</span> ignore
+    <span class="kwa">let</span> <span class="kwc">crb</span> <span class="opt">=</span> <span class="kwd">Array</span><span class="opt">.</span>zeroCreate <span class="opt">(</span><span class="kwc">size</span><span class="opt">+</span><span class="num">2</span><span class="opt">)</span>
+    <span class="kwa">use</span> <span class="kwc">pdata</span> <span class="opt">=</span> fixed <span class="opt">&amp;</span><span class="kwc">data</span><span class="opt">.[</span><span class="kwc">s</span><span class="opt">.</span><span class="kwd">Length</span><span class="opt">]</span>
+    <span class="kwa">use</span> <span class="kwc">pcrb</span> <span class="opt">=</span> fixed <span class="opt">&amp;</span><span class="kwc">crb</span><span class="opt">.[</span><span class="num">0</span><span class="opt">]</span>
+    <span class="kwa">let</span> <span class="kwc">pcrbi</span> <span class="opt">=</span> <span class="kwd">NativePtr</span><span class="opt">.</span>toNativeInt <span class="kwc">pcrb</span>
+    <span class="kwa">let</span> <span class="kwc">invN</span> <span class="opt">=</span> <span class="kwd">Vector</span> <span class="opt">(</span><span class="num">2.0</span><span class="opt">/</span><span class="kwb">float</span> <span class="kwc">size</span><span class="opt">)</span>
+    <span class="kwa">let</span> <span class="kwc">onePtFive</span> <span class="opt">=</span> <span class="kwd">Vector</span> <span class="num">1.5</span>
+    <span class="kwa">let</span> <span class="kwc">step</span> <span class="opt">=</span> <span class="kwd">Vector</span> <span class="num">2.0</span>
+    <span class="kwa">let rec</span> loop <span class="kwc">i</span> value <span class="opt">=</span>
+        <span class="kwa">if</span> <span class="kwc">i</span><span class="opt">&lt;</span><span class="kwc">size</span> <span class="kwa">then</span>
+            ptrSet <span class="kwc">pcrbi</span> <span class="opt">(</span>nativeint <span class="kwc">i</span><span class="opt">) (</span>value<span class="opt">*</span><span class="kwc">invN</span><span class="opt">-</span><span class="kwc">onePtFive</span><span class="opt">)</span>
+            loop <span class="opt">(</span><span class="kwc">i</span><span class="opt">+</span><span class="num">2</span><span class="opt">) (</span>value<span class="opt">+</span><span class="kwc">step</span><span class="opt">)</span>
+    <span class="kwd">Vector</span> <span class="opt">[|</span><span class="num">0.0</span><span class="opt">;</span><span class="num">1.0</span><span class="opt">;</span><span class="num">0.0</span><span class="opt">;</span><span class="num">0.0</span><span class="opt">;</span><span class="num">0.0</span><span class="opt">;</span><span class="num">0.0</span><span class="opt">;</span><span class="num">0.0</span><span class="opt">;</span><span class="num">0.0</span><span class="opt">|] |&gt;</span> loop <span class="num">0</span>
+    <span class="kwd">Parallel</span><span class="opt">.</span><span class="kwd">For</span><span class="opt">(</span><span class="num">0</span><span class="opt">,</span> <span class="kwc">size</span><span class="opt">,</span> <span class="kwa">fun</span> y <span class="opt">-&gt;</span>
+        <span class="kwa">let</span> <span class="kwc">ciby</span> <span class="opt">=</span> <span class="kwd">NativePtr</span><span class="opt">.</span>get <span class="kwc">pcrb</span> y<span class="opt">+</span><span class="num">0.5</span>
+        <span class="kwa">for</span> x <span class="opt">=</span> <span class="num">0</span> <span class="kwa">to</span> <span class="kwc">lineLength</span><span class="opt">-</span><span class="num">1</span> <span class="kwa">do</span>
+            nativeint <span class="kwc">x</span><span class="opt">*</span><span class="num">8n</span> <span class="opt">|&gt;</span> padd <span class="kwc">pcrbi</span> <span class="opt">|&gt;</span> getByte <span class="kwc">ciby</span>
+            <span class="opt">|&gt;</span> <span class="kwd">NativePtr</span><span class="opt">.</span>set <span class="kwc">pdata</span> <span class="opt">(</span>y<span class="opt">*</span><span class="kwc">lineLength</span><span class="opt">+</span><span class="kwc">x</span><span class="opt">)</span>
+    <span class="opt">) |&gt;</span> ignore
+    <span class="kwd">Console</span><span class="opt">.</span><span class="kwd">OpenStandardOutput</span><span class="opt">().</span><span class="kwd">Write</span><span class="opt">(</span><span class="kwc">data</span><span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> <span class="kwc">data</span><span class="opt">.</span><span class="kwd">Length</span><span class="opt">)</span>
+    <span class="num">0</span>
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>

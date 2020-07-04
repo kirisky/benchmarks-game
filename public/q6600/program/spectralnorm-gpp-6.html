@@ -17,6 +17,149 @@
   </div>
   <section>
     <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc">// The Computer Language Benchmarks Game</span>
+<span class="slc">// https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">//</span>
+<span class="slc">// Original C contributed by Sebastien Loisel</span>
+<span class="slc">// Conversion to C++ by Jon Harrop</span>
+<span class="slc">// OpenMP parallelize by The Anh Tran</span>
+<span class="slc">// Add SSE by The Anh Tran</span>
+<span class="slc">// Additional SSE optimization by Krzysztof Jakubowski</span>
+
+<span class="slc">// g++ -pipe -O3 -march=native -fopenmp -mfpmath=sse -msse2 \</span>
+<span class="slc">//     ./spec.c++ -o ./spec.run</span>
+
+<span class="ppc">#include &lt;cmath&gt;</span>
+<span class="ppc">#include &lt;cstdlib&gt;</span>
+<span class="ppc">#include &lt;cstdio&gt;</span>
+<span class="ppc">#include &lt;sched.h&gt;</span>
+<span class="ppc">#include &lt;omp.h&gt;</span>
+<span class="ppc">#include &lt;emmintrin.h&gt;</span>
+
+<span class="kwc">template</span> <span class="opt">&lt;</span><span class="kwb">bool</span> modei<span class="opt">&gt;</span> <span class="kwb">int</span> <span class="kwd">Index</span><span class="opt">(</span><span class="kwb">int</span> i<span class="opt">,</span> <span class="kwb">int</span> j<span class="opt">) {</span>
+    <span class="kwa">return</span> <span class="opt">(((</span>i <span class="opt">+</span> j<span class="opt">) * (</span>i <span class="opt">+</span> j <span class="opt">+</span> <span class="num">1</span><span class="opt">)) &gt;&gt;</span> <span class="num">1</span><span class="opt">) + (</span>modei<span class="opt">?</span> i <span class="opt">:</span> j<span class="opt">) +</span> <span class="num">1</span><span class="opt">;</span>
+<span class="opt">}</span>
+
+<span class="kwc">template</span> <span class="opt">&lt;</span><span class="kwb">bool</span> modei<span class="opt">&gt;</span>
+<span class="kwb">void</span> <span class="kwd">EvalPart</span><span class="opt">(</span><span class="kwb">double</span> <span class="opt">*</span>__restrict__ src<span class="opt">,</span> <span class="kwb">double</span> <span class="opt">*</span>__restrict__ dst<span class="opt">,</span>
+                <span class="kwb">int</span> begin<span class="opt">,</span> <span class="kwb">int</span> end<span class="opt">,</span> <span class="kwb">int</span> length<span class="opt">) {</span>
+    <span class="kwb">int</span> i <span class="opt">=</span> begin<span class="opt">;</span>
+
+    <span class="kwa">for</span><span class="opt">(;</span> i <span class="opt">+</span> <span class="num">1</span> <span class="opt">&lt;</span> end<span class="opt">;</span> i <span class="opt">+=</span> <span class="num">2</span><span class="opt">) {</span>
+        __m128d sum <span class="opt">=</span> <span class="kwd">_mm_set_pd</span><span class="opt">(</span>
+			src<span class="opt">[</span><span class="num">0</span><span class="opt">] /</span> <span class="kwb">double</span><span class="opt">(</span>Index<span class="opt">&lt;</span>modei<span class="opt">&gt;(</span>i <span class="opt">+</span> <span class="num">1</span><span class="opt">,</span> <span class="num">0</span><span class="opt">)),</span>
+			src<span class="opt">[</span><span class="num">0</span><span class="opt">] /</span> <span class="kwb">double</span><span class="opt">(</span>Index<span class="opt">&lt;</span>modei<span class="opt">&gt;(</span>i <span class="opt">+</span> <span class="num">0</span><span class="opt">,</span> <span class="num">0</span><span class="opt">)));</span>
+    
+		__m128d ti <span class="opt">=</span> modei<span class="opt">?</span>
+			<span class="kwd">_mm_set_pd</span><span class="opt">(</span>i <span class="opt">+</span> <span class="num">1</span><span class="opt">,</span> i <span class="opt">+</span> <span class="num">0</span><span class="opt">) :</span>
+			<span class="kwd">_mm_set_pd</span><span class="opt">(</span>i <span class="opt">+</span> <span class="num">2</span><span class="opt">,</span> i <span class="opt">+</span> <span class="num">1</span><span class="opt">);</span>	
+		__m128d last <span class="opt">=</span> <span class="kwd">_mm_set_pd</span><span class="opt">(</span>
+			Index<span class="opt">&lt;</span>modei<span class="opt">&gt;(</span>i <span class="opt">+</span> <span class="num">1</span><span class="opt">,</span> <span class="num">0</span><span class="opt">),</span>
+			Index<span class="opt">&lt;</span>modei<span class="opt">&gt;(</span>i <span class="opt">+</span> <span class="num">0</span><span class="opt">,</span> <span class="num">0</span><span class="opt">));</span>
+
+        <span class="kwa">for</span><span class="opt">(</span><span class="kwb">int</span> j <span class="opt">=</span> <span class="num">1</span><span class="opt">;</span> j <span class="opt">&lt;</span> length<span class="opt">;</span> j<span class="opt">++) {</span>
+			__m128d idx <span class="opt">=</span> last <span class="opt">+</span> ti <span class="opt">+</span> <span class="kwd">_mm_set1_pd</span><span class="opt">(</span>j<span class="opt">);</span>
+			last <span class="opt">=</span> idx<span class="opt">;</span>
+            sum <span class="opt">=</span> sum <span class="opt">+</span> <span class="kwd">_mm_set1_pd</span><span class="opt">(</span>src<span class="opt">[</span>j<span class="opt">]) /</span> idx<span class="opt">;</span>
+        <span class="opt">}</span>
+
+        <span class="kwd">_mm_storeu_pd</span><span class="opt">(</span>dst <span class="opt">+</span> i <span class="opt">+</span> <span class="num">0</span><span class="opt">,</span> sum<span class="opt">);</span>
+    <span class="opt">}</span>
+    <span class="kwa">for</span><span class="opt">(;</span> i <span class="opt">&lt;</span> end<span class="opt">;</span> i<span class="opt">++) {</span>
+        <span class="kwb">double</span> sum <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+        <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> j <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> j <span class="opt">&lt;</span> length<span class="opt">;</span> j<span class="opt">++)</span>
+            sum <span class="opt">+=</span> src<span class="opt">[</span>j<span class="opt">] /</span> <span class="kwb">double</span><span class="opt">(</span>Index<span class="opt">&lt;</span>modei<span class="opt">&gt;(</span>i<span class="opt">,</span> j<span class="opt">));</span>
+        dst<span class="opt">[</span>i<span class="opt">] =</span> sum<span class="opt">;</span>
+    <span class="opt">}</span>
+
+<span class="opt">}</span>
+
+<span class="kwb">void</span> <span class="kwd">EvalATimesU</span><span class="opt">(</span><span class="kwb">double</span> <span class="opt">*</span>src<span class="opt">,</span> <span class="kwb">double</span> <span class="opt">*</span>dst<span class="opt">,</span> <span class="kwb">int</span> begin<span class="opt">,</span> <span class="kwb">int</span> end<span class="opt">,</span> <span class="kwb">int</span> N<span class="opt">) {</span>
+    EvalPart<span class="opt">&lt;</span><span class="num">1</span><span class="opt">&gt;(</span>src<span class="opt">,</span> dst<span class="opt">,</span> begin<span class="opt">,</span> end<span class="opt">,</span> N<span class="opt">);</span>
+<span class="opt">}</span>
+
+<span class="kwb">void</span> <span class="kwd">EvalAtTimesU</span><span class="opt">(</span><span class="kwb">double</span> <span class="opt">*</span>src<span class="opt">,</span> <span class="kwb">double</span> <span class="opt">*</span>dst<span class="opt">,</span> <span class="kwb">int</span> begin<span class="opt">,</span> <span class="kwb">int</span> end<span class="opt">,</span> <span class="kwb">int</span> N<span class="opt">) {</span>
+    EvalPart<span class="opt">&lt;</span><span class="num">0</span><span class="opt">&gt;(</span>src<span class="opt">,</span> dst<span class="opt">,</span> begin<span class="opt">,</span> end<span class="opt">,</span> N<span class="opt">);</span>
+<span class="opt">}</span>
+
+<span class="kwb">void</span> <span class="kwd">EvalAtATimesU</span><span class="opt">(</span><span class="kwb">double</span> <span class="opt">*</span>src<span class="opt">,</span> <span class="kwb">double</span> <span class="opt">*</span>dst<span class="opt">,</span> <span class="kwb">double</span> <span class="opt">*</span>tmp<span class="opt">,</span>
+                   <span class="kwb">int</span> begin<span class="opt">,</span> <span class="kwb">int</span> end<span class="opt">,</span> <span class="kwb">int</span> N<span class="opt">) {</span>
+    <span class="kwd">EvalATimesU</span> <span class="opt">(</span>src<span class="opt">,</span> tmp<span class="opt">,</span> begin<span class="opt">,</span> end<span class="opt">,</span> N<span class="opt">);</span>
+    <span class="ppc">#pragma omp barrier</span>
+    <span class="kwd">EvalAtTimesU</span><span class="opt">(</span>tmp<span class="opt">,</span> dst<span class="opt">,</span> begin<span class="opt">,</span> end<span class="opt">,</span> N<span class="opt">);</span>
+    <span class="ppc">#pragma omp barrier</span>
+<span class="opt">}</span>
+
+<span class="kwb">int</span> <span class="kwd">GetThreadCount</span><span class="opt">() {</span>
+    cpu_set_t cs<span class="opt">;</span>
+    <span class="kwd">CPU_ZERO</span><span class="opt">(&amp;</span>cs<span class="opt">);</span>
+    <span class="kwd">sched_getaffinity</span><span class="opt">(</span><span class="num">0</span><span class="opt">,</span> <span class="kwa">sizeof</span><span class="opt">(</span>cs<span class="opt">), &amp;</span>cs<span class="opt">);</span>
+
+    <span class="kwb">int</span> count <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+    <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> CPU_SETSIZE<span class="opt">; ++</span>i<span class="opt">)</span>
+        <span class="kwa">if</span> <span class="opt">(</span><span class="kwd">CPU_ISSET</span><span class="opt">(</span>i<span class="opt">, &amp;</span>cs<span class="opt">))</span>
+            <span class="opt">++</span>count<span class="opt">;</span>
+
+    <span class="kwa">return</span> count<span class="opt">;</span>
+<span class="opt">}</span>
+
+<span class="kwb">double</span> <span class="kwd">spectral_game</span><span class="opt">(</span><span class="kwb">int</span> N<span class="opt">) {</span>
+    <span class="kwd">__attribute__</span><span class="opt">((</span><span class="kwd">aligned</span><span class="opt">(</span><span class="num">16</span><span class="opt">)))</span> <span class="kwb">double</span> u<span class="opt">[</span>N<span class="opt">];</span>
+    <span class="kwd">__attribute__</span><span class="opt">((</span><span class="kwd">aligned</span><span class="opt">(</span><span class="num">16</span><span class="opt">)))</span> <span class="kwb">double</span> v<span class="opt">[</span>N<span class="opt">],</span> tmp<span class="opt">[</span>N<span class="opt">];</span>
+
+    <span class="kwb">double</span> vBv <span class="opt">=</span> <span class="num">0.0</span><span class="opt">;</span>
+    <span class="kwb">double</span> vv <span class="opt">=</span> <span class="num">0.0</span><span class="opt">;</span>
+
+    <span class="ppc">#pragma omp parallel default(shared) num_threads(GetThreadCount())</span>
+    <span class="opt">{</span>
+        <span class="slc">// this block will be executed by NUM_THREADS</span>
+        <span class="slc">// variable declared in this block is private for each thread</span>
+        <span class="kwb">int</span> threadid <span class="opt">=</span> <span class="kwd">omp_get_thread_num</span><span class="opt">();</span>
+        <span class="kwb">int</span> threadcount <span class="opt">=</span> <span class="kwd">omp_get_num_threads</span><span class="opt">();</span>
+        <span class="kwb">int</span> chunk <span class="opt">=</span> N <span class="opt">/</span> threadcount<span class="opt">;</span>
+
+        <span class="slc">// calculate each thread&apos;s working range [r1 .. r2) =&gt; static schedule</span>
+        <span class="kwb">int</span> begin <span class="opt">=</span> threadid <span class="opt">*</span> chunk<span class="opt">;</span>
+        <span class="kwb">int</span> end <span class="opt">= (</span>threadid <span class="opt">&lt; (</span>threadcount <span class="opt">-</span><span class="num">1</span><span class="opt">)) ? (</span>begin <span class="opt">+</span> chunk<span class="opt">) :</span> N<span class="opt">;</span>
+
+        <span class="kwa">for</span><span class="opt">(</span><span class="kwb">int</span> i <span class="opt">=</span> begin<span class="opt">;</span> i <span class="opt">&lt;</span> end<span class="opt">;</span> i<span class="opt">++)</span>
+            u<span class="opt">[</span>i<span class="opt">] =</span> <span class="num">1.0</span><span class="opt">;</span>
+        <span class="ppc">#pragma omp barrier</span>
+
+        <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> ite <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> ite <span class="opt">&lt;</span> <span class="num">10</span><span class="opt">; ++</span>ite<span class="opt">) {</span>
+            <span class="kwd">EvalAtATimesU</span><span class="opt">(</span>u<span class="opt">,</span> v<span class="opt">,</span> tmp<span class="opt">,</span> begin<span class="opt">,</span> end<span class="opt">,</span> N<span class="opt">);</span>
+            <span class="kwd">EvalAtATimesU</span><span class="opt">(</span>v<span class="opt">,</span> u<span class="opt">,</span> tmp<span class="opt">,</span> begin<span class="opt">,</span> end<span class="opt">,</span> N<span class="opt">);</span>
+        <span class="opt">}</span>
+    
+        <span class="kwb">double</span> sumvb <span class="opt">=</span> <span class="num">0.0</span><span class="opt">,</span> sumvv <span class="opt">=</span> <span class="num">0.0</span><span class="opt">;</span>
+        <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> i <span class="opt">=</span> begin<span class="opt">;</span> i <span class="opt">&lt;</span> end<span class="opt">;</span> i<span class="opt">++) {</span>
+            sumvv <span class="opt">+=</span> v<span class="opt">[</span>i<span class="opt">] *</span> v<span class="opt">[</span>i<span class="opt">];</span>
+            sumvb <span class="opt">+=</span> u<span class="opt">[</span>i<span class="opt">] *</span> v<span class="opt">[</span>i<span class="opt">];</span>
+        <span class="opt">}</span>
+
+        <span class="ppc">#pragma omp critical</span>
+        <span class="opt">{</span>
+            vBv <span class="opt">+=</span> sumvb<span class="opt">;</span>
+            vv <span class="opt">+=</span> sumvv<span class="opt">;</span>
+        <span class="opt">}</span>
+    <span class="opt">}</span>
+
+    <span class="kwa">return</span> <span class="kwd">sqrt</span><span class="opt">(</span>vBv <span class="opt">/</span> vv<span class="opt">);</span>
+<span class="opt">}</span>
+
+<span class="kwb">int</span> <span class="kwd">main</span><span class="opt">(</span><span class="kwb">int</span> argc<span class="opt">,</span> <span class="kwb">char</span> <span class="opt">*</span>argv<span class="opt">[]) {</span>
+    <span class="kwb">int</span> N <span class="opt">= ((</span>argc <span class="opt">&gt;=</span> <span class="num">2</span><span class="opt">) ?</span> <span class="kwd">atoi</span><span class="opt">(</span>argv<span class="opt">[</span><span class="num">1</span><span class="opt">]) :</span> <span class="num">2000</span><span class="opt">);</span>
+    <span class="kwd">printf</span><span class="opt">(</span><span class="str">&quot;%.9f</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span> <span class="kwd">spectral_game</span><span class="opt">(</span>N<span class="opt">));</span>
+    <span class="kwa">return</span> <span class="num">0</span><span class="opt">;</span>
+<span class="opt">}</span>
+
+    </pre>
+  </section>
+  <section>
+    <div>
       <h2 id="log">notes, command-line, and program output</h2>
     </div>
     <pre>
