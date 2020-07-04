@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,follow,noarchive">
+
+<title>fannkuch-redux Julia&nbsp;#3 program | Computer Language Benchmarks Game </title>
+<style><!--
+a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,header{margin:auto;width:92%}body{font:100% Droid Sans, Ubuntu, Verdana, sans-serif;margin:0;-webkit-text-size-adjust:100%}h3, h1, h2, li a{font-family:Ubuntu Mono,Consolas,Menlo,monospace}div,footer,header{max-width:31em}footer{padding:2.6em 0 0}h3{font-size:1.4em;font-weight:bold;margin:0;padding: .4em}h3, h3 a{color:white;background-color:#dd4814}h3 small{font-size:0.64em}h1,h2{margin:1.5em 0 0}h1{font-size:1.4em;font-weight:normal}h2{font-size:1.2em}li{list-style-type:none;vertical-align:top}li a{display:block;font-size:1.2em;margin: .5em .5em 0;padding: .5em .5em .3em}ul{clear:left;margin:-0.3em 0 1.5em;padding-left:0;text-align:center}p{color:#333;line-height:1.4;margin: .3em 0 0}p a, a span{border-bottom: .1em solid #333;padding-bottom: .1em}.com,.slc{color:#888}.kwa{color:#066}.kwb{color:#900}.kwc{color:#050}.kwa,.kwb,.kwc{font-weight:bold}.dstr,.str,.sym,.num{color:#930}pre{color:#222;font-size:1em;overflow-wrap:break-word;white-space:pre-wrap;word-wrap:break-word}@media only screen and (min-width: 60em){article,footer,header{font-size:1.25em}}
+--></style>
+<link rel="shortcut icon" href="./favicon.ico">
+<header>
+  <h3><a href="https://benchmarksgame-team.pages.debian.net/benchmarksgame/">The&nbsp;<small>Computer&nbsp;Language</small><br>Benchmarks&nbsp;Game</a></h3>
+</header>
+<article>
+  <div>
+    <h1>fannkuch-redux Julia&nbsp;#3 program</h1>
+    <aside>
+      <p><a href="../description/fannkuchredux.html#fannkuchredux">description</a>
+    </aside>
+  </div>
+  <section>
+    <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc"># The Computer Language Benchmarks Game</span>
+<span class="slc"># https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+
+<span class="slc"># based on Oleg Mazurov&apos;s Java Implementation and Jeremy Zerfas&apos; C implementation</span>
+<span class="slc"># transliterated and modified by Hamza Yusuf Çakır.</span>
+<span class="slc"># Updated for speed/succinctness by Adam Beckmeyer.</span>
+
+<span class="kwa">import</span> Base<span class="opt">:</span> <span class="kwc">&#64;propagate_inbounds</span>
+<span class="kwa">import</span> <span class="opt">.</span>Threads<span class="opt">:</span> nthreads<span class="opt">,</span> threadid<span class="opt">,</span> <span class="kwc">&#64;threads</span>
+
+<span class="kwa">const</span> NUM_BLOCKS <span class="opt">=</span> <span class="num">20</span>
+
+<span class="kwa">struct</span> Perm
+    <span class="slc"># p holds the current permutation</span>
+    p<span class="opt">::</span>Vector<span class="opt">{</span><span class="kwb">Int8</span><span class="opt">}</span>
+    <span class="slc"># p is copied to pp as a workspace for the actual flipping</span>
+    pp<span class="opt">::</span>Vector<span class="opt">{</span><span class="kwb">Int8</span><span class="opt">}</span>
+    <span class="slc"># count is a tracker for determining the next permutation of p</span>
+    count<span class="opt">::</span>Vector<span class="opt">{</span><span class="kwb">Int32</span><span class="opt">}</span>
+<span class="kwa">end</span>
+
+<span class="slc"># Perm is already ordered when passed to first_permutation!</span>
+<span class="kwd">Perm</span><span class="opt">(</span>n<span class="opt">) =</span> <span class="kwd">Perm</span><span class="opt">(</span><span class="kwd">collect</span><span class="opt">(</span><span class="kwb">Int8</span><span class="opt">,</span> <span class="num">1</span><span class="opt">:</span>n<span class="opt">),</span> <span class="kwd">collect</span><span class="opt">(</span><span class="kwb">Int8</span><span class="opt">,</span> <span class="num">1</span><span class="opt">:</span>n<span class="opt">),</span> <span class="kwd">zeros</span><span class="opt">(</span><span class="kwb">Int32</span><span class="opt">,</span> n<span class="opt">))</span>
+
+<span class="kwc">&#64;propagate_inbounds</span> <span class="kwa">function</span> <span class="kwd">first_permutation</span><span class="opt">!(</span>perm<span class="opt">,</span> idx<span class="opt">)</span>
+    p <span class="opt">=</span> perm<span class="opt">.</span>p<span class="opt">;</span> pp <span class="opt">=</span> perm<span class="opt">.</span>pp
+
+    <span class="kwa">for</span> i<span class="opt">=</span><span class="kwd">length</span><span class="opt">(</span>p<span class="opt">):-</span><span class="num">1</span><span class="opt">:</span><span class="num">2</span>
+        ifact <span class="opt">=</span> <span class="kwd">factorial</span><span class="opt">(</span>i <span class="opt">-</span> <span class="num">1</span><span class="opt">)</span>
+        d <span class="opt">=</span> idx ÷ ifact
+        perm<span class="opt">.</span>count<span class="opt">[</span>i<span class="opt">] =</span> d
+        idx <span class="opt">=</span> idx <span class="opt">%</span> ifact
+
+        <span class="slc"># Rotate the first i elements of p by d elements to the left</span>
+        <span class="slc"># using pp as a temporary buffer</span>
+        <span class="kwd">unsafe_copyto</span><span class="opt">!(</span>pp<span class="opt">,</span> <span class="num">1</span><span class="opt">,</span> p<span class="opt">,</span> <span class="num">1</span><span class="opt">,</span> i<span class="opt">)</span>
+        <span class="kwd">unsafe_copyto</span><span class="opt">!(</span>p<span class="opt">,</span> <span class="num">1</span><span class="opt">,</span> pp<span class="opt">,</span> d <span class="opt">+</span> <span class="num">1</span><span class="opt">,</span> i <span class="opt">-</span> d<span class="opt">)</span>
+        <span class="kwd">unsafe_copyto</span><span class="opt">!(</span>p<span class="opt">,</span> i <span class="opt">-</span> d <span class="opt">+</span> <span class="num">1</span><span class="opt">,</span> pp<span class="opt">,</span> <span class="num">1</span><span class="opt">,</span> d<span class="opt">)</span>
+    <span class="kwa">end</span>
+<span class="kwa">end</span>
+
+<span class="kwc">&#64;propagate_inbounds</span> <span class="kwa">function</span> <span class="kwd">next_permutation</span><span class="opt">!(</span>perm<span class="opt">)</span>
+    p <span class="opt">=</span> perm<span class="opt">.</span>p<span class="opt">;</span> count <span class="opt">=</span> perm<span class="opt">.</span>count
+
+    p<span class="opt">[</span><span class="num">1</span><span class="opt">],</span> p<span class="opt">[</span><span class="num">2</span><span class="opt">] =</span> p<span class="opt">[</span><span class="num">2</span><span class="opt">],</span> p<span class="opt">[</span><span class="num">1</span><span class="opt">]</span>
+
+    i <span class="opt">=</span> <span class="num">2</span>
+    <span class="kwa">while</span> count<span class="opt">[</span>i<span class="opt">] &gt;=</span> i <span class="opt">-</span> <span class="num">1</span>
+        count<span class="opt">[</span>i<span class="opt">] =</span> <span class="num">0</span>
+
+        tmp <span class="opt">=</span> p<span class="opt">[</span><span class="num">1</span><span class="opt">]</span>
+        <span class="kwa">for</span> j<span class="opt">=</span><span class="num">1</span><span class="opt">:</span>i
+            p<span class="opt">[</span>j<span class="opt">] =</span> p<span class="opt">[</span>j<span class="opt">+</span><span class="num">1</span><span class="opt">]</span>
+        <span class="kwa">end</span>
+        i <span class="opt">+=</span> <span class="num">1</span>
+        p<span class="opt">[</span>i<span class="opt">] =</span> tmp
+    <span class="kwa">end</span>
+    count<span class="opt">[</span>i<span class="opt">] +=</span> <span class="num">1</span>
+<span class="kwa">end</span>
+
+<span class="kwc">&#64;propagate_inbounds</span> <span class="kwa">function</span> <span class="kwd">count_flips</span><span class="opt">(</span>perm<span class="opt">)</span>
+    p <span class="opt">=</span> perm<span class="opt">.</span>p<span class="opt">;</span> pp <span class="opt">=</span> perm<span class="opt">.</span>pp
+    <span class="slc"># count_flips is only called if the first element isn&apos;t already a</span>
+    <span class="slc"># 1, so we know at least one flip is required.</span>
+    flips <span class="opt">=</span> <span class="num">1</span>
+
+    first_value <span class="opt">=</span> p<span class="opt">[</span><span class="num">1</span><span class="opt">]</span>
+    <span class="kwa">if</span> p<span class="opt">[</span>first_value<span class="opt">] !=</span> <span class="num">1</span>
+        <span class="slc"># pp will be working copy. Don&apos;t have to copy first value as</span>
+        <span class="slc"># it&apos;s stored in first_value var</span>
+        <span class="kwd">unsafe_copyto</span><span class="opt">!(</span>pp<span class="opt">,</span> <span class="num">2</span><span class="opt">,</span> p<span class="opt">,</span> <span class="num">2</span><span class="opt">,</span> <span class="kwd">length</span><span class="opt">(</span>p<span class="opt">) -</span> <span class="num">1</span><span class="opt">)</span>
+
+        <span class="slc"># If the next flip would result in 0 being in first position,</span>
+        <span class="slc"># iteration can stop without doing the flip</span>
+        <span class="kwa">while</span> <span class="opt">(</span>new_first_value <span class="opt">=</span> pp<span class="opt">[</span>first_value<span class="opt">]) !=</span> <span class="num">1</span>
+            flips <span class="opt">+=</span> <span class="num">1</span>
+            <span class="slc"># If only 2 or 3 elements flipped, a swap is all that&apos;s needed</span>
+            pp<span class="opt">[</span>first_value<span class="opt">] =</span> first_value
+            <span class="slc"># If first_value is greater than 3, more flips are needed</span>
+            <span class="kwa">if</span> first_value <span class="opt">&gt;</span> <span class="num">3</span>
+                l <span class="opt">=</span> <span class="num">2</span><span class="opt">;</span> r <span class="opt">=</span> first_value <span class="opt">-</span> <span class="num">1</span>
+                <span class="slc"># In total, first_value ÷ 2 swaps must occur, but 1 is</span>
+                <span class="slc"># already finished. Use 12 explicit iterations here</span>
+                <span class="slc"># instead of a while-loop to hint the compiler towards</span>
+                <span class="slc"># unrolling. This means that this program is not</span>
+                <span class="slc"># correct for n &gt; 27.</span>
+                <span class="kwa">for</span> _<span class="opt">=</span><span class="num">1</span><span class="opt">:</span><span class="num">12</span>
+                    pp<span class="opt">[</span>l<span class="opt">],</span> pp<span class="opt">[</span>r<span class="opt">] =</span> pp<span class="opt">[</span>r<span class="opt">],</span> pp<span class="opt">[</span>l<span class="opt">]</span>
+                    l <span class="opt">+=</span> <span class="num">1</span>
+                    r <span class="opt">-=</span> <span class="num">1</span>
+                    l <span class="opt">&lt;</span> r <span class="opt">||</span> <span class="kwa">break</span>
+                <span class="kwa">end</span>
+            <span class="kwa">end</span>
+            first_value <span class="opt">=</span> new_first_value
+        <span class="kwa">end</span>
+    <span class="kwa">end</span>
+
+    flips
+<span class="kwa">end</span>
+
+<span class="kwc">&#64;propagate_inbounds</span> <span class="kwa">function</span> <span class="kwd">run_task</span><span class="opt">!(</span>n<span class="opt">,</span> idxmin<span class="opt">,</span> idxmax<span class="opt">)</span>
+    perm <span class="opt">=</span> <span class="kwd">Perm</span><span class="opt">(</span>n<span class="opt">)</span>
+    <span class="kwd">first_permutation</span><span class="opt">!(</span>perm<span class="opt">,</span> idxmin<span class="opt">)</span>
+
+    maxflips <span class="opt">=</span> chksum <span class="opt">=</span> <span class="num">0</span>
+
+    <span class="kwa">for</span> i<span class="opt">=</span>idxmin<span class="opt">:</span>idxmax
+        <span class="kwa">if</span> perm<span class="opt">.</span>p<span class="opt">[</span><span class="num">1</span><span class="opt">] !=</span> <span class="num">1</span>
+            flips <span class="opt">=</span> <span class="kwd">count_flips</span><span class="opt">(</span>perm<span class="opt">)</span>
+            maxflips <span class="opt">=</span> <span class="kwd">max</span><span class="opt">(</span>flips<span class="opt">,</span> maxflips<span class="opt">)</span>
+            chksum <span class="opt">+=</span> <span class="kwd">iseven</span><span class="opt">(</span>i<span class="opt">) ?</span> flips <span class="opt">: -</span>flips
+        <span class="kwa">end</span>
+        <span class="kwd">next_permutation</span><span class="opt">!(</span>perm<span class="opt">)</span>
+    <span class="kwa">end</span>
+
+    maxflips<span class="opt">,</span> chksum
+<span class="kwa">end</span>
+
+<span class="kwa">function</span> <span class="kwd">fannkuchredux</span><span class="opt">(</span>n<span class="opt">)</span>
+    factn <span class="opt">=</span> <span class="kwd">factorial</span><span class="opt">(</span>n<span class="opt">)</span>
+    blocksz <span class="opt">=</span> factn ÷ <span class="opt">(</span>factn <span class="opt">&lt;</span> NUM_BLOCKS <span class="opt">?</span> <span class="num">1</span> <span class="opt">:</span> NUM_BLOCKS<span class="opt">)</span>
+
+    maxflips <span class="opt">=</span> <span class="kwd">zeros</span><span class="opt">(</span>Int<span class="opt">,</span> <span class="kwd">nthreads</span><span class="opt">())</span>
+    chksums <span class="opt">=</span> <span class="kwd">zeros</span><span class="opt">(</span>Int<span class="opt">,</span> <span class="kwd">nthreads</span><span class="opt">())</span>
+
+    <span class="kwc">&#64;threads</span> <span class="kwa">for</span> idxmin<span class="opt">=</span><span class="num">0</span><span class="opt">:</span>blocksz<span class="opt">:</span>factn<span class="opt">-</span><span class="num">1</span>
+        idxmax <span class="opt">=</span> idxmin <span class="opt">+</span> blocksz <span class="opt">-</span> <span class="num">1</span>
+        task_maxflips<span class="opt">,</span> chksum <span class="opt">=</span> <span class="kwc">&#64;inbounds</span> <span class="kwd">run_task</span><span class="opt">!(</span>n<span class="opt">,</span> idxmin<span class="opt">,</span> idxmax<span class="opt">)</span>
+
+        id <span class="opt">=</span> <span class="kwd">threadid</span><span class="opt">()</span>
+        maxflips<span class="opt">[</span>id<span class="opt">] =</span> <span class="kwd">max</span><span class="opt">(</span>task_maxflips<span class="opt">,</span> maxflips<span class="opt">[</span>id<span class="opt">])</span>
+        chksums<span class="opt">[</span>id<span class="opt">] +=</span> chksum
+    <span class="kwa">end</span>
+
+    <span class="slc"># reduce results</span>
+    chk <span class="opt">=</span> <span class="kwd">sum</span><span class="opt">(</span>chksums<span class="opt">)</span>
+    res <span class="opt">=</span> <span class="kwd">maximum</span><span class="opt">(</span>maxflips<span class="opt">)</span>
+
+    <span class="kwd">println</span><span class="opt">(</span>chk<span class="opt">,</span> <span class="str">&quot;</span><span class="esc">\n</span><span class="str">Pfannkuchen(&quot;</span><span class="opt">,</span> n<span class="opt">,</span> <span class="str">&quot;) = &quot;</span><span class="opt">,</span> res<span class="opt">)</span>
+<span class="kwa">end</span>
+
+<span class="kwd">isinteractive</span><span class="opt">() ||</span> <span class="kwd">fannkuchredux</span><span class="opt">(</span><span class="kwd">parse</span><span class="opt">(</span>Int<span class="opt">,</span> ARGS<span class="opt">[</span><span class="num">1</span><span class="opt">]))</span>
+    </pre>
+  </section>
+  <section>
+    <div>
+      <h2 id="log">notes, command-line, and program output</h2>
+    </div>
+    <pre>
+NOTES:
+64-bit Ubuntu quad core
+julia version 1.4.0
+
+
+Tue, 05 May 2020 16:35:07 GMT
+
+MAKE:
+printenv JULIA_NUM_THREADS
+4
+printenv JULIA_LLVM_ARGS
+
+
+0.11s to complete and log all make actions
+
+COMMAND LINE:
+/opt/src/julia-1.4.0/bin/julia -O3 --cpu-target=core2  -- fannkuchredux.julia-3.julia 12
+
+PROGRAM OUTPUT:
+3968050
+Pfannkuchen(12) = 65
+    </pre>
+  </section>
+</article>
+<footer>
+  <nav>
+    <ul>
+      <li><a href="https://salsa.debian.org/benchmarksgame-team/benchmarksgame/blob/master/CONTRIBUTING.md#contribute-source-code-for-measurement"><span>Contribute your own program</span></a>
+      <li><a href="../license.html"><span>3-Clause BSD License</span></a>
+    </ul>
+  </nav>
+</footer>
+
