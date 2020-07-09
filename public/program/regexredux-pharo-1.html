@@ -112,22 +112,104 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
     <pre>
 NOTES:
 64-bit Ubuntu quad core
-Pharo8.0.0 build: 1122, commit: bbcdf97
+5.0-202002121043
+Wed Feb 12 11:06:45 UTC 2020 gcc 5.4.0
+[Production Spur 64-bit VM]
 
 
-Wed, 01 Jul 2020 21:06:25 GMT
+Thu, 09 Jul 2020 04:06:53 GMT
 
 MAKE:
-make: *** No rule to make target 'regexredux.pharo_run'.  Stop.
+cp /opt/src/pharo64-linux-stable/Pharo8.0-SNAPSHOT-64bit-5e328f2.image regexredux.pharo_run.image
+cp /opt/src/pharo64-linux-stable/Pharo8.0-SNAPSHOT-64bit-5e328f2.changes regexredux.pharo_run.changes
+ln -s /opt/src/pharo64-linux-stable/Pharo8.0-32bit-5e328f2.sources .
+cat Include/pharo/make.st
 
-0.05s to complete and log all make actions
+| prog |
+
+(SystemWindow windowsIn: World
+      satisfying: [:w | w model canDiscardEdits])
+   do: [:w | w delete].
+
+   &quot;load program to be measured&quot;
+prog := Smalltalk getSystemAttribute: 3.
+(prog notNil) ifTrue: [FileStream fileIn: prog].
+
+ImageCleaner cleanUpForRelease.
+Smalltalk garbageCollect.
+SmalltalkImage current snapshot: true andQuit: true.
+
+
+/opt/src/pharo64-linux-stable/pharo -headless regexredux.pharo_run.image Include/pharo/make.st regexredux.pharo 2&gt;/dev/null
+cat Include/pharo/main.st
+
+BenchmarksGame do: (Smalltalk getSystemAttribute: 3) asInteger.!
+SmalltalkImage current snapshot: false andQuit: true!
+
+
+
+27.68s to complete and log all make actions
 
 COMMAND LINE:
 /opt/src/pharo64-linux-stable/pharo -headless regexredux.pharo_run.image Include/pharo/main.st 0 &lt; regexredux-input50000.txt
 
-MAKE ERROR 
+PROGRAM FAILED 
 
-    </pre>
+
+PROGRAM OUTPUT:
+
+pthread_setschedparam failed: Operation not permitted
+This VM uses a separate heartbeat thread to update its internal clock
+and handle events.  For best operation, this thread should run at a
+higher priority, however the VM was unable to change the priority.  The
+effect is that heavily loaded systems may experience some latency
+issues.  If this occurs, please create the appropriate configuration
+file in /etc/security/limits.d/ as shown below:
+
+cat &lt;&lt;END | sudo tee /etc/security/limits.d/pharo.conf
+*      hard    rtprio  2
+*      soft    rtprio  2
+END
+
+and report to the pharo mailing list whether this improves behaviour.
+
+You will need to log out and log back in for the limits to take effect.
+For more information please see
+https://github.com/OpenSmalltalk/opensmalltalk-vm/releases/tag/r3732#linux
+[31mRegexSyntaxError: bad backslash escape
+[0mRxParser class&gt;&gt;signalSyntaxException:
+[ RxParser signalSyntaxException: 'bad backslash escape' ] in RxsPredicate class&gt;&gt;forEscapedLetter: in Block: [ RxParser signalSyntaxException: 'bad backslash e...etc...
+Dictionary&gt;&gt;at:ifAbsent:
+RxsPredicate class&gt;&gt;forEscapedLetter:
+RxCharSetParser&gt;&gt;parseEscapeChar
+RxCharSetParser&gt;&gt;parseStep
+RxCharSetParser&gt;&gt;parse
+RxParser&gt;&gt;characterSetFrom:
+RxParser&gt;&gt;characterSet
+RxParser&gt;&gt;atom
+RxParser&gt;&gt;piece
+RxParser&gt;&gt;branch
+RxParser&gt;&gt;branch
+RxParser&gt;&gt;regex
+RxParser&gt;&gt;parseStream:
+RxParser&gt;&gt;parse:
+ByteString(String)&gt;&gt;asRegex
+ByteString(String)&gt;&gt;copyWithRegex:matchesReplacedWith:
+BenchmarksGame class&gt;&gt;regexDNA:to:
+BenchmarksGame class&gt;&gt;do:
+UndefinedObject&gt;&gt;DoIt
+OpalCompiler&gt;&gt;evaluate
+DoItChunk&gt;&gt;importFor:logSource:
+[ :declaration | 
+requestor ifNotNil: [ requestor contents: declaration contents ].
+value := declaration importFor: requestor logSource: logSource ] in CodeImporter&gt;&gt;evaluate in Block: [ :declaration | ...
+OrderedCollection&gt;&gt;do:
+CodeImporter&gt;&gt;evaluate
+[ codeImporter evaluate ] in STCommandLineHandler&gt;&gt;installSourceFile: in Block: [ codeImporter evaluate ]
+BlockClosure&gt;&gt;on:do:
+STCommandLineHandler&gt;&gt;handleErrorsDuring:reference:
+STCommandLineHandler&gt;&gt;installSourceFile:
+[0m    </pre>
   </section>
 </article>
 <footer>
