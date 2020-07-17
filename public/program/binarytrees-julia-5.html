@@ -2,7 +2,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,follow,noarchive">
 
-<title>binary-trees Julia&nbsp;#4 program | Computer Language Benchmarks Game </title>
+<title>binary-trees Julia&nbsp;#5 program | Computer Language Benchmarks Game </title>
 <style><!--
 a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,header{margin:auto;width:92%}body{font:100% Droid Sans, Ubuntu, Verdana, sans-serif;margin:0;-webkit-text-size-adjust:100%}h3, h1, h2, li a{font-family:Ubuntu Mono,Consolas,Menlo,monospace}div,footer,header{max-width:31em}footer{padding:2.6em 0 0}h3{font-size:1.4em;font-weight:bold;margin:0;padding: .4em}h3, h3 a{color:white;background-color:#77216f}h3 small{font-size:0.64em}h1,h2{margin:1.5em 0 0}h1{font-size:1.4em;font-weight:normal}h2{font-size:1.2em}li{list-style-type:none;vertical-align:top}li a{display:block;font-size:1.2em;margin: .5em .5em 0;padding: .5em .5em .3em}ul{clear:left;margin:-0.3em 0 1.5em;padding-left:0;text-align:center}p{color:#333;line-height:1.4;margin: .3em 0 0}p a, a span{border-bottom: .1em solid #333;padding-bottom: .1em}.com,.slc{color:#888}.kwa{color:#066}.kwb{color:#900}.kwc{color:#050}.kwa,.kwb,.kwc{font-weight:bold}.dstr,.str,.sym,.num{color:#930}pre{color:#222;font-size:1em;overflow-wrap:break-word;white-space:pre-wrap;word-wrap:break-word}@media only screen and (min-width: 60em){article,footer,header{font-size:1.25em}}
 --></style>
@@ -12,7 +12,7 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 </header>
 <article>
   <div>
-    <h1>binary-trees Julia&nbsp;#4 program</h1>
+    <h1>binary-trees Julia&nbsp;#5 program</h1>
     <aside>
       <p><a href="../description/binarytrees.html#binarytrees">description</a>
     </aside>
@@ -30,16 +30,20 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 
 <span class="kwa">using</span> Distributed
 
+Distributed<span class="opt">.</span><span class="kwd">addprocs</span><span class="opt">()</span>
+
 <span class="kwc">&#64;everywhere</span> <span class="kwa">struct</span> Node
-    l<span class="opt">::</span>Union<span class="opt">{</span>Node<span class="opt">,</span>Nothing<span class="opt">}</span>
-    r<span class="opt">::</span>Union<span class="opt">{</span>Node<span class="opt">,</span>Nothing<span class="opt">}</span>
+    leaf<span class="opt">::</span>Bool
+    l<span class="opt">::</span>Node
+    r<span class="opt">::</span>Node
+    <span class="kwd">Node</span><span class="opt">(</span>l<span class="opt">,</span> r<span class="opt">) =</span> <span class="kwa">new</span><span class="opt">(</span><span class="kwa">false</span><span class="opt">,</span> l<span class="opt">,</span> r<span class="opt">)</span>
+    <span class="kwd">Node</span><span class="opt">() =</span> <span class="kwa">new</span><span class="opt">(</span><span class="kwa">true</span><span class="opt">)</span>
 <span class="kwa">end</span>
 
-<span class="kwc">&#64;everywhere</span> <span class="kwd">make</span><span class="opt">(</span>n<span class="opt">) =</span>
-    n <span class="opt">===</span> <span class="num">0</span> <span class="opt">?</span> <span class="kwd">Node</span><span class="opt">(</span>nothing<span class="opt">,</span> nothing<span class="opt">) :</span> <span class="kwd">Node</span><span class="opt">(</span><span class="kwd">make</span><span class="opt">(</span>n<span class="opt">-</span><span class="num">1</span><span class="opt">),</span> <span class="kwd">make</span><span class="opt">(</span>n<span class="opt">-</span><span class="num">1</span><span class="opt">))</span>
+<span class="kwc">&#64;everywhere</span> <span class="kwd">make</span><span class="opt">(</span>n<span class="opt">) =</span> n <span class="opt">===</span> <span class="num">0</span> <span class="opt">?</span> <span class="kwd">Node</span><span class="opt">() :</span> <span class="kwd">Node</span><span class="opt">(</span><span class="kwd">make</span><span class="opt">(</span>n<span class="opt">-</span><span class="num">1</span><span class="opt">),</span> <span class="kwd">make</span><span class="opt">(</span>n<span class="opt">-</span><span class="num">1</span><span class="opt">))</span>
 
 <span class="kwc">&#64;everywhere</span> <span class="kwd">check</span><span class="opt">(</span>node<span class="opt">) =</span>
-    node<span class="opt">.</span>l <span class="opt">===</span> nothing <span class="opt">?</span> <span class="num">1</span> <span class="opt">:</span> <span class="num">1</span> <span class="opt">+</span> <span class="kwd">check</span><span class="opt">(</span>node<span class="opt">.</span>l<span class="opt">) +</span> <span class="kwd">check</span><span class="opt">(</span>node<span class="opt">.</span>r<span class="opt">)</span>
+    node<span class="opt">.</span>leaf <span class="opt">?</span> <span class="num">1</span> <span class="opt">:</span> <span class="num">1</span> <span class="opt">+</span> <span class="kwd">check</span><span class="opt">(</span>node<span class="opt">.</span>l<span class="opt">) +</span> <span class="kwd">check</span><span class="opt">(</span>node<span class="opt">.</span>r<span class="opt">)</span>
 
 <span class="kwa">function</span> <span class="kwd">binary_trees</span><span class="opt">(</span>io<span class="opt">,</span> n<span class="opt">)</span>
     <span class="kwd">write</span><span class="opt">(</span>io<span class="opt">,</span> <span class="str">&quot;stretch tree of depth</span> <span class="ipl">$(n+1)</span><span class="str"></span><span class="esc">\t</span> <span class="str">check:</span> <span class="ipl">$(check(make(n+1)</span><span class="str">))</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">)</span>
@@ -51,13 +55,13 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
         niter <span class="opt">=</span> <span class="num">1</span> <span class="opt">&lt;&lt; (</span>n <span class="opt">-</span> d <span class="opt">+</span> <span class="num">4</span><span class="opt">)</span>
         c <span class="opt">=</span> <span class="kwc">&#64;distributed</span> <span class="opt">(+)</span> <span class="kwa">for</span> _ <span class="kwa">in</span> <span class="num">1</span><span class="opt">:</span>niter
             <span class="kwd">check</span><span class="opt">(</span><span class="kwd">make</span><span class="opt">(</span>d<span class="opt">))</span>
-        <span class="kwa">end</span><span class="slc">#for</span>
+        <span class="kwa">end</span>
         <span class="kwd">write</span><span class="opt">(</span>io<span class="opt">,</span> <span class="str">&quot;</span><span class="ipl">$niter</span><span class="str"></span><span class="esc">\t</span> <span class="str">trees of depth</span> <span class="ipl">$d</span><span class="str"></span><span class="esc">\t</span> <span class="str">check:</span> <span class="ipl">$c</span><span class="str"></span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">)</span>
         d <span class="opt">+=</span> <span class="num">2</span>
     <span class="kwa">end</span>
 
     <span class="kwd">write</span><span class="opt">(</span>io<span class="opt">,</span> <span class="str">&quot;long lived tree of depth</span> <span class="ipl">$n</span><span class="str"></span><span class="esc">\t</span> <span class="str">check:</span> <span class="ipl">$(check(long_tree)</span><span class="str">)</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">)</span>
-<span class="kwa">end</span><span class="slc">#function</span>
+<span class="kwa">end</span>
 
 <span class="kwd">isinteractive</span><span class="opt">() ||</span> <span class="kwd">binary_trees</span><span class="opt">(</span>stdout<span class="opt">,</span> <span class="kwd">parse</span><span class="opt">(</span>Int<span class="opt">,</span> ARGS<span class="opt">[</span><span class="num">1</span><span class="opt">]))</span>
     </pre>
@@ -72,7 +76,7 @@ NOTES:
 julia version 1.4.2
 
 
-Fri, 17 Jul 2020 22:23:18 GMT
+Fri, 17 Jul 2020 22:59:43 GMT
 
 MAKE:
 printenv JULIA_NUM_THREADS
@@ -80,10 +84,10 @@ printenv JULIA_NUM_THREADS
 printenv JULIA_LLVM_ARGS
 
 
-0.07s to complete and log all make actions
+0.05s to complete and log all make actions
 
 COMMAND LINE:
-/opt/src/julia-1.4.2/bin/julia -O3 --cpu-target=ivybridge -p4 -- binarytrees.julia-4.julia 21
+/opt/src/julia-1.4.2/bin/julia -O3 --cpu-target=ivybridge  -- binarytrees.julia-5.julia 21
 
 PROGRAM OUTPUT:
 stretch tree of depth 22	 check: 8388607
