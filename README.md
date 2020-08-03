@@ -1,12 +1,15 @@
 The Benchmarks Game
 ===================
 
-Contribute source-code for measurement
---------------------------------------
+Don't expect new source-code you contribute to be shown !
+---------------------------------------------------------
 
-Please follow these instructions — [CONTRIBUTING.md](/CONTRIBUTING.md).
+Previously new source-code was usually measured and shown on the website within a few days.
 
-Programs age. Language implementations add new features. New programs are needed to show the modern language. So we are usually happy to accept programs that match the provided description.
+As-of July 2020, it has proved very difficult to dual-boot Windows 10 and Ubuntu with ‎UEFI / Secure Boot — at some point Ubuntu does not boot. 
+
+Perhaps I'll re-install Ubuntu once a year just to make new measurements; perhaps not.
+
 
 What else?
 ----------

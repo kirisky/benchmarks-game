@@ -1,5 +1,15 @@
+Don't expect new source-code you contribute to be shown !
+=========================================================
+
+Previously new source-code was usually measured and shown on the website within a few days.
+
+As-of July 2020, it has proved very difficult to dual-boot Windows 10 and Ubuntu with ‎UEFI / Secure Boot — at some point Ubuntu does not boot. 
+
+Perhaps I'll re-install Ubuntu once a year just to make new measurements; perhaps not.
+
+
 Contribute source-code for measurement
-======================================
+--------------------------------------
 
 What to contribute
 ------------------
