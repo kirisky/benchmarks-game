@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,follow,noarchive">
+
+<title>fannkuch-redux OCaml Flambda&nbsp;#3 program | Computer Language Benchmarks Game </title>
+<style><!--
+a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,header{margin:auto;width:92%}body{font:100% Droid Sans, Ubuntu, Verdana, sans-serif;margin:0;-webkit-text-size-adjust:100%}h3, h1, h2, li a{font-family:Ubuntu Mono,Consolas,Menlo,monospace}div,footer,header{max-width:31em}footer{padding:2.6em 0 0}h3{font-size:1.4em;font-weight:bold;margin:0;padding: .4em}h3, h3 a{color:white;background-color:#77216f}h3 small{font-size:0.64em}h1,h2{margin:1.5em 0 0}h1{font-size:1.4em;font-weight:normal}h2{font-size:1.2em}li{list-style-type:none;vertical-align:top}li a{display:block;font-size:1.2em;margin: .5em .5em 0;padding: .5em .5em .3em}ul{clear:left;margin:-0.3em 0 1.5em;padding-left:0;text-align:center}p{color:#333;line-height:1.4;margin: .3em 0 0}p a, a span{border-bottom: .1em solid #333;padding-bottom: .1em}.com,.slc{color:#888}.kwa{color:#066}.kwb{color:#900}.kwc{color:#050}.kwa,.kwb,.kwc{font-weight:bold}.dstr,.str,.sym,.num{color:#930}pre{color:#222;font-size:1em;overflow-wrap:break-word;white-space:pre-wrap;word-wrap:break-word}@media only screen and (min-width: 60em){article,footer,header{font-size:1.25em}}
+--></style>
+<link rel="shortcut icon" href="./favicon.ico">
+<header>
+  <h3><a href="https://benchmarksgame-team.pages.debian.net/benchmarksgame/">The&nbsp;<small>Computer&nbsp;Language</small><br>Benchmarks&nbsp;Game</a></h3>
+</header>
+<article>
+  <div>
+    <h1>fannkuch-redux OCaml Flambda&nbsp;#3 program</h1>
+    <aside>
+      <p><a href="../description/fannkuchredux.html#fannkuchredux">description</a>
+    </aside>
+  </div>
+  <section>
+    <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+(*
+ * The Computer Language Benchmarks Game
+ * https://salsa.debian.org/benchmarksgame-team/benchmarksgame/
+ *
+ * Contributed by Paolo Ribeca, August 2011
+ *
+ * (Based on the Java version by Oleg Mazurov)
+ *)
+
+let workers = 32
+
+module Perm =
+  struct
+    type t = { p: int array;
+               pp: int array;
+               c: int array }
+  let facts =
+    let n = 20 in
+    let res = Array.make (n + 1) 1 in
+    for i = 1 to n do
+      res.(i) &lt;- i * res.(i - 1)
+    done;
+    res
+  (* Setting up the permutation based on the given index *)
+  let setup n idx =
+    let res = { p = Array.init n (fun i -&gt; i);
+                pp = Array.make n 1;
+                c = Array.make n 1 }
+    and idx = ref idx in
+    for i = n - 1 downto 0 do
+      let d = !idx / facts.(i) in
+      res.c.(i) &lt;- d;
+      idx := !idx mod facts.(i);
+      Array.blit res.p 0 res.pp 0 (i + 1);
+      for j = 0 to i do
+        res.p.(j) &lt;- if j + d &lt;= i then res.pp.(j + d) else res.pp.(j + d - i - 1)
+      done
+    done;
+    res
+  (* Getting the next permutation *)
+  let next { p = p; c = c } =
+    let f = ref p.(1) in
+    p.(1) &lt;- p.(0);
+    p.(0) &lt;- !f;
+    let i = ref 1 in
+    while let aug_c = c.(!i) + 1 in c.(!i) &lt;- aug_c; aug_c &gt; !i do
+      c.(!i) &lt;- 0;
+      incr i;
+      let n = p.(1) in
+      p.(0) &lt;- n;
+      let red_i = !i - 1 in
+      for j = 1 to red_i do
+        p.(j) &lt;- p.(j + 1)
+      done;
+      p.(!i) &lt;- !f;
+      f := n
+    done
+  (* Counting the number of flips *)
+  let count { p = p; pp = pp } =
+    let f = ref p.(0) and res = ref 1 in
+    if p.(!f) &lt;&gt; 0 then begin
+      let len = Array.length p in
+      let red_len = len - 1 in
+      for i = 0 to red_len do pp.(i) &lt;- p.(i) done;
+      while pp.(!f) &lt;&gt; 0 do
+        incr res;
+        let lo = ref 1 and hi = ref (!f - 1) in
+        while !lo &lt; !hi do
+          let t = pp.(!lo) in
+          pp.(!lo) &lt;- pp.(!hi);
+          pp.(!hi) &lt;- t;
+          incr lo;
+          decr hi
+        done;
+        let ff = !f in
+        let t = pp.(ff) in
+        pp.(ff) &lt;- ff;
+        f := t
+      done
+    end;
+    !res
+  end
+
+let _ =
+  match Sys.argv with
+  | [| p; s_n |] -&gt;
+    let n = int_of_string s_n in
+    let chunk_size = Perm.facts.(n) / workers
+    and rem = Perm.facts.(n) mod workers in
+    let w =
+      Array.init workers
+        (fun i -&gt;
+          let lo = i * chunk_size + min i rem in
+          let hi = lo + chunk_size + if i &lt; rem then 1 else 0 in
+          Unix.open_process_in (p ^ &quot; &quot; ^ s_n ^ &quot; &quot; ^ string_of_int lo ^ &quot; &quot; ^ string_of_int hi)) in
+    let c = ref 0 and m = ref 0 in
+    Array.iter
+      (fun input -&gt;
+        c := !c + input_binary_int input;
+        m := max !m (input_binary_int input))
+      w;
+    Printf.printf &quot;%d\nPfannkuchen(%d) = %d\n&quot; !c n !m
+  | [| _; n; lo; hi |] -&gt;
+    let n = int_of_string n
+    and lo = int_of_string lo and hi = int_of_string hi in
+    let p = Perm.setup n lo
+    and c = ref 0 and m = ref 0
+    and red_hi = hi - 1 in
+    for i = lo to red_hi do
+      let r = Perm.count p in
+      c := !c + r * (1 - (i land 1) lsl 1);
+      if r &gt; !m then
+      m := r;
+      Perm.next p
+    done;
+    output_binary_int stdout !c;
+    output_binary_int stdout !m
+  | _ -&gt; Printf.printf &quot;Wrong syntax\n%!&quot;
+
+    </pre>
+  </section>
+  <section>
+    <div>
+      <h2 id="log">notes, command-line, and program output</h2>
+    </div>
+    <pre>
+NOTES:
+64-bit Ubuntu quad core
+The OCaml native-code compiler, version 4.10.0
+
+
+Mon, 03 Aug 2020 22:02:28 GMT
+
+MAKE:
+mv fannkuchredux.ocamlflambda-3.ocamlflambda fannkuchredux.ocamlflambda-3.ml
+~/.opam/4.10.0+flambda/bin/ocamlopt -noassert -unsafe -fPIC -nodynlink -inline 100 -O3 unix.cmxa -ccopt -march=ivybridge fannkuchredux.ocamlflambda-3.ml -o fannkuchredux.ocamlflambda-3.ocamlflambda_run
+rm fannkuchredux.ocamlflambda-3.ml
+
+1.32s to complete and log all make actions
+
+COMMAND LINE:
+./fannkuchredux.ocamlflambda-3.ocamlflambda_run 12
+
+PROGRAM OUTPUT:
+3968050
+Pfannkuchen(12) = 65
+    </pre>
+  </section>
+</article>
+<footer>
+  <nav>
+    <ul>
+      <li><a href="https://salsa.debian.org/benchmarksgame-team/benchmarksgame/blob/master/CONTRIBUTING.md#contribute-source-code-for-measurement"><span>Contribute your own program</span></a>
+      <li><a href="../license.html"><span>3-Clause BSD License</span></a>
+    </ul>
+  </nav>
+</footer>
+

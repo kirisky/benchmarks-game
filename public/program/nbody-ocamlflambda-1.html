@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,follow,noarchive">
+
+<title>n-body OCaml Flambda program | Computer Language Benchmarks Game </title>
+<style><!--
+a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,header{margin:auto;width:92%}body{font:100% Droid Sans, Ubuntu, Verdana, sans-serif;margin:0;-webkit-text-size-adjust:100%}h3, h1, h2, li a{font-family:Ubuntu Mono,Consolas,Menlo,monospace}div,footer,header{max-width:31em}footer{padding:2.6em 0 0}h3{font-size:1.4em;font-weight:bold;margin:0;padding: .4em}h3, h3 a{color:white;background-color:#77216f}h3 small{font-size:0.64em}h1,h2{margin:1.5em 0 0}h1{font-size:1.4em;font-weight:normal}h2{font-size:1.2em}li{list-style-type:none;vertical-align:top}li a{display:block;font-size:1.2em;margin: .5em .5em 0;padding: .5em .5em .3em}ul{clear:left;margin:-0.3em 0 1.5em;padding-left:0;text-align:center}p{color:#333;line-height:1.4;margin: .3em 0 0}p a, a span{border-bottom: .1em solid #333;padding-bottom: .1em}.com,.slc{color:#888}.kwa{color:#066}.kwb{color:#900}.kwc{color:#050}.kwa,.kwb,.kwc{font-weight:bold}.dstr,.str,.sym,.num{color:#930}pre{color:#222;font-size:1em;overflow-wrap:break-word;white-space:pre-wrap;word-wrap:break-word}@media only screen and (min-width: 60em){article,footer,header{font-size:1.25em}}
+--></style>
+<link rel="shortcut icon" href="./favicon.ico">
+<header>
+  <h3><a href="https://benchmarksgame-team.pages.debian.net/benchmarksgame/">The&nbsp;<small>Computer&nbsp;Language</small><br>Benchmarks&nbsp;Game</a></h3>
+</header>
+<article>
+  <div>
+    <h1>n-body OCaml Flambda program</h1>
+    <aside>
+      <p><a href="../description/nbody.html#nbody">description</a>
+    </aside>
+  </div>
+  <section>
+    <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+(* The Computer Language Benchmarks Game
+ * https://salsa.debian.org/benchmarksgame-team/benchmarksgame/
+ *
+ * Contributed by Troestler Christophe
+ *)
+
+
+let pi = 3.141592653589793
+let solar_mass = 4. *. pi *. pi
+let days_per_year = 365.24
+
+type planet = { mutable x : float;  mutable y : float;  mutable z : float;
+                mutable vx: float;  mutable vy: float;  mutable vz: float;
+                mass : float }
+
+let advance bodies dt =
+  let n = Array.length bodies - 1 in
+  for i = 0 to Array.length bodies - 1 do
+    let b = bodies.(i) in
+    for j = i+1 to Array.length bodies - 1 do
+      let b&apos; = bodies.(j) in
+      let dx = b.x -. b&apos;.x  and dy = b.y -. b&apos;.y  and dz = b.z -. b&apos;.z in
+      let dist2 = dx *. dx +. dy *. dy +. dz *. dz in
+      let mag = dt /. (dist2 *. sqrt(dist2)) in
+
+      b.vx &lt;- b.vx -. dx *. b&apos;.mass *. mag;
+      b.vy &lt;- b.vy -. dy *. b&apos;.mass *. mag;
+      b.vz &lt;- b.vz -. dz *. b&apos;.mass *. mag;
+
+      b&apos;.vx &lt;- b&apos;.vx +. dx *. b.mass *. mag;
+      b&apos;.vy &lt;- b&apos;.vy +. dy *. b.mass *. mag;
+      b&apos;.vz &lt;- b&apos;.vz +. dz *. b.mass *. mag;
+    done
+  done;
+  for i = 0 to n do
+    let b = bodies.(i) in
+    b.x &lt;- b.x +. dt *. b.vx;
+    b.y &lt;- b.y +. dt *. b.vy;
+    b.z &lt;- b.z +. dt *. b.vz;
+  done
+
+
+let energy bodies =
+  let e = ref 0. in
+  for i = 0 to Array.length bodies - 1 do
+    let b = bodies.(i) in
+    e := !e +. 0.5 *. b.mass *. (b.vx *. b.vx +. b.vy *. b.vy +. b.vz *. b.vz);
+    for j = i+1 to Array.length bodies - 1 do
+      let b&apos; = bodies.(j) in
+      let dx = b.x -. b&apos;.x  and dy = b.y -. b&apos;.y  and dz = b.z -. b&apos;.z in
+      let distance = sqrt(dx *. dx +. dy *. dy +. dz *. dz) in
+      e := !e -. (b.mass *. b&apos;.mass) /. distance
+    done
+  done;
+  !e
+
+
+let offset_momentum bodies =
+  let px = ref 0. and py = ref 0. and pz = ref 0. in
+  for i = 0 to Array.length bodies - 1 do
+    px := !px +. bodies.(i).vx *. bodies.(i).mass;
+    py := !py +. bodies.(i).vy *. bodies.(i).mass;
+    pz := !pz +. bodies.(i).vz *. bodies.(i).mass;
+  done;
+  bodies.(0).vx &lt;- -. !px /. solar_mass;
+  bodies.(0).vy &lt;- -. !py /. solar_mass;
+  bodies.(0).vz &lt;- -. !pz /. solar_mass
+
+
+let jupiter = { x = 4.84143144246472090e+00;
+                y = -1.16032004402742839e+00;
+                z = -1.03622044471123109e-01;
+                vx = 1.66007664274403694e-03 *. days_per_year;
+                vy = 7.69901118419740425e-03 *. days_per_year;
+                vz = -6.90460016972063023e-05 *. days_per_year;
+                mass = 9.54791938424326609e-04 *. solar_mass;    }
+
+let saturn = { x = 8.34336671824457987e+00;
+               y = 4.12479856412430479e+00;
+               z = -4.03523417114321381e-01;
+               vx = -2.76742510726862411e-03 *. days_per_year;
+               vy = 4.99852801234917238e-03 *. days_per_year;
+               vz = 2.30417297573763929e-05 *. days_per_year;
+               mass = 2.85885980666130812e-04 *. solar_mass;     }
+
+let uranus = { x = 1.28943695621391310e+01;
+               y = -1.51111514016986312e+01;
+               z = -2.23307578892655734e-01;
+               vx = 2.96460137564761618e-03 *. days_per_year;
+               vy = 2.37847173959480950e-03 *. days_per_year;
+               vz = -2.96589568540237556e-05 *. days_per_year;
+               mass = 4.36624404335156298e-05 *. solar_mass;     }
+
+let neptune = { x = 1.53796971148509165e+01;
+                y = -2.59193146099879641e+01;
+                z = 1.79258772950371181e-01;
+                vx = 2.68067772490389322e-03 *. days_per_year;
+                vy = 1.62824170038242295e-03 *. days_per_year;
+                vz = -9.51592254519715870e-05 *. days_per_year;
+                mass = 5.15138902046611451e-05 *. solar_mass;   }
+
+let sun = { x = 0.;  y = 0.;  z = 0.;  vx = 0.;  vy = 0.; vz = 0.;
+            mass = solar_mass; }
+
+let bodies = [| sun; jupiter; saturn; uranus; neptune |]
+
+let () =
+  let n = int_of_string(Sys.argv.(1)) in
+  offset_momentum bodies;
+  Printf.printf &quot;%.9f\n&quot; (energy bodies);
+  for i = 1 to n do advance bodies 0.01 done;
+  Printf.printf &quot;%.9f\n&quot; (energy bodies)
+    </pre>
+  </section>
+  <section>
+    <div>
+      <h2 id="log">notes, command-line, and program output</h2>
+    </div>
+    <pre>
+NOTES:
+64-bit Ubuntu quad core
+The OCaml native-code compiler, version 4.10.0
+
+
+Mon, 03 Aug 2020 22:25:02 GMT
+
+MAKE:
+mv nbody.ocamlflambda nbody.ml
+~/.opam/4.10.0+flambda/bin/ocamlopt -noassert -unsafe -fPIC -nodynlink -inline 100 -O3  -ccopt -march=ivybridge nbody.ml -o nbody.ocamlflambda_run
+rm nbody.ml
+
+1.20s to complete and log all make actions
+
+COMMAND LINE:
+./nbody.ocamlflambda_run 50000000
+
+PROGRAM OUTPUT:
+-0.169075164
+-0.169059907
+    </pre>
+  </section>
+</article>
+<footer>
+  <nav>
+    <ul>
+      <li><a href="https://salsa.debian.org/benchmarksgame-team/benchmarksgame/blob/master/CONTRIBUTING.md#contribute-source-code-for-measurement"><span>Contribute your own program</span></a>
+      <li><a href="../license.html"><span>3-Clause BSD License</span></a>
+    </ul>
+  </nav>
+</footer>
+

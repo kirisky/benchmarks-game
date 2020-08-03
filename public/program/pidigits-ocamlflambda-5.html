@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,follow,noarchive">
+
+<title>pidigits OCaml Flambda&nbsp;#5 program | Computer Language Benchmarks Game </title>
+<style><!--
+a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,header{margin:auto;width:92%}body{font:100% Droid Sans, Ubuntu, Verdana, sans-serif;margin:0;-webkit-text-size-adjust:100%}h3, h1, h2, li a{font-family:Ubuntu Mono,Consolas,Menlo,monospace}div,footer,header{max-width:31em}footer{padding:2.6em 0 0}h3{font-size:1.4em;font-weight:bold;margin:0;padding: .4em}h3, h3 a{color:white;background-color:#77216f}h3 small{font-size:0.64em}h1,h2{margin:1.5em 0 0}h1{font-size:1.4em;font-weight:normal}h2{font-size:1.2em}li{list-style-type:none;vertical-align:top}li a{display:block;font-size:1.2em;margin: .5em .5em 0;padding: .5em .5em .3em}ul{clear:left;margin:-0.3em 0 1.5em;padding-left:0;text-align:center}p{color:#333;line-height:1.4;margin: .3em 0 0}p a, a span{border-bottom: .1em solid #333;padding-bottom: .1em}.com,.slc{color:#888}.kwa{color:#066}.kwb{color:#900}.kwc{color:#050}.kwa,.kwb,.kwc{font-weight:bold}.dstr,.str,.sym,.num{color:#930}pre{color:#222;font-size:1em;overflow-wrap:break-word;white-space:pre-wrap;word-wrap:break-word}@media only screen and (min-width: 60em){article,footer,header{font-size:1.25em}}
+--></style>
+<link rel="shortcut icon" href="./favicon.ico">
+<header>
+  <h3><a href="https://benchmarksgame-team.pages.debian.net/benchmarksgame/">The&nbsp;<small>Computer&nbsp;Language</small><br>Benchmarks&nbsp;Game</a></h3>
+</header>
+<article>
+  <div>
+    <h1>pidigits OCaml Flambda&nbsp;#5 program</h1>
+    <aside>
+      <p><a href="../description/pidigits.html#pidigits">description</a>
+    </aside>
+  </div>
+  <section>
+    <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+(*
+ * The Computer Language Benchmarks Game 
+ * https://salsa.debian.org/benchmarksgame-team/benchmarksgame/
+ *
+ * contributed by Christophe TROESTLER
+ * modified by Mat�as Giovannini
+ * using Zarith with modifications inspired by C solution, by Tony Tavener
+ *)
+
+let big_3  = Z.of_int 3
+let big_4  = Z.of_int 4
+let big_10 = Z.of_int 10
+
+let init = (Z.one, Z.one, Z.zero)
+
+let extract (num,den,acc) nth = Z.((nth * num + acc) / den |&gt; to_int)
+
+let next z = extract z big_3
+
+let safe z n = extract z big_4 = n
+
+let prod (num,den,acc) d =
+  Z.(big_10 * num,
+     den,
+     big_10 * (acc - den * of_int d))
+
+let cons (num,den,acc) k =
+  let k2 = Z.of_int (k * 2 + 1) in
+  Z.(of_int k * num,
+     k2 * den,
+     k2 * (acc + num + num))
+
+let columns = 10
+
+let rec digit k z n row col =
+  if n = 0 then Printf.printf &quot;%*s\t:%i\n&quot; (columns-col) &quot;&quot; (row+col) else
+  let d = next z in
+  if safe z d then
+    if col = columns then begin
+      let row = row + col in
+      Printf.printf &quot;\t:%i\n%i&quot; row d;
+      digit k (prod z d) (n-1) row 1
+    end else begin 
+      print_int d;
+      digit k (prod z d) (n-1) row (col+1)
+    end
+  else digit (k+1) (cons z k) n row col
+
+let digits n = digit 1 init n 0 0
+
+let () = digits (try int_of_string (Array.get Sys.argv 1) with _ -&gt; 27)
+
+
+    </pre>
+  </section>
+  <section>
+    <div>
+      <h2 id="log">notes, command-line, and program output</h2>
+    </div>
+    <pre>
+NOTES:
+64-bit Ubuntu quad core
+The OCaml native-code compiler, version 4.10.0
+
+
+Mon, 03 Aug 2020 22:25:44 GMT
+
+MAKE:
+mv pidigits.ocamlflambda-5.ocamlflambda pidigits.ocamlflambda-5.ml
+~/.opam/4.10.0+flambda/bin/ocamlopt -noassert -unsafe -fPIC -nodynlink -inline 100 -O3 -I /home/dunham/.opam/default/lib/zarith zarith.cmxa -ccopt -march=ivybridge pidigits.ocamlflambda-5.ml -o pidigits.ocamlflambda-5.ocamlflambda_run
+File &quot;pidigits.ocamlflambda-5.ml&quot;, line 1:
+Error: /home/dunham/.opam/default/lib/zarith/z.cmx
+       is not a compilation unit description.
+make: [/home/dunham/all-benchmarksgame/2000-benchmarksgame/nanobench/makefiles/u64q.programs.Makefile:331: pidigits.ocamlflambda-5.ocamlflambda_run] Error 2 (ignored)
+rm pidigits.ocamlflambda-5.ml
+
+0.52s to complete and log all make actions
+
+COMMAND LINE:
+./pidigits.ocamlflambda-5.ocamlflambda_run 2000
+
+MAKE ERROR 
+
+    </pre>
+  </section>
+</article>
+<footer>
+  <nav>
+    <ul>
+      <li><a href="https://salsa.debian.org/benchmarksgame-team/benchmarksgame/blob/master/CONTRIBUTING.md#contribute-source-code-for-measurement"><span>Contribute your own program</span></a>
+      <li><a href="../license.html"><span>3-Clause BSD License</span></a>
+    </ul>
+  </nav>
+</footer>
+

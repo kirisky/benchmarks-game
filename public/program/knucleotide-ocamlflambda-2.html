@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,follow,noarchive">
+
+<title>k-nucleotide OCaml Flambda&nbsp;#2 program | Computer Language Benchmarks Game </title>
+<style><!--
+a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,header{margin:auto;width:92%}body{font:100% Droid Sans, Ubuntu, Verdana, sans-serif;margin:0;-webkit-text-size-adjust:100%}h3, h1, h2, li a{font-family:Ubuntu Mono,Consolas,Menlo,monospace}div,footer,header{max-width:31em}footer{padding:2.6em 0 0}h3{font-size:1.4em;font-weight:bold;margin:0;padding: .4em}h3, h3 a{color:white;background-color:#77216f}h3 small{font-size:0.64em}h1,h2{margin:1.5em 0 0}h1{font-size:1.4em;font-weight:normal}h2{font-size:1.2em}li{list-style-type:none;vertical-align:top}li a{display:block;font-size:1.2em;margin: .5em .5em 0;padding: .5em .5em .3em}ul{clear:left;margin:-0.3em 0 1.5em;padding-left:0;text-align:center}p{color:#333;line-height:1.4;margin: .3em 0 0}p a, a span{border-bottom: .1em solid #333;padding-bottom: .1em}.com,.slc{color:#888}.kwa{color:#066}.kwb{color:#900}.kwc{color:#050}.kwa,.kwb,.kwc{font-weight:bold}.dstr,.str,.sym,.num{color:#930}pre{color:#222;font-size:1em;overflow-wrap:break-word;white-space:pre-wrap;word-wrap:break-word}@media only screen and (min-width: 60em){article,footer,header{font-size:1.25em}}
+--></style>
+<link rel="shortcut icon" href="./favicon.ico">
+<header>
+  <h3><a href="https://benchmarksgame-team.pages.debian.net/benchmarksgame/">The&nbsp;<small>Computer&nbsp;Language</small><br>Benchmarks&nbsp;Game</a></h3>
+</header>
+<article>
+  <div>
+    <h1>k-nucleotide OCaml Flambda&nbsp;#2 program</h1>
+    <aside>
+      <p><a href="../description/knucleotide.html#knucleotide">description</a>
+    </aside>
+  </div>
+  <section>
+    <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+(* The Computer Language Benchmarks Game
+ * https://salsa.debian.org/benchmarksgame-team/benchmarksgame/
+ *
+ * contributed by Troestler Christophe
+ * modified by Mauricio Fernandez
+ *)
+
+module C(S : sig
+           val k : int
+           val dna : string
+         end) =
+struct
+  let dna, k = S.dna, S.k
+
+  module K = struct
+    type t = int
+    let equal k1 k2 =
+      let rec cmp n ka kb =
+        if n = 0 then true
+        else if dna.[ka] = dna.[kb] then cmp (n - 1) (ka + 1) (kb + 1)
+        else false
+      in cmp k k1 k2
+
+    let hash n =
+      let h = ref 0 in
+        for i = n to n + k - 1 do h := !h * 5 + Char.code dna.[i] done;
+        !h
+  end
+
+  let c = 0x40000
+  include Hashtbl.Make(K)
+  let h = create c
+
+  let count () = 
+    for i = 0 to String.length dna - k - 1 do
+      try incr (find h i) with Not_found -&gt; add h i (ref 1)
+    done
+
+  let compare_freq ((k1:string),(f1:float)) (k2, f2) =
+    if f1 &gt; f2 then -1 else if f1 &lt; f2 then 1 else String.compare k1 k2
+
+  let write_frequencies () =
+    count ();
+    let tot = float(fold (fun _ n t -&gt; !n + t) h 0) in
+    let frq =
+      fold (fun off n l -&gt; 
+              (String.sub dna off k, 100. *. float !n /. tot) :: l) h [] in
+    let frq = List.sort compare_freq frq in
+      String.concat &quot;&quot; 
+        (List.map (fun (k,f) -&gt; Printf.sprintf &quot;%s %.3f\n&quot; k f) frq)
+
+  let write_count seq =
+    assert (String.length seq = k);
+    count ();
+    String.blit seq 0 dna 0 k;
+    Printf.sprintf &quot;%d\t%s&quot; (try !(find h 0) with Not_found -&gt; 0) seq
+end
+
+(* Extract DNA sequence &quot;THREE&quot; from stdin *)
+let dna_three =
+  let is_not_three s = try String.sub s 0 6 &lt;&gt; &quot;&gt;THREE&quot; with _ -&gt; true in
+  while is_not_three(input_line stdin) do () done;
+  let buf = Buffer.create 1000 in
+  (* Skip possible comment *)
+  (try while true do
+     let line = input_line stdin in
+     if line.[0] &lt;&gt; &apos;;&apos; then
+       (Buffer.add_string buf (String.uppercase line); raise Exit)
+   done with _ -&gt; ());
+  (* Read the DNA sequence *)
+  (try while true do
+       let line = input_line stdin in
+       if line.[0] = &apos;&gt;&apos; then raise End_of_file;
+       Buffer.add_string buf (String.uppercase line)
+   done with End_of_file -&gt; ());
+  Buffer.contents buf
+
+let invoke (f : &apos;a -&gt; &apos;b) x : unit -&gt; &apos;b =
+  let input, output = Unix.pipe() in
+  match Unix.fork() with
+  | -1 -&gt; Unix.close input; Unix.close output; (let v = f x in fun () -&gt; v)
+  | 0 -&gt;
+      Unix.close input;
+      let output = Unix.out_channel_of_descr output in
+        Marshal.to_channel output (try `Res(f x) with e -&gt; `Exn e) [];
+        close_out output;
+        exit 0
+  | pid -&gt;
+      Unix.close output;
+      let input = Unix.in_channel_of_descr input in fun () -&gt;
+        let v = Marshal.from_channel input in
+        ignore (Unix.waitpid [] pid);
+        close_in input;
+        match v with `Res x -&gt; x | `Exn e -&gt; raise e
+
+let parallelize f l =
+  List.iter (fun g -&gt; print_endline (g ())) (List.map (invoke f) l)
+
+let () =
+  parallelize
+    (fun i -&gt; 
+       let module M = C(struct let k = i let dna = dna_three end) in
+         M.write_frequencies ()) [1; 2];
+  parallelize
+    (fun k -&gt; 
+       let module M = C(struct let k = String.length k let dna = dna_three end) in
+         M.write_count k)
+    [&quot;GGT&quot;; &quot;GGTA&quot;; &quot;GGTATT&quot;; &quot;GGTATTTTAATT&quot;; &quot;GGTATTTTAATTTATAGT&quot;]
+    </pre>
+  </section>
+  <section>
+    <div>
+      <h2 id="log">notes, command-line, and program output</h2>
+    </div>
+    <pre>
+NOTES:
+64-bit Ubuntu quad core
+The OCaml native-code compiler, version 4.10.0
+
+
+Mon, 03 Aug 2020 22:17:42 GMT
+
+MAKE:
+mv knucleotide.ocamlflambda-2.ocamlflambda knucleotide.ocamlflambda-2.ml
+~/.opam/4.10.0+flambda/bin/ocamlopt -noassert -unsafe -fPIC -nodynlink -inline 100 -O3 unix.cmxa -ccopt -march=ivybridge knucleotide.ocamlflambda-2.ml -o knucleotide.ocamlflambda-2.ocamlflambda_run
+File &quot;knucleotide.ocamlflambda-2.ml&quot;, line 55, characters 22-25:
+55 |     String.blit seq 0 dna 0 k;
+                           ^^^
+Error: This expression has type string but an expression was expected of type
+         bytes
+make: [/home/dunham/all-benchmarksgame/2000-benchmarksgame/nanobench/makefiles/u64q.programs.Makefile:331: knucleotide.ocamlflambda-2.ocamlflambda_run] Error 2 (ignored)
+rm knucleotide.ocamlflambda-2.ml
+
+0.50s to complete and log all make actions
+
+COMMAND LINE:
+./knucleotide.ocamlflambda-2.ocamlflambda_run 0 &lt; knucleotide-input250000.txt
+
+MAKE ERROR 
+
+    </pre>
+  </section>
+</article>
+<footer>
+  <nav>
+    <ul>
+      <li><a href="https://salsa.debian.org/benchmarksgame-team/benchmarksgame/blob/master/CONTRIBUTING.md#contribute-source-code-for-measurement"><span>Contribute your own program</span></a>
+      <li><a href="../license.html"><span>3-Clause BSD License</span></a>
+    </ul>
+  </nav>
+</footer>
+

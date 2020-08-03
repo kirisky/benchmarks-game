@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,follow,noarchive">
+
+<title>k-nucleotide OCaml Flambda&nbsp;#3 program | Computer Language Benchmarks Game </title>
+<style><!--
+a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,header{margin:auto;width:92%}body{font:100% Droid Sans, Ubuntu, Verdana, sans-serif;margin:0;-webkit-text-size-adjust:100%}h3, h1, h2, li a{font-family:Ubuntu Mono,Consolas,Menlo,monospace}div,footer,header{max-width:31em}footer{padding:2.6em 0 0}h3{font-size:1.4em;font-weight:bold;margin:0;padding: .4em}h3, h3 a{color:white;background-color:#77216f}h3 small{font-size:0.64em}h1,h2{margin:1.5em 0 0}h1{font-size:1.4em;font-weight:normal}h2{font-size:1.2em}li{list-style-type:none;vertical-align:top}li a{display:block;font-size:1.2em;margin: .5em .5em 0;padding: .5em .5em .3em}ul{clear:left;margin:-0.3em 0 1.5em;padding-left:0;text-align:center}p{color:#333;line-height:1.4;margin: .3em 0 0}p a, a span{border-bottom: .1em solid #333;padding-bottom: .1em}.com,.slc{color:#888}.kwa{color:#066}.kwb{color:#900}.kwc{color:#050}.kwa,.kwb,.kwc{font-weight:bold}.dstr,.str,.sym,.num{color:#930}pre{color:#222;font-size:1em;overflow-wrap:break-word;white-space:pre-wrap;word-wrap:break-word}@media only screen and (min-width: 60em){article,footer,header{font-size:1.25em}}
+--></style>
+<link rel="shortcut icon" href="./favicon.ico">
+<header>
+  <h3><a href="https://benchmarksgame-team.pages.debian.net/benchmarksgame/">The&nbsp;<small>Computer&nbsp;Language</small><br>Benchmarks&nbsp;Game</a></h3>
+</header>
+<article>
+  <div>
+    <h1>k-nucleotide OCaml Flambda&nbsp;#3 program</h1>
+    <aside>
+      <p><a href="../description/knucleotide.html#knucleotide">description</a>
+    </aside>
+  </div>
+  <section>
+    <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+(* The Computer Language Benchmarks Game
+ * https://salsa.debian.org/benchmarksgame-team/benchmarksgame/
+ *
+ * contributed by Troestler Christophe
+ * modified by Mauricio Fernandez
+ * optimized by Fabrice Le Fessant
+ * modified by Roman Kashitsyn: use Bytes instead of String
+ *)
+
+let tab = Array.make 256 0
+let _ =
+  tab.(Char.code &apos;A&apos;) &lt;- 0;
+  tab.(Char.code &apos;a&apos;) &lt;- 0;
+  tab.(Char.code &apos;T&apos;) &lt;- 1;
+  tab.(Char.code &apos;t&apos;) &lt;- 1;
+  tab.(Char.code &apos;C&apos;) &lt;- 2;
+  tab.(Char.code &apos;c&apos;) &lt;- 2;
+  tab.(Char.code &apos;g&apos;) &lt;- 3;
+  tab.(Char.code &apos;G&apos;) &lt;- 3
+
+let uppercase line =
+  let len = Bytes.length line in
+  for i = 0 to len - 1 do
+    let c = Bytes.get line i in
+    Bytes.set line i (Char.unsafe_chr tab.(Char.code c))
+  done
+
+(* Extract DNA sequence &quot;THREE&quot; from stdin *)
+let dna =
+  let is_not_three s = String.length s &lt; 6 || String.sub s 0 6 &lt;&gt; &quot;&gt;THREE&quot; in
+  while is_not_three(input_line stdin) do () done;
+  let buf = Buffer.create 130_000_000 in
+  (* Skip possible comment *)
+  (try
+     while true do
+       let line = Bytes.unsafe_of_string (input_line stdin) in
+       if Bytes.get line 0 &lt;&gt; &apos;;&apos; then begin
+	 uppercase line;
+	 Buffer.add_bytes buf line;
+	 raise Exit
+       end
+     done with _ -&gt; ());
+  (* Read the DNA sequence *)
+  (try while true do
+       let line = Bytes.unsafe_of_string (input_line stdin) in
+       if Bytes.get line 0 = &apos;&gt;&apos; then raise End_of_file;
+       uppercase line;
+       Buffer.add_bytes buf line
+     done with End_of_file -&gt; ());
+  Buffer.contents buf
+
+
+module K15 = struct
+  type t = int
+  let equal k1 k2 = k1 = k2
+  let hash n = n
+end
+
+module K16 = struct
+  type t = int * int
+  let equal (a1,a2) (b1,b2) = a1 = b1 &amp;&amp; a2 = b2
+  let hash (a1, _) = a1
+end
+
+type entry = {
+  mutable count : int;
+}
+
+let threshold15 =
+  match Sys.word_size with
+    32 -&gt; 15
+  | 64 -&gt; 31
+  | _ -&gt; assert false
+let threshold16 = threshold15 + 1
+
+let c = 0x40000-1
+module H15 = Hashtbl.Make(K15)
+module H16 = Hashtbl.Make(K16)
+let h15 = H15.create c
+let h16 = H16.create c
+
+let rec pack_word n k h =
+  let b = Char.code dna.[n] in
+  let h = h * 4 + b in
+  if k &gt; 1 then
+    pack_word (n+1) (k-1) h
+  else h
+
+let pack15 k n =
+  pack_word n k 0
+
+let pack16 k n =
+  let h1 = pack_word n threshold15 0 in
+  let h2 = pack_word (n+ threshold15) (k- threshold15) 0 in
+  (h1, h2)
+
+let rec pack_word_in dna n k h =
+  let b = dna.[n] in
+  let b = tab.(Char.code b) in
+  let h = h * 4 + b in
+  if k &gt; 1 then
+    pack_word_in dna (n+1) (k-1) h
+  else h
+
+let pack_key15 seq =
+  let k = String.length seq in
+  pack_word_in seq 0 k 0
+
+let pack_key16 seq =
+  let k = String.length seq in
+  let h1 = pack_word_in seq 0 threshold15 0 in
+  let h2 = pack_word_in seq threshold15 (k- threshold15) 0 in
+  (h1, h2)
+
+let char = [| &apos;A&apos;; &apos;T&apos;; &apos;C&apos;; &apos;G&apos; |]
+
+let rec unpack h s pos k =
+  let pos = pos - 1 in
+  Bytes.set s pos char.(h land 3);
+  if k &gt; 1 then
+    unpack (h lsr 2) s pos (k-1)
+
+let unpack15 k h1 =
+  let s = Bytes.create k in
+  unpack h1 s k k;
+  Bytes.unsafe_to_string s
+
+let unpack16 k (h1, h2) =
+  let s = Bytes.create k in
+  unpack h1 s threshold15 threshold15;
+  unpack h2 s k (k- threshold15);
+  Bytes.unsafe_to_string s
+
+let count15 k =
+  for i = 0 to String.length dna - k - 1 do
+    let packed = pack15 k i in
+    try
+      let key = H15.find h15 packed in
+      key.count &lt;- key.count + 1
+    with Not_found -&gt;
+      H15.add h15 packed { count = 1 }
+  done
+
+let count16 k =
+  for i = 0 to String.length dna - k - 1 do
+    let packed = pack16 k i in
+    try
+      let key = H16.find h16 packed in
+      key.count &lt;- key.count + 1
+    with Not_found -&gt;
+      H16.add h16 packed { count = 1 }
+  done
+
+let count k =
+  if k &lt; threshold16 then count15 k else count16 k
+
+let compare_freq ((k1:string),(f1:float)) (k2, f2) =
+  if f1 &gt; f2 then -1 else if f1 &lt; f2 then 1 else String.compare k1 k2
+
+let write_frequencies15 k =
+  count15 k;
+  let tot = float(H15.fold (fun _ n t -&gt; n.count + t) h15 0) in
+  let frq =
+    H15.fold (fun h n l -&gt;
+	(unpack15 k h, 100. *. float n.count /. tot) :: l) h15 [] in
+  let frq = List.sort compare_freq frq in
+  String.concat &quot;&quot;
+    (List.map (fun (k,f) -&gt; Printf.sprintf &quot;%s %.3f\n&quot; k f) frq)
+
+let write_frequencies16 k =
+  count16 k;
+  let tot = float(H16.fold (fun _ n t -&gt; n.count + t) h16 0) in
+  let frq =
+    H16.fold (fun h n l -&gt;
+	(unpack16 k h, 100. *. float n.count /. tot) :: l) h16 [] in
+  let frq = List.sort compare_freq frq in
+  String.concat &quot;&quot;
+    (List.map (fun (k,f) -&gt; Printf.sprintf &quot;%s %.3f\n&quot; k f) frq)
+
+let write_count15 k seq =
+  count15 k;
+  Printf.sprintf &quot;%d\t%s&quot; (try (H15.find h15 (pack_key15 seq)).count with Not_found -&gt; 0) seq
+
+let write_count16 k seq =
+  count16 k;
+  Printf.sprintf &quot;%d\t%s&quot; (try (H16.find h16 (pack_key16 seq)).count with Not_found -&gt; 0) seq
+
+let write_frequencies k =
+  if k &lt; threshold16 then write_frequencies15 k
+  else write_frequencies16 k
+
+let write_count seq =
+  let k = String.length seq in
+  if k &lt; threshold16 then write_count15 k seq
+  else write_count16 k seq
+
+type t = Size of int | Dna of string
+
+let invoke (f : t -&gt; string) x : unit -&gt; string =
+  let input, output = Unix.pipe() in
+  match Unix.fork() with
+  | -1 -&gt; Unix.close input; Unix.close output; (let v = f x in fun () -&gt; v)
+  | 0 -&gt;
+    Unix.close input;
+    let output = Unix.out_channel_of_descr output in
+    Marshal.to_channel output (f x) [];
+    close_out output;
+    exit 0
+  | pid -&gt;
+    Unix.close output;
+    let input = Unix.in_channel_of_descr input in fun () -&gt;
+      let v = Marshal.from_channel input in
+      ignore (Unix.waitpid [] pid);
+      close_in input;
+      v
+
+let parallelize f l =
+  let list = List.map (invoke f) (List.rev l) in
+  List.iter (fun g -&gt; print_endline (g ())) (List.rev list)
+
+let () =
+  parallelize
+    (fun i -&gt;
+       match i with
+	 Size i -&gt;
+         write_frequencies i
+       | Dna k -&gt;
+         write_count k
+    ) [Size 1;
+       Size 2;
+       Dna &quot;GGT&quot;;
+       Dna &quot;GGTA&quot;;
+       Dna &quot;GGTATT&quot;;
+       Dna &quot;GGTATTTTAATT&quot;;
+       Dna &quot;GGTATTTTAATTTATAGT&quot;]
+    </pre>
+  </section>
+  <section>
+    <div>
+      <h2 id="log">notes, command-line, and program output</h2>
+    </div>
+    <pre>
+NOTES:
+64-bit Ubuntu quad core
+The OCaml native-code compiler, version 4.10.0
+
+
+Mon, 03 Aug 2020 22:16:15 GMT
+
+MAKE:
+mv knucleotide.ocamlflambda-3.ocamlflambda knucleotide.ocamlflambda-3.ml
+~/.opam/4.10.0+flambda/bin/ocamlopt -noassert -unsafe -fPIC -nodynlink -inline 100 -O3 unix.cmxa -ccopt -march=ivybridge knucleotide.ocamlflambda-3.ml -o knucleotide.ocamlflambda-3.ocamlflambda_run
+rm knucleotide.ocamlflambda-3.ml
+
+1.49s to complete and log all make actions
+
+COMMAND LINE:
+./knucleotide.ocamlflambda-3.ocamlflambda_run 0 &lt; knucleotide-input25000000.txt
+
+PROGRAM OUTPUT:
+A 30.295
+T 30.151
+C 19.800
+G 19.754
+
+AA 9.177
+TA 9.132
+AT 9.131
+TT 9.091
+CA 6.002
+AC 6.001
+AG 5.987
+GA 5.984
+CT 5.971
+TC 5.971
+GT 5.957
+TG 5.956
+CC 3.917
+GC 3.911
+CG 3.909
+GG 3.902
+
+1471758	GGT
+446535	GGTA
+47336	GGTATT
+893	GGTATTTTAATT
+893	GGTATTTTAATTTATAGT
+    </pre>
+  </section>
+</article>
+<footer>
+  <nav>
+    <ul>
+      <li><a href="https://salsa.debian.org/benchmarksgame-team/benchmarksgame/blob/master/CONTRIBUTING.md#contribute-source-code-for-measurement"><span>Contribute your own program</span></a>
+      <li><a href="../license.html"><span>3-Clause BSD License</span></a>
+    </ul>
+  </nav>
+</footer>
+

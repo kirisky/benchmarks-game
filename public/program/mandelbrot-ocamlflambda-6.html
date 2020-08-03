@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,follow,noarchive">
+
+<title>mandelbrot OCaml Flambda&nbsp;#6 program | Computer Language Benchmarks Game </title>
+<style><!--
+a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,header{margin:auto;width:92%}body{font:100% Droid Sans, Ubuntu, Verdana, sans-serif;margin:0;-webkit-text-size-adjust:100%}h3, h1, h2, li a{font-family:Ubuntu Mono,Consolas,Menlo,monospace}div,footer,header{max-width:31em}footer{padding:2.6em 0 0}h3{font-size:1.4em;font-weight:bold;margin:0;padding: .4em}h3, h3 a{color:white;background-color:#77216f}h3 small{font-size:0.64em}h1,h2{margin:1.5em 0 0}h1{font-size:1.4em;font-weight:normal}h2{font-size:1.2em}li{list-style-type:none;vertical-align:top}li a{display:block;font-size:1.2em;margin: .5em .5em 0;padding: .5em .5em .3em}ul{clear:left;margin:-0.3em 0 1.5em;padding-left:0;text-align:center}p{color:#333;line-height:1.4;margin: .3em 0 0}p a, a span{border-bottom: .1em solid #333;padding-bottom: .1em}.com,.slc{color:#888}.kwa{color:#066}.kwb{color:#900}.kwc{color:#050}.kwa,.kwb,.kwc{font-weight:bold}.dstr,.str,.sym,.num{color:#930}pre{color:#222;font-size:1em;overflow-wrap:break-word;white-space:pre-wrap;word-wrap:break-word}@media only screen and (min-width: 60em){article,footer,header{font-size:1.25em}}
+--></style>
+<link rel="shortcut icon" href="./favicon.ico">
+<header>
+  <h3><a href="https://benchmarksgame-team.pages.debian.net/benchmarksgame/">The&nbsp;<small>Computer&nbsp;Language</small><br>Benchmarks&nbsp;Game</a></h3>
+</header>
+<article>
+  <div>
+    <h1>mandelbrot OCaml Flambda&nbsp;#6 program</h1>
+    <aside>
+      <p><a href="../description/mandelbrot.html#mandelbrot">description</a>
+    </aside>
+  </div>
+  <section>
+    <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+(*
+ * The Computer Language Benchmarks Game
+ * https://salsa.debian.org/benchmarksgame-team/benchmarksgame/
+ *
+ * Contributed by Paolo Ribeca
+ *
+ * (Very loosely based on previous version Ocaml #3,
+ *  which had been contributed by
+ *   Christophe TROESTLER
+ *  and enhanced by
+ *   Christian Szegedy and Yaron Minsky)
+ *)
+
+let niter = 50
+let limit = 4.
+
+let () =
+  let w = int_of_string (Array.get Sys.argv 1) in
+  let h = w in
+  let fw = float w /. 2. and fh = float h /. 2. in
+  Printf.printf &quot;P4\n%i %i\n&quot; w h;
+  let red_h = h - 1 and red_w = w - 1 and byte = ref 0 in
+  for y = 0 to red_h do
+    let ci = float y /. fh -. 1. in
+    for x = 0 to red_w do
+      let cr = float x /. fw -. 1.5
+      and zr = ref 0. and zi = ref 0. and trmti = ref 0. and n = ref 0 in
+      begin try
+	while true do
+	  zi := 2. *. !zr *. !zi +. ci;
+	  zr := !trmti +. cr;
+	  let tr = !zr *. !zr and ti = !zi *. !zi in
+	  if tr +. ti &gt; limit then begin
+	    byte := !byte lsl 1;
+	    raise Exit
+	  end else if incr n; !n = niter then begin
+	    byte := (!byte lsl 1) lor 0x01;
+	    raise Exit
+	  end else
+	    trmti := tr -. ti
+	done
+      with Exit -&gt; ()
+      end;
+      if x mod 8 = 7 then output_byte stdout !byte
+    done;
+    let rem = w mod 8 in
+    if rem != 0 then (* the row doesnt divide evenly by 8 *)
+      output_byte stdout (!byte lsl (8 - rem)) (* output last few bits *)
+  done
+    </pre>
+  </section>
+  <section>
+    <div>
+      <h2 id="log">notes, command-line, and program output</h2>
+    </div>
+    <pre>
+NOTES:
+64-bit Ubuntu quad core
+The OCaml native-code compiler, version 4.10.0
+
+
+Mon, 03 Aug 2020 22:19:25 GMT
+
+MAKE:
+mv mandelbrot.ocamlflambda-6.ocamlflambda mandelbrot.ocamlflambda-6.ml
+~/.opam/4.10.0+flambda/bin/ocamlopt -noassert -unsafe -fPIC -nodynlink -inline 100 -O3 unix.cmxa -ccopt -march=ivybridge mandelbrot.ocamlflambda-6.ml -o mandelbrot.ocamlflambda-6.ocamlflambda_run
+rm mandelbrot.ocamlflambda-6.ml
+
+1.28s to complete and log all make actions
+
+COMMAND LINE:
+./mandelbrot.ocamlflambda-6.ocamlflambda_run 16000
+
+(BINARY) PROGRAM OUTPUT NOT SHOWN
+    </pre>
+  </section>
+</article>
+<footer>
+  <nav>
+    <ul>
+      <li><a href="https://salsa.debian.org/benchmarksgame-team/benchmarksgame/blob/master/CONTRIBUTING.md#contribute-source-code-for-measurement"><span>Contribute your own program</span></a>
+      <li><a href="../license.html"><span>3-Clause BSD License</span></a>
+    </ul>
+  </nav>
+</footer>
+
