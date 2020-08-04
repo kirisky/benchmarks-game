@@ -22,124 +22,124 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
       <h2>source code</h2>
     </div>
     <pre>
-(*
- * The Computer Language Benchmarks Game
- * https://salsa.debian.org/benchmarksgame-team/benchmarksgame/
- *
- * Contributed by Paolo Ribeca, August 2011
- *
- * (Based on the Java version by Oleg Mazurov)
- *)
+<span class="com">(*</span>
+<span class="com"> * The Computer Language Benchmarks Game</span>
+<span class="com"> * https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="com"> *</span>
+<span class="com"> * Contributed by Paolo Ribeca, August 2011</span>
+<span class="com"> *</span>
+<span class="com"> * (Based on the Java version by Oleg Mazurov)</span>
+<span class="com"> *)</span>
 
-let workers = 32
+<span class="kwa">let</span> <span class="kwd">workers</span> <span class="opt">=</span> <span class="num">32</span>
 
-module Perm =
-  struct
-    type t = { p: int array;
-               pp: int array;
-               c: int array }
-  let facts =
-    let n = 20 in
-    let res = Array.make (n + 1) 1 in
-    for i = 1 to n do
-      res.(i) &lt;- i * res.(i - 1)
-    done;
-    res
-  (* Setting up the permutation based on the given index *)
-  let setup n idx =
-    let res = { p = Array.init n (fun i -&gt; i);
-                pp = Array.make n 1;
-                c = Array.make n 1 }
-    and idx = ref idx in
-    for i = n - 1 downto 0 do
-      let d = !idx / facts.(i) in
-      res.c.(i) &lt;- d;
-      idx := !idx mod facts.(i);
-      Array.blit res.p 0 res.pp 0 (i + 1);
-      for j = 0 to i do
-        res.p.(j) &lt;- if j + d &lt;= i then res.pp.(j + d) else res.pp.(j + d - i - 1)
-      done
-    done;
-    res
-  (* Getting the next permutation *)
-  let next { p = p; c = c } =
-    let f = ref p.(1) in
-    p.(1) &lt;- p.(0);
-    p.(0) &lt;- !f;
-    let i = ref 1 in
-    while let aug_c = c.(!i) + 1 in c.(!i) &lt;- aug_c; aug_c &gt; !i do
-      c.(!i) &lt;- 0;
-      incr i;
-      let n = p.(1) in
-      p.(0) &lt;- n;
-      let red_i = !i - 1 in
-      for j = 1 to red_i do
-        p.(j) &lt;- p.(j + 1)
-      done;
-      p.(!i) &lt;- !f;
-      f := n
-    done
-  (* Counting the number of flips *)
-  let count { p = p; pp = pp } =
-    let f = ref p.(0) and res = ref 1 in
-    if p.(!f) &lt;&gt; 0 then begin
-      let len = Array.length p in
-      let red_len = len - 1 in
-      for i = 0 to red_len do pp.(i) &lt;- p.(i) done;
-      while pp.(!f) &lt;&gt; 0 do
-        incr res;
-        let lo = ref 1 and hi = ref (!f - 1) in
-        while !lo &lt; !hi do
-          let t = pp.(!lo) in
-          pp.(!lo) &lt;- pp.(!hi);
-          pp.(!hi) &lt;- t;
-          incr lo;
+<span class="kwa">module</span> Perm <span class="opt">=</span>
+  <span class="kwa">struct</span>
+    <span class="kwa">type</span> t <span class="opt">= {</span> p<span class="opt">:</span> <span class="kwb">int</span> array<span class="opt">;</span>
+               pp<span class="opt">:</span> <span class="kwb">int</span> array<span class="opt">;</span>
+               c<span class="opt">:</span> <span class="kwb">int</span> array <span class="opt">}</span>
+  <span class="kwa">let</span> <span class="kwd">facts</span> <span class="opt">=</span>
+    <span class="kwa">let</span> <span class="kwd">n</span> <span class="opt">=</span> <span class="num">20</span> <span class="kwa">in</span>
+    <span class="kwa">let</span> <span class="kwd">res</span> <span class="opt">=</span> <span class="kwc">Array</span><span class="opt">.</span>make <span class="opt">(</span><span class="kwd">n</span> <span class="opt">+</span> <span class="num">1</span><span class="opt">)</span> <span class="num">1</span> <span class="kwa">in</span>
+    <span class="kwa">for</span> i <span class="opt">=</span> <span class="num">1</span> <span class="kwa">to</span> <span class="kwd">n</span> <span class="kwa">do</span>
+      <span class="kwd">res</span><span class="opt">.(</span>i<span class="opt">) &lt;-</span> i <span class="opt">*</span> <span class="kwd">res</span><span class="opt">.(</span>i <span class="opt">-</span> <span class="num">1</span><span class="opt">)</span>
+    <span class="kwa">done</span><span class="opt">;</span>
+    <span class="kwd">res</span>
+  <span class="com">(* Setting up the permutation based on the given index *)</span>
+  <span class="kwa">let</span> <span class="kwd">setup n</span> idx <span class="opt">=</span>
+    <span class="kwa">let</span> <span class="kwd">res</span> <span class="opt">= {</span> p <span class="opt">=</span> <span class="kwc">Array</span><span class="opt">.</span>init <span class="kwd">n</span> <span class="opt">(</span><span class="kwa">fun</span> i <span class="opt">-&gt;</span> i<span class="opt">);</span>
+                pp <span class="opt">=</span> <span class="kwc">Array</span><span class="opt">.</span>make <span class="kwd">n</span> <span class="num">1</span><span class="opt">;</span>
+                c <span class="opt">=</span> <span class="kwc">Array</span><span class="opt">.</span>make <span class="kwd">n</span> <span class="num">1</span> <span class="opt">}</span>
+    <span class="kwa">and</span> idx <span class="opt">=</span> <span class="kwb">ref</span> idx <span class="kwa">in</span>
+    <span class="kwa">for</span> i <span class="opt">=</span> <span class="kwd">n</span> <span class="opt">-</span> <span class="num">1</span> <span class="kwa">downto</span> <span class="num">0</span> <span class="kwa">do</span>
+      <span class="kwa">let</span> <span class="kwd">d</span> <span class="opt">= !</span>idx <span class="opt">/</span> <span class="kwd">facts</span><span class="opt">.(</span>i<span class="opt">)</span> <span class="kwa">in</span>
+      <span class="kwd">res</span><span class="opt">.</span>c<span class="opt">.(</span>i<span class="opt">) &lt;-</span> <span class="kwd">d</span><span class="opt">;</span>
+      idx <span class="opt">:= !</span>idx <span class="kwa">mod</span> <span class="kwd">facts</span><span class="opt">.(</span>i<span class="opt">);</span>
+      <span class="kwc">Array</span><span class="opt">.</span>blit <span class="kwd">res</span><span class="opt">.</span>p <span class="num">0</span> <span class="kwd">res</span><span class="opt">.</span>pp <span class="num">0</span> <span class="opt">(</span>i <span class="opt">+</span> <span class="num">1</span><span class="opt">);</span>
+      <span class="kwa">for</span> j <span class="opt">=</span> <span class="num">0</span> <span class="kwa">to</span> i <span class="kwa">do</span>
+        <span class="kwd">res</span><span class="opt">.</span>p<span class="opt">.(</span>j<span class="opt">) &lt;-</span> <span class="kwa">if</span> j <span class="opt">+</span> <span class="kwd">d</span> <span class="opt">&lt;=</span> i <span class="kwa">then</span> <span class="kwd">res</span><span class="opt">.</span>pp<span class="opt">.(</span>j <span class="opt">+</span> <span class="kwd">d</span><span class="opt">)</span> <span class="kwa">else</span> <span class="kwd">res</span><span class="opt">.</span>pp<span class="opt">.(</span>j <span class="opt">+</span> <span class="kwd">d</span> <span class="opt">-</span> i <span class="opt">-</span> <span class="num">1</span><span class="opt">)</span>
+      <span class="kwa">done</span>
+    <span class="kwa">done</span><span class="opt">;</span>
+    <span class="kwd">res</span>
+  <span class="com">(* Getting the next permutation *)</span>
+  <span class="kwa">let</span> <span class="kwd">next</span> <span class="opt">{</span> p <span class="opt">=</span> p<span class="opt">;</span> c <span class="opt">=</span> c <span class="opt">} =</span>
+    <span class="kwa">let</span> <span class="kwd">f</span> <span class="opt">=</span> <span class="kwb">ref</span> p<span class="opt">.(</span><span class="num">1</span><span class="opt">)</span> <span class="kwa">in</span>
+    p<span class="opt">.(</span><span class="num">1</span><span class="opt">) &lt;-</span> p<span class="opt">.(</span><span class="num">0</span><span class="opt">);</span>
+    p<span class="opt">.(</span><span class="num">0</span><span class="opt">) &lt;- !</span><span class="kwd">f</span><span class="opt">;</span>
+    <span class="kwa">let</span> <span class="kwd">i</span> <span class="opt">=</span> <span class="kwb">ref</span> <span class="num">1</span> <span class="kwa">in</span>
+    <span class="kwa">while let</span> <span class="kwd">aug_c</span> <span class="opt">=</span> c<span class="opt">.(!</span><span class="kwd">i</span><span class="opt">) +</span> <span class="num">1</span> <span class="kwa">in</span> c<span class="opt">.(!</span><span class="kwd">i</span><span class="opt">) &lt;-</span> <span class="kwd">aug_c</span><span class="opt">;</span> <span class="kwd">aug_c</span> <span class="opt">&gt; !</span><span class="kwd">i</span> <span class="kwa">do</span>
+      c<span class="opt">.(!</span><span class="kwd">i</span><span class="opt">) &lt;-</span> <span class="num">0</span><span class="opt">;</span>
+      incr <span class="kwd">i</span><span class="opt">;</span>
+      <span class="kwa">let</span> <span class="kwd">n</span> <span class="opt">=</span> p<span class="opt">.(</span><span class="num">1</span><span class="opt">)</span> <span class="kwa">in</span>
+      p<span class="opt">.(</span><span class="num">0</span><span class="opt">) &lt;-</span> <span class="kwd">n</span><span class="opt">;</span>
+      <span class="kwa">let</span> <span class="kwd">red_i</span> <span class="opt">= !</span><span class="kwd">i</span> <span class="opt">-</span> <span class="num">1</span> <span class="kwa">in</span>
+      <span class="kwa">for</span> j <span class="opt">=</span> <span class="num">1</span> <span class="kwa">to</span> <span class="kwd">red_i</span> <span class="kwa">do</span>
+        p<span class="opt">.(</span>j<span class="opt">) &lt;-</span> p<span class="opt">.(</span>j <span class="opt">+</span> <span class="num">1</span><span class="opt">)</span>
+      <span class="kwa">done</span><span class="opt">;</span>
+      p<span class="opt">.(!</span><span class="kwd">i</span><span class="opt">) &lt;- !</span><span class="kwd">f</span><span class="opt">;</span>
+      <span class="kwd">f</span> <span class="opt">:=</span> <span class="kwd">n</span>
+    <span class="kwa">done</span>
+  <span class="com">(* Counting the number of flips *)</span>
+  <span class="kwa">let</span> <span class="kwd">count</span> <span class="opt">{</span> p <span class="opt">=</span> p<span class="opt">;</span> pp <span class="opt">=</span> pp <span class="opt">} =</span>
+    <span class="kwa">let</span> <span class="kwd">f</span> <span class="opt">=</span> <span class="kwb">ref</span> p<span class="opt">.(</span><span class="num">0</span><span class="opt">)</span> <span class="kwa">and</span> <span class="kwd">res</span> <span class="opt">=</span> <span class="kwb">ref</span> <span class="num">1</span> <span class="kwa">in</span>
+    <span class="kwa">if</span> p<span class="opt">.(!</span><span class="kwd">f</span><span class="opt">) &lt;&gt;</span> <span class="num">0</span> <span class="kwa">then begin</span>
+      <span class="kwa">let</span> <span class="kwd">len</span> <span class="opt">=</span> <span class="kwc">Array</span><span class="opt">.</span>length p <span class="kwa">in</span>
+      <span class="kwa">let</span> <span class="kwd">red_len</span> <span class="opt">=</span> <span class="kwd">len</span> <span class="opt">-</span> <span class="num">1</span> <span class="kwa">in</span>
+      <span class="kwa">for</span> <span class="kwd">i</span> <span class="opt">=</span> <span class="num">0</span> <span class="kwa">to</span> <span class="kwd">red_len</span> <span class="kwa">do</span> pp<span class="opt">.(</span><span class="kwd">i</span><span class="opt">) &lt;-</span> p<span class="opt">.(</span><span class="kwd">i</span><span class="opt">)</span> <span class="kwa">done</span><span class="opt">;</span>
+      <span class="kwa">while</span> pp<span class="opt">.(!</span><span class="kwd">f</span><span class="opt">) &lt;&gt;</span> <span class="num">0</span> <span class="kwa">do</span>
+        incr <span class="kwd">res</span><span class="opt">;</span>
+        <span class="kwa">let</span> <span class="kwd">lo</span> <span class="opt">=</span> <span class="kwb">ref</span> <span class="num">1</span> <span class="kwa">and</span> hi <span class="opt">=</span> <span class="kwb">ref</span> <span class="opt">(!</span><span class="kwd">f</span> <span class="opt">-</span> <span class="num">1</span><span class="opt">)</span> <span class="kwa">in</span>
+        <span class="kwa">while</span> <span class="opt">!</span><span class="kwd">lo</span> <span class="opt">&lt; !</span>hi <span class="kwa">do</span>
+          <span class="kwa">let</span> <span class="kwd">t</span> <span class="opt">=</span> pp<span class="opt">.(!</span><span class="kwd">lo</span><span class="opt">)</span> <span class="kwa">in</span>
+          pp<span class="opt">.(!</span><span class="kwd">lo</span><span class="opt">) &lt;-</span> pp<span class="opt">.(!</span>hi<span class="opt">);</span>
+          pp<span class="opt">.(!</span>hi<span class="opt">) &lt;-</span> <span class="kwd">t</span><span class="opt">;</span>
+          incr <span class="kwd">lo</span><span class="opt">;</span>
           decr hi
-        done;
-        let ff = !f in
-        let t = pp.(ff) in
-        pp.(ff) &lt;- ff;
-        f := t
-      done
-    end;
-    !res
-  end
+        <span class="kwa">done</span><span class="opt">;</span>
+        <span class="kwa">let</span> <span class="kwd">ff</span> <span class="opt">= !</span><span class="kwd">f</span> <span class="kwa">in</span>
+        <span class="kwa">let</span> <span class="kwd">t</span> <span class="opt">=</span> pp<span class="opt">.(</span><span class="kwd">ff</span><span class="opt">)</span> <span class="kwa">in</span>
+        pp<span class="opt">.(</span><span class="kwd">ff</span><span class="opt">) &lt;-</span> <span class="kwd">ff</span><span class="opt">;</span>
+        <span class="kwd">f</span> <span class="opt">:=</span> <span class="kwd">t</span>
+      <span class="kwa">done</span>
+    <span class="kwa">end</span><span class="opt">;</span>
+    <span class="opt">!</span><span class="kwd">res</span>
+  <span class="kwa">end</span>
 
-let _ =
-  match Sys.argv with
-  | [| p; s_n |] -&gt;
-    let n = int_of_string s_n in
-    let chunk_size = Perm.facts.(n) / workers
-    and rem = Perm.facts.(n) mod workers in
-    let w =
-      Array.init workers
-        (fun i -&gt;
-          let lo = i * chunk_size + min i rem in
-          let hi = lo + chunk_size + if i &lt; rem then 1 else 0 in
-          Unix.open_process_in (p ^ &quot; &quot; ^ s_n ^ &quot; &quot; ^ string_of_int lo ^ &quot; &quot; ^ string_of_int hi)) in
-    let c = ref 0 and m = ref 0 in
-    Array.iter
-      (fun input -&gt;
-        c := !c + input_binary_int input;
-        m := max !m (input_binary_int input))
-      w;
-    Printf.printf &quot;%d\nPfannkuchen(%d) = %d\n&quot; !c n !m
-  | [| _; n; lo; hi |] -&gt;
-    let n = int_of_string n
-    and lo = int_of_string lo and hi = int_of_string hi in
-    let p = Perm.setup n lo
-    and c = ref 0 and m = ref 0
-    and red_hi = hi - 1 in
-    for i = lo to red_hi do
-      let r = Perm.count p in
-      c := !c + r * (1 - (i land 1) lsl 1);
-      if r &gt; !m then
-      m := r;
-      Perm.next p
-    done;
-    output_binary_int stdout !c;
-    output_binary_int stdout !m
-  | _ -&gt; Printf.printf &quot;Wrong syntax\n%!&quot;
+<span class="kwa">let</span> <span class="kwd">_</span> <span class="opt">=</span>
+  <span class="kwa">match</span> <span class="kwc">Sys</span><span class="opt">.</span>argv <span class="kwa">with</span>
+  <span class="opt">| [|</span> p<span class="opt">;</span> s_n <span class="opt">|] -&gt;</span>
+    <span class="kwa">let</span> <span class="kwd">n</span> <span class="opt">=</span> int_of_string s_n <span class="kwa">in</span>
+    <span class="kwa">let</span> <span class="kwd">chunk_size</span> <span class="opt">=</span> <span class="kwc">Perm</span><span class="opt">.</span><span class="kwd">facts</span><span class="opt">.(</span><span class="kwd">n</span><span class="opt">) /</span> <span class="kwd">workers</span>
+    <span class="kwa">and</span> rem <span class="opt">=</span> <span class="kwc">Perm</span><span class="opt">.</span><span class="kwd">facts</span><span class="opt">.(</span><span class="kwd">n</span><span class="opt">)</span> <span class="kwa">mod</span> <span class="kwd">workers</span> <span class="kwa">in</span>
+    <span class="kwa">let</span> <span class="kwd">w</span> <span class="opt">=</span>
+      <span class="kwc">Array</span><span class="opt">.</span>init <span class="kwd">workers</span>
+        <span class="opt">(</span><span class="kwa">fun</span> <span class="kwd">i</span> <span class="opt">-&gt;</span>
+          <span class="kwa">let</span> <span class="kwd">lo</span> <span class="opt">=</span> <span class="kwd">i</span> <span class="opt">*</span> <span class="kwd">chunk_size</span> <span class="opt">+</span> min <span class="kwd">i</span> rem <span class="kwa">in</span>
+          <span class="kwa">let</span> <span class="kwd">hi</span> <span class="opt">=</span> <span class="kwd">lo</span> <span class="opt">+</span> <span class="kwd">chunk_size</span> <span class="opt">+</span> <span class="kwa">if</span> <span class="kwd">i</span> <span class="opt">&lt;</span> rem <span class="kwa">then</span> <span class="num">1</span> <span class="kwa">else</span> <span class="num">0</span> <span class="kwa">in</span>
+          <span class="kwc">Unix</span><span class="opt">.</span>open_process_in <span class="opt">(</span>p ^ <span class="str">&quot; &quot;</span> ^ s_n ^ <span class="str">&quot; &quot;</span> ^ string_of_int <span class="kwd">lo</span> ^ <span class="str">&quot; &quot;</span> ^ string_of_int <span class="kwd">hi</span><span class="opt">))</span> <span class="kwa">in</span>
+    <span class="kwa">let</span> <span class="kwd">c</span> <span class="opt">=</span> <span class="kwb">ref</span> <span class="num">0</span> <span class="kwa">and</span> m <span class="opt">=</span> <span class="kwb">ref</span> <span class="num">0</span> <span class="kwa">in</span>
+    <span class="kwc">Array</span><span class="opt">.</span>iter
+      <span class="opt">(</span><span class="kwa">fun</span> input <span class="opt">-&gt;</span>
+        <span class="kwd">c</span> <span class="opt">:= !</span><span class="kwd">c</span> <span class="opt">+</span> input_binary_int input<span class="opt">;</span>
+        m <span class="opt">:=</span> max <span class="opt">!</span>m <span class="opt">(</span>input_binary_int input<span class="opt">))</span>
+      <span class="kwd">w</span><span class="opt">;</span>
+    <span class="kwc">Printf</span><span class="opt">.</span>printf <span class="str">&quot;</span><span class="ipl">%d</span><span class="str"></span><span class="esc">\n</span><span class="str">Pfannkuchen(</span><span class="ipl">%d</span><span class="str">) =</span> <span class="ipl">%d</span><span class="str"></span><span class="esc">\n</span><span class="str">&quot;</span> <span class="opt">!</span><span class="kwd">c n</span> <span class="opt">!</span>m
+  <span class="opt">| [|</span> <span class="kwd">_</span><span class="opt">;</span> <span class="kwd">n</span><span class="opt">;</span> <span class="kwd">lo</span><span class="opt">;</span> <span class="kwd">hi</span> <span class="opt">|] -&gt;</span>
+    <span class="kwa">let</span> <span class="kwd">n</span> <span class="opt">=</span> int_of_string <span class="kwd">n</span>
+    <span class="kwa">and</span> <span class="kwd">lo</span> <span class="opt">=</span> int_of_string <span class="kwd">lo</span> <span class="kwa">and</span> <span class="kwd">hi</span> <span class="opt">=</span> int_of_string <span class="kwd">hi</span> <span class="kwa">in</span>
+    <span class="kwa">let</span> <span class="kwd">p</span> <span class="opt">=</span> <span class="kwc">Perm</span><span class="opt">.</span><span class="kwd">setup n lo</span>
+    <span class="kwa">and</span> <span class="kwd">c</span> <span class="opt">=</span> <span class="kwb">ref</span> <span class="num">0</span> <span class="kwa">and</span> m <span class="opt">=</span> <span class="kwb">ref</span> <span class="num">0</span>
+    <span class="kwa">and</span> red_hi <span class="opt">=</span> <span class="kwd">hi</span> <span class="opt">-</span> <span class="num">1</span> <span class="kwa">in</span>
+    <span class="kwa">for</span> <span class="kwd">i</span> <span class="opt">=</span> <span class="kwd">lo</span> <span class="kwa">to</span> red_hi <span class="kwa">do</span>
+      <span class="kwa">let</span> <span class="kwd">r</span> <span class="opt">=</span> <span class="kwc">Perm</span><span class="opt">.</span><span class="kwd">count p</span> <span class="kwa">in</span>
+      <span class="kwd">c</span> <span class="opt">:= !</span><span class="kwd">c</span> <span class="opt">+</span> <span class="kwd">r</span> <span class="opt">* (</span><span class="num">1</span> <span class="opt">- (</span><span class="kwd">i</span> <span class="kwa">land</span> <span class="num">1</span><span class="opt">)</span> <span class="kwa">lsl</span> <span class="num">1</span><span class="opt">);</span>
+      <span class="kwa">if</span> <span class="kwd">r</span> <span class="opt">&gt; !</span>m <span class="kwa">then</span>
+      m <span class="opt">:=</span> <span class="kwd">r</span><span class="opt">;</span>
+      <span class="kwc">Perm</span><span class="opt">.</span><span class="kwd">next p</span>
+    <span class="kwa">done</span><span class="opt">;</span>
+    output_binary_int stdout <span class="opt">!</span><span class="kwd">c</span><span class="opt">;</span>
+    output_binary_int stdout <span class="opt">!</span>m
+  <span class="opt">|</span> <span class="kwd">_</span> <span class="opt">-&gt;</span> <span class="kwc">Printf</span><span class="opt">.</span>printf <span class="str">&quot;Wrong syntax</span><span class="esc">\n</span><span class="str">%!&quot;</span>
 
     </pre>
   </section>
@@ -153,14 +153,14 @@ NOTES:
 The OCaml native-code compiler, version 4.10.0
 
 
-Mon, 03 Aug 2020 22:02:28 GMT
+Tue, 04 Aug 2020 00:02:04 GMT
 
 MAKE:
 mv fannkuchredux.ocamlflambda-3.ocamlflambda fannkuchredux.ocamlflambda-3.ml
 ~/.opam/4.10.0+flambda/bin/ocamlopt -noassert -unsafe -fPIC -nodynlink -inline 100 -O3 unix.cmxa -ccopt -march=ivybridge fannkuchredux.ocamlflambda-3.ml -o fannkuchredux.ocamlflambda-3.ocamlflambda_run
 rm fannkuchredux.ocamlflambda-3.ml
 
-1.32s to complete and log all make actions
+1.38s to complete and log all make actions
 
 COMMAND LINE:
 ./fannkuchredux.ocamlflambda-3.ocamlflambda_run 12

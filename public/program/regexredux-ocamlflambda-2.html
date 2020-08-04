@@ -22,65 +22,65 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
       <h2>source code</h2>
     </div>
     <pre>
-(* The Computer Language Benchmarks Game
- * https://salsa.debian.org/benchmarksgame-team/benchmarksgame/
- *
- * regex-dna program contributed by Christophe TROESTLER
- * converted from regex-dna program
- *
- * updated by Roman Kashitsyn: use Bytes instead of String
- *)
+<span class="com">(* The Computer Language Benchmarks Game</span>
+<span class="com"> * https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="com"> *</span>
+<span class="com"> * regex-dna program contributed by Christophe TROESTLER</span>
+<span class="com"> * converted from regex-dna program</span>
+<span class="com"> *</span>
+<span class="com"> * updated by Roman Kashitsyn: use Bytes instead of String</span>
+<span class="com"> *)</span>
 
-open Printf
+<span class="kwa">open</span> Printf
 
-let variants = [&quot;agggtaaa\\|tttaccct&quot;;          &quot;[cgt]gggtaaa\\|tttaccc[acg]&quot;;
-                &quot;a[act]ggtaaa\\|tttacc[agt]t&quot;;  &quot;ag[act]gtaaa\\|tttac[agt]ct&quot;;
-                &quot;agg[act]taaa\\|ttta[agt]cct&quot;;  &quot;aggg[acg]aaa\\|ttt[cgt]ccct&quot;;
-                &quot;agggt[cgt]aa\\|tt[acg]accct&quot;;  &quot;agggta[cgt]a\\|t[acg]taccct&quot;;
-                &quot;agggtaa[cgt]\\|[acg]ttaccct&quot;]
+<span class="kwa">let</span> <span class="kwd">variants</span> <span class="opt">= [</span><span class="str">&quot;agggtaaa</span><span class="esc">\\</span><span class="str">|tttaccct&quot;</span><span class="opt">;</span>          <span class="str">&quot;[cgt]gggtaaa</span><span class="esc">\\</span><span class="str">|tttaccc[acg]&quot;</span><span class="opt">;</span>
+                <span class="str">&quot;a[act]ggtaaa</span><span class="esc">\\</span><span class="str">|tttacc[agt]t&quot;</span><span class="opt">;</span>  <span class="str">&quot;ag[act]gtaaa</span><span class="esc">\\</span><span class="str">|tttac[agt]ct&quot;</span><span class="opt">;</span>
+                <span class="str">&quot;agg[act]taaa</span><span class="esc">\\</span><span class="str">|ttta[agt]cct&quot;</span><span class="opt">;</span>  <span class="str">&quot;aggg[acg]aaa</span><span class="esc">\\</span><span class="str">|ttt[cgt]ccct&quot;</span><span class="opt">;</span>
+                <span class="str">&quot;agggt[cgt]aa</span><span class="esc">\\</span><span class="str">|tt[acg]accct&quot;</span><span class="opt">;</span>  <span class="str">&quot;agggta[cgt]a</span><span class="esc">\\</span><span class="str">|t[acg]taccct&quot;</span><span class="opt">;</span>
+                <span class="str">&quot;agggtaa[cgt]</span><span class="esc">\\</span><span class="str">|[acg]ttaccct&quot;</span><span class="opt">]</span>
 
-(* Remove the &quot;\\&quot; which is mandatory in OCaml regex. *)
-let re_bs = Str.regexp_string &quot;\\&quot;
-let to_string = Str.global_replace re_bs &quot;&quot;
+<span class="com">(* Remove the &quot;\\&quot; which is mandatory in OCaml regex. *)</span>
+<span class="kwa">let</span> <span class="kwd">re_bs</span> <span class="opt">=</span> <span class="kwc">Str</span><span class="opt">.</span>regexp_string <span class="str">&quot;</span><span class="esc">\\</span><span class="str">&quot;</span>
+<span class="kwa">let</span> <span class="kwd">to_string</span> <span class="opt">=</span> <span class="kwc">Str</span><span class="opt">.</span>global_replace <span class="kwd">re_bs</span> <span class="str">&quot;&quot;</span>
 
-let subst = [&quot;tHa[Nt]&quot;, &quot;&lt;4&gt;&quot;; &quot;aND\\|caN\\|Ha[DS]\\|WaS&quot;, &quot;&lt;3&gt;&quot;;
-             &quot;a[NSt]\\|BY&quot;, &quot;&lt;2&gt;&quot;; &quot;&lt;[^&gt;]*&gt;&quot;, &quot;|&quot;; &quot;|[^|][^|]*|&quot;, &quot;-&quot;] 
+<span class="kwa">let</span> <span class="kwd">subst</span> <span class="opt">= [</span><span class="str">&quot;tHa[Nt]&quot;</span><span class="opt">,</span> <span class="str">&quot;&lt;4&gt;&quot;</span><span class="opt">;</span> <span class="str">&quot;aND</span><span class="esc">\\</span><span class="str">|caN</span><span class="esc">\\</span><span class="str">|Ha[DS]</span><span class="esc">\\</span><span class="str">|WaS&quot;</span><span class="opt">,</span> <span class="str">&quot;&lt;3&gt;&quot;</span><span class="opt">;</span>
+             <span class="str">&quot;a[NSt]</span><span class="esc">\\</span><span class="str">|BY&quot;</span><span class="opt">,</span> <span class="str">&quot;&lt;2&gt;&quot;</span><span class="opt">;</span> <span class="str">&quot;&lt;[^&gt;]*&gt;&quot;</span><span class="opt">,</span> <span class="str">&quot;|&quot;</span><span class="opt">;</span> <span class="str">&quot;|[^|][^|]*|&quot;</span><span class="opt">,</span> <span class="str">&quot;-&quot;</span><span class="opt">]</span> 
 
-(* Read all of a redirected FASTA format file from stdin. *)
-let file_data, file_length =
-  let b = Buffer.create 0xFFFF in
-  let s = Bytes.create 0xFFF in
-  let r = ref 1 in
-  while !r &gt; 0 do
-    r := input stdin s 0 0xFFF;
-    Buffer.add_substring b (Bytes.unsafe_to_string s) 0 !r
-  done;
-  (Buffer.contents b, Buffer.length b)
+<span class="com">(* Read all of a redirected FASTA format file from stdin. *)</span>
+<span class="kwa">let</span> <span class="kwd">file_data</span><span class="opt">,</span> file_length <span class="opt">=</span>
+  <span class="kwa">let</span> <span class="kwd">b</span> <span class="opt">=</span> <span class="kwc">Buffer</span><span class="opt">.</span>create <span class="num">0xFFFF</span> <span class="kwa">in</span>
+  <span class="kwa">let</span> <span class="kwd">s</span> <span class="opt">=</span> <span class="kwc">Bytes</span><span class="opt">.</span>create <span class="num">0xFFF</span> <span class="kwa">in</span>
+  <span class="kwa">let</span> <span class="kwd">r</span> <span class="opt">=</span> <span class="kwb">ref</span> <span class="num">1</span> <span class="kwa">in</span>
+  <span class="kwa">while</span> <span class="opt">!</span><span class="kwd">r</span> <span class="opt">&gt;</span> <span class="num">0</span> <span class="kwa">do</span>
+    <span class="kwd">r</span> <span class="opt">:=</span> input stdin <span class="kwd">s</span> <span class="num">0 0xFFF</span><span class="opt">;</span>
+    <span class="kwc">Buffer</span><span class="opt">.</span>add_substring <span class="kwd">b</span> <span class="opt">(</span><span class="kwc">Bytes</span><span class="opt">.</span>unsafe_to_string <span class="kwd">s</span><span class="opt">)</span> <span class="num">0</span> <span class="opt">!</span><span class="kwd">r</span>
+  <span class="kwa">done</span><span class="opt">;</span>
+  <span class="opt">(</span><span class="kwc">Buffer</span><span class="opt">.</span>contents <span class="kwd">b</span><span class="opt">,</span> <span class="kwc">Buffer</span><span class="opt">.</span>length <span class="kwd">b</span><span class="opt">)</span>
 
-(* Remove FASTA sequence descriptions and all linefeed characters.  *)
-let dna = Str.global_replace (Str.regexp &quot;^&gt;.*$\\|\n&quot;) &quot;&quot; file_data
-let code_length = String.length dna
+<span class="com">(* Remove FASTA sequence descriptions and all linefeed characters.  *)</span>
+<span class="kwa">let</span> <span class="kwd">dna</span> <span class="opt">=</span> <span class="kwc">Str</span><span class="opt">.</span>global_replace <span class="opt">(</span><span class="kwc">Str</span><span class="opt">.</span>regexp <span class="str">&quot;^&gt;.*$</span><span class="esc">\\</span><span class="str">|</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">)</span> <span class="str">&quot;&quot;</span> <span class="kwd">file_data</span>
+<span class="kwa">let</span> <span class="kwd">code_length</span> <span class="opt">=</span> <span class="kwc">String</span><span class="opt">.</span>length <span class="kwd">dna</span>
 
-(* Count matches of [re]. *)
-let count re s =
-  let re = Str.regexp_case_fold re in
-  let i = ref 0 in
-  let n = ref 0 in
-  try
-    while true do
-      i := 1 + Str.search_forward re s !i;
-      incr n
-    done;
-    assert false
-  with Not_found -&gt; !n
+<span class="com">(* Count matches of [re]. *)</span>
+<span class="kwa">let</span> <span class="kwd">count</span> re <span class="kwd">s</span> <span class="opt">=</span>
+  <span class="kwa">let</span> <span class="kwd">re</span> <span class="opt">=</span> <span class="kwc">Str</span><span class="opt">.</span>regexp_case_fold <span class="kwd">re</span> <span class="kwa">in</span>
+  <span class="kwa">let</span> <span class="kwd">i</span> <span class="opt">=</span> <span class="kwb">ref</span> <span class="num">0</span> <span class="kwa">in</span>
+  <span class="kwa">let</span> <span class="kwd">n</span> <span class="opt">=</span> <span class="kwb">ref</span> <span class="num">0</span> <span class="kwa">in</span>
+  <span class="kwa">try</span>
+    <span class="kwa">while true do</span>
+      <span class="kwd">i</span> <span class="opt">:=</span> <span class="num">1</span> <span class="opt">+</span> <span class="kwc">Str</span><span class="opt">.</span>search_forward <span class="kwd">re s</span> <span class="opt">!</span><span class="kwd">i</span><span class="opt">;</span>
+      incr <span class="kwd">n</span>
+    <span class="kwa">done</span><span class="opt">;</span>
+    <span class="kwa">assert false</span>
+  <span class="kwa">with</span> Not_found <span class="opt">-&gt; !</span><span class="kwd">n</span>
 
 
-let () =
-  List.iter (fun re -&gt; printf &quot;%s %i\n&quot; (to_string re) (count re dna)) variants;
-  let b = ref dna in
-  List.iter (fun (re, s) -&gt;
-               b := Str.global_replace (Str.regexp re) s !b) subst;
-  printf &quot;\n%i\n%i\n%i\n&quot; file_length code_length (String.length !b)
+<span class="kwa">let</span> <span class="opt">() =</span>
+  <span class="kwc">List</span><span class="opt">.</span>iter <span class="opt">(</span><span class="kwa">fun</span> <span class="kwd">re</span> <span class="opt">-&gt;</span> printf <span class="str">&quot;</span><span class="ipl">%s %i</span><span class="str"></span><span class="esc">\n</span><span class="str">&quot;</span> <span class="opt">(</span><span class="kwd">to_string re</span><span class="opt">) (</span><span class="kwd">count re dna</span><span class="opt">))</span> <span class="kwd">variants</span><span class="opt">;</span>
+  <span class="kwa">let</span> <span class="kwd">b</span> <span class="opt">=</span> <span class="kwb">ref</span> <span class="kwd">dna</span> <span class="kwa">in</span>
+  <span class="kwc">List</span><span class="opt">.</span>iter <span class="opt">(</span><span class="kwa">fun</span> <span class="opt">(</span><span class="kwd">re</span><span class="opt">,</span> <span class="kwd">s</span><span class="opt">) -&gt;</span>
+               <span class="kwd">b</span> <span class="opt">:=</span> <span class="kwc">Str</span><span class="opt">.</span>global_replace <span class="opt">(</span><span class="kwc">Str</span><span class="opt">.</span>regexp <span class="kwd">re</span><span class="opt">)</span> <span class="kwd">s</span> <span class="opt">!</span><span class="kwd">b</span><span class="opt">)</span> <span class="kwd">subst</span><span class="opt">;</span>
+  printf <span class="str">&quot;</span><span class="esc">\n</span><span class="str"></span><span class="ipl">%i</span><span class="str"></span><span class="esc">\n</span><span class="str"></span><span class="ipl">%i</span><span class="str"></span><span class="esc">\n</span><span class="str"></span><span class="ipl">%i</span><span class="str"></span><span class="esc">\n</span><span class="str">&quot;</span> file_length <span class="kwd">code_length</span> <span class="opt">(</span><span class="kwc">String</span><span class="opt">.</span>length <span class="opt">!</span><span class="kwd">b</span><span class="opt">)</span>
     </pre>
   </section>
   <section>
@@ -93,7 +93,7 @@ NOTES:
 The OCaml native-code compiler, version 4.10.0
 
 
-Mon, 03 Aug 2020 22:25:49 GMT
+Tue, 04 Aug 2020 00:25:25 GMT
 
 MAKE:
 mv regexredux.ocamlflambda-2.ocamlflambda regexredux.ocamlflambda-2.ml
