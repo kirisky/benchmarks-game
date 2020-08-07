@@ -1,3 +1,11 @@
+Public Website
+--------------
+
+https://benchmarksgame-team.pages.debian.net/benchmarksgame/
+
+Toy-program performance measurements for ~24 language implementations.
+
+
 The Benchmarks Game
 ===================
 
@@ -52,13 +60,6 @@ Suggestions?
 
 If you wish to suggest some kind of change then please open a new [Change](https://salsa.debian.org/benchmarksgame-team/benchmarksgame/issues/new?issuable_template=Change) issue.
 
-
-Public Website
---------------
-
-Toy-program performance measurements for ~24 language implementations.
-
-https://benchmarksgame-team.pages.debian.net/benchmarksgame/
 
 
 "The best way to complain is to make things."
