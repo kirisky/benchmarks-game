@@ -16,7 +16,7 @@ What to contribute
 
 Programs for programming language implementations that are already shown on the website. We are unlikely to add other language implementations.
 
-Complete tested source-code for one program: in one source-code file, attached to one tracker issue.
+Complete tested source-code for one program: in one uncompressed source-code file, attached to one tracker issue.
 
 Please do not contribute multiple programs or multiple versions of a program in one source-code file — they will not be accepted.
 
