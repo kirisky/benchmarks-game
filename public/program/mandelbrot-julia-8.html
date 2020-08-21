@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,follow,noarchive">
+
+<title>mandelbrot Julia&nbsp;#8 program | Computer Language Benchmarks Game </title>
+<style><!--
+a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,header{margin:auto;width:92%}body{font:100% Droid Sans, Ubuntu, Verdana, sans-serif;margin:0;-webkit-text-size-adjust:100%}h3, h1, h2, li a{font-family:Ubuntu Mono,Consolas,Menlo,monospace}div,footer,header{max-width:31em}footer{padding:2.6em 0 0}h3{font-size:1.4em;font-weight:bold;margin:0;padding: .4em}h3, h3 a{color:white;background-color:#77216f}h3 small{font-size:0.64em}h1,h2{margin:1.5em 0 0}h1{font-size:1.4em;font-weight:normal}h2{font-size:1.2em}li{list-style-type:none;vertical-align:top}li a{display:block;font-size:1.2em;margin: .5em .5em 0;padding: .5em .5em .3em}ul{clear:left;margin:-0.3em 0 1.5em;padding-left:0;text-align:center}p{color:#333;line-height:1.4;margin: .3em 0 0}p a, a span{border-bottom: .1em solid #333;padding-bottom: .1em}.com,.slc{color:#888}.kwa{color:#066}.kwb{color:#900}.kwc{color:#050}.kwa,.kwb,.kwc{font-weight:bold}.dstr,.str,.sym,.num{color:#930}pre{color:#222;font-size:1em;overflow-wrap:break-word;white-space:pre-wrap;word-wrap:break-word}@media only screen and (min-width: 60em){article,footer,header{font-size:1.25em}}
+--></style>
+<link rel="shortcut icon" href="./favicon.ico">
+<header>
+  <h3><a href="https://benchmarksgame-team.pages.debian.net/benchmarksgame/">The&nbsp;<small>Computer&nbsp;Language</small><br>Benchmarks&nbsp;Game</a></h3>
+</header>
+<article>
+  <div>
+    <h1>mandelbrot Julia&nbsp;#8 program</h1>
+    <aside>
+      <p><a href="../description/mandelbrot.html#mandelbrot">description</a>
+    </aside>
+  </div>
+  <section>
+    <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="com">#=</span>
+<span class="com">The Computer Language Benchmarks Game</span>
+<span class="com"> https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="com"></span>
+<span class="com"> direct transliteration of the swift#3 program by Ralph Ganszky and Daniel Muellenborn</span>
+<span class="com"></span>
+<span class="com"> modified for Julia 1.0 by Simon Danisch</span>
+<span class="com"> tweaked for performance by maltezfaria and Adam Beckmeyer</span>
+<span class="com">=#</span>
+
+<span class="kwa">using</span> Base<span class="opt">.</span>Cartesian
+
+<span class="slc"># Calculate the byte to print for a given vector of 8 real numbers cr</span>
+<span class="slc"># and a given imaginary component ci. This function should give the</span>
+<span class="slc"># same result whether prune is true or false but may be faster or</span>
+<span class="slc"># slower depending on the input.</span>
+<span class="kwa">function</span> <span class="kwd">mand8</span><span class="opt">(</span>cr<span class="opt">,</span> ci<span class="opt">,</span> prune<span class="opt">)</span>
+    zr <span class="opt">=</span> zi <span class="opt">=</span> tr <span class="opt">=</span> ti <span class="opt">=</span> <span class="kwc">&#64;ntuple</span> <span class="num">8</span> _<span class="opt">-&gt;</span> <span class="num">0.0</span>
+
+    <span class="slc"># In cases where the last call to mand8 resulted in 0x00, the next</span>
+    <span class="slc"># call is much more likely to result in 0x00, so it&apos;s worth it to</span>
+    <span class="slc"># check several times if the calculation can be aborted</span>
+    <span class="slc"># early. Otherwise, the relatively costly check can be eliminated.</span>
+    <span class="kwa">if</span> prune
+        <span class="kwa">for</span> _<span class="opt">=</span><span class="num">1</span><span class="opt">:</span><span class="num">10</span>
+            <span class="kwa">for</span> _<span class="opt">=</span><span class="num">1</span><span class="opt">:</span><span class="num">5</span>
+                zr<span class="opt">,</span> zi<span class="opt">,</span> tr<span class="opt">,</span> ti <span class="opt">=</span> <span class="kwd">calc_sum</span><span class="opt">(</span>cr<span class="opt">,</span> ci<span class="opt">,</span> zr<span class="opt">,</span> zi <span class="opt">,</span> tr<span class="opt">,</span> ti<span class="opt">)</span>
+            <span class="kwa">end</span>
+            <span class="slc"># If all values are already &gt; 4.0, we already know no</span>
+            <span class="slc"># values will be &lt;= 4.0 at end of iterations. Reduction</span>
+            <span class="slc"># with binary &amp; is used here instead of all function to</span>
+            <span class="slc"># avoid branches caused by short-circuiting behavior.</span>
+            <span class="kwd">foldl</span><span class="opt">(&amp;,</span> <span class="kwc">&#64;ntuple</span><span class="opt">(</span><span class="num">8</span><span class="opt">,</span> k<span class="opt">-&gt;</span> tr<span class="opt">[</span>k<span class="opt">] +</span> ti<span class="opt">[</span>k<span class="opt">] &gt;</span> <span class="num">4.0</span><span class="opt">)) &amp;&amp;</span> <span class="kwa">return</span> <span class="num">0x00</span>
+        <span class="kwa">end</span>
+    <span class="kwa">else</span>
+        <span class="kwa">for</span> _<span class="opt">=</span><span class="num">1</span><span class="opt">:</span><span class="num">50</span>
+            zr<span class="opt">,</span> zi<span class="opt">,</span> tr<span class="opt">,</span> ti <span class="opt">=</span> <span class="kwd">calc_sum</span><span class="opt">(</span>cr<span class="opt">,</span> ci<span class="opt">,</span> zr<span class="opt">,</span> zi <span class="opt">,</span> tr<span class="opt">,</span> ti<span class="opt">)</span>
+        <span class="kwa">end</span>
+    <span class="kwa">end</span>
+
+    <span class="slc"># For each value &lt;= 4.0, the k-th bit (counting from left) is set to 1</span>
+    <span class="kwd">foldl</span><span class="opt">(|,</span> <span class="kwc">&#64;ntuple</span><span class="opt">(</span><span class="num">8</span><span class="opt">,</span> k<span class="opt">-&gt;</span> <span class="kwa">ifelse</span><span class="opt">(</span>tr<span class="opt">[</span>k<span class="opt">] +</span> ti<span class="opt">[</span>k<span class="opt">] &lt;=</span> <span class="num">4.0</span><span class="opt">,</span> <span class="num">0x80</span> <span class="opt">&gt;&gt; (</span>k <span class="opt">-</span> <span class="num">1</span><span class="opt">),</span> <span class="num">0x00</span><span class="opt">)))</span>
+<span class="kwa">end</span>
+
+<span class="slc"># Single iteration of mandelbrot calculation for vector r of real</span>
+<span class="slc"># components and vector i or imaginary components.</span>
+<span class="kwc">&#64;inline</span> <span class="kwa">function</span> <span class="kwd">calc_sum</span><span class="opt">(</span>cr<span class="opt">,</span> ci<span class="opt">,</span> zr<span class="opt">,</span> zi<span class="opt">,</span> tr<span class="opt">,</span> ti<span class="opt">)</span>
+    <span class="slc"># Using broadcasting (r2 = r .* r) generates operations on llvm</span>
+    <span class="slc"># &lt;8 x double&gt; vectors even with --cpu-target=core2 (widest simd</span>
+    <span class="slc"># register on core2 is &lt;2 x double&gt;). &#64;ntuple results in better</span>
+    <span class="slc"># codegen (uses &lt;2 x double&gt;).</span>
+    zi <span class="opt">=</span> <span class="kwc">&#64;ntuple</span> <span class="num">8</span> k<span class="opt">-&gt;</span> <span class="kwd">muladd</span><span class="opt">(</span>zr<span class="opt">[</span>k<span class="opt">] +</span> zr<span class="opt">[</span>k<span class="opt">],</span> zi<span class="opt">[</span>k<span class="opt">],</span> ci<span class="opt">)</span>
+    zr <span class="opt">=</span> <span class="kwc">&#64;ntuple</span> <span class="num">8</span> k<span class="opt">-&gt;</span> tr<span class="opt">[</span>k<span class="opt">] -</span> ti<span class="opt">[</span>k<span class="opt">] +</span> cr<span class="opt">[</span>k<span class="opt">]</span>
+    tr <span class="opt">=</span> <span class="kwc">&#64;ntuple</span> <span class="num">8</span> k<span class="opt">-&gt;</span> zr<span class="opt">[</span>k<span class="opt">] *</span> zr<span class="opt">[</span>k<span class="opt">]</span>
+    ti <span class="opt">=</span> <span class="kwc">&#64;ntuple</span> <span class="num">8</span> k<span class="opt">-&gt;</span> zi<span class="opt">[</span>k<span class="opt">] *</span> zi<span class="opt">[</span>k<span class="opt">]</span>
+    zr<span class="opt">,</span> zi<span class="opt">,</span> tr<span class="opt">,</span> ti
+<span class="kwa">end</span>
+
+<span class="slc"># Write n by n portable bitmap image of mandelbrot set to io</span>
+<span class="kwa">function</span> <span class="kwd">mandelbrot</span><span class="opt">(</span>io<span class="opt">,</span> n<span class="opt">)</span>
+    n <span class="opt">%</span> <span class="num">8</span> <span class="opt">==</span> <span class="num">0</span> <span class="opt">||</span> <span class="kwd">error</span><span class="opt">(</span><span class="str">&quot;n must be multiple of 8&quot;</span><span class="opt">)</span>
+
+    <span class="slc"># Precalculate real coordinates to check</span>
+    xvals <span class="opt">=</span> <span class="kwb">Float64</span><span class="opt">[</span><span class="num">2</span>i<span class="opt">/</span>n <span class="opt">-</span> <span class="num">1.5</span> <span class="kwa">for</span> i<span class="opt">=</span><span class="num">0</span><span class="opt">:</span>n<span class="opt">-</span><span class="num">1</span><span class="opt">]</span>
+    <span class="slc"># Precalculate imaginary coordinates to check</span>
+    yvals <span class="opt">=</span> <span class="kwb">Float64</span><span class="opt">[</span><span class="num">2</span>i<span class="opt">/</span>n <span class="opt">-</span> <span class="num">1.0</span> <span class="kwa">for</span> i<span class="opt">=</span><span class="num">0</span><span class="opt">:</span>n<span class="opt">-</span><span class="num">1</span><span class="opt">]</span>
+
+    <span class="slc"># Create a vector of bytes to output</span>
+    out <span class="opt">=</span> Vector<span class="opt">{</span><span class="kwb">UInt8</span><span class="opt">}(</span>undef<span class="opt">,</span> n <span class="opt">*</span> n ÷ <span class="num">8</span><span class="opt">)</span>
+    <span class="slc"># For each row (each imaginary coordinate), spawn a thread to fill</span>
+    <span class="slc"># out values. At small values of n, this is too fine-grained of</span>
+    <span class="slc"># parallelism to really be efficient, but it works well for large n.</span>
+    <span class="kwc">&#64;sync</span> <span class="kwa">for</span> y<span class="opt">=</span><span class="num">1</span><span class="opt">:</span>n
+        <span class="slc"># Threads.&#64;spawn allows dynamic scheduling instead of static scheduling</span>
+        <span class="slc"># of Threads.&#64;threads macro.</span>
+        <span class="slc"># See &lt;https://github.com/JuliaLang/julia/issues/21017&gt;.</span>
+        Threads<span class="opt">.</span><span class="kwc">&#64;spawn &#64;inbounds</span> begin
+            ci <span class="opt">=</span> yvals<span class="opt">[</span>y<span class="opt">]</span>
+            startofrow <span class="opt">= (</span>y <span class="opt">-</span> <span class="num">1</span><span class="opt">) *</span> n ÷ <span class="num">8</span>
+            <span class="slc"># The first iteration within a row will generally return 0x00</span>
+            prune <span class="opt">=</span> <span class="kwa">true</span>
+            <span class="kwa">for</span> x<span class="opt">=</span><span class="num">1</span><span class="opt">:</span><span class="num">8</span><span class="opt">:</span>n
+                <span class="slc"># Calculate whether the (x:x+7)-th real coordinates with</span>
+                <span class="slc"># the y-th imaginary coordinate belong to the</span>
+                <span class="slc"># mandelbrot set.</span>
+                byte <span class="opt">=</span> <span class="kwd">mand8</span><span class="opt">(</span><span class="kwc">&#64;ntuple</span><span class="opt">(</span><span class="num">8</span><span class="opt">,</span> k<span class="opt">-&gt;</span> xvals<span class="opt">[</span>x<span class="opt">+</span>k<span class="opt">-</span><span class="num">1</span><span class="opt">]),</span> ci<span class="opt">,</span> prune<span class="opt">)</span>
+                out<span class="opt">[</span>startofrow <span class="opt">+</span> x÷<span class="num">8</span> <span class="opt">+</span> <span class="num">1</span><span class="opt">] =</span> byte
+                prune <span class="opt">=</span> byte <span class="opt">==</span> <span class="num">0x00</span>
+            <span class="kwa">end</span>
+        <span class="kwa">end</span>
+    <span class="kwa">end</span>
+
+    <span class="kwd">foreach</span><span class="opt">((</span><span class="str">&quot;P4</span><span class="esc">\n</span><span class="str"></span><span class="ipl">$n $n</span><span class="str"></span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span> out<span class="opt">))</span> <span class="kwa">do</span> x
+        <span class="kwd">write</span><span class="opt">(</span>io<span class="opt">,</span> x<span class="opt">)</span>
+    <span class="kwa">end</span>
+<span class="kwa">end</span>
+
+<span class="kwd">isinteractive</span><span class="opt">() ||</span> <span class="kwd">mandelbrot</span><span class="opt">(</span>stdout<span class="opt">,</span> <span class="kwd">parse</span><span class="opt">(</span>Int<span class="opt">,</span> ARGS<span class="opt">[</span><span class="num">1</span><span class="opt">]))</span>
+    </pre>
+  </section>
+  <section>
+    <div>
+      <h2 id="log">notes, command-line, and program output</h2>
+    </div>
+    <pre>
+NOTES:
+64-bit Ubuntu quad core
+julia version 1.5.0
+
+
+Fri, 21 Aug 2020 17:08:49 GMT
+
+MAKE:
+printenv JULIA_NUM_THREADS
+4
+printenv JULIA_LLVM_ARGS
+
+
+0.09s to complete and log all make actions
+
+COMMAND LINE:
+/opt/src/julia-1.5.0/bin/julia -O3 --cpu-target=ivybridge  -- mandelbrot.julia-8.julia 16000
+
+(BINARY) PROGRAM OUTPUT NOT SHOWN
+    </pre>
+  </section>
+</article>
+<footer>
+  <nav>
+    <ul>
+      <li><a href="https://salsa.debian.org/benchmarksgame-team/benchmarksgame/blob/master/CONTRIBUTING.md#contribute-source-code-for-measurement"><span>Contribute your own program</span></a>
+      <li><a href="../license.html"><span>3-Clause BSD License</span></a>
+    </ul>
+  </nav>
+</footer>
+
