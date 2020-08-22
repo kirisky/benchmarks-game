@@ -14,7 +14,9 @@ Don't expect new source-code you contribute to be shown !
 
 Previously new source-code was usually measured and shown on the website within a few days.
 
-As-of July 2020, it has proved very difficult to dual-boot Windows 10 and Ubuntu with ‎UEFI / Secure Boot — at some point Ubuntu does not boot. 
+As-of July 2020, new measurements were made on a 2012 i5-3330.
+
+On that UEFI / Secure Boot hardware, it has proved very difficult to keep Ubuntu working as a dual-boot. After using Windows 10, Ubuntu often fails to boot. So far the only reliable remedy is to re-install Ubuntu from DVD — that really isn't practical.
 
 Perhaps I'll re-install Ubuntu once a year just to make new measurements; perhaps not.
 
