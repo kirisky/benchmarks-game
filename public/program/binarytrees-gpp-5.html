@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,follow,noarchive">
+
+<title>binary-trees C++ g++&nbsp;#5 program | Computer Language Benchmarks Game </title>
+<style><!--
+a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,header{margin:auto;width:92%}body{font:100% Droid Sans, Ubuntu, Verdana, sans-serif;margin:0;-webkit-text-size-adjust:100%}h3, h1, h2, li a{font-family:Ubuntu Mono,Consolas,Menlo,monospace}div,footer,header{max-width:31em}footer{padding:2.6em 0 0}h3{font-size:1.4em;font-weight:bold;margin:0;padding: .4em}h3, h3 a{color:white;background-color:#77216f}h3 small{font-size:0.64em}h1,h2{margin:1.5em 0 0}h1{font-size:1.4em;font-weight:normal}h2{font-size:1.2em}li{list-style-type:none;vertical-align:top}li a{display:block;font-size:1.2em;margin: .5em .5em 0;padding: .5em .5em .3em}ul{clear:left;margin:-0.3em 0 1.5em;padding-left:0;text-align:center}p{color:#333;line-height:1.4;margin: .3em 0 0}p a, a span{border-bottom: .1em solid #333;padding-bottom: .1em}.com,.slc{color:#888}.kwa{color:#066}.kwb{color:#900}.kwc{color:#050}.kwa,.kwb,.kwc{font-weight:bold}.dstr,.str,.sym,.num{color:#930}pre{color:#222;font-size:1em;overflow-wrap:break-word;white-space:pre-wrap;word-wrap:break-word}@media only screen and (min-width: 60em){article,footer,header{font-size:1.25em}}
+--></style>
+<link rel="shortcut icon" href="./favicon.ico">
+<header>
+  <h3><a href="https://benchmarksgame-team.pages.debian.net/benchmarksgame/index.html">The&nbsp;<small>Computer&nbsp;Language</small><br>Benchmarks&nbsp;Game</a></h3>
+</header>
+<article>
+  <div>
+    <h1>binary-trees C++ g++&nbsp;#5 program</h1>
+    <aside>
+      <p><a href="../description/binarytrees.html#binarytrees">description</a>
+    </aside>
+  </div>
+  <section>
+    <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="com">/* The Computer Language Benchmarks Game</span>
+<span class="com"> * https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="com"> *</span>
+<span class="com"> * contributed by Danial Klimkin (C++)</span>
+<span class="com"> * contributed by the Rust Project Developers (Rust)</span>
+<span class="com"> * contributed by TeXitoi (Rust)</span>
+<span class="com"> * contributed by Cristi Cobzarenco (Rust)</span>
+<span class="com"> * contributed by Matt Brubeck (Rust) </span>
+<span class="com"> * contributed by Dmytro Ovdiienko</span>
+<span class="com"> *</span>
+<span class="com"> */</span>
+
+<span class="ppc">#include &lt;atomic&gt;</span>
+<span class="ppc">#include &lt;numeric&gt;</span>
+<span class="ppc">#include &lt;algorithm&gt;</span>
+<span class="ppc">#include &lt;functional&gt;</span>
+<span class="ppc">#include &lt;iostream&gt;</span>
+<span class="ppc">#include &lt;memory_resource&gt;</span>
+<span class="ppc">#include &lt;thread&gt;</span>
+
+<span class="kwa">using</span> MemoryPool <span class="opt">=</span> <span class="kwc">std</span><span class="opt">::</span><span class="kwc">pmr</span><span class="opt">::</span>monotonic_buffer_resource<span class="opt">;</span>
+
+<span class="kwb">struct</span> Node
+<span class="opt">{</span>
+    Node <span class="opt">*</span>l<span class="opt">, *</span>r<span class="opt">;</span>
+
+    <span class="kwb">int</span> <span class="kwd">check</span><span class="opt">()</span> <span class="kwb">const</span>
+    <span class="opt">{</span>
+        <span class="kwa">if</span> <span class="opt">(</span>l<span class="opt">)</span>
+            <span class="kwa">return</span> l<span class="opt">-&gt;</span><span class="kwd">check</span><span class="opt">() +</span> <span class="num">1</span> <span class="opt">+</span> r<span class="opt">-&gt;</span><span class="kwd">check</span><span class="opt">();</span>
+        <span class="kwa">else</span>
+            <span class="kwa">return</span> <span class="num">1</span><span class="opt">;</span>
+    <span class="opt">}</span>
+<span class="opt">};</span>
+
+Node<span class="opt">*</span> <span class="kwd">make</span><span class="opt">(</span><span class="kwb">const int</span> d<span class="opt">,</span> MemoryPool<span class="opt">&amp;</span> store<span class="opt">)</span>
+<span class="opt">{</span>
+    Node<span class="opt">*</span> root <span class="opt">=</span> <span class="kwa">static_cast</span><span class="opt">&lt;</span>Node<span class="opt">*&gt;(</span>store<span class="opt">.</span><span class="kwd">allocate</span><span class="opt">(</span><span class="kwa">sizeof</span><span class="opt">(</span>Node<span class="opt">)));</span>
+    <span class="kwa">if</span> <span class="opt">(</span>d <span class="opt">&gt;</span> <span class="num">0</span><span class="opt">)</span>
+    <span class="opt">{</span>
+        root<span class="opt">-&gt;</span>l <span class="opt">=</span> <span class="kwd">make</span><span class="opt">(</span>d <span class="opt">-</span> <span class="num">1</span><span class="opt">,</span> store<span class="opt">);</span>
+        root<span class="opt">-&gt;</span>r <span class="opt">=</span> <span class="kwd">make</span><span class="opt">(</span>d <span class="opt">-</span> <span class="num">1</span><span class="opt">,</span> store<span class="opt">);</span>
+    <span class="opt">}</span>
+    <span class="kwa">else</span>
+    <span class="opt">{</span>
+        root<span class="opt">-&gt;</span>l <span class="opt">=</span> root<span class="opt">-&gt;</span>r <span class="opt">=</span> <span class="kwc">nullptr</span><span class="opt">;</span>
+    <span class="opt">}</span>
+    <span class="kwa">return</span> root<span class="opt">;</span>
+<span class="opt">}</span>
+
+<span class="kwb">int</span> <span class="kwd">run_parallel</span><span class="opt">(</span><span class="kwb">unsigned</span> depth<span class="opt">,</span> <span class="kwb">int</span> iterations<span class="opt">,</span> <span class="kwb">unsigned int</span> workers <span class="opt">=</span> <span class="kwc">std</span><span class="opt">::</span><span class="kwc">thread</span><span class="opt">::</span><span class="kwd">hardware_concurrency</span><span class="opt">())</span>
+<span class="opt">{</span>
+    <span class="kwc">std</span><span class="opt">::</span>vector<span class="opt">&lt;</span><span class="kwc">std</span><span class="opt">::</span>thread<span class="opt">&gt;</span> threads<span class="opt">;</span>
+    threads<span class="opt">.</span><span class="kwd">reserve</span><span class="opt">(</span>workers<span class="opt">);</span>
+
+    <span class="kwc">std</span><span class="opt">::</span>atomic_int counter <span class="opt">=</span> iterations<span class="opt">;</span>
+    <span class="kwc">std</span><span class="opt">::</span>atomic_int output <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+
+    <span class="kwa">for</span><span class="opt">(</span><span class="kwb">unsigned</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> workers<span class="opt">; ++</span>i<span class="opt">) {</span>
+        threads<span class="opt">.</span><span class="kwd">push_back</span><span class="opt">(</span><span class="kwc">std</span><span class="opt">::</span><span class="kwd">thread</span><span class="opt">([&amp;</span>counter<span class="opt">,</span> depth<span class="opt">, &amp;</span>output<span class="opt">] {</span>
+            <span class="kwc">std</span><span class="opt">::</span><span class="kwc">pmr</span><span class="opt">::</span>unsynchronized_pool_resource upperPool<span class="opt">;</span>
+            MemoryPool pool <span class="opt">{</span><span class="num">4000</span><span class="opt">, &amp;</span>upperPool<span class="opt">};</span>
+            <span class="kwb">int</span> checksum <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+
+            <span class="kwa">while</span><span class="opt">(--</span>counter <span class="opt">&gt;=</span> <span class="num">0</span><span class="opt">) {</span>
+                Node<span class="opt">*</span> a     <span class="opt">=</span> <span class="kwd">make</span><span class="opt">(</span>depth<span class="opt">,</span> pool<span class="opt">);</span>
+                checksum    <span class="opt">+=</span> a<span class="opt">-&gt;</span><span class="kwd">check</span><span class="opt">();</span>
+                pool<span class="opt">.</span><span class="kwd">release</span><span class="opt">();</span>
+            <span class="opt">}</span>
+
+            output <span class="opt">+=</span> checksum<span class="opt">;</span>
+        <span class="opt">}));</span>
+    <span class="opt">}</span>
+    
+    <span class="kwa">for</span><span class="opt">(</span><span class="kwb">unsigned</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> workers<span class="opt">; ++</span>i<span class="opt">) {</span>
+        threads<span class="opt">[</span>i<span class="opt">].</span><span class="kwd">join</span><span class="opt">();</span>
+    <span class="opt">}</span>
+
+    <span class="kwa">return</span> output<span class="opt">;</span>
+<span class="opt">}</span>
+
+<span class="kwc">constexpr auto</span> MIN_DEPTH     <span class="opt">=</span> <span class="num">4</span><span class="opt">;</span>
+
+<span class="kwb">int</span> <span class="kwd">main</span><span class="opt">(</span><span class="kwb">int</span> argc<span class="opt">,</span> <span class="kwb">char</span><span class="opt">*</span> argv<span class="opt">[])</span>
+<span class="opt">{</span>
+    <span class="kwb">const int</span> max_depth     <span class="opt">=</span> <span class="kwc">std</span><span class="opt">::</span><span class="kwd">max</span><span class="opt">(</span>MIN_DEPTH <span class="opt">+</span> <span class="num">2</span><span class="opt">, (</span>argc <span class="opt">==</span> <span class="num">2</span> <span class="opt">?</span> <span class="kwd">atoi</span><span class="opt">(</span>argv<span class="opt">[</span><span class="num">1</span><span class="opt">]) :</span> <span class="num">10</span><span class="opt">));</span>
+    <span class="kwb">const int</span> stretch_depth <span class="opt">=</span> max_depth <span class="opt">+</span> <span class="num">1</span><span class="opt">;</span>
+
+    <span class="slc">// Alloc then dealloc stretchdepth tree.</span>
+    <span class="opt">{</span>
+        MemoryPool store<span class="opt">;</span>
+
+        Node<span class="opt">*</span> c <span class="opt">=</span> <span class="kwd">make</span><span class="opt">(</span>stretch_depth<span class="opt">,</span> store<span class="opt">);</span>
+        <span class="kwc">std</span><span class="opt">::</span>cout <span class="opt">&lt;&lt;</span> <span class="str">&quot;stretch tree of depth &quot;</span> <span class="opt">&lt;&lt;</span> stretch_depth <span class="opt">&lt;&lt;</span> <span class="str">&quot;</span><span class="esc">\t</span> <span class="str">&quot;</span>
+                  <span class="opt">&lt;&lt;</span> <span class="str">&quot;check: &quot;</span> <span class="opt">&lt;&lt;</span> c<span class="opt">-&gt;</span><span class="kwd">check</span><span class="opt">() &lt;&lt;</span> <span class="kwc">std</span><span class="opt">::</span>endl<span class="opt">;</span>
+    <span class="opt">}</span>
+
+    MemoryPool long_lived_store<span class="opt">;</span>
+    Node<span class="opt">*</span> long_lived_tree <span class="opt">=</span> <span class="kwd">make</span><span class="opt">(</span>max_depth<span class="opt">,</span> long_lived_store<span class="opt">);</span>
+
+    <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> d <span class="opt">=</span> MIN_DEPTH<span class="opt">;</span> d <span class="opt">&lt;=</span> max_depth<span class="opt">;</span> d <span class="opt">+=</span> <span class="num">2</span><span class="opt">)</span>
+    <span class="opt">{</span>
+        <span class="kwb">const int</span> iterations <span class="opt">=</span> <span class="num">1</span> <span class="opt">&lt;&lt; (</span>max_depth <span class="opt">-</span> d <span class="opt">+</span> MIN_DEPTH<span class="opt">);</span>
+        <span class="kwc">auto</span> <span class="kwb">const</span> c <span class="opt">=</span> <span class="kwd">run_parallel</span><span class="opt">(</span>d<span class="opt">,</span> iterations<span class="opt">);</span>
+
+        <span class="kwc">std</span><span class="opt">::</span>cout <span class="opt">&lt;&lt;</span> iterations <span class="opt">&lt;&lt;</span> <span class="str">&quot;</span><span class="esc">\t</span> <span class="str">trees of depth &quot;</span> <span class="opt">&lt;&lt;</span> d <span class="opt">&lt;&lt;</span> <span class="str">&quot;</span><span class="esc">\t</span> <span class="str">check: &quot;</span> <span class="opt">&lt;&lt;</span> c <span class="opt">&lt;&lt;</span> <span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">;</span>
+    <span class="opt">}</span>
+
+    <span class="kwc">std</span><span class="opt">::</span>cout <span class="opt">&lt;&lt;</span> <span class="str">&quot;long lived tree of depth &quot;</span> <span class="opt">&lt;&lt;</span> max_depth <span class="opt">&lt;&lt;</span> <span class="str">&quot;</span><span class="esc">\t</span> <span class="str">&quot;</span>
+              <span class="opt">&lt;&lt;</span> <span class="str">&quot;check: &quot;</span> <span class="opt">&lt;&lt; (</span>long_lived_tree<span class="opt">-&gt;</span><span class="kwd">check</span><span class="opt">()) &lt;&lt;</span> <span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">;</span>
+
+    <span class="kwa">return</span> <span class="num">0</span><span class="opt">;</span>
+<span class="opt">}</span>
+    </pre>
+  </section>
+  <section>
+    <div>
+      <h2 id="log">notes, command-line, and program output</h2>
+    </div>
+    <pre>
+NOTES:
+64-bit Ubuntu quad core
+g++ (Ubuntu 9.3.0-10ubuntu2) 9.3.0
+
+
+Wed, 09 Sep 2020 21:51:30 GMT
+
+MAKE:
+/usr/bin/g++ -c -pipe -O3 -fomit-frame-pointer -march=ivybridge  -std=gnu++17 binarytrees.gpp-5.c++ -o binarytrees.gpp-5.c++.o &amp;&amp;  \
+        /usr/bin/g++ binarytrees.gpp-5.c++.o -o binarytrees.gpp-5.gpp_run -lpthread 
+rm binarytrees.gpp-5.c++
+
+3.04s to complete and log all make actions
+
+COMMAND LINE:
+./binarytrees.gpp-5.gpp_run 21
+
+PROGRAM OUTPUT:
+stretch tree of depth 22	 check: 8388607
+2097152	 trees of depth 4	 check: 65011712
+524288	 trees of depth 6	 check: 66584576
+131072	 trees of depth 8	 check: 66977792
+32768	 trees of depth 10	 check: 67076096
+8192	 trees of depth 12	 check: 67100672
+2048	 trees of depth 14	 check: 67106816
+512	 trees of depth 16	 check: 67108352
+128	 trees of depth 18	 check: 67108736
+32	 trees of depth 20	 check: 67108832
+long lived tree of depth 21	 check: 4194303
+    </pre>
+  </section>
+</article>
+<footer>
+  <nav>
+    <ul>
+      <li><a href="https://salsa.debian.org/benchmarksgame-team/benchmarksgame/blob/master/CONTRIBUTING.md#contribute-source-code-for-measurement"><span>Contribute your own program</span></a>
+      <li><a href="../license.html"><span>3-Clause BSD License</span></a>
+    </ul>
+  </nav>
+</footer>
+
