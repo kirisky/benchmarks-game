@@ -9,16 +9,11 @@ Toy-program performance measurements for ~24 language implementations.
 The Benchmarks Game
 ===================
 
-Don't expect new source-code you contribute to be shown !
----------------------------------------------------------
-
-Previously new source-code was usually measured and shown on the website within a few days.
+Previously new source-code was usually measured and shown on the website within a few days. Now new source-code will probably be measured and shown on the website after a few months.
 
 As-of July 2020, new measurements were made on a 2012 i5-3330.
 
 On that UEFI / Secure Boot hardware, it has proved very difficult to keep Ubuntu working as a dual-boot. After using Windows 10, Ubuntu often fails to boot. So far the only reliable remedy is to re-install Ubuntu from DVD — that really isn't practical.
-
-Perhaps I'll re-install Ubuntu once a year just to make new measurements; perhaps not.
 
 
 What else?
