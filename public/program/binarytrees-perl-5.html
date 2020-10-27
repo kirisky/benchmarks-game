@@ -2,7 +2,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,follow,noarchive">
 
-<title>binary-trees Perl&nbsp;#4 program | Computer Language Benchmarks Game </title>
+<title>binary-trees Perl&nbsp;#5 program | Computer Language Benchmarks Game </title>
 <style><!--
 a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,header{margin:auto;width:92%}body{font:100% Droid Sans, Ubuntu, Verdana, sans-serif;margin:0;-webkit-text-size-adjust:100%}h3, h1, h2, li a{font-family:Ubuntu Mono,Consolas,Menlo,monospace}div,footer,header{max-width:31em}footer{padding:2.6em 0 0}h3{font-size:1.4em;font-weight:bold;margin:0;padding: .4em}h3, h3 a{color:white;background-color:#77216f}h3 small{font-size:0.64em}h1,h2{margin:1.5em 0 0}h1{font-size:1.4em;font-weight:normal}h2{font-size:1.2em}li{list-style-type:none;vertical-align:top}li a{display:block;font-size:1.2em;margin: .5em .5em 0;padding: .5em .5em .3em}ul{clear:left;margin:-0.3em 0 1.5em;padding-left:0;text-align:center}p{color:#333;line-height:1.4;margin: .3em 0 0}p a, a span{border-bottom: .1em solid #333;padding-bottom: .1em}.com,.slc{color:#888}.kwa{color:#066}.kwb{color:#900}.kwc{color:#050}.kwa,.kwb,.kwc{font-weight:bold}.dstr,.str,.sym,.num{color:#930}pre{color:#222;font-size:1em;overflow-wrap:break-word;white-space:pre-wrap;word-wrap:break-word}@media only screen and (min-width: 60em){article,footer,header{font-size:1.25em}}
 --></style>
@@ -12,7 +12,7 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 </header>
 <article>
   <div>
-    <h1>binary-trees Perl&nbsp;#4 program</h1>
+    <h1>binary-trees Perl&nbsp;#5 program</h1>
     <aside>
       <p><a href="../description/binarytrees.html#binarytrees">description</a>
     </aside>
@@ -27,7 +27,7 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="slc">#</span>
 <span class="slc"># contributed by Emanuele Zeppieri</span>
 <span class="slc"># *reset* by A. Sinan Unur</span>
-<span class="slc"># load-spread threads by Richard Leach</span>
+<span class="slc"># thread and depth tweaks by Richard Leach</span>
 
 <span class="kwa">use</span> threads<span class="opt">;</span>
 <span class="kwc">my</span> <span class="kwb">&#64;threads</span><span class="opt">;</span>
@@ -35,26 +35,29 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="kwa">use</span> threads<span class="opt">::</span>shared<span class="opt">;</span>
 <span class="kwc">my</span> <span class="kwb">&#64;tasks</span> <span class="opt">:</span>shared<span class="opt">;</span>
 <span class="kwc">my</span> <span class="kwb">&#64;checks</span> <span class="opt">:</span>shared<span class="opt">;</span>
+<span class="kwc">my</span> <span class="kwb">$phase</span> <span class="opt">:</span>shared<span class="opt">;</span>
 
 run<span class="opt">(</span> <span class="kwb">&#64;ARGV</span> <span class="opt">);</span>
 
 <span class="kwa">sub</span> bottomup_tree <span class="opt">{</span>
-    <span class="kwc">my</span> <span class="kwb">$depth</span><span class="opt">;</span>
-    <span class="kwa">return</span> <span class="kwc">undef</span> <span class="kwa">unless</span> <span class="opt">(</span><span class="kwb">$depth</span> <span class="opt">=</span> <span class="kwb">$_</span><span class="opt">[</span><span class="num">0</span><span class="opt">]);</span>
-    <span class="opt">--</span><span class="kwb">$depth</span><span class="opt">;</span>
-    <span class="opt">[</span> bottomup_tree<span class="opt">(</span><span class="kwb">$depth</span><span class="opt">),</span> bottomup_tree<span class="opt">(</span><span class="kwb">$depth</span><span class="opt">) ];</span>
+    <span class="kwc">my</span> <span class="kwb">$depth</span> <span class="opt">=</span> <span class="kwb">$_</span><span class="opt">[</span><span class="num">0</span><span class="opt">] -</span> <span class="num">1</span><span class="opt">;</span>
+    <span class="opt">(</span><span class="kwb">$depth</span><span class="opt">)</span> 
+    ? <span class="opt">[</span> bottomup_tree<span class="opt">(</span><span class="kwb">$depth</span><span class="opt">),</span> bottomup_tree<span class="opt">(</span><span class="kwb">$depth</span><span class="opt">) ]</span>
+    <span class="opt">: [</span><span class="kwc">undef</span><span class="opt">,</span> <span class="kwc">undef</span><span class="opt">]</span>
+    <span class="opt">;</span>
 <span class="opt">}</span>
 
 <span class="kwa">sub</span> check_tree <span class="opt">{</span>
-    <span class="kwa">return</span> <span class="num">1</span> <span class="kwa">unless</span> <span class="kwb">$_</span><span class="opt">[</span><span class="num">0</span><span class="opt">];</span>
-    <span class="num">1</span> <span class="opt">+</span> check_tree<span class="opt">(</span><span class="kwb">$_</span><span class="opt">[</span><span class="num">0</span><span class="opt">][</span><span class="num">0</span><span class="opt">]) +</span> check_tree<span class="opt">(</span><span class="kwb">$_</span><span class="opt">[</span><span class="num">0</span><span class="opt">][</span><span class="num">1</span><span class="opt">]);</span>
+    <span class="num">1</span>  
+      <span class="opt">+  ( (</span><span class="kwb">$_</span><span class="opt">[</span><span class="num">0</span><span class="opt">][</span><span class="num">0</span><span class="opt">])</span> ? check_tree<span class="opt">(</span><span class="kwb">$_</span><span class="opt">[</span><span class="num">0</span><span class="opt">][</span><span class="num">0</span><span class="opt">]) :</span> <span class="num">1</span><span class="opt">)</span> 
+      <span class="opt">+  ( (</span><span class="kwb">$_</span><span class="opt">[</span><span class="num">0</span><span class="opt">][</span><span class="num">1</span><span class="opt">])</span> ? check_tree<span class="opt">(</span><span class="kwb">$_</span><span class="opt">[</span><span class="num">0</span><span class="opt">][</span><span class="num">1</span><span class="opt">]) :</span> <span class="num">1</span><span class="opt">)</span> 
+   <span class="opt">;</span>
 <span class="opt">}</span>
 
 <span class="kwa">sub</span> stretch_tree <span class="opt">{</span>
-    <span class="kwc">my</span> <span class="kwb">$stretch_depth</span> <span class="opt">=</span> <span class="kwc">shift</span><span class="opt">;</span>
-    <span class="kwc">my</span> <span class="kwb">$stretch_tree</span> <span class="opt">=</span> bottomup_tree<span class="opt">(</span><span class="kwb">$stretch_depth</span><span class="opt">);</span>
+    <span class="kwc">my</span> <span class="opt">(</span><span class="kwb">$stretch_depth</span><span class="opt">) =</span> <span class="kwb">&#64;_</span><span class="opt">;</span>
     <span class="kwc">print</span> <span class="str">&quot;stretch tree of depth</span> <span class="ipl">$stretch_depth</span><span class="str"></span><span class="esc">\t</span> <span class="str">check: &quot;</span><span class="opt">,</span>
-    check_tree<span class="opt">(</span><span class="kwb">$stretch_tree</span><span class="opt">),</span> <span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">;</span>
+    check_tree<span class="opt">(</span> bottomup_tree<span class="opt">(</span><span class="kwb">$stretch_depth</span><span class="opt">) ),</span> <span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">;</span>
 <span class="opt">}</span>
 
 <span class="kwa">sub</span> num_cpus <span class="opt">{</span>
@@ -67,6 +70,7 @@ run<span class="opt">(</span> <span class="kwb">&#64;ARGV</span> <span class="op
 <span class="opt">}</span>
 
 <span class="kwa">sub</span> depth_iteration <span class="opt">{</span>
+    <span class="kwa">until</span> <span class="opt">(</span><span class="kwb">$phase</span><span class="opt">) {</span> <span class="kwc">sleep</span> <span class="num">1</span><span class="opt">; }</span>
     <span class="kwa">while</span> <span class="opt">(</span> <span class="kwc">scalar</span><span class="opt">(</span><span class="kwb">&#64;tasks</span><span class="opt">) &gt;</span> <span class="num">0</span><span class="opt">) {</span>
     <span class="kwc">my</span> <span class="opt">(</span><span class="kwb">$depth</span><span class="opt">,</span> <span class="kwb">$iterations</span><span class="opt">,</span> <span class="kwb">$check</span><span class="opt">) = (</span><span class="kwc">shift</span> <span class="kwb">&#64;tasks</span><span class="opt">,</span> <span class="kwc">shift</span> <span class="kwb">&#64;tasks</span><span class="opt">,</span> <span class="num">0</span><span class="opt">);</span>
         <span class="kwa">foreach</span> <span class="opt">(</span><span class="num">1</span><span class="opt">..</span><span class="kwb">$iterations</span><span class="opt">) {</span>
@@ -77,18 +81,23 @@ run<span class="opt">(</span> <span class="kwb">&#64;ARGV</span> <span class="op
 <span class="opt">}</span>
 
 <span class="kwa">sub</span> run <span class="opt">{</span>
-    <span class="kwc">my</span> <span class="kwb">$max_depth</span> <span class="opt">=</span> <span class="kwc">shift</span><span class="opt">;</span>
-    <span class="kwc">my</span> <span class="kwb">$min_depth</span> <span class="opt">=</span> <span class="num">4</span><span class="opt">;</span>
-
+    <span class="kwc">my</span> <span class="opt">(</span><span class="kwb">$max_depth</span><span class="opt">,</span> <span class="kwb">$min_depth</span><span class="opt">) = (</span><span class="kwc">shift</span><span class="opt">,</span> <span class="num">4</span><span class="opt">);</span>
     <span class="kwb">$max_depth</span> <span class="opt">=</span> <span class="kwb">$min_depth</span> <span class="opt">+</span> <span class="num">2</span> <span class="kwa">if</span> <span class="kwb">$min_depth</span> <span class="opt">+</span> <span class="num">2</span> <span class="opt">&gt;</span> <span class="kwb">$max_depth</span><span class="opt">;</span>
 
-    stretch_tree<span class="opt">(</span> <span class="kwb">$max_depth</span> <span class="opt">+</span> <span class="num">1</span> <span class="opt">);</span>
-
-    <span class="kwc">my</span> <span class="kwb">$longlived_tree</span> <span class="opt">=</span> bottomup_tree<span class="opt">(</span><span class="kwb">$max_depth</span><span class="opt">);</span>
-    
     <span class="kwc">my</span> <span class="kwb">%depths</span><span class="opt">;</span>
     <span class="kwc">my</span> <span class="kwb">$cpu_count</span> <span class="opt">=</span> num_cpus<span class="opt">();</span>
 
+    <span class="kwb">$phase</span> <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+
+    stretch_tree<span class="opt">(</span> <span class="kwb">$max_depth</span> <span class="opt">+</span> <span class="num">1</span> <span class="opt">);</span>
+
+    <span class="kwa">for</span> <span class="opt">(</span> <span class="num">1</span> <span class="opt">..</span> <span class="kwb">$cpu_count</span> <span class="opt">-</span> <span class="num">1</span><span class="opt">){</span>
+        <span class="kwc">push</span> <span class="kwb">&#64;threads</span><span class="opt">,</span> threads<span class="opt">-&gt;</span><span class="kwd">create</span><span class="opt">(</span>
+            \<span class="opt">&amp;</span>depth_iteration<span class="opt">);</span>
+    <span class="opt">}</span>
+
+    <span class="kwc">my</span> <span class="kwb">$longlived_tree</span> <span class="opt">=</span> bottomup_tree<span class="opt">(</span><span class="kwb">$max_depth</span><span class="opt">);</span>
+    
     <span class="kwa">for</span> <span class="opt">(</span> <span class="kwc">my</span> <span class="kwb">$depth</span> <span class="opt">=</span> <span class="kwb">$min_depth</span><span class="opt">;</span> <span class="kwb">$depth</span> <span class="opt">&lt;=</span> <span class="kwb">$max_depth</span><span class="opt">;</span> <span class="kwb">$depth</span> <span class="opt">+=</span> <span class="num">2</span> <span class="opt">) {</span>
         <span class="kwc">my</span> <span class="kwb">$iterations</span> <span class="opt">=</span> <span class="num">2</span><span class="opt">**(</span><span class="kwb">$max_depth</span> <span class="opt">-</span> <span class="kwb">$depth</span> <span class="opt">+</span> <span class="kwb">$min_depth</span><span class="opt">);</span>
         
@@ -102,11 +111,9 @@ run<span class="opt">(</span> <span class="kwb">&#64;ARGV</span> <span class="op
 
         <span class="kwb">$depths</span><span class="opt">{</span><span class="kwb">$depth</span><span class="opt">}{</span>iterations<span class="opt">} =</span> <span class="kwb">$iterations</span><span class="opt">;</span>
     <span class="opt">}</span>
-    
-    <span class="kwa">for</span> <span class="opt">(</span> <span class="num">1</span> <span class="opt">..</span> <span class="kwb">$cpu_count</span> <span class="opt">){</span>
-        <span class="kwc">push</span> <span class="kwb">&#64;threads</span><span class="opt">,</span> threads<span class="opt">-&gt;</span><span class="kwd">create</span><span class="opt">(</span>
-            \<span class="opt">&amp;</span>depth_iteration<span class="opt">);</span>
-    <span class="opt">}</span>
+
+    <span class="kwb">$phase</span> <span class="opt">=</span> <span class="num">1</span><span class="opt">;</span>
+    depth_iteration<span class="opt">();</span>
 
     <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">&#64;threads</span><span class="opt">) {</span>
         <span class="kwb">$_</span><span class="opt">-&gt;</span><span class="kwc">join</span><span class="opt">;</span>
@@ -132,10 +139,10 @@ This is perl 5, version 32, subversion 0 (v5.32.0)
 built for x86_64-linux-thread-multi
 
 
-Mon, 26 Oct 2020 18:54:48 GMT
+Tue, 27 Oct 2020 20:08:46 GMT
 
 COMMAND LINE:
-/opt/src/perl-5.32.0/bin/perl binarytrees.perl-4.perl 21
+/opt/src/perl-5.32.0/bin/perl binarytrees.perl-5.perl 21
 
 PROGRAM OUTPUT:
 stretch tree of depth 22	 check: 8388607
