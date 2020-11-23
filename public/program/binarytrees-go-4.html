@@ -22,100 +22,107 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
       <h2>source code</h2>
     </div>
     <pre>
-<span class="com">/* The Computer Language Benchmarks Game</span>
-<span class="com"> * https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
-<span class="com"> *</span>
-<span class="com"> * based on Go program by The Go Authors.</span>
-<span class="com"> * based on C program by Kevin Carson</span>
-<span class="com"> * flag.Arg hack by Isaac Gouy</span>
-<span class="com"> * modified by Jamil Djadala to use goroutines</span>
-<span class="com"> * modified by Chai Shushan</span>
-<span class="com"> * *reset*</span>
-<span class="com"> *</span>
-<span class="com"> */</span>
+<span class="slc">// The Computer Language Benchmarks Game</span>
+<span class="slc">// https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">//</span>
+<span class="slc">// contributed by Marek Safar</span>
+<span class="slc">// concurrency added by Peperud</span>
+<span class="slc">// fixed long-lived tree by Anthony Lloyd</span>
+<span class="slc">// ported from F# version by Anthony Lloyd</span>
+<span class="slc">// ported from C# version by wasmup</span>
 
 <span class="kwa">package</span> main
 
 <span class="kwa">import</span> <span class="opt">(</span>
-   <span class="str">&quot;flag&quot;</span>
-   <span class="str">&quot;fmt&quot;</span>
-   <span class="str">&quot;runtime&quot;</span>
-   <span class="str">&quot;strconv&quot;</span>
-   <span class="str">&quot;sync&quot;</span>
+    <span class="str">&quot;fmt&quot;</span>
+    <span class="str">&quot;os&quot;</span>
+    <span class="str">&quot;sync&quot;</span>
 <span class="opt">)</span>
 
-<span class="kwa">var</span> minDepth <span class="opt">=</span> <span class="num">4</span>
-<span class="kwa">var</span> n <span class="opt">=</span> <span class="num">0</span>
+<span class="kwa">type</span> node <span class="kwa">struct</span> <span class="opt">{</span>
+    next <span class="opt">*</span>next
+<span class="opt">}</span>
+<span class="kwa">type</span> next <span class="kwa">struct</span> <span class="opt">{</span>
+    left<span class="opt">,</span> right node
+<span class="opt">}</span>
+
+<span class="kwa">func</span> <span class="kwd">create</span><span class="opt">(</span>d <span class="kwb">int</span><span class="opt">)</span> node <span class="opt">{</span>
+    <span class="kwa">if</span> d <span class="opt">==</span> <span class="num">1</span> <span class="opt">{</span>
+        <span class="kwa">return</span> node<span class="opt">{&amp;</span>next<span class="opt">{</span>node<span class="opt">{},</span> node<span class="opt">{}}}</span>
+    <span class="opt">}</span>
+    <span class="kwa">return</span> node<span class="opt">{&amp;</span>next<span class="opt">{</span><span class="kwd">create</span><span class="opt">(</span>d <span class="opt">-</span> <span class="num">1</span><span class="opt">),</span> <span class="kwd">create</span><span class="opt">(</span>d <span class="opt">-</span> <span class="num">1</span><span class="opt">)}}</span>
+<span class="opt">}</span>
+
+<span class="kwa">func</span> <span class="opt">(</span>p node<span class="opt">)</span> <span class="kwd">check</span><span class="opt">()</span> <span class="kwb">int</span> <span class="opt">{</span>
+    sum <span class="opt">:=</span> <span class="num">1</span>
+    current <span class="opt">:=</span> p<span class="opt">.</span>next
+    <span class="kwa">for</span> current <span class="opt">!=</span> <span class="kwb">nil</span> <span class="opt">{</span>
+        sum <span class="opt">+=</span> current<span class="opt">.</span>right<span class="opt">.</span><span class="kwd">check</span><span class="opt">() +</span> <span class="num">1</span>
+        current <span class="opt">=</span> current<span class="opt">.</span>left<span class="opt">.</span>next
+    <span class="opt">}</span>
+    <span class="kwa">return</span> sum
+<span class="opt">}</span>
 
 <span class="kwa">func</span> <span class="kwd">main</span><span class="opt">() {</span>
-   runtime<span class="opt">.</span><span class="kwd">GOMAXPROCS</span><span class="opt">(</span>runtime<span class="opt">.</span><span class="kwd">NumCPU</span><span class="opt">() *</span> <span class="num">2</span><span class="opt">)</span>
+    <span class="kwa">const</span> MinDepth <span class="opt">=</span> <span class="num">4</span>
+    <span class="kwa">const</span> NoTasks <span class="opt">=</span> <span class="num">4</span>
+    maxDepth <span class="opt">:=</span> <span class="num">10</span>
+    <span class="kwa">if</span> <span class="kwb">len</span><span class="opt">(</span>os<span class="opt">.</span>Args<span class="opt">) &gt;</span> <span class="num">1</span> <span class="opt">{</span>
+        _<span class="opt">,</span> err <span class="opt">:=</span> fmt<span class="opt">.</span><span class="kwd">Sscan</span><span class="opt">(</span>os<span class="opt">.</span>Args<span class="opt">[</span><span class="num">1</span><span class="opt">], &amp;</span>maxDepth<span class="opt">)</span>
+        <span class="kwa">if</span> err <span class="opt">!=</span> <span class="kwb">nil</span> <span class="opt">{</span>
+            <span class="kwb">panic</span><span class="opt">(</span>err<span class="opt">)</span>
+        <span class="opt">}</span>
+        <span class="kwa">if</span> MinDepth<span class="opt">+</span><span class="num">2</span> <span class="opt">&gt;</span> maxDepth <span class="opt">{</span>
+            maxDepth <span class="opt">=</span> MinDepth <span class="opt">+</span> <span class="num">2</span>
+        <span class="opt">}</span>
+    <span class="opt">}</span>
 
-   flag<span class="opt">.</span><span class="kwd">Parse</span><span class="opt">()</span>
-   <span class="kwa">if</span> flag<span class="opt">.</span><span class="kwd">NArg</span><span class="opt">() &gt;</span> <span class="num">0</span> <span class="opt">{</span>
-      n<span class="opt">,</span> _ <span class="opt">=</span> strconv<span class="opt">.</span><span class="kwd">Atoi</span><span class="opt">(</span>flag<span class="opt">.</span><span class="kwd">Arg</span><span class="opt">(</span><span class="num">0</span><span class="opt">))</span>
-   <span class="opt">}</span>
+    longLivedTree <span class="opt">:=</span> <span class="kwd">create</span><span class="opt">(</span>maxDepth<span class="opt">)</span>
 
-   maxDepth <span class="opt">:=</span> n
-   <span class="kwa">if</span> minDepth<span class="opt">+</span><span class="num">2</span> <span class="opt">&gt;</span> n <span class="opt">{</span>
-      maxDepth <span class="opt">=</span> minDepth <span class="opt">+</span> <span class="num">2</span>
-   <span class="opt">}</span>
-   stretchDepth <span class="opt">:=</span> maxDepth <span class="opt">+</span> <span class="num">1</span>
+    stretchTreeCheck <span class="opt">:=</span> <span class="str">&quot;&quot;</span>
+    wg <span class="opt">:=</span> <span class="kwb">new</span><span class="opt">(</span>sync<span class="opt">.</span>WaitGroup<span class="opt">)</span>
+    wg<span class="opt">.</span><span class="kwd">Add</span><span class="opt">(</span><span class="num">1</span><span class="opt">)</span>
+    <span class="kwa">go func</span><span class="opt">() {</span>
+        stretchDepth <span class="opt">:=</span> maxDepth <span class="opt">+</span> <span class="num">1</span>
+        stretchTreeCheck <span class="opt">=</span> fmt<span class="opt">.</span><span class="kwd">Sprintf</span><span class="opt">(</span><span class="str">&quot;stretch tree of depth</span> <span class="ipl">%d</span><span class="str"></span><span class="esc">\t</span> <span class="str">check:</span> <span class="ipl">%d</span><span class="str">&quot;</span><span class="opt">,</span>
+            stretchDepth<span class="opt">,</span> <span class="kwd">create</span><span class="opt">(</span>stretchDepth<span class="opt">).</span><span class="kwd">check</span><span class="opt">())</span>
+        wg<span class="opt">.</span><span class="kwd">Done</span><span class="opt">()</span>
+    <span class="opt">}()</span>
 
-   check_l <span class="opt">:=</span> <span class="kwd">bottomUpTree</span><span class="opt">(</span>stretchDepth<span class="opt">).</span><span class="kwd">ItemCheck</span><span class="opt">()</span>
-   fmt<span class="opt">.</span><span class="kwd">Printf</span><span class="opt">(</span><span class="str">&quot;stretch tree of depth</span> <span class="ipl">%d</span><span class="str"></span><span class="esc">\t</span> <span class="str">check:</span> <span class="ipl">%d</span><span class="str"></span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span> stretchDepth<span class="opt">,</span> check_l<span class="opt">)</span>
+    results <span class="opt">:=</span> <span class="kwb">make</span><span class="opt">([]</span><span class="kwb">string</span><span class="opt">, (</span>maxDepth<span class="opt">-</span>MinDepth<span class="opt">)/</span><span class="num">2</span><span class="opt">+</span><span class="num">1</span><span class="opt">)</span>
+    <span class="kwa">for</span> i <span class="opt">:=</span> <span class="kwa">range</span> results <span class="opt">{</span>
+        depth <span class="opt">:=</span> <span class="num">2</span><span class="opt">*</span>i <span class="opt">+</span> MinDepth
+        n <span class="opt">:= (</span><span class="num">1</span> <span class="opt">&lt;&lt; (</span>maxDepth <span class="opt">-</span> depth <span class="opt">+</span> MinDepth<span class="opt">)) /</span> NoTasks
+        tasks <span class="opt">:=</span> <span class="kwb">make</span><span class="opt">([]</span><span class="kwb">int</span><span class="opt">,</span> NoTasks<span class="opt">)</span>
+        <span class="kwa">for</span> t <span class="opt">:=</span> <span class="kwa">range</span> tasks <span class="opt">{</span>
+            wg<span class="opt">.</span><span class="kwd">Add</span><span class="opt">(</span><span class="num">1</span><span class="opt">)</span>
+            <span class="kwa">go func</span><span class="opt">(</span>t <span class="kwb">int</span><span class="opt">) {</span>
+                check <span class="opt">:=</span> <span class="num">0</span>
+                <span class="kwa">for</span> i <span class="opt">:=</span> n<span class="opt">;</span> i <span class="opt">&gt;</span> <span class="num">0</span><span class="opt">;</span> i<span class="opt">-- {</span>
+                    check <span class="opt">+=</span> <span class="kwd">create</span><span class="opt">(</span>depth<span class="opt">).</span><span class="kwd">check</span><span class="opt">()</span>
+                <span class="opt">}</span>
+                tasks<span class="opt">[</span>t<span class="opt">] =</span> check
+                wg<span class="opt">.</span><span class="kwd">Done</span><span class="opt">()</span>
+            <span class="opt">}(</span>t<span class="opt">)</span>
+        <span class="opt">}</span>
 
-   longLivedTree <span class="opt">:=</span> <span class="kwd">bottomUpTree</span><span class="opt">(</span>maxDepth<span class="opt">)</span>
+        wg<span class="opt">.</span><span class="kwd">Wait</span><span class="opt">()</span>
+        check <span class="opt">:=</span> <span class="num">0</span>
+        <span class="kwa">for</span> _<span class="opt">,</span> v <span class="opt">:=</span> <span class="kwa">range</span> tasks <span class="opt">{</span>
+            check <span class="opt">+=</span> v
+        <span class="opt">}</span>
+        results<span class="opt">[</span>i<span class="opt">] =</span> fmt<span class="opt">.</span><span class="kwd">Sprintf</span><span class="opt">(</span><span class="str">&quot;</span><span class="ipl">%d</span><span class="str"></span><span class="esc">\t</span> <span class="str">trees of depth</span> <span class="ipl">%d</span><span class="str"></span><span class="esc">\t</span> <span class="str">check:</span> <span class="ipl">%d</span><span class="str">&quot;</span><span class="opt">,</span>
+            n<span class="opt">*</span>NoTasks<span class="opt">,</span> depth<span class="opt">,</span> check<span class="opt">)</span>
+    <span class="opt">}</span>
 
-   result_trees <span class="opt">:=</span> <span class="kwb">make</span><span class="opt">([]</span><span class="kwb">int</span><span class="opt">,</span> maxDepth<span class="opt">+</span><span class="num">1</span><span class="opt">)</span>
-   result_check <span class="opt">:=</span> <span class="kwb">make</span><span class="opt">([]</span><span class="kwb">int</span><span class="opt">,</span> maxDepth<span class="opt">+</span><span class="num">1</span><span class="opt">)</span>
+    fmt<span class="opt">.</span><span class="kwd">Println</span><span class="opt">(</span>stretchTreeCheck<span class="opt">)</span>
 
-   <span class="kwa">var</span> wg sync<span class="opt">.</span>WaitGroup
-   <span class="kwa">for</span> depth_l <span class="opt">:=</span> minDepth<span class="opt">;</span> depth_l <span class="opt">&lt;=</span> maxDepth<span class="opt">;</span> depth_l <span class="opt">+=</span> <span class="num">2</span> <span class="opt">{</span>
-      wg<span class="opt">.</span><span class="kwd">Add</span><span class="opt">(</span><span class="num">1</span><span class="opt">)</span>
-      <span class="kwa">go func</span><span class="opt">(</span>depth <span class="kwb">int</span><span class="opt">) {</span>
-         iterations <span class="opt">:=</span> <span class="num">1</span> <span class="opt">&lt;&lt;</span> <span class="kwb">uint</span><span class="opt">(</span>maxDepth<span class="opt">-</span>depth<span class="opt">+</span>minDepth<span class="opt">)</span>
-         check <span class="opt">:=</span> <span class="num">0</span>
+    <span class="kwa">for</span> _<span class="opt">,</span> s <span class="opt">:=</span> <span class="kwa">range</span> results <span class="opt">{</span>
+        fmt<span class="opt">.</span><span class="kwd">Println</span><span class="opt">(</span>s<span class="opt">)</span>
+    <span class="opt">}</span>
 
-         <span class="kwa">for</span> i <span class="opt">:=</span> <span class="num">1</span><span class="opt">;</span> i <span class="opt">&lt;=</span> iterations<span class="opt">;</span> i<span class="opt">++ {</span>
-            check <span class="opt">+=</span> <span class="kwd">bottomUpTree</span><span class="opt">(</span>depth<span class="opt">).</span><span class="kwd">ItemCheck</span><span class="opt">()</span>
-         <span class="opt">}</span>
-         result_trees<span class="opt">[</span>depth<span class="opt">] =</span> iterations
-         result_check<span class="opt">[</span>depth<span class="opt">] =</span> check
-
-         wg<span class="opt">.</span><span class="kwd">Done</span><span class="opt">()</span>
-      <span class="opt">}(</span>depth_l<span class="opt">)</span>
-   <span class="opt">}</span>
-   wg<span class="opt">.</span><span class="kwd">Wait</span><span class="opt">()</span>
-
-   <span class="kwa">for</span> depth <span class="opt">:=</span> minDepth<span class="opt">;</span> depth <span class="opt">&lt;=</span> maxDepth<span class="opt">;</span> depth <span class="opt">+=</span> <span class="num">2</span> <span class="opt">{</span>
-      fmt<span class="opt">.</span><span class="kwd">Printf</span><span class="opt">(</span><span class="str">&quot;</span><span class="ipl">%d</span><span class="str"></span><span class="esc">\t</span> <span class="str">trees of depth</span> <span class="ipl">%d</span><span class="str"></span><span class="esc">\t</span> <span class="str">check:</span> <span class="ipl">%d</span><span class="str"></span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span>
-         result_trees<span class="opt">[</span>depth<span class="opt">],</span> depth<span class="opt">,</span> result_check<span class="opt">[</span>depth<span class="opt">],</span>
-      <span class="opt">)</span>
-   <span class="opt">}</span>
-   fmt<span class="opt">.</span><span class="kwd">Printf</span><span class="opt">(</span><span class="str">&quot;long lived tree of depth</span> <span class="ipl">%d</span><span class="str"></span><span class="esc">\t</span> <span class="str">check:</span> <span class="ipl">%d</span><span class="str"></span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span>
-      maxDepth<span class="opt">,</span> longLivedTree<span class="opt">.</span><span class="kwd">ItemCheck</span><span class="opt">(),</span>
-   <span class="opt">)</span>
-<span class="opt">}</span>
-
-<span class="kwa">func</span> <span class="kwd">bottomUpTree</span><span class="opt">(</span>depth <span class="kwb">int</span><span class="opt">) *</span>Node <span class="opt">{</span>
-   <span class="kwa">if</span> depth <span class="opt">&lt;=</span> <span class="num">0</span> <span class="opt">{</span>
-      <span class="kwa">return</span> <span class="opt">&amp;</span>Node<span class="opt">{</span><span class="kwb">nil</span><span class="opt">,</span> <span class="kwb">nil</span><span class="opt">}</span>
-   <span class="opt">}</span>
-   <span class="kwa">return</span> <span class="opt">&amp;</span>Node<span class="opt">{</span>
-      <span class="kwd">bottomUpTree</span><span class="opt">(</span>depth<span class="opt">-</span><span class="num">1</span><span class="opt">),</span>
-      <span class="kwd">bottomUpTree</span><span class="opt">(</span>depth<span class="opt">-</span><span class="num">1</span><span class="opt">),</span>
-   <span class="opt">}</span>
-<span class="opt">}</span>
-
-<span class="kwa">type</span> Node <span class="kwa">struct</span> <span class="opt">{</span>
-   left<span class="opt">,</span> right <span class="opt">*</span>Node
-<span class="opt">}</span>
-
-<span class="kwa">func</span> <span class="opt">(</span>self <span class="opt">*</span>Node<span class="opt">)</span> <span class="kwd">ItemCheck</span><span class="opt">()</span> <span class="kwb">int</span> <span class="opt">{</span>
-   <span class="kwa">if</span> self<span class="opt">.</span>left <span class="opt">==</span> <span class="kwb">nil</span> <span class="opt">{</span>
-      <span class="kwa">return</span> <span class="num">1</span>
-   <span class="opt">}</span>
-   <span class="kwa">return</span> <span class="num">1</span> <span class="opt">+</span> self<span class="opt">.</span>left<span class="opt">.</span><span class="kwd">ItemCheck</span><span class="opt">() +</span> self<span class="opt">.</span>right<span class="opt">.</span><span class="kwd">ItemCheck</span><span class="opt">()</span>
+    fmt<span class="opt">.</span><span class="kwd">Printf</span><span class="opt">(</span><span class="str">&quot;long lived tree of depth</span> <span class="ipl">%d</span><span class="str"></span><span class="esc">\t</span> <span class="str">check:</span> <span class="ipl">%d</span><span class="str"></span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span>
+        maxDepth<span class="opt">,</span> longLivedTree<span class="opt">.</span><span class="kwd">check</span><span class="opt">())</span>
 <span class="opt">}</span>
     </pre>
   </section>
@@ -129,7 +136,7 @@ NOTES:
 go version go1.15.2 linux/amd64
 
 
-Sat, 24 Oct 2020 02:34:12 GMT
+Mon, 23 Nov 2020 19:34:37 GMT
 
 MAKE:
 /opt/src/go1.15.2/go/bin/go build -o binarytrees.go-4.go_run
