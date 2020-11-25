@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,follow,noarchive">
+
+<title>reverse-complement Rust program | Computer Language Benchmarks Game </title>
+<style><!--
+a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,header{margin:auto;width:92%}body{font:100% Droid Sans, Ubuntu, Verdana, sans-serif;margin:0;-webkit-text-size-adjust:100%}h3, h1, h2, li a{font-family:Ubuntu Mono,Consolas,Menlo,monospace}div,footer,header{max-width:31em}footer{padding:2.6em 0 0}h3{font-size:1.4em;font-weight:bold;margin:0;padding: .4em}h3, h3 a{color:white;background-color:#77216f}h3 small{font-size:0.64em}h1,h2{margin:1.5em 0 0}h1{font-size:1.4em;font-weight:normal}h2{font-size:1.2em}li{list-style-type:none;vertical-align:top}li a{display:block;font-size:1.2em;margin: .5em .5em 0;padding: .5em .5em .3em}ul{clear:left;margin:-0.3em 0 1.5em;padding-left:0;text-align:center}p{color:#333;line-height:1.4;margin: .3em 0 0}p a, a span{border-bottom: .1em solid #333;padding-bottom: .1em}.com,.slc{color:#888}.kwa{color:#066}.kwb{color:#900}.kwc{color:#050}.kwa,.kwb,.kwc{font-weight:bold}.dstr,.str,.sym,.num{color:#930}pre{color:#222;font-size:1em;overflow-wrap:break-word;white-space:pre-wrap;word-wrap:break-word}@media only screen and (min-width: 60em){article,footer,header{font-size:1.25em}}
+--></style>
+<link rel="shortcut icon" href="./favicon.ico">
+<header>
+  <h3><a href="https://benchmarksgame-team.pages.debian.net/benchmarksgame/index.html">The&nbsp;<small>Computer&nbsp;Language</small><br>Benchmarks&nbsp;Game</a></h3>
+</header>
+<article>
+  <div>
+    <h1>reverse-complement Rust program</h1>
+    <aside>
+      <p><a href="../description/revcomp.html#revcomp">description</a>
+    </aside>
+  </div>
+  <section>
+    <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc">// The Computer Language Benchmarks Game</span>
+<span class="slc">// https://benchmarksgame-team.pages.debian.net/benchmarksgame/</span>
+<span class="slc">//</span>
+<span class="slc">// Contributed by Ryohei Machida</span>
+<span class="slc">// Inspired by C++ #7 implementation (Martin Jamprek et al.)</span>
+
+<span class="kwa">extern crate</span> memchr<span class="opt">;</span>
+<span class="kwa">extern crate</span> rayon<span class="opt">;</span>
+
+<span class="kwa">use</span> memchr<span class="opt">::</span>memchr<span class="opt">;</span>
+<span class="kwa">use</span> std<span class="opt">::</span>cmp<span class="opt">;</span>
+<span class="kwa">use</span> std<span class="opt">::</span>fs<span class="opt">::</span>File<span class="opt">;</span>
+<span class="kwa">use</span> std<span class="opt">::</span>io<span class="opt">::{</span><span class="kwa">self</span><span class="opt">,</span> Read<span class="opt">,</span> Write<span class="opt">};</span>
+<span class="ppc">#[cfg(unix)]</span>
+<span class="kwa">use</span> std<span class="opt">::</span>os<span class="opt">::</span>unix<span class="opt">::</span>io<span class="opt">::</span>FromRawFd<span class="opt">;</span>
+
+<span class="kwa">const</span> READ_SIZE<span class="opt">:</span> <span class="kwb">usize</span> <span class="opt">=</span> <span class="num">1</span> <span class="opt">&lt;&lt;</span> <span class="num">16</span><span class="opt">;</span>
+
+<span class="slc">/// Length of a normal line including the terminating \n.</span>
+<span class="kwa">const</span> LINE_LEN<span class="opt">:</span> <span class="kwb">usize</span> <span class="opt">=</span> <span class="num">60</span><span class="opt">;</span>
+<span class="slc">/// Maximum number of rows to process in serial.</span>
+<span class="kwa">const</span> BLOCK_ROWS<span class="opt">:</span> <span class="kwb">usize</span> <span class="opt">=</span> <span class="num">4096</span><span class="opt">;</span>
+
+<span class="ppc">#[rustfmt::skip]</span>
+<span class="kwa">static</span> KNUCLEOTIDE_MAPPING<span class="opt">: &amp;[</span><span class="kwb">u8</span><span class="opt">;</span> <span class="num">256</span><span class="opt">] =</span> b<span class="str">&quot;</span><span class="esc">\</span>
+<span class="str"></span>    <span class="esc">\</span><span class="str">0</span><span class="esc">\</span><span class="str">x01</span><span class="esc">\</span><span class="str">x02</span><span class="esc">\</span><span class="str">x03</span><span class="esc">\</span><span class="str">x04</span><span class="esc">\</span><span class="str">x05</span><span class="esc">\</span><span class="str">x06</span><span class="esc">\</span><span class="str">x07</span><span class="esc">\</span><span class="str">x08</span><span class="esc">\</span><span class="str">t</span><span class="esc">\</span><span class="str">n</span><span class="esc">\</span><span class="str">x0b</span><span class="esc">\</span><span class="str">x0c</span><span class="esc">\</span><span class="str">r</span><span class="esc">\</span><span class="str">x0e</span><span class="esc">\</span><span class="str">x0f</span><span class="esc">\</span>
+<span class="str"></span>    <span class="esc">\</span><span class="str">x10</span><span class="esc">\</span><span class="str">x11</span><span class="esc">\</span><span class="str">x12</span><span class="esc">\</span><span class="str">x13</span><span class="esc">\</span><span class="str">x14</span><span class="esc">\</span><span class="str">x15</span><span class="esc">\</span><span class="str">x16</span><span class="esc">\</span><span class="str">x17</span><span class="esc">\</span><span class="str">x18</span><span class="esc">\</span><span class="str">x19</span><span class="esc">\</span><span class="str">x1a</span><span class="esc">\</span><span class="str">x1b</span><span class="esc">\</span><span class="str">x1c</span><span class="esc">\</span><span class="str">x1d</span><span class="esc">\</span><span class="str">x1e</span><span class="esc">\</span><span class="str">x1f</span><span class="esc">\</span>
+<span class="str"></span>    <span class="esc">\</span><span class="str">x20!</span><span class="esc">\</span><span class="str">&quot;</span><span class="ppc">#$%&amp;&apos;()*+,-./\</span>
+<span class="ppc">    0123456789:;&lt;=&gt;?\</span>
+<span class="ppc">    &#64;TVGHEFCDIJMLKNO\</span>
+<span class="ppc">    PQYSAABWXRZ[\\]^_\</span>
+<span class="ppc">    `TVGHefCDijMlKNo\</span>
+<span class="ppc">    pqYSAABWxRz{|}~\x7f\</span>
+<span class="ppc">    \x80\x81\x82\x83\x84\x85\x86\x87\x88\x89\x8a\x8b\x8c\x8d\x8e\x8f\</span>
+<span class="ppc">    \x90\x91\x92\x93\x94\x95\x96\x97\x98\x99\x9a\x9b\x9c\x9d\x9e\x9f\</span>
+<span class="ppc">    \xa0\xa1\xa2\xa3\xa4\xa5\xa6\xa7\xa8\xa9\xaa\xab\xac\xad\xae\xaf\</span>
+<span class="ppc">    \xb0\xb1\xb2\xb3\xb4\xb5\xb6\xb7\xb8\xb9\xba\xbb\xbc\xbd\xbe\xbf\</span>
+<span class="ppc">    \xc0\xc1\xc2\xc3\xc4\xc5\xc6\xc7\xc8\xc9\xca\xcb\xcc\xcd\xce\xcf\</span>
+<span class="ppc">    \xd0\xd1\xd2\xd3\xd4\xd5\xd6\xd7\xd8\xd9\xda\xdb\xdc\xdd\xde\xdf\</span>
+<span class="ppc">    \xe0\xe1\xe2\xe3\xe4\xe5\xe6\xe7\xe8\xe9\xea\xeb\xec\xed\xee\xef\</span>
+<span class="ppc">    \xf0\xf1\xf2\xf3\xf4\xf5\xf6\xf7\xf8\xf9\xfa\xfb\xfc\xfd\xfe\xff</span><span class="pps">&quot;;</span>
+<span class="pps"></span>
+<span class="pps">#[cfg(target_feature = &quot;</span><span class="ppc">ssse3</span><span class="pps">&quot;)]</span>
+<span class="pps">mod ssse3 {</span>
+<span class="pps">    #[cfg(target_arch = &quot;</span><span class="ppc">x86</span><span class="pps">&quot;)]</span>
+<span class="pps">    use std::arch::x86::*;</span>
+<span class="pps">    #[cfg(target_arch = &quot;</span><span class="ppc">x86_64</span><span class="pps">&quot;)]</span>
+<span class="pps">    use std::arch::x86_64::*;</span>
+<span class="pps"></span>
+<span class="pps">    use super::KNUCLEOTIDE_MAPPING;</span>
+<span class="pps"></span>
+<span class="pps">    /// reverse bytes and complement each byte</span>
+<span class="pps">    #[rustfmt::skip]</span>
+<span class="pps">    unsafe fn reverse_chunks_simd(mut v: __m128i) -&gt; __m128i {</span>
+<span class="pps">        v = _mm_shuffle_epi8(</span>
+<span class="pps">            v,</span>
+<span class="pps">            _mm_set_epi8(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15),</span>
+<span class="pps">        );</span>
+<span class="pps">        v = _mm_and_si128(v, _mm_set1_epi8(0x1f));</span>
+<span class="pps"></span>
+<span class="pps">        let lt16_els = _mm_add_epi8(v, _mm_set1_epi8(0x70));</span>
+<span class="pps">        let lt16_lut = _mm_set_epi8(</span>
+<span class="pps">            0,          78 /* N */, 75 /* K */, 0,</span>
+<span class="pps">            77 /* M */, 10,         0,          68 /* D */,</span>
+<span class="pps">            67 /* C */, 0,          0,          72 /* H */,</span>
+<span class="pps">            71 /* G */, 86 /* V */, 84 /* T */, 0,</span>
+<span class="pps">        );</span>
+<span class="pps">        let lt16_vals = _mm_shuffle_epi8(lt16_lut, lt16_els);</span>
+<span class="pps"></span>
+<span class="pps">        let g16_els = _mm_sub_epi8(v, _mm_set1_epi8(0x10));</span>
+<span class="pps">        let g16_lut = _mm_set_epi8(</span>
+<span class="pps">            0,          0,          0,          0,</span>
+<span class="pps">            0,          0,          82 /* R */, 0,</span>
+<span class="pps">            87 /* W */, 66 /* B */, 65 /* A */, 65 /* A */,</span>
+<span class="pps">            83 /* S */, 89 /* Y */, 0,          0,</span>
+<span class="pps">        );</span>
+<span class="pps">        let g16_vals = _mm_shuffle_epi8(g16_lut, g16_els);</span>
+<span class="pps"></span>
+<span class="pps">        return _mm_or_si128(lt16_vals, g16_vals);</span>
+<span class="pps">    }</span>
+<span class="pps"></span>
+<span class="pps">    pub fn reverse_chunks(left: &amp;mut [u8], right: &amp;mut [u8]) {</span>
+<span class="pps">        debug_assert_eq!(left.len(), right.len());</span>
+<span class="pps"></span>
+<span class="pps">        unsafe {</span>
+<span class="pps">            let mut len = left.len();</span>
+<span class="pps">            let mut pl = left.as_mut_ptr();</span>
+<span class="pps">            let mut pr = right.as_mut_ptr().add(right.len());</span>
+<span class="pps"></span>
+<span class="pps">            while len &gt;= 16 {</span>
+<span class="pps">                pr = pr.sub(16);</span>
+<span class="pps">                let l = _mm_lddqu_si128(pl as _);</span>
+<span class="pps">                let r = _mm_lddqu_si128(pr as _);</span>
+<span class="pps">                _mm_storeu_si128(pr as _, reverse_chunks_simd(l));</span>
+<span class="pps">                _mm_storeu_si128(pl as _, reverse_chunks_simd(r));</span>
+<span class="pps">                pl = pl.add(16);</span>
+<span class="pps"></span>
+<span class="pps">                len -= 16;</span>
+<span class="pps">            }</span>
+<span class="pps"></span>
+<span class="pps">            for _ in 0..len {</span>
+<span class="pps">                pr = pr.sub(1);</span>
+<span class="pps">                let l = *pl;</span>
+<span class="pps">                let r = *pr;</span>
+<span class="pps">                *pr = KNUCLEOTIDE_MAPPING[l as usize];</span>
+<span class="pps">                *pl = KNUCLEOTIDE_MAPPING[r as usize];</span>
+<span class="pps">                pl = pl.add(1);</span>
+<span class="pps">            }</span>
+<span class="pps">        }</span>
+<span class="pps">    }</span>
+<span class="pps">}</span>
+<span class="pps"></span>
+<span class="pps">#[cfg(target_feature = &quot;</span><span class="ppc">ssse3</span><span class="pps">&quot;)]</span>
+<span class="pps">use ssse3::*;</span>
+<span class="pps"></span>
+<span class="pps">#[cfg(not(target_feature = &quot;</span><span class="ppc">ssse3</span><span class="pps">&quot;))]</span>
+<span class="pps">mod fallback {</span>
+<span class="pps">    use super::KNUCLEOTIDE_MAPPING;</span>
+<span class="pps"></span>
+<span class="pps">    pub fn reverse_chunks(left: &amp;mut [u8], right: &amp;mut [u8]) {</span>
+<span class="pps">        for (pl, pr) in left.iter_mut().zip(right.iter_mut().rev()) {</span>
+<span class="pps">            let l = *pl;</span>
+<span class="pps">            let r = *pr;</span>
+<span class="pps">            *pr = KNUCLEOTIDE_MAPPING[l as usize];</span>
+<span class="pps">            *pl = KNUCLEOTIDE_MAPPING[r as usize];</span>
+<span class="pps">        }</span>
+<span class="pps">    }</span>
+<span class="pps">}</span>
+<span class="pps"></span>
+<span class="pps">#[cfg(not(target_feature = &quot;</span><span class="ppc">ssse3</span><span class="pps">&quot;))]</span>
+<span class="pps">use fallback::*;</span>
+<span class="pps"></span>
+<span class="pps">struct Sequence&lt;&apos;a&gt; {</span>
+<span class="pps">    buf: &amp;&apos;a mut [u8],</span>
+<span class="pps">    content_offset: usize,</span>
+<span class="pps">}</span>
+<span class="pps"></span>
+<span class="pps">impl&lt;&apos;a&gt; Sequence&lt;&apos;a&gt; {</span>
+<span class="pps">    fn from_slice(data: &amp;&apos;a mut [u8]) -&gt; Option&lt;Sequence&lt;&apos;a&gt;&gt; {</span>
+<span class="pps">        match memchr(b&apos;</span><span class="esc">\</span><span class="pps">n&apos;, data) {</span>
+<span class="pps">            Some(pos) =&gt; Some(Sequence { buf: data, content_offset: pos + 1 }),</span>
+<span class="pps">            None =&gt; None,</span>
+<span class="pps">        }</span>
+<span class="pps">    }</span>
+<span class="pps"></span>
+<span class="pps">    fn as_slice(&amp;self) -&gt; &amp;[u8] {</span>
+<span class="pps">        self.buf</span>
+<span class="pps">    }</span>
+<span class="pps"></span>
+<span class="pps">    fn get_content_mut(&amp;mut self) -&gt; &amp;mut [u8] {</span>
+<span class="pps">        // remove header and last character (</span><span class="esc">\</span><span class="pps">n)</span>
+<span class="pps">        let end = self.buf.len() - 1;</span>
+<span class="pps">        &amp;mut self.buf[self.content_offset..end]</span>
+<span class="pps">    }</span>
+<span class="pps"></span>
+<span class="pps">    /// reverse and complement the whole sequence</span>
+<span class="pps">    fn reverse_complement(&amp;mut self) {</span>
+<span class="pps">        let mut content = self.get_content_mut();</span>
+<span class="pps">        let block_bytes = BLOCK_ROWS * (LINE_LEN + 1);</span>
+<span class="pps">        let trailing_len = content.len() % (LINE_LEN + 1);</span>
+<span class="pps"></span>
+<span class="pps">        rayon::scope(|scope| {</span>
+<span class="pps">            while content.len() &gt;= block_bytes * 2 {</span>
+<span class="pps">                let (left, tmp) = content.split_at_mut(block_bytes);</span>
+<span class="pps">                let (inner, right) = tmp.split_at_mut(tmp.len() - block_bytes);</span>
+<span class="pps">                content = inner;</span>
+<span class="pps"></span>
+<span class="pps">                scope.spawn(move |_| {</span>
+<span class="pps">                    reverse_complement_left_right(left, right, trailing_len)</span>
+<span class="pps">                });</span>
+<span class="pps">            }</span>
+<span class="pps"></span>
+<span class="pps">            let n = content.len() / 2;</span>
+<span class="pps">            let (left, right) = content.split_at_mut(n);</span>
+<span class="pps">            scope.spawn(move |_| {</span>
+<span class="pps">                reverse_complement_left_right(left, right, trailing_len)</span>
+<span class="pps">            });</span>
+<span class="pps">        });</span>
+<span class="pps">    }</span>
+<span class="pps">}</span>
+<span class="pps"></span>
+<span class="pps">fn reverse_complement_left_right(</span>
+<span class="pps">    mut left: &amp;mut [u8],</span>
+<span class="pps">    mut right: &amp;mut [u8],</span>
+<span class="pps">    trailing_len: usize,</span>
+<span class="pps">) {</span>
+<span class="pps">    debug_assert!(left.len() &lt;= right.len());</span>
+<span class="pps">    debug_assert!(right.len() &lt;= left.len() + 1);</span>
+<span class="pps"></span>
+<span class="pps">    while left.len() &gt;= trailing_len {</span>
+<span class="pps">        let (n, m) = (trailing_len, right.len() - trailing_len);</span>
+<span class="pps">        let (a, left_) = left.split_at_mut(n);</span>
+<span class="pps">        let (right_, b) = right.split_at_mut(m);</span>
+<span class="pps">        left = left_;</span>
+<span class="pps">        right = &amp;mut right_[..m - 1];</span>
+<span class="pps"></span>
+<span class="pps">        reverse_chunks(a, b);</span>
+<span class="pps"></span>
+<span class="pps">        let n = LINE_LEN - trailing_len;</span>
+<span class="pps">        if right.len() &lt;= n {</span>
+<span class="pps">            break;</span>
+<span class="pps">        }</span>
+<span class="pps">        let m = right.len() - n;</span>
+<span class="pps">        let (a, left_) = left.split_at_mut(n);</span>
+<span class="pps">        let (right_, b) = right.split_at_mut(m);</span>
+<span class="pps">        left = &amp;mut left_[1..];</span>
+<span class="pps">        right = right_;</span>
+<span class="pps"></span>
+<span class="pps">        reverse_chunks(a, b);</span>
+<span class="pps">    }</span>
+<span class="pps"></span>
+<span class="pps">    let n = cmp::min(left.len(), right.len());</span>
+<span class="pps">    let m = right.len() - n;</span>
+<span class="pps">    reverse_chunks(&amp;mut left[..n], &amp;mut right[m..]);</span>
+<span class="pps"></span>
+<span class="pps">    // character at the middle of sequence</span>
+<span class="pps">    let mid = if left.len() &gt; right.len() {</span>
+<span class="pps">        left.last_mut().unwrap()</span>
+<span class="pps">    } else if right.len() &gt; left.len() {</span>
+<span class="pps">        right.first_mut().unwrap()</span>
+<span class="pps">    } else {</span>
+<span class="pps">        return;</span>
+<span class="pps">    };</span>
+<span class="pps"></span>
+<span class="pps">    *mid = KNUCLEOTIDE_MAPPING[*mid as usize];</span>
+<span class="pps">}</span>
+<span class="pps"></span>
+<span class="pps">/// Scan stdin directly into the growing buffer</span>
+<span class="pps">struct SequenceReader&lt;R: Read&gt; {</span>
+<span class="pps">    inner: R,</span>
+<span class="pps">    buf: Vec&lt;u8&gt;,</span>
+<span class="pps">    next_pos: usize,</span>
+<span class="pps">    eof_reached: bool,</span>
+<span class="pps">}</span>
+<span class="pps"></span>
+<span class="pps">impl&lt;R: Read&gt; SequenceReader&lt;R&gt; {</span>
+<span class="pps">    fn new(inner: R) -&gt; Self {</span>
+<span class="pps">        SequenceReader {</span>
+<span class="pps">            inner,</span>
+<span class="pps">            buf: Vec::new(),</span>
+<span class="pps">            next_pos: 0,</span>
+<span class="pps">            eof_reached: false,</span>
+<span class="pps">        }</span>
+<span class="pps">    }</span>
+<span class="pps"></span>
+<span class="pps">    fn next(&amp;mut self) -&gt; Option&lt;io::Result&lt;Sequence&lt;&apos;_&gt;&gt;&gt; {</span>
+<span class="pps">        // scan in buffer first</span>
+<span class="pps">        if !self.buf.is_empty() {</span>
+<span class="pps">            if self.next_pos &gt;= self.buf.len() {</span>
+<span class="pps">                return None;</span>
+<span class="pps">            }</span>
+<span class="pps"></span>
+<span class="pps">            // remove current sequence (first `self.next_pos` bytes)</span>
+<span class="pps">            self.buf.copy_within(self.next_pos.., 0);</span>
+<span class="pps">            self.buf.truncate(self.buf.len() - self.next_pos);</span>
+<span class="pps"></span>
+<span class="pps">            // find next header in buffer</span>
+<span class="pps">            let next_header_pos = match memchr(b&apos;&gt;&apos;, &amp;self.buf[1..]) {</span>
+<span class="pps">                Some(pos) =&gt; Some(pos + 1),</span>
+<span class="pps">                None if self.eof_reached =&gt; Some(self.buf.len()),</span>
+<span class="pps">                None =&gt; None,</span>
+<span class="pps">            };</span>
+<span class="pps"></span>
+<span class="pps">            if let Some(pos) = next_header_pos {</span>
+<span class="pps">                self.next_pos = pos;</span>
+<span class="pps">                return Some(Ok(</span>
+<span class="pps">                    Sequence::from_slice(&amp;mut self.buf[..pos]).unwrap()</span>
+<span class="pps">                ));</span>
+<span class="pps">            }</span>
+<span class="pps">        }</span>
+<span class="pps"></span>
+<span class="pps">        self.buf.reserve(READ_SIZE);</span>
+<span class="pps"></span>
+<span class="pps">        loop {</span>
+<span class="pps">            let old_len = self.buf.len();</span>
+<span class="pps"></span>
+<span class="pps">            // read at most READ_SIZE bytes</span>
+<span class="pps">            let mut reader = self.inner.by_ref().take(READ_SIZE as u64);</span>
+<span class="pps">            let read_len = match reader.read_to_end(&amp;mut self.buf) {</span>
+<span class="pps">                Ok(n) =&gt; n,</span>
+<span class="pps">                Err(e) =&gt; {</span>
+<span class="pps">                    self.eof_reached = true;</span>
+<span class="pps">                    return Some(Err(e));</span>
+<span class="pps">                }</span>
+<span class="pps">            };</span>
+<span class="pps"></span>
+<span class="pps">            self.eof_reached = read_len != READ_SIZE;</span>
+<span class="pps"></span>
+<span class="pps">            // find next header</span>
+<span class="pps">            let offset = cmp::min(cmp::max(old_len, 1), self.buf.len());</span>
+<span class="pps">            self.next_pos = match memchr(b&apos;&gt;&apos;, &amp;self.buf[offset..]) {</span>
+<span class="pps">                None if !self.eof_reached =&gt; continue,</span>
+<span class="pps">                Some(pos) =&gt; offset + pos,</span>
+<span class="pps">                None =&gt; self.buf.len(),</span>
+<span class="pps">            };</span>
+<span class="pps"></span>
+<span class="pps">            // if next header is found, return the slice to current buffer</span>
+<span class="pps">            return Some(Ok(Sequence::from_slice(</span>
+<span class="pps">                &amp;mut self.buf[..self.next_pos],</span>
+<span class="pps">            )</span>
+<span class="pps">            .unwrap()));</span>
+<span class="pps">        }</span>
+<span class="pps">    }</span>
+<span class="pps">}</span>
+<span class="pps"></span>
+<span class="pps">fn main() -&gt; io::Result&lt;()&gt; {</span>
+<span class="pps">    // Use unbuffered stdin and stdout on unix platform</span>
+<span class="pps">    #[cfg(unix)]</span>
+<span class="pps">    let stdin = unsafe { File::from_raw_fd(0) };</span>
+<span class="pps">    #[cfg(unix)]</span>
+<span class="pps">    let mut stdout = unsafe { File::from_raw_fd(1) };</span>
+<span class="pps"></span>
+<span class="pps">    #[cfg(not(unix))]</span>
+<span class="pps">    let stdin = io::stdin();</span>
+<span class="pps">    #[cfg(not(unix))]</span>
+<span class="pps">    let stdin = stdin.lock();</span>
+<span class="pps">    #[cfg(not(unix))]</span>
+<span class="pps">    let mut stdout = io::stdout();</span>
+<span class="pps"></span>
+<span class="pps">    let mut reader = SequenceReader::new(stdin);</span>
+<span class="pps"></span>
+<span class="pps">    while let Some(seq) = reader.next() {</span>
+<span class="pps">        let mut seq = seq?;</span>
+<span class="pps">        seq.reverse_complement();</span>
+<span class="pps">        stdout.write_all(seq.as_slice())?;</span>
+<span class="pps">    }</span>
+<span class="pps"></span>
+<span class="pps">    Ok(())</span>
+<span class="pps">}</span><span class="ppc"></span>
+    </pre>
+  </section>
+  <section>
+    <div>
+      <h2 id="log">notes, command-line, and program output</h2>
+    </div>
+    <pre>
+NOTES:
+64-bit Ubuntu quad core
+rustc 1.48.0 (7eac88abb 2020-11-16)
+LLVM version: 11.0
+
+
+Wed, 25 Nov 2020 00:13:44 GMT
+
+MAKE:
+/opt/src/rust-1.48.0/bin/rustc -C opt-level=3 -C target-cpu=ivybridge --C codegen-units=1 -L /opt/src/rust-libs revcomp.rs -o revcomp.rust_run
+rm revcomp.rs
+
+9.11s to complete and log all make actions
+
+COMMAND LINE:
+./revcomp.rust_run 0 &lt; revcomp-input100000000.txt
+
+(TRUNCATED) PROGRAM OUTPUT:
+&gt;ONE Homo sapiens alu
+GGGATTACAGGCGTGAGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGC
+CCAGGCTGGAGTGCAGTGGCGCGATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAA
+GCGATTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCACCACGCCC
+GGCTAATTTTTGTATTTTTAGTAGAGACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCG
+AACTCCTGACCTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTACAGGCG
+TGAGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTG
+CAGTGGCGCGATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTGC
+CTCAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCACCACGCCCGGCTAATTTTTGT
+ATTTTTAGTAGAGACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAACTCCTGACCTC
+AGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTACAGGCGTGAGCCACCGCGC
+CCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCGCGATC
+TCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCAGCCTCCCGA
+GTAGCTGGGATTACAGGCGCGCGCCACCACGCCCGGCTAATTTTTGTATTTTTAGTAGAG
+ACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAACTCCTGACCTCAGGTGATCCGCCC
+GCCTCGGCCTCCCAAAGTGCTGGGATTACAGGCGTGAGCCACCGCGCCCGGCCTTTTTGA
+GACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCGCGATCTCGGCTCACTGCA
+ACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATTA
+CAGGCGCGCGCCACCACGCCCGGCTAATTTTTGTATTTTTAGTAGAGACGGGGTTTCACC
+ATGTTGGCCAGGCTGGTCTCGAACTCCTGACCTCAGGTGATCCGCCCGCCTCGGCCTCCC
+AAAGTGCTGGGATTACAGGCGTGAGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGC
+TCTGTCGCCCAGGCTGGAGTGCAGTGGCGCGATCTCGGCTCACTGCAACCTCCGCCTCCC
+GGGTTCAAGCGATTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCA
+CCACGCCCGGCTAATTTTTGTATTTTTAGTAGAGACGGGGTTTCACCATGTTGGCCAGGC
+TGGTCTCGAACTCCTGACCTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGAT
+TACAGGCGTGAGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGG
+CTGGAGTGCAGTGGCGCGATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGAT
+TCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCACCACGCCCGGCTA
+ATTTTTGTATTTTTAGTAGAGACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAACTC
+CTGACCTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTACAGGCGTGAGC
+CACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTG
+GCGCGATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCAG
+CCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCACCACGCCCGGCTAATTTTTGTATTTT
+TAGTAGAGACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAACTCCTGACCTCAGGTG
+ATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTACAGGCGTGAGCCACCGCGCCCGGC
+CTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCGCGATCTCGGC
+TCACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCAGCCTCCCGAGTAGC
+TGGGATTACAGGCGCGCGCCACCACGCCCGGCTAATTTTTGTATTTTTAGTAGAGACGGG
+GTTTCACCATGTTGGCCAGGCTGGTCTCGAACTCCTGACCTCAGGTGATCCGCCCGCCTC
+GGCCTCCCAAAGTGCTGGGATTACAGGCGTGAGCCACCGCGCCCGGCCTTTTTGAGACGG
+AGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCGCGATCTCGGCTCACTGCAACCTC
+CGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATTACAGGC
+GCGCGCCACCACGCCCGGCTAATTTTTGTATTTTTAGTAGAGACGGGGTTTCACCATGTT
+GGCCAGGCTGGTCTCGAACTCCTGACCTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAGT
+GCTGGGATTACAGGCGTGAGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGT
+CGCCCAGGCTGGAGTGCAGTGGCGCGATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTT
+CAAGCGATTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCACCACG
+CCCGGCTAATTTTTGTATTTTTAGTAGAGACGGGGTTTCACCATGTTGGCCAGGCTGGTC
+TCGAACTCCTGACCTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTACAG
+GCGTGAGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGGA
+GTGCAGTGGCGCGATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTCTCC
+TGCCTCAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCACCACGCCCGGCTAATTTT
+TGTATTTTTAGTAGAGACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAACTCCTGAC
+CTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTACAGGCGTGAGCCACCG
+CGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCGCG
+ATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCAGCCTCC
+CGAGTAGCTGGGATTACAGGCGCGCGCCACCACGCCCGGCTAATTTTTGTATTTTTAGTA
+GAGACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAACTCCTGACCTCAGGTGATCCG
+CCCGCCTCGGCCTCCCAAAGTGCTGGGATTACAGGCGTGAGCCACCGCGCCCGGCCTTTT
+TGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCGCGATCTCGGCTCACT
+GCAACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGA
+TTACAGGCGCGCGCCACCACGCCCGGCTAATTTTTGTATTTTTAGTAGAGACGGGGTTTC
+ACCATGTTGGCCAGGCTGGTCTCGAACTCCTGACCTCAGGTGATCCGCCCGCCTCGGCCT
+CCCAAAGTGCTGGGATTACAGGCGTGAGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCT
+CGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCGCGATCTCGGCTCACTGCAACCTCCGCCT
+CCCGGGTTCAAGCGATTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCG
+CCACCACGCCCGGCTAATTTTTGTATTTTTAGTAGAGACGGGGTTTCACCATGTTGGCCA
+GGCTGGTCTCGAACTCCTGACCTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGG
+GATTACAGGCGTGAGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCC
+AGGCTGGAGTGCAGTGGCGCGATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGC
+GATTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCACCACGCCCGG
+CTAATTTTTGTATTTTTAGTAGAGACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAA
+CTCCTGACCTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTACAGGCGTG
+AGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCA
+GTGGCGCGATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTGCCT
+CAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCACCACGCCCGGCTAATTTTTGTAT
+TTTTAGTAGAGACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAACTCCTGACCTCAG
+GTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTACAGGCGTGAGCCACCGCGCCC
+GGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCGCGATCTC
+GGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCAGCCTCCCGAGT
+AGCTGGGATTACAGGCGCGCGCCACCACGCCCGGCTAATTTTTGTATTTTTAGTAGAGAC
+GGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAACTCCTGACCTCAGGTGATCCGCCCGC
+CTCGGCCTCCCAAAGTGCTGGGATTACAGGCGTGAGCCACCGCGCCCGGCCTTTTTGAGA
+CGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCGCGATCTCGGCTCACTGCAAC
+CTCCGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATTACA
+GGCGCGCGCCACCACGCCCGGCTAATTTTTGTATTTTTAGTAGAGACGGGGTTTCACCAT
+GTTGGCCAGGCTGGTCTCGAACTCCTGACCTCAGGTGATCCGCCCGCCTCGGCCTCCCAA
+AGTGCTGGGATTACAGGCGTGAGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTC
+TGTCGCCCAGGCTGGAGTGCAGTGGCGCGATCTCGGCTCACTGCAACCTCCGCCTCCCGG
+GTTCAAGCGATTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCACC
+ACGCCCGGCTAATTTTTGTATTTTTAGTAGAGACGGGGTTTCACCATGTTGGCCAGGCTG
+GTCTCGAACTCCTGACCTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTA
+CAGGCGTGAGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCT
+GGAGTGCAGTGGCGCGATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTC
+TCCTGCCTCAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCACCACGCCCGGCTAAT
+TTTTGTATTTTTAGTAGAGACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAACTCCT
+GACCTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTACAGGCGTGAGCCA
+CCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGC
+GCGATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCAGCC
+TCCCGAGTAGCTGGGATTACAGGCGCGCGCCACCACGCCCGGCTAATTTTTGTATTTTTA
+GTAGAGACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAACTCCTGACCTCAGGTGAT
+CCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTACAGGCGTGAGCCACCGCGCCCGGCCT
+TTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCGCGATCTCGGCTC
+ACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCAGCCTCCCGAGTAGCTG
+GGATTACAGGCGCGCGCCACCACGCCCGGCTAATTTTTGTATTTTTAGTAGAGACGGGGT
+TTCACCATGTTGGCCAGGCTGGTCTCGAACTCCTGACCTCAGGTGATCCGCCCGCCTCGG
+CCTCCCAAAGTGCTGGGATTACAGGCGTGAGCCACCGCGCCCGGCCTTTTTGAGACGGAG
+TCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCGCGATCTCGGCTCACTGCAACCTCCG
+CCTCCCGGGTTCAAGCGATTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATTACAGGCGC
+GCGCCACCACGCCCGGCTAATTTTTGTATTTTTAGTAGAGACGGGGTTTCACCATGTTGG
+CCAGGCTGGTCTCGAACTCCTGACCTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGC
+TGGGATTACAGGCGTGAGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCG
+CCCAGGCTGGAGTGCAGTGGCGCGATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCA
+AGCGATTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCACCACGCC
+CGGCTAATTTTTGTATTTTTAGTAGAGACGGGGTTTCACCATGTTGGCCAGGCTGGTCTC
+GAACTCCTGACCTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTACAGGC
+GTGAGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGT
+GCAGTGGCGCGATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTG
+CCTCAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCACCACGCCCGGCTAATTTTTG
+TATTTTTAGTAGAGACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAACTCCTGACCT
+CAGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTACAGGCGTGAGCCACCGCG
+CCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCGCGAT
+CTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCAGCCTCCCG
+AGTAGCTGGGATTACAGGCGCGCGCCACCACGCCCGGCTAATTTTTGTATTTTTAGTAGA
+GACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAACTCCTGACCTCAGGTGATCCGCC
+CGCCTCGGCCTCCCAAAGTGCTGGGATTACAGGCGTGAGCCACCGCGCCCGGCCTTTTTG
+AGACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCGCGATCTCGGCTCACTGC
+AACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATT
+ACAGGCGCGCGCCACCACGCCCGGCTAATTTTTGTATTTTTAGTAGAGACGGGGTTTCAC
+CATGTTGGCCAGGCTGGTCTCGAACTCCTGACCTCAGGTGATCCGCCCGCCTCGGCCTCC
+CAAAGTGCTGGGATTACAGGCGTGAGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCG
+CTCTGTCGCCCAGGCTGGAGTGCAGTGGCGCGATCTCGGCTCACTGCAACCTCCGCCTCC
+CGGGTTCAAGCGATTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCC
+ACCACGCCCGGCTAATTTTTGTATTTTTAGTAGAGACGGGGTTTCACCATGTTGGCCAGG
+CTGGTCTCGAACTCCTGACCTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGA
+TTACAGGCGTGAGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAG
+GCTGGAGTGCAGTGGCGCGATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGA
+TTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCACCACGCCCGGCT
+AATTTTTGTATTTTTAGTAGAGACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAACT
+CCTGACCTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTACAGGCGTGAG
+CCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGT
+GGCGCGATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCA
+GCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCACCACGCCCGGCTAATTTTTGTATTT
+TTAGTAGAGACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAACTCCTGACCTCAGGT
+GATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTACAGGCGTGAGCCACCGCGCCCGG
+CCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCGCGATCTCGG
+CTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCAGCCTCCCGAGTAG
+CTGGGATTACAGGCGCGCGCCACCACGCCCGGCTAATTTTTGTATTTTTAGTAGAGACGG
+GGTTTCACCATGTTGGCCAGGCTGGTCTCGAACTCCTGACCTCAGGTGATCCGCCCGCCT
+CGGCCTCCCAAAGTGCTGGGATTACAGGCGTGAGCCACCGCGCCCGGCCTTTTTGAGACG
+GAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCGCGATCTCGGCTCACTGCAACCT
+CCGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATTACAGG
+CGCGCGCCACCACGCCCGGCTAATTTTTGTATTTTTAGTAGAGACGGGGTTTCACCATGT
+TGGCCAGGCTGGTCTCGAACTCCTGACCTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAG
+TGCTGGGATTACAGGCGTGAGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTG
+TCGCCCAGGCTGGAGTGCAGTGGCGCGATCTCGGCTCACTGCAACCTCCGCCTCCCGGGT
+TCAAGCGATTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCACCAC
+GCCCGGCTAATTTTTGTATTTTTAGTAGAGACGGGGTTTCACCATGTTGGCCAGGCTGGT
+CTCGAACTCCTGACCTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTACA
+GGCGTGAGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGG
+AGTGCAGTGGCGCGATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTCTC
+CTGCCTCAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCACCACGCCCGGCTAATTT
+TTGTATTTTTAGTAGAGACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAACTCCTGA
+CCTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTACAGGCGTGAGCCACC
+GCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCGC
+GATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCAGCCTC
+CCGAGTAGCTGGGATTACAGGCGCGCGCCACCACGCCCGGCTAATTTTTGTATTTTTAGT
+AGAGACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAACTCCTGACCTCAGGTGATCC
+GCCCGCCTCGGCCTCCCAAAGTGCTGGGATT    </pre>
+  </section>
+</article>
+<footer>
+  <nav>
+    <ul>
+      <li><a href="https://salsa.debian.org/benchmarksgame-team/benchmarksgame/blob/master/CONTRIBUTING.md#contribute-source-code-for-measurement"><span>Contribute your own program</span></a>
+      <li><a href="../license.html"><span>3-Clause BSD License</span></a>
+    </ul>
+  </nav>
+</footer>
+
