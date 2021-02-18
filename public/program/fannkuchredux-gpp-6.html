@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,follow,noarchive">
+
+<title>fannkuch-redux C++ g++&nbsp;#6 program | Computer Language Benchmarks Game </title>
+<style><!--
+a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,header{margin:auto;width:92%}body{font:100% Droid Sans, Ubuntu, Verdana, sans-serif;margin:0;-webkit-text-size-adjust:100%}h3, h1, h2, li a{font-family:Ubuntu Mono,Consolas,Menlo,monospace}div,footer,header{max-width:31em}footer{padding:2.6em 0 0}h3{font-size:1.4em;font-weight:bold;margin:0;padding: .4em}h3, h3 a{color:white;background-color:#77216f}h3 small{font-size:0.64em}h1,h2{margin:1.5em 0 0}h1{font-size:1.4em;font-weight:normal}h2{font-size:1.2em}li{list-style-type:none;vertical-align:top}li a{display:block;font-size:1.2em;margin: .5em .5em 0;padding: .5em .5em .3em}ul{clear:left;margin:-0.3em 0 1.5em;padding-left:0;text-align:center}p{color:#333;line-height:1.4;margin: .3em 0 0}p a, a span{border-bottom: .1em solid #333;padding-bottom: .1em}.com,.slc{color:#888}.kwa{color:#066}.kwb{color:#900}.kwc{color:#050}.kwa,.kwb,.kwc{font-weight:bold}.dstr,.str,.sym,.num{color:#930}pre{color:#222;font-size:1em;overflow-wrap:break-word;white-space:pre-wrap;word-wrap:break-word}@media only screen and (min-width: 60em){article,footer,header{font-size:1.25em}}
+--></style>
+<link rel="shortcut icon" href="../favicon.ico">
+<header>
+  <h3><a href="https://benchmarksgame-team.pages.debian.net/benchmarksgame/index.html">The&nbsp;<small>Computer&nbsp;Language</small><br>Benchmarks&nbsp;Game</a></h3>
+</header>
+<article>
+  <div>
+    <h1>fannkuch-redux C++ g++&nbsp;#6 program</h1>
+    <aside>
+      <p><a href="../description/fannkuchredux.html#fannkuchredux">description</a>
+    </aside>
+  </div>
+  <section>
+    <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc">// The Computer Language Benchmarks Game</span>
+<span class="slc">// https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">//</span>
+<span class="slc">// Contributed by Andrei Simion</span>
+<span class="slc">// Based on &quot;fannkuch-redux C++ g++ #5&quot;, contributed by Dave Compton,</span>
+<span class="slc">// which in turn was based on the C program by Jeremy Zerfasm</span>
+<span class="slc">// which in turn was based on the Ada program by Jonathan Parker and </span>
+<span class="slc">// Georg Bauhaus which in turn was based on code by Dave Fladebo, </span>
+<span class="slc">// Eckehard Berns, Heiner Marxen, Hongwei Xi, and The Anh Tran and </span>
+<span class="slc">// also the Java program by Oleg Mazurov.</span>
+
+<span class="ppc">#include &lt;array&gt;</span>
+<span class="ppc">#include &lt;iostream&gt;</span>
+<span class="ppc">#include &lt;algorithm&gt;</span>
+<span class="ppc">#include &lt;immintrin.h&gt;</span>
+
+<span class="kwa">using</span> small_int_t <span class="opt">=</span> <span class="kwb">char</span><span class="opt">;</span>
+<span class="kwa">using</span> big_int_t   <span class="opt">=</span> <span class="kwb">int64_t</span><span class="opt">;</span>
+
+<span class="kwc">constexpr</span> small_int_t max_n <span class="opt">=</span> <span class="num">16</span><span class="opt">;</span>
+<span class="kwc">constexpr</span> <span class="kwb">int</span> max_blocks <span class="opt">=</span> <span class="num">24</span><span class="opt">;</span>
+
+<span class="kwb">struct</span> Masks
+<span class="opt">{</span>
+    __m128i masks_reverse<span class="opt">[</span><span class="num">16</span><span class="opt">];</span>
+    __m128i masks_shift<span class="opt">[</span><span class="num">16</span><span class="opt">];</span>
+   
+    <span class="kwd">Masks</span><span class="opt">()</span>
+    <span class="opt">{</span>
+        <span class="slc">// first elements are never accessed</span>
+        masks_reverse<span class="opt">[</span><span class="num">1</span><span class="opt">] =</span> <span class="kwd">_mm_setr_epi8</span><span class="opt">(</span><span class="num">1</span><span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> <span class="num">2</span><span class="opt">,</span> <span class="num">3</span><span class="opt">,</span> <span class="num">4</span><span class="opt">,</span> <span class="num">5</span><span class="opt">,</span> <span class="num">6</span><span class="opt">,</span> <span class="num">7</span><span class="opt">,</span> <span class="num">8</span><span class="opt">,</span> <span class="num">9</span><span class="opt">,</span> <span class="num">10</span><span class="opt">,</span> <span class="num">11</span><span class="opt">,</span> <span class="num">12</span><span class="opt">,</span> <span class="num">13</span><span class="opt">,</span> <span class="num">14</span><span class="opt">,</span> <span class="num">15</span><span class="opt">);</span>
+        masks_reverse<span class="opt">[</span><span class="num">2</span><span class="opt">] =</span> <span class="kwd">_mm_setr_epi8</span><span class="opt">(</span><span class="num">2</span><span class="opt">,</span> <span class="num">1</span><span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> <span class="num">3</span><span class="opt">,</span> <span class="num">4</span><span class="opt">,</span> <span class="num">5</span><span class="opt">,</span> <span class="num">6</span><span class="opt">,</span> <span class="num">7</span><span class="opt">,</span> <span class="num">8</span><span class="opt">,</span> <span class="num">9</span><span class="opt">,</span> <span class="num">10</span><span class="opt">,</span> <span class="num">11</span><span class="opt">,</span> <span class="num">12</span><span class="opt">,</span> <span class="num">13</span><span class="opt">,</span> <span class="num">14</span><span class="opt">,</span> <span class="num">15</span><span class="opt">);</span>
+        masks_reverse<span class="opt">[</span><span class="num">3</span><span class="opt">] =</span> <span class="kwd">_mm_setr_epi8</span><span class="opt">(</span><span class="num">3</span><span class="opt">,</span> <span class="num">2</span><span class="opt">,</span> <span class="num">1</span><span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> <span class="num">4</span><span class="opt">,</span> <span class="num">5</span><span class="opt">,</span> <span class="num">6</span><span class="opt">,</span> <span class="num">7</span><span class="opt">,</span> <span class="num">8</span><span class="opt">,</span> <span class="num">9</span><span class="opt">,</span> <span class="num">10</span><span class="opt">,</span> <span class="num">11</span><span class="opt">,</span> <span class="num">12</span><span class="opt">,</span> <span class="num">13</span><span class="opt">,</span> <span class="num">14</span><span class="opt">,</span> <span class="num">15</span><span class="opt">);</span>
+        masks_reverse<span class="opt">[</span><span class="num">4</span><span class="opt">] =</span> <span class="kwd">_mm_setr_epi8</span><span class="opt">(</span><span class="num">4</span><span class="opt">,</span> <span class="num">3</span><span class="opt">,</span> <span class="num">2</span><span class="opt">,</span> <span class="num">1</span><span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> <span class="num">5</span><span class="opt">,</span> <span class="num">6</span><span class="opt">,</span> <span class="num">7</span><span class="opt">,</span> <span class="num">8</span><span class="opt">,</span> <span class="num">9</span><span class="opt">,</span> <span class="num">10</span><span class="opt">,</span> <span class="num">11</span><span class="opt">,</span> <span class="num">12</span><span class="opt">,</span> <span class="num">13</span><span class="opt">,</span> <span class="num">14</span><span class="opt">,</span> <span class="num">15</span><span class="opt">);</span>
+        masks_reverse<span class="opt">[</span><span class="num">5</span><span class="opt">] =</span> <span class="kwd">_mm_setr_epi8</span><span class="opt">(</span><span class="num">5</span><span class="opt">,</span> <span class="num">4</span><span class="opt">,</span> <span class="num">3</span><span class="opt">,</span> <span class="num">2</span><span class="opt">,</span> <span class="num">1</span><span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> <span class="num">6</span><span class="opt">,</span> <span class="num">7</span><span class="opt">,</span> <span class="num">8</span><span class="opt">,</span> <span class="num">9</span><span class="opt">,</span> <span class="num">10</span><span class="opt">,</span> <span class="num">11</span><span class="opt">,</span> <span class="num">12</span><span class="opt">,</span> <span class="num">13</span><span class="opt">,</span> <span class="num">14</span><span class="opt">,</span> <span class="num">15</span><span class="opt">);</span>
+        masks_reverse<span class="opt">[</span><span class="num">6</span><span class="opt">] =</span> <span class="kwd">_mm_setr_epi8</span><span class="opt">(</span><span class="num">6</span><span class="opt">,</span> <span class="num">5</span><span class="opt">,</span> <span class="num">4</span><span class="opt">,</span> <span class="num">3</span><span class="opt">,</span> <span class="num">2</span><span class="opt">,</span> <span class="num">1</span><span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> <span class="num">7</span><span class="opt">,</span> <span class="num">8</span><span class="opt">,</span> <span class="num">9</span><span class="opt">,</span> <span class="num">10</span><span class="opt">,</span> <span class="num">11</span><span class="opt">,</span> <span class="num">12</span><span class="opt">,</span> <span class="num">13</span><span class="opt">,</span> <span class="num">14</span><span class="opt">,</span> <span class="num">15</span><span class="opt">);</span>
+        masks_reverse<span class="opt">[</span><span class="num">7</span><span class="opt">] =</span> <span class="kwd">_mm_setr_epi8</span><span class="opt">(</span><span class="num">7</span><span class="opt">,</span> <span class="num">6</span><span class="opt">,</span> <span class="num">5</span><span class="opt">,</span> <span class="num">4</span><span class="opt">,</span> <span class="num">3</span><span class="opt">,</span> <span class="num">2</span><span class="opt">,</span> <span class="num">1</span><span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> <span class="num">8</span><span class="opt">,</span> <span class="num">9</span><span class="opt">,</span> <span class="num">10</span><span class="opt">,</span> <span class="num">11</span><span class="opt">,</span> <span class="num">12</span><span class="opt">,</span> <span class="num">13</span><span class="opt">,</span> <span class="num">14</span><span class="opt">,</span> <span class="num">15</span><span class="opt">);</span>
+        masks_reverse<span class="opt">[</span><span class="num">8</span><span class="opt">] =</span> <span class="kwd">_mm_setr_epi8</span><span class="opt">(</span><span class="num">8</span><span class="opt">,</span> <span class="num">7</span><span class="opt">,</span> <span class="num">6</span><span class="opt">,</span> <span class="num">5</span><span class="opt">,</span> <span class="num">4</span><span class="opt">,</span> <span class="num">3</span><span class="opt">,</span> <span class="num">2</span><span class="opt">,</span> <span class="num">1</span><span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> <span class="num">9</span><span class="opt">,</span> <span class="num">10</span><span class="opt">,</span> <span class="num">11</span><span class="opt">,</span> <span class="num">12</span><span class="opt">,</span> <span class="num">13</span><span class="opt">,</span> <span class="num">14</span><span class="opt">,</span> <span class="num">15</span><span class="opt">);</span>
+        masks_reverse<span class="opt">[</span><span class="num">9</span><span class="opt">] =</span> <span class="kwd">_mm_setr_epi8</span><span class="opt">(</span><span class="num">9</span><span class="opt">,</span> <span class="num">8</span><span class="opt">,</span> <span class="num">7</span><span class="opt">,</span> <span class="num">6</span><span class="opt">,</span> <span class="num">5</span><span class="opt">,</span> <span class="num">4</span><span class="opt">,</span> <span class="num">3</span><span class="opt">,</span> <span class="num">2</span><span class="opt">,</span> <span class="num">1</span><span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> <span class="num">10</span><span class="opt">,</span> <span class="num">11</span><span class="opt">,</span> <span class="num">12</span><span class="opt">,</span> <span class="num">13</span><span class="opt">,</span> <span class="num">14</span><span class="opt">,</span> <span class="num">15</span><span class="opt">);</span>
+        masks_reverse<span class="opt">[</span><span class="num">10</span><span class="opt">] =</span> <span class="kwd">_mm_setr_epi8</span><span class="opt">(</span><span class="num">10</span><span class="opt">,</span> <span class="num">9</span><span class="opt">,</span> <span class="num">8</span><span class="opt">,</span> <span class="num">7</span><span class="opt">,</span> <span class="num">6</span><span class="opt">,</span> <span class="num">5</span><span class="opt">,</span> <span class="num">4</span><span class="opt">,</span> <span class="num">3</span><span class="opt">,</span> <span class="num">2</span><span class="opt">,</span> <span class="num">1</span><span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> <span class="num">11</span><span class="opt">,</span> <span class="num">12</span><span class="opt">,</span> <span class="num">13</span><span class="opt">,</span> <span class="num">14</span><span class="opt">,</span> <span class="num">15</span><span class="opt">);</span>
+        masks_reverse<span class="opt">[</span><span class="num">11</span><span class="opt">] =</span> <span class="kwd">_mm_setr_epi8</span><span class="opt">(</span><span class="num">11</span><span class="opt">,</span> <span class="num">10</span><span class="opt">,</span> <span class="num">9</span><span class="opt">,</span> <span class="num">8</span><span class="opt">,</span> <span class="num">7</span><span class="opt">,</span> <span class="num">6</span><span class="opt">,</span> <span class="num">5</span><span class="opt">,</span> <span class="num">4</span><span class="opt">,</span> <span class="num">3</span><span class="opt">,</span> <span class="num">2</span><span class="opt">,</span> <span class="num">1</span><span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> <span class="num">12</span><span class="opt">,</span> <span class="num">13</span><span class="opt">,</span> <span class="num">14</span><span class="opt">,</span> <span class="num">15</span><span class="opt">);</span>
+        masks_reverse<span class="opt">[</span><span class="num">12</span><span class="opt">] =</span> <span class="kwd">_mm_setr_epi8</span><span class="opt">(</span><span class="num">12</span><span class="opt">,</span> <span class="num">11</span><span class="opt">,</span> <span class="num">10</span><span class="opt">,</span> <span class="num">9</span><span class="opt">,</span> <span class="num">8</span><span class="opt">,</span> <span class="num">7</span><span class="opt">,</span> <span class="num">6</span><span class="opt">,</span> <span class="num">5</span><span class="opt">,</span> <span class="num">4</span><span class="opt">,</span> <span class="num">3</span><span class="opt">,</span> <span class="num">2</span><span class="opt">,</span> <span class="num">1</span><span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> <span class="num">13</span><span class="opt">,</span> <span class="num">14</span><span class="opt">,</span> <span class="num">15</span><span class="opt">);</span>
+        masks_reverse<span class="opt">[</span><span class="num">13</span><span class="opt">] =</span> <span class="kwd">_mm_setr_epi8</span><span class="opt">(</span><span class="num">13</span><span class="opt">,</span> <span class="num">12</span><span class="opt">,</span> <span class="num">11</span><span class="opt">,</span> <span class="num">10</span><span class="opt">,</span> <span class="num">9</span><span class="opt">,</span> <span class="num">8</span><span class="opt">,</span> <span class="num">7</span><span class="opt">,</span> <span class="num">6</span><span class="opt">,</span> <span class="num">5</span><span class="opt">,</span> <span class="num">4</span><span class="opt">,</span> <span class="num">3</span><span class="opt">,</span> <span class="num">2</span><span class="opt">,</span> <span class="num">1</span><span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> <span class="num">14</span><span class="opt">,</span> <span class="num">15</span><span class="opt">);</span>
+        masks_reverse<span class="opt">[</span><span class="num">14</span><span class="opt">] =</span> <span class="kwd">_mm_setr_epi8</span><span class="opt">(</span><span class="num">14</span><span class="opt">,</span> <span class="num">13</span><span class="opt">,</span> <span class="num">12</span><span class="opt">,</span> <span class="num">11</span><span class="opt">,</span> <span class="num">10</span><span class="opt">,</span> <span class="num">9</span><span class="opt">,</span> <span class="num">8</span><span class="opt">,</span> <span class="num">7</span><span class="opt">,</span> <span class="num">6</span><span class="opt">,</span> <span class="num">5</span><span class="opt">,</span> <span class="num">4</span><span class="opt">,</span> <span class="num">3</span><span class="opt">,</span> <span class="num">2</span><span class="opt">,</span> <span class="num">1</span><span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> <span class="num">15</span><span class="opt">);</span>
+        masks_reverse<span class="opt">[</span><span class="num">15</span><span class="opt">] =</span> <span class="kwd">_mm_setr_epi8</span><span class="opt">(</span><span class="num">15</span><span class="opt">,</span> <span class="num">14</span><span class="opt">,</span> <span class="num">13</span><span class="opt">,</span> <span class="num">12</span><span class="opt">,</span> <span class="num">11</span><span class="opt">,</span> <span class="num">10</span><span class="opt">,</span> <span class="num">9</span><span class="opt">,</span> <span class="num">8</span><span class="opt">,</span> <span class="num">7</span><span class="opt">,</span> <span class="num">6</span><span class="opt">,</span> <span class="num">5</span><span class="opt">,</span> <span class="num">4</span><span class="opt">,</span> <span class="num">3</span><span class="opt">,</span> <span class="num">2</span><span class="opt">,</span> <span class="num">1</span><span class="opt">,</span> <span class="num">0</span><span class="opt">);</span>
+
+        masks_shift<span class="opt">[</span><span class="num">1</span><span class="opt">] =</span> <span class="kwd">_mm_setr_epi8</span><span class="opt">(</span><span class="num">1</span><span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> <span class="num">2</span><span class="opt">,</span> <span class="num">3</span><span class="opt">,</span> <span class="num">4</span><span class="opt">,</span> <span class="num">5</span><span class="opt">,</span> <span class="num">6</span><span class="opt">,</span> <span class="num">7</span><span class="opt">,</span> <span class="num">8</span><span class="opt">,</span> <span class="num">9</span><span class="opt">,</span> <span class="num">10</span><span class="opt">,</span> <span class="num">11</span><span class="opt">,</span> <span class="num">12</span><span class="opt">,</span> <span class="num">13</span><span class="opt">,</span> <span class="num">14</span><span class="opt">,</span> <span class="num">15</span><span class="opt">);</span>
+        masks_shift<span class="opt">[</span><span class="num">2</span><span class="opt">] =</span> <span class="kwd">_mm_setr_epi8</span><span class="opt">(</span><span class="num">1</span><span class="opt">,</span> <span class="num">2</span><span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> <span class="num">3</span><span class="opt">,</span> <span class="num">4</span><span class="opt">,</span> <span class="num">5</span><span class="opt">,</span> <span class="num">6</span><span class="opt">,</span> <span class="num">7</span><span class="opt">,</span> <span class="num">8</span><span class="opt">,</span> <span class="num">9</span><span class="opt">,</span> <span class="num">10</span><span class="opt">,</span> <span class="num">11</span><span class="opt">,</span> <span class="num">12</span><span class="opt">,</span> <span class="num">13</span><span class="opt">,</span> <span class="num">14</span><span class="opt">,</span> <span class="num">15</span><span class="opt">);</span>
+        masks_shift<span class="opt">[</span><span class="num">3</span><span class="opt">] =</span> <span class="kwd">_mm_setr_epi8</span><span class="opt">(</span><span class="num">1</span><span class="opt">,</span> <span class="num">2</span><span class="opt">,</span> <span class="num">3</span><span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> <span class="num">4</span><span class="opt">,</span> <span class="num">5</span><span class="opt">,</span> <span class="num">6</span><span class="opt">,</span> <span class="num">7</span><span class="opt">,</span> <span class="num">8</span><span class="opt">,</span> <span class="num">9</span><span class="opt">,</span> <span class="num">10</span><span class="opt">,</span> <span class="num">11</span><span class="opt">,</span> <span class="num">12</span><span class="opt">,</span> <span class="num">13</span><span class="opt">,</span> <span class="num">14</span><span class="opt">,</span> <span class="num">15</span><span class="opt">);</span>
+        masks_shift<span class="opt">[</span><span class="num">4</span><span class="opt">] =</span> <span class="kwd">_mm_setr_epi8</span><span class="opt">(</span><span class="num">1</span><span class="opt">,</span> <span class="num">2</span><span class="opt">,</span> <span class="num">3</span><span class="opt">,</span> <span class="num">4</span><span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> <span class="num">5</span><span class="opt">,</span> <span class="num">6</span><span class="opt">,</span> <span class="num">7</span><span class="opt">,</span> <span class="num">8</span><span class="opt">,</span> <span class="num">9</span><span class="opt">,</span> <span class="num">10</span><span class="opt">,</span> <span class="num">11</span><span class="opt">,</span> <span class="num">12</span><span class="opt">,</span> <span class="num">13</span><span class="opt">,</span> <span class="num">14</span><span class="opt">,</span> <span class="num">15</span><span class="opt">);</span>
+        masks_shift<span class="opt">[</span><span class="num">5</span><span class="opt">] =</span> <span class="kwd">_mm_setr_epi8</span><span class="opt">(</span><span class="num">1</span><span class="opt">,</span> <span class="num">2</span><span class="opt">,</span> <span class="num">3</span><span class="opt">,</span> <span class="num">4</span><span class="opt">,</span> <span class="num">5</span><span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> <span class="num">6</span><span class="opt">,</span> <span class="num">7</span><span class="opt">,</span> <span class="num">8</span><span class="opt">,</span> <span class="num">9</span><span class="opt">,</span> <span class="num">10</span><span class="opt">,</span> <span class="num">11</span><span class="opt">,</span> <span class="num">12</span><span class="opt">,</span> <span class="num">13</span><span class="opt">,</span> <span class="num">14</span><span class="opt">,</span> <span class="num">15</span><span class="opt">);</span>
+        masks_shift<span class="opt">[</span><span class="num">6</span><span class="opt">] =</span> <span class="kwd">_mm_setr_epi8</span><span class="opt">(</span><span class="num">1</span><span class="opt">,</span> <span class="num">2</span><span class="opt">,</span> <span class="num">3</span><span class="opt">,</span> <span class="num">4</span><span class="opt">,</span> <span class="num">5</span><span class="opt">,</span> <span class="num">6</span><span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> <span class="num">7</span><span class="opt">,</span> <span class="num">8</span><span class="opt">,</span> <span class="num">9</span><span class="opt">,</span> <span class="num">10</span><span class="opt">,</span> <span class="num">11</span><span class="opt">,</span> <span class="num">12</span><span class="opt">,</span> <span class="num">13</span><span class="opt">,</span> <span class="num">14</span><span class="opt">,</span> <span class="num">15</span><span class="opt">);</span>
+        masks_shift<span class="opt">[</span><span class="num">7</span><span class="opt">] =</span> <span class="kwd">_mm_setr_epi8</span><span class="opt">(</span><span class="num">1</span><span class="opt">,</span> <span class="num">2</span><span class="opt">,</span> <span class="num">3</span><span class="opt">,</span> <span class="num">4</span><span class="opt">,</span> <span class="num">5</span><span class="opt">,</span> <span class="num">6</span><span class="opt">,</span> <span class="num">7</span><span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> <span class="num">8</span><span class="opt">,</span> <span class="num">9</span><span class="opt">,</span> <span class="num">10</span><span class="opt">,</span> <span class="num">11</span><span class="opt">,</span> <span class="num">12</span><span class="opt">,</span> <span class="num">13</span><span class="opt">,</span> <span class="num">14</span><span class="opt">,</span> <span class="num">15</span><span class="opt">);</span>
+        masks_shift<span class="opt">[</span><span class="num">8</span><span class="opt">] =</span> <span class="kwd">_mm_setr_epi8</span><span class="opt">(</span><span class="num">1</span><span class="opt">,</span> <span class="num">2</span><span class="opt">,</span> <span class="num">3</span><span class="opt">,</span> <span class="num">4</span><span class="opt">,</span> <span class="num">5</span><span class="opt">,</span> <span class="num">6</span><span class="opt">,</span> <span class="num">7</span><span class="opt">,</span> <span class="num">8</span><span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> <span class="num">9</span><span class="opt">,</span> <span class="num">10</span><span class="opt">,</span> <span class="num">11</span><span class="opt">,</span> <span class="num">12</span><span class="opt">,</span> <span class="num">13</span><span class="opt">,</span> <span class="num">14</span><span class="opt">,</span> <span class="num">15</span><span class="opt">);</span>
+        masks_shift<span class="opt">[</span><span class="num">9</span><span class="opt">] =</span> <span class="kwd">_mm_setr_epi8</span><span class="opt">(</span><span class="num">1</span><span class="opt">,</span> <span class="num">2</span><span class="opt">,</span> <span class="num">3</span><span class="opt">,</span> <span class="num">4</span><span class="opt">,</span> <span class="num">5</span><span class="opt">,</span> <span class="num">6</span><span class="opt">,</span> <span class="num">7</span><span class="opt">,</span> <span class="num">8</span><span class="opt">,</span> <span class="num">9</span><span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> <span class="num">10</span><span class="opt">,</span> <span class="num">11</span><span class="opt">,</span> <span class="num">12</span><span class="opt">,</span> <span class="num">13</span><span class="opt">,</span> <span class="num">14</span><span class="opt">,</span> <span class="num">15</span><span class="opt">);</span>
+        masks_shift<span class="opt">[</span><span class="num">10</span><span class="opt">] =</span> <span class="kwd">_mm_setr_epi8</span><span class="opt">(</span><span class="num">1</span><span class="opt">,</span> <span class="num">2</span><span class="opt">,</span> <span class="num">3</span><span class="opt">,</span> <span class="num">4</span><span class="opt">,</span> <span class="num">5</span><span class="opt">,</span> <span class="num">6</span><span class="opt">,</span> <span class="num">7</span><span class="opt">,</span> <span class="num">8</span><span class="opt">,</span> <span class="num">9</span><span class="opt">,</span> <span class="num">10</span><span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> <span class="num">11</span><span class="opt">,</span> <span class="num">12</span><span class="opt">,</span> <span class="num">13</span><span class="opt">,</span> <span class="num">14</span><span class="opt">,</span> <span class="num">15</span><span class="opt">);</span>
+        masks_shift<span class="opt">[</span><span class="num">11</span><span class="opt">] =</span> <span class="kwd">_mm_setr_epi8</span><span class="opt">(</span><span class="num">1</span><span class="opt">,</span> <span class="num">2</span><span class="opt">,</span> <span class="num">3</span><span class="opt">,</span> <span class="num">4</span><span class="opt">,</span> <span class="num">5</span><span class="opt">,</span> <span class="num">6</span><span class="opt">,</span> <span class="num">7</span><span class="opt">,</span> <span class="num">8</span><span class="opt">,</span> <span class="num">9</span><span class="opt">,</span> <span class="num">10</span><span class="opt">,</span> <span class="num">11</span><span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> <span class="num">12</span><span class="opt">,</span> <span class="num">13</span><span class="opt">,</span> <span class="num">14</span><span class="opt">,</span> <span class="num">15</span><span class="opt">);</span>
+        masks_shift<span class="opt">[</span><span class="num">12</span><span class="opt">] =</span> <span class="kwd">_mm_setr_epi8</span><span class="opt">(</span><span class="num">1</span><span class="opt">,</span> <span class="num">2</span><span class="opt">,</span> <span class="num">3</span><span class="opt">,</span> <span class="num">4</span><span class="opt">,</span> <span class="num">5</span><span class="opt">,</span> <span class="num">6</span><span class="opt">,</span> <span class="num">7</span><span class="opt">,</span> <span class="num">8</span><span class="opt">,</span> <span class="num">9</span><span class="opt">,</span> <span class="num">10</span><span class="opt">,</span> <span class="num">11</span><span class="opt">,</span> <span class="num">12</span><span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> <span class="num">13</span><span class="opt">,</span> <span class="num">14</span><span class="opt">,</span> <span class="num">15</span><span class="opt">);</span>
+        masks_shift<span class="opt">[</span><span class="num">13</span><span class="opt">] =</span> <span class="kwd">_mm_setr_epi8</span><span class="opt">(</span><span class="num">1</span><span class="opt">,</span> <span class="num">2</span><span class="opt">,</span> <span class="num">3</span><span class="opt">,</span> <span class="num">4</span><span class="opt">,</span> <span class="num">5</span><span class="opt">,</span> <span class="num">6</span><span class="opt">,</span> <span class="num">7</span><span class="opt">,</span> <span class="num">8</span><span class="opt">,</span> <span class="num">9</span><span class="opt">,</span> <span class="num">10</span><span class="opt">,</span> <span class="num">11</span><span class="opt">,</span> <span class="num">12</span><span class="opt">,</span> <span class="num">13</span><span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> <span class="num">14</span><span class="opt">,</span> <span class="num">15</span><span class="opt">);</span>
+        masks_shift<span class="opt">[</span><span class="num">14</span><span class="opt">] =</span> <span class="kwd">_mm_setr_epi8</span><span class="opt">(</span><span class="num">1</span><span class="opt">,</span> <span class="num">2</span><span class="opt">,</span> <span class="num">3</span><span class="opt">,</span> <span class="num">4</span><span class="opt">,</span> <span class="num">5</span><span class="opt">,</span> <span class="num">6</span><span class="opt">,</span> <span class="num">7</span><span class="opt">,</span> <span class="num">8</span><span class="opt">,</span> <span class="num">9</span><span class="opt">,</span> <span class="num">10</span><span class="opt">,</span> <span class="num">11</span><span class="opt">,</span> <span class="num">12</span><span class="opt">,</span> <span class="num">13</span><span class="opt">,</span> <span class="num">14</span><span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> <span class="num">15</span><span class="opt">);</span>
+        masks_shift<span class="opt">[</span><span class="num">15</span><span class="opt">] =</span> <span class="kwd">_mm_setr_epi8</span><span class="opt">(</span><span class="num">1</span><span class="opt">,</span> <span class="num">2</span><span class="opt">,</span> <span class="num">3</span><span class="opt">,</span> <span class="num">4</span><span class="opt">,</span> <span class="num">5</span><span class="opt">,</span> <span class="num">6</span><span class="opt">,</span> <span class="num">7</span><span class="opt">,</span> <span class="num">8</span><span class="opt">,</span> <span class="num">9</span><span class="opt">,</span> <span class="num">10</span><span class="opt">,</span> <span class="num">11</span><span class="opt">,</span> <span class="num">12</span><span class="opt">,</span> <span class="num">13</span><span class="opt">,</span> <span class="num">14</span><span class="opt">,</span> <span class="num">15</span><span class="opt">,</span> <span class="num">0</span><span class="opt">);</span>
+    <span class="opt">}</span>
+<span class="opt">};</span>
+
+<span class="kwc">std</span><span class="opt">::</span>array<span class="opt">&lt;</span>big_int_t<span class="opt">,</span> max_n<span class="opt">&gt;</span> <span class="kwd">compute_factorials</span><span class="opt">(</span>small_int_t n<span class="opt">)</span>
+<span class="opt">{</span>
+    <span class="kwc">std</span><span class="opt">::</span>array<span class="opt">&lt;</span>big_int_t<span class="opt">,</span> max_n<span class="opt">&gt;</span> factorials<span class="opt">;</span>
+
+    factorials<span class="opt">[</span><span class="num">0</span><span class="opt">] =</span> <span class="num">1</span><span class="opt">;</span>
+    <span class="kwa">for</span> <span class="opt">(</span>small_int_t i <span class="opt">=</span> <span class="num">1</span><span class="opt">;</span> i <span class="opt">&lt;=</span> n<span class="opt">; ++</span>i<span class="opt">)</span>
+        factorials<span class="opt">[</span>i<span class="opt">] =</span> factorials<span class="opt">[</span>i<span class="opt">-</span><span class="num">1</span><span class="opt">] *</span> i<span class="opt">;</span>
+
+    <span class="kwa">return</span> factorials<span class="opt">;</span>
+<span class="opt">}</span> 
+
+<span class="kwc">std</span><span class="opt">::</span>array<span class="opt">&lt;</span><span class="kwb">int</span><span class="opt">,</span> <span class="num">2</span><span class="opt">&gt;</span> <span class="kwd">get_blocks_and_size</span><span class="opt">(</span>small_int_t n<span class="opt">,</span> 
+                                       <span class="kwc">std</span><span class="opt">::</span>array<span class="opt">&lt;</span><span class="kwb">int64_t</span><span class="opt">,</span> max_n<span class="opt">&gt;&amp;</span> factorials<span class="opt">)</span>
+<span class="opt">{</span>
+    <span class="kwb">int</span> blocks <span class="opt">=</span> max_blocks<span class="opt">;</span>
+    <span class="kwa">if</span> <span class="opt">(</span>blocks <span class="opt">&gt;</span> factorials<span class="opt">[</span>n<span class="opt">])</span>
+        blocks <span class="opt">=</span> <span class="num">1</span><span class="opt">;</span>
+    <span class="kwb">int</span> block_size <span class="opt">=</span> factorials<span class="opt">[</span>n<span class="opt">] /</span> blocks<span class="opt">;</span>
+    
+    <span class="kwa">return</span> <span class="opt">{</span>blocks<span class="opt">,</span> block_size<span class="opt">};</span>
+<span class="opt">}</span>
+
+<span class="kwc">std</span><span class="opt">::</span>array<span class="opt">&lt;</span>big_int_t<span class="opt">,</span> max_n<span class="opt">&gt;</span> <span class="kwd">create_count</span><span class="opt">(</span>small_int_t n<span class="opt">,</span> big_int_t start<span class="opt">,</span>
+                                          <span class="kwc">std</span><span class="opt">::</span>array<span class="opt">&lt;</span><span class="kwb">int64_t</span><span class="opt">,</span> max_n<span class="opt">&gt;&amp;</span> factorials<span class="opt">)</span>
+<span class="opt">{</span>
+    <span class="kwc">std</span><span class="opt">::</span>array<span class="opt">&lt;</span>big_int_t<span class="opt">,</span> max_n<span class="opt">&gt;</span> count<span class="opt">;</span>
+   
+    <span class="kwa">for</span> <span class="opt">(</span>small_int_t i <span class="opt">=</span> n <span class="opt">-</span> <span class="num">1</span><span class="opt">;</span> i <span class="opt">&gt;=</span> <span class="num">0</span><span class="opt">; --</span>i<span class="opt">)</span> 
+    <span class="opt">{</span>
+        big_int_t d <span class="opt">=</span> start <span class="opt">/</span> factorials<span class="opt">[</span>i<span class="opt">];</span>
+        start <span class="opt">=</span> start <span class="opt">%</span> factorials<span class="opt">[</span>i<span class="opt">];</span>
+        count<span class="opt">[</span>i<span class="opt">] =</span> d<span class="opt">;</span>
+    <span class="opt">}</span>
+
+    <span class="kwa">return</span> count<span class="opt">;</span>
+<span class="opt">}</span>
+
+__m128i <span class="kwd">create_current</span><span class="opt">(</span>small_int_t n<span class="opt">,</span> 
+                              <span class="kwc">std</span><span class="opt">::</span>array<span class="opt">&lt;</span>big_int_t<span class="opt">,</span> max_n<span class="opt">&gt;&amp;</span> count<span class="opt">)</span>
+<span class="opt">{</span>
+    <span class="slc">// not a &quot;hotspot&quot;, using intrinsics for rotations don&apos;t bring</span>
+    <span class="slc">// much benefit here considering the increased complexity</span>
+    <span class="kwd">alignas</span><span class="opt">(</span><span class="num">16</span><span class="opt">)</span> <span class="kwc">std</span><span class="opt">::</span>array<span class="opt">&lt;</span>small_int_t<span class="opt">,</span> max_n<span class="opt">&gt;</span> current_aux <span class="opt">=</span> 
+	<span class="opt">{</span><span class="num">0</span><span class="opt">,</span> <span class="num">1</span><span class="opt">,</span> <span class="num">2</span><span class="opt">,</span> <span class="num">3</span><span class="opt">,</span> <span class="num">4</span><span class="opt">,</span> <span class="num">5</span><span class="opt">,</span> <span class="num">6</span><span class="opt">,</span> <span class="num">7</span><span class="opt">,</span> <span class="num">8</span><span class="opt">,</span> <span class="num">9</span><span class="opt">,</span> <span class="num">10</span><span class="opt">,</span> <span class="num">11</span><span class="opt">,</span> <span class="num">12</span><span class="opt">,</span> <span class="num">13</span><span class="opt">,</span> <span class="num">14</span><span class="opt">,</span> <span class="num">15</span><span class="opt">};</span>  
+    
+    <span class="kwa">for</span> <span class="opt">(</span>small_int_t i <span class="opt">=</span> n <span class="opt">-</span> <span class="num">1</span><span class="opt">;</span> i <span class="opt">&gt;=</span> <span class="num">0</span><span class="opt">; --</span>i<span class="opt">)</span> 
+    <span class="opt">{</span>
+        <span class="kwc">std</span><span class="opt">::</span><span class="kwd">rotate</span><span class="opt">(</span>current_aux<span class="opt">.</span><span class="kwd">begin</span><span class="opt">(),</span> 
+                    current_aux<span class="opt">.</span><span class="kwd">begin</span><span class="opt">() +</span> count<span class="opt">[</span>i<span class="opt">],</span>
+                    current_aux<span class="opt">.</span><span class="kwd">begin</span><span class="opt">() +</span> i <span class="opt">+</span> <span class="num">1</span><span class="opt">);</span>
+    <span class="opt">}</span>
+    __m128i current <span class="opt">=</span> <span class="kwd">_mm_load_si128</span><span class="opt">((</span>__m128i<span class="opt">*)</span>current_aux<span class="opt">.</span><span class="kwd">data</span><span class="opt">());</span>
+    <span class="kwa">return</span> current<span class="opt">;</span>
+<span class="opt">}</span>
+
+<span class="kwc">inline</span> __m128i <span class="kwd">increment_permutation</span><span class="opt">(</span><span class="kwc">std</span><span class="opt">::</span>array<span class="opt">&lt;</span>big_int_t<span class="opt">,</span> max_n<span class="opt">&gt;&amp;</span> count<span class="opt">,</span>
+			          __m128i current<span class="opt">,</span> <span class="kwb">const</span> Masks<span class="opt">&amp;</span> masks<span class="opt">)</span>
+<span class="opt">{</span>
+    <span class="kwa">for</span> <span class="opt">(</span>small_int_t i <span class="opt">=</span> <span class="num">1</span><span class="opt">; ; ++</span>i<span class="opt">)</span> 
+    <span class="opt">{</span>
+        current <span class="opt">=</span> <span class="kwd">_mm_shuffle_epi8</span><span class="opt">(</span>current<span class="opt">,</span> masks<span class="opt">.</span>masks_shift<span class="opt">[</span>i<span class="opt">]);</span>  
+        <span class="kwa">if</span> <span class="opt">(++</span>count<span class="opt">[</span>i<span class="opt">] &lt;=</span> i<span class="opt">)</span>
+            <span class="kwa">break</span><span class="opt">;</span>
+        count<span class="opt">[</span>i<span class="opt">] =</span> <span class="num">0</span><span class="opt">;</span>
+    <span class="opt">}</span>
+    <span class="kwa">return</span> current<span class="opt">;</span>
+<span class="opt">}</span>
+
+<span class="kwc">inline</span> __m128i <span class="kwd">reverse</span><span class="opt">(</span>__m128i x<span class="opt">,</span> small_int_t idx<span class="opt">,</span> <span class="kwb">const</span> Masks<span class="opt">&amp;</span> masks<span class="opt">)</span>
+<span class="opt">{</span>
+    <span class="kwa">return</span> <span class="kwd">_mm_shuffle_epi8</span><span class="opt">(</span>x<span class="opt">,</span> masks<span class="opt">.</span>masks_reverse<span class="opt">[</span>idx<span class="opt">]);</span>
+<span class="opt">}</span>
+
+
+<span class="kwb">int</span> <span class="kwd">main</span><span class="opt">(</span><span class="kwb">int</span> argc<span class="opt">,</span> <span class="kwb">char</span> <span class="opt">**</span>argv<span class="opt">)</span>
+<span class="opt">{</span>   
+    <span class="kwb">int</span> n <span class="opt">=</span> <span class="kwd">atoi</span><span class="opt">(</span>argv<span class="opt">[</span><span class="num">1</span><span class="opt">]);</span>
+    <span class="kwc">auto</span> factorials <span class="opt">=</span> <span class="kwd">compute_factorials</span><span class="opt">(</span>n<span class="opt">);</span>
+    <span class="kwc">auto</span> <span class="opt">[</span>blocks<span class="opt">,</span> block_size<span class="opt">] =</span> <span class="kwd">get_blocks_and_size</span><span class="opt">(</span>n<span class="opt">,</span> factorials<span class="opt">);</span>
+
+    small_int_t max_flips <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+    big_int_t checksum  <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+
+    <span class="slc">// Iterate over each block.</span>
+    <span class="ppc">#pragma omp parallel for \</span>
+<span class="ppc">        reduction(max:max_flips) \</span>
+<span class="ppc">        reduction(+:checksum)</span>
+    <span class="kwa">for</span> <span class="opt">(</span>big_int_t block_start <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> 
+            block_start <span class="opt">&lt;</span> factorials<span class="opt">[</span>n<span class="opt">];</span>
+            block_start <span class="opt">+=</span> block_size<span class="opt">)</span> 
+    <span class="opt">{</span>
+        Masks masks<span class="opt">;</span>
+        
+        <span class="kwc">std</span><span class="opt">::</span>array<span class="opt">&lt;</span>big_int_t<span class="opt">,</span> max_n<span class="opt">&gt;</span> count <span class="opt">=</span> <span class="kwd">create_count</span><span class="opt">(</span>n<span class="opt">,</span> block_start<span class="opt">,</span> factorials<span class="opt">);</span>      
+
+        __m128i current <span class="opt">=</span> <span class="kwd">create_current</span><span class="opt">(</span>n<span class="opt">,</span> count<span class="opt">);</span>
+        __m128i current_start <span class="opt">=</span> current<span class="opt">;</span>	
+
+        small_int_t first <span class="opt">=</span> <span class="kwd">_mm_extract_epi8</span><span class="opt">(</span>current<span class="opt">,</span> <span class="num">0</span><span class="opt">);</span>
+
+        <span class="slc">// Iterate over each permutation in the block.</span>
+        big_int_t crt_idx <span class="opt">=</span> block_start<span class="opt">;</span>
+        big_int_t block_end <span class="opt">=</span> block_start <span class="opt">+</span> block_size<span class="opt">;</span>
+	
+        <span class="kwa">while</span> <span class="opt">(</span>crt_idx <span class="opt">&lt;</span> block_end<span class="opt">)</span> 
+        <span class="opt">{</span> 
+            <span class="kwa">if</span> <span class="opt">(</span>first <span class="opt">&gt;</span> <span class="num">0</span><span class="opt">)</span>
+            <span class="opt">{</span>   
+		small_int_t flips <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+                <span class="kwa">while</span> <span class="opt">(</span>first <span class="opt">!=</span> <span class="num">0</span><span class="opt">)</span> 
+                <span class="opt">{</span>
+                    current <span class="opt">=</span> <span class="kwd">reverse</span><span class="opt">(</span>current<span class="opt">,</span> first<span class="opt">,</span> masks<span class="opt">);</span>
+                    first <span class="opt">=</span> <span class="kwd">_mm_extract_epi8</span><span class="opt">(</span>current<span class="opt">,</span> <span class="num">0</span><span class="opt">);</span>
+                    <span class="opt">++</span>flips<span class="opt">;</span>
+                <span class="opt">}</span> 
+
+		checksum <span class="opt">+= (</span>crt_idx <span class="opt">%</span> <span class="num">2</span><span class="opt">) ==</span> <span class="num">0</span> <span class="opt">?</span> flips <span class="opt">: -</span>flips<span class="opt">;</span>
+
+                <span class="kwa">if</span> <span class="opt">(</span>flips <span class="opt">&gt;</span> max_flips<span class="opt">)</span>
+                    max_flips <span class="opt">=</span> flips<span class="opt">;</span>
+            <span class="opt">}</span>
+
+            current <span class="opt">=</span> <span class="kwd">increment_permutation</span><span class="opt">(</span>count<span class="opt">,</span> current_start<span class="opt">,</span> masks<span class="opt">);</span>
+            current_start <span class="opt">=</span> current<span class="opt">;</span>
+            
+            first <span class="opt">=</span> <span class="kwd">_mm_extract_epi8</span><span class="opt">(</span>current<span class="opt">,</span> <span class="num">0</span><span class="opt">);</span>
+            <span class="opt">++</span>crt_idx<span class="opt">;</span>
+        <span class="opt">}</span>
+    <span class="opt">}</span>
+    <span class="kwc">std</span><span class="opt">::</span>cout <span class="opt">&lt;&lt;</span> checksum <span class="opt">&lt;&lt;</span> <span class="str">&quot;</span><span class="esc">\n</span><span class="str">Pfannkuchen(&quot;</span> <span class="opt">&lt;&lt;</span> n <span class="opt">&lt;&lt;</span> <span class="str">&quot;) = &quot;</span> <span class="opt">&lt;&lt; (</span><span class="kwb">int</span><span class="opt">)</span>max_flips <span class="opt">&lt;&lt;</span> <span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">;</span>
+<span class="opt">}</span>
+    </pre>
+  </section>
+  <section>
+    <div>
+      <h2 id="log">notes, command-line, and program output</h2>
+    </div>
+    <pre>
+NOTES:
+64-bit Ubuntu quad core
+g++ (Ubuntu 10.2.0-13ubuntu1) 10.2.0
+
+
+Thu, 18 Feb 2021 18:51:48 GMT
+
+MAKE:
+/usr/bin/g++ -c -pipe -O3 -fomit-frame-pointer -march=ivybridge  -std=c++17 -fopenmp fannkuchredux.gpp-6.c++ -o fannkuchredux.gpp-6.c++.o &amp;&amp;  \
+        /usr/bin/g++ fannkuchredux.gpp-6.c++.o -o fannkuchredux.gpp-6.gpp_run -fopenmp 
+rm fannkuchredux.gpp-6.c++
+
+3.81s to complete and log all make actions
+
+COMMAND LINE:
+./fannkuchredux.gpp-6.gpp_run 12
+
+PROGRAM OUTPUT:
+3968050
+Pfannkuchen(12) = 65
+    </pre>
+  </section>
+</article>
+<footer>
+  <nav>
+    <ul>
+      <li><a href="../license.html"><span>3-Clause BSD License</span></a>
+    </ul>
+  </nav>
+</footer>
+
