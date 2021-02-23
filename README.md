@@ -9,7 +9,7 @@ Toy-program performance measurements for ~24 language implementations.
 The Benchmarks Game
 ===================
 
-Previously new source-code was usually measured and shown on the website within a few days. Not now. Probably not in the future.
+Previously new source-code was usually measured and shown on the website within a few days. Not now.
 
 Now new source-code might be measured and shown on the website after several months; or not measured and not shown.
 
