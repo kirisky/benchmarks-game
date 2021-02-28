@@ -67,14 +67,14 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
     <span class="kwa">def self</span><span class="opt">.</span><span class="kwd">work_in_processes</span><span class="opt">(</span>array<span class="opt">,</span> count<span class="opt">, &amp;</span>block<span class="opt">)</span>
         index <span class="opt">= -</span><span class="num">1</span>
         results<span class="opt">,</span> threads <span class="opt">= [], []</span>
+        mx <span class="opt">=</span> Mutex<span class="opt">.</span>new        
 
         workers <span class="opt">=</span> <span class="kwd">create_workers</span><span class="opt">(</span>array<span class="opt">,</span> count<span class="opt">, &amp;</span>block<span class="opt">)</span>
 
         workers<span class="opt">.</span>each <span class="kwa">do</span> <span class="opt">|</span>worker<span class="opt">|</span>
             threads <span class="opt">&lt;&lt;</span> Thread<span class="opt">.</span>new <span class="kwa">do</span>
               <span class="kwa">loop do</span>
-<span class="slc">#                Thread.exclusive{ index += 1 }</span>
-                index <span class="opt">+=</span> <span class="num">1</span>
+                mx<span class="opt">.</span>synchronize <span class="kwa">do</span> index <span class="opt">+=</span> <span class="num">1</span> <span class="kwa">end</span> 
                 <span class="kwa">break if</span> index <span class="opt">&gt;=</span> array<span class="opt">.</span>size
                 results<span class="opt">[</span>index<span class="opt">] =</span> worker<span class="opt">.</span><span class="kwd">work</span><span class="opt">(</span>index<span class="opt">)</span>
               <span class="kwa">end</span>
@@ -157,25 +157,6 @@ stretch_tree <span class="opt">=</span> <span class="kwa">nil</span>
 long_lived_tree <span class="opt">=</span> <span class="kwd">bottom_up_tree</span><span class="opt">(</span>max_depth<span class="opt">)</span>
 
 <span class="kwa">if</span> MiniParallel<span class="opt">.</span>core_count <span class="opt">&gt;</span> <span class="num">1</span>
-    <span class="kwa">if</span> <span class="opt">(</span><span class="kwc">RUBY_PLATFORM</span> <span class="opt">==</span> <span class="str">&apos;java&apos;</span><span class="opt">)</span> 
-        output <span class="opt">= []</span>
-        threads <span class="opt">= []</span>
-        min_depth<span class="opt">.</span><span class="kwd">step</span><span class="opt">(</span>max_depth<span class="opt">,</span> <span class="num">2</span><span class="opt">).</span>to_a<span class="opt">.</span>each<span class="opt">.</span>with_index <span class="kwa">do</span> <span class="opt">|</span>depth<span class="opt">,</span>j<span class="opt">|</span>
-            threads <span class="opt">&lt;&lt;</span> Thread<span class="opt">.</span>new <span class="kwa">do</span>
-                iterations <span class="opt">=</span> <span class="num">2</span><span class="opt">**(</span>max_depth <span class="opt">-</span> depth <span class="opt">+</span> min_depth<span class="opt">)</span>
-
-                check <span class="opt">=</span> <span class="num">0</span>
-
-                <span class="opt">(</span><span class="num">1</span><span class="opt">..</span>iterations<span class="opt">).</span>each <span class="kwa">do</span> <span class="opt">|</span>i<span class="opt">|</span>
-                    check <span class="opt">+=</span> <span class="kwd">item_check</span><span class="opt">(*</span><span class="kwd">bottom_up_tree</span><span class="opt">(</span>depth<span class="opt">))</span>
-                <span class="kwa">end</span>
-
-                output<span class="opt">[</span>j<span class="opt">] =</span> <span class="str">&quot;#{iterations}</span><span class="esc">\t</span> <span class="str">trees of depth #{depth}</span><span class="esc">\t</span> <span class="str">check: #{check}&quot;</span>
-            <span class="kwa">end</span>
-        <span class="kwa">end</span>
-        threads<span class="opt">.</span>all<span class="opt">?(&amp;</span><span class="kwc">:join</span><span class="opt">)</span>
-        output<span class="opt">.</span>each<span class="opt">{|</span>l<span class="opt">|</span> puts l<span class="opt">}</span>
-    <span class="kwa">else</span>
         MiniParallel<span class="opt">.</span><span class="kwd">map</span><span class="opt">(</span>min_depth<span class="opt">.</span><span class="kwd">step</span><span class="opt">(</span>max_depth<span class="opt">,</span> <span class="num">2</span><span class="opt">).</span>to_a<span class="opt">)</span> <span class="kwa">do</span> <span class="opt">|</span>depth<span class="opt">|</span>
             iterations <span class="opt">=</span> <span class="num">2</span><span class="opt">**(</span>max_depth <span class="opt">-</span> depth <span class="opt">+</span> min_depth<span class="opt">)</span>
 
@@ -187,7 +168,6 @@ long_lived_tree <span class="opt">=</span> <span class="kwd">bottom_up_tree</spa
 
             <span class="str">&quot;#{iterations}</span><span class="esc">\t</span> <span class="str">trees of depth #{depth}</span><span class="esc">\t</span> <span class="str">check: #{check}&quot;</span>
         <span class="kwa">end</span><span class="opt">.</span>each<span class="opt">{|</span>l<span class="opt">|</span> puts l<span class="opt">}</span>
-    <span class="kwa">end</span>
 <span class="kwa">else</span>
     min_depth<span class="opt">.</span><span class="kwd">step</span><span class="opt">(</span>max_depth<span class="opt">,</span> <span class="num">2</span><span class="opt">).</span>each <span class="kwa">do</span> <span class="opt">|</span>depth<span class="opt">|</span>
         iterations <span class="opt">=</span> <span class="num">2</span><span class="opt">**(</span>max_depth <span class="opt">-</span> depth <span class="opt">+</span> min_depth<span class="opt">)</span>
@@ -218,7 +198,7 @@ So old that I haven't been able to get rubygems to work
 no backport, no gmp
 
 
-Fri, 26 Feb 2021 19:12:08 GMT
+Sat, 27 Feb 2021 18:40:09 GMT
 
 COMMAND LINE:
 /opt/src/ruby-1.8.7/bin/ruby  binarytrees.mri-5.mri 21

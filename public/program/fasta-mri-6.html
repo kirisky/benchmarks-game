@@ -26,7 +26,6 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="slc"># https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
 <span class="slc">#</span>
 <span class="slc"># Contributed by Aaron Tavistock</span>
-<span class="slc"># modified by Isaac Gouy for ord &amp; setbyte not supported in Ruby 1.8.7</span>
 
 ALU <span class="opt">=</span> <span class="str">&apos;GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA&apos;</span><span class="opt">.</span>freeze
 
@@ -94,9 +93,9 @@ HOMOSAPIENS <span class="opt">= [</span>
     conditions <span class="opt">= []</span>
     map<span class="opt">.</span>each <span class="kwa">do</span> <span class="opt">|</span>letter<span class="opt">,</span> percentage<span class="opt">|</span>
       accum_percentage <span class="opt">+=</span> percentage
-      conditions <span class="opt">&lt;&lt; %[(</span>value <span class="opt">&lt;=</span> <span class="slc">#{accum_percentage} ? #{letter.unpack(&apos;U&apos;)[0]} : ] # 1.8.7</span>
+      conditions <span class="opt">&lt;&lt; %[(</span>value <span class="opt">&lt;=</span> <span class="slc">#{accum_percentage} ? #{letter.ord} : ]</span>
     <span class="kwa">end</span>
-    conditions<span class="opt">[-</span><span class="num">1</span><span class="opt">] =</span> <span class="str">&quot;#{map.last.first.unpack(&apos;U&apos;)[0]}&quot;</span> <span class="slc"># 1.8.7</span>
+    conditions<span class="opt">[-</span><span class="num">1</span><span class="opt">] =</span> <span class="str">&quot;#{map.last.first.ord}&quot;</span> <span class="slc"># Substitute last condition for fixed value</span>
     conditions <span class="opt">&lt;&lt;</span> <span class="str">&apos;)&apos;</span> <span class="opt">* (</span>map<span class="opt">.</span>size <span class="opt">-</span> <span class="num">1</span><span class="opt">)</span>
  
     instance_eval <span class="opt">%[</span><span class="kwa">def</span> <span class="kwd">map_value</span><span class="opt">(</span>value<span class="opt">);</span> <span class="slc">#{conditions.join}; end]</span>
@@ -110,7 +109,7 @@ HOMOSAPIENS <span class="opt">= [</span>
   <span class="kwa">def</span> <span class="kwd">output_row</span><span class="opt">(</span>size<span class="opt">)</span>
     idx <span class="opt">=</span> <span class="num">0</span>
     <span class="kwa">while</span> idx <span class="opt">&lt;</span> size
-      <span class="kwb">&#64;output</span><span class="opt">[</span>idx<span class="opt">] =</span> <span class="kwd">map_value</span><span class="opt">(</span>next_item<span class="opt">)</span> <span class="slc"># 1.8.7</span>
+      <span class="kwb">&#64;output</span><span class="opt">.</span><span class="kwd">setbyte</span><span class="opt">(</span>idx<span class="opt">,</span> <span class="kwd">map_value</span><span class="opt">(</span>next_item<span class="opt">))</span>
       idx <span class="opt">+=</span> <span class="num">1</span>
     <span class="kwa">end</span>
     <span class="kwb">&#64;output</span>
@@ -161,10 +160,13 @@ So old that I haven't been able to get rubygems to work
 no backport, no gmp
 
 
-Mon, 06 Jul 2020 00:09:49 GMT
+Sun, 28 Feb 2021 01:49:25 GMT
 
 COMMAND LINE:
-/opt/src/ruby-1.8.7/bin/ruby fasta.mri-6.mri 25000000
+/opt/src/ruby-1.8.7/bin/ruby  fasta.mri-6.mri 250000
+
+PROGRAM FAILED 
+
 
 (TRUNCATED) PROGRAM OUTPUT:
 &gt;ONE Homo sapiens alu
@@ -335,7 +337,14 @@ CTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGA
 GACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGG
 CGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTG
 AACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCG
-ACAGAGCGAGACTCCGTCTCAAAAAGGCCGG    </pre>
+ACAGAGCGAGACTCCGTCTCAAAAAGGCCGG
+fasta.mri-6.mri:72:in `generate_map_value_method': undefined method `ord' for &quot;a&quot;:String (NoMethodError)
+	from fasta.mri-6.mri:70:in `each'
+	from fasta.mri-6.mri:70:in `generate_map_value_method'
+	from fasta.mri-6.mri:48:in `initialize'
+	from fasta.mri-6.mri:119:in `new'
+	from fasta.mri-6.mri:119
+    </pre>
   </section>
 </article>
 <footer>
