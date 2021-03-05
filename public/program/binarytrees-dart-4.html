@@ -29,7 +29,7 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="com">   Optimized and parallelized by by Dwayne Slater</span>
 <span class="com">   modified by Isaac Gouy</span>
 <span class="com">   mostly same but do stretch tree and longLivedTree earlier</span>
-<span class="com"></span>
+<span class="com">   migrated</span>
 <span class="com">*/</span>
 
 import <span class="str">&apos;dart:async&apos;</span><span class="opt">;</span>
@@ -48,7 +48,7 @@ import <span class="str">&apos;dart:isolate&apos;</span><span class="opt">;</spa
 <span class="kwa">class</span> <span class="kwb">Worker</span> <span class="opt">{</span>
   <span class="kwa">final</span> <span class="kwb">SendPort</span> workPort<span class="opt">;</span>
   <span class="kwb">bool</span> ready <span class="opt">=</span> <span class="kwa">true</span><span class="opt">;</span>
-  <span class="kwb">Capability</span> workItem<span class="opt">;</span>
+  <span class="kwb">Capability</span>? workItem<span class="opt">;</span>
 
   <span class="kwb">Worker</span><span class="opt">(</span><span class="kwa">this</span><span class="opt">.</span>workPort<span class="opt">);</span>
 
@@ -89,7 +89,10 @@ import <span class="str">&apos;dart:isolate&apos;</span><span class="opt">;</spa
     managerPort<span class="opt">.</span>handler <span class="opt">= (</span>message<span class="opt">) {</span>
       <span class="kwa">if</span> <span class="opt">(</span>message <span class="kwa">is</span> <span class="kwb">List</span><span class="opt">) {</span>
         <span class="kwa">final</span> cap <span class="opt">=</span> message<span class="opt">[</span><span class="num">1</span><span class="opt">];</span>
-        workCompleters<span class="opt">.</span><span class="kwd">remove</span><span class="opt">(</span>cap<span class="opt">).</span><span class="kwd">complete</span><span class="opt">(</span>message<span class="opt">[</span><span class="num">0</span><span class="opt">]);</span>
+        <span class="kwa">final</span> value <span class="opt">=</span> workCompleters<span class="opt">.</span><span class="kwd">remove</span><span class="opt">(</span>cap<span class="opt">);</span>
+        <span class="kwa">if</span> <span class="opt">(</span>value <span class="opt">!=</span> <span class="kwa">null</span><span class="opt">) {</span>
+          value<span class="opt">.</span><span class="kwd">complete</span><span class="opt">(</span>message<span class="opt">[</span><span class="num">0</span><span class="opt">]);</span>
+        <span class="opt">}</span>
         <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> i<span class="opt">=</span><span class="num">0</span><span class="opt">;</span> i<span class="opt">&lt;</span>workers<span class="opt">.</span>length<span class="opt">;</span> i<span class="opt">++) {</span>
           <span class="kwa">final</span> worker <span class="opt">=</span> workers<span class="opt">[</span>i<span class="opt">];</span>
           <span class="kwa">if</span> <span class="opt">(</span>worker<span class="opt">.</span>workItem <span class="opt">==</span> cap<span class="opt">) {</span>
@@ -182,7 +185,7 @@ import <span class="str">&apos;dart:isolate&apos;</span><span class="opt">;</spa
 <span class="opt">}</span>
 
 <span class="kwa">class</span> <span class="kwb">TreeNode</span> <span class="opt">{</span>
-  <span class="kwa">final</span> <span class="kwb">TreeNode</span> left<span class="opt">,</span> right<span class="opt">;</span>
+  <span class="kwa">final</span> <span class="kwb">TreeNode</span>? left<span class="opt">,</span> right<span class="opt">;</span>
 
   <span class="kwa">const</span> <span class="kwb">TreeNode</span><span class="opt">([</span><span class="kwa">this</span><span class="opt">.</span>left<span class="opt">,</span> <span class="kwa">this</span><span class="opt">.</span>right<span class="opt">]);</span>
 
@@ -192,8 +195,8 @@ import <span class="str">&apos;dart:isolate&apos;</span><span class="opt">;</spa
         <span class="opt">:</span> <span class="kwb">TreeNode</span><span class="opt">(</span><span class="kwa">null</span><span class="opt">,</span> <span class="kwa">null</span><span class="opt">);</span>
   <span class="opt">}</span>
 
-  <span class="kwa">static</span> <span class="kwb">int</span> <span class="kwd">itemCheck</span><span class="opt">(</span><span class="kwb">TreeNode</span> node<span class="opt">) {</span>
-    <span class="kwa">if</span> <span class="opt">(</span>node<span class="opt">.</span>left <span class="opt">==</span> <span class="kwa">null</span><span class="opt">) {</span>
+  <span class="kwa">static</span> <span class="kwb">int</span> <span class="kwd">itemCheck</span><span class="opt">(</span><span class="kwb">TreeNode</span>? node<span class="opt">) {</span>
+    <span class="kwa">if</span> <span class="opt">(</span>node <span class="opt">==</span> <span class="kwa">null</span> <span class="opt">||</span> node<span class="opt">.</span>left <span class="opt">==</span> <span class="kwa">null</span><span class="opt">) {</span>
       <span class="kwa">return</span> <span class="num">1</span><span class="opt">;</span>
     <span class="opt">}</span>
     <span class="kwa">return</span> <span class="num">1</span> <span class="opt">+</span> <span class="kwd">itemCheck</span><span class="opt">(</span>node<span class="opt">.</span>left<span class="opt">) +</span> <span class="kwd">itemCheck</span><span class="opt">(</span>node<span class="opt">.</span>right<span class="opt">);</span>
@@ -208,20 +211,20 @@ import <span class="str">&apos;dart:isolate&apos;</span><span class="opt">;</spa
     <pre>
 NOTES:
 64-bit Ubuntu quad core
-Dart SDK version: 2.10.0 (stable) (Mon Sep 28 09:21:23 2020 +0200) on "linux_x64"
+Dart SDK version: 2.12.0 (stable) (Thu Feb 25 19:50:53 2021 +0100) on "linux_x64"
 
 
-Thu, 01 Oct 2020 23:57:03 GMT
+Thu, 04 Mar 2021 22:33:14 GMT
 
 MAKE:
-/opt/src/dart-sdk/bin/dartanalyzer binarytrees.dart-4.dart
-Analyzing binarytrees.dart-4.dart...
+/opt/src/dartsdk/bin/dart analyze 
+Analyzing tmp...
 No issues found!
 
-3.84s to complete and log all make actions
+6.43s to complete and log all make actions
 
 COMMAND LINE:
-/opt/src/dart-sdk/bin/dart  binarytrees.dart-4.dart 21
+/opt/src/dartsdk/bin/dart  binarytrees.dart-4.dart 21
 
 PROGRAM OUTPUT:
 stretch tree of depth 22	 check: 8388607

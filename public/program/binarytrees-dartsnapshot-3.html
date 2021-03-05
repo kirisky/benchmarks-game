@@ -26,6 +26,7 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="com">   https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
 <span class="com"></span>
 <span class="com">   Contributed by Diogo</span>
+<span class="com">   migrated</span>
 <span class="com">*/</span>
 
 import <span class="str">&apos;dart:isolate&apos;</span><span class="opt">;</span>
@@ -122,19 +123,19 @@ import <span class="str">&apos;dart:isolate&apos;</span><span class="opt">;</spa
 
   <span class="slc">/// Keep track of all isolates</span>
   <span class="slc">/// And start making isolates to create trees</span>
-  <span class="kwb">List</span><span class="opt">&lt;</span><span class="kwb">Isolate</span><span class="opt">&gt;</span> isolates <span class="opt">=</span> <span class="kwa">new</span> <span class="kwb">List</span><span class="opt">();</span>
+  <span class="kwa">final</span> isolates <span class="opt">= &lt;</span><span class="kwb">Isolate</span><span class="opt">&gt;[];</span>
 
   <span class="slc">/// Stretch Tree</span>
   <span class="slc">/// Uses depth of n + 1</span>
   <span class="slc">/// Keep id as &apos;stretch-tree&apos;</span>
-  <span class="kwb">StartMessage</span> stretchStartMessage <span class="opt">=</span> <span class="kwa">new</span> <span class="kwb">StartMessage</span><span class="opt">(</span>n <span class="opt">+</span> <span class="num">1</span><span class="opt">,</span> <span class="str">&apos;stretch-tree&apos;</span><span class="opt">,</span> <span class="kwa">false</span><span class="opt">,</span> port<span class="opt">.</span>sendPort<span class="opt">,</span> <span class="kwa">null</span><span class="opt">);</span>
+  <span class="kwb">StartMessage</span> stretchStartMessage <span class="opt">=</span> <span class="kwa">new</span> <span class="kwb">StartMessage</span><span class="opt">(</span>n <span class="opt">+</span> <span class="num">1</span><span class="opt">,</span> <span class="str">&apos;stretch-tree&apos;</span><span class="opt">,</span> <span class="kwa">false</span><span class="opt">,</span> port<span class="opt">.</span>sendPort<span class="opt">,</span> <span class="num">0</span><span class="opt">);</span>
   status<span class="opt">[</span><span class="str">&apos;stretch-tree&apos;</span><span class="opt">] =</span> <span class="kwa">false</span><span class="opt">;</span>
   isolates<span class="opt">.</span><span class="kwd">add</span><span class="opt">(</span>await <span class="kwb">Isolate</span><span class="opt">.</span><span class="kwd">spawn</span><span class="opt">(</span>runIsoCheckTree<span class="opt">,</span> stretchStartMessage<span class="opt">));</span>
 
   <span class="slc">/// Long Lived Tree</span>
   <span class="slc">/// Uses depth of n</span>
   <span class="slc">/// Keep id as &apos;long-lived-tree&apos;</span>
-  <span class="kwb">StartMessage</span> longLivedStartMessage <span class="opt">=</span> <span class="kwa">new</span> <span class="kwb">StartMessage</span><span class="opt">(</span>n<span class="opt">,</span> <span class="str">&apos;long-lived-tree&apos;</span><span class="opt">,</span> <span class="kwa">true</span><span class="opt">,</span> port<span class="opt">.</span>sendPort<span class="opt">,</span> <span class="kwa">null</span><span class="opt">);</span>
+  <span class="kwb">StartMessage</span> longLivedStartMessage <span class="opt">=</span> <span class="kwa">new</span> <span class="kwb">StartMessage</span><span class="opt">(</span>n<span class="opt">,</span> <span class="str">&apos;long-lived-tree&apos;</span><span class="opt">,</span> <span class="kwa">true</span><span class="opt">,</span> port<span class="opt">.</span>sendPort<span class="opt">,</span> <span class="num">0</span><span class="opt">);</span>
   status<span class="opt">[</span><span class="str">&apos;long-lived-tree&apos;</span><span class="opt">] =</span> <span class="kwa">false</span><span class="opt">;</span>
   isolates<span class="opt">.</span><span class="kwd">add</span><span class="opt">(</span>await <span class="kwb">Isolate</span><span class="opt">.</span><span class="kwd">spawn</span><span class="opt">(</span>runIsoCheckTree<span class="opt">,</span> longLivedStartMessage<span class="opt">));</span>
 
@@ -168,7 +169,7 @@ import <span class="str">&apos;dart:isolate&apos;</span><span class="opt">;</spa
 <span class="slc">/// Define a message for receiving data</span>
 <span class="kwa">class</span> <span class="kwb">ResultTreeMessage</span> <span class="opt">{</span>
   <span class="kwa">var</span> id<span class="opt">;</span>
-  <span class="kwb">List</span> tree<span class="opt">;</span>
+  <span class="kwb">List</span>? tree<span class="opt">;</span>
   <span class="kwb">int</span> check<span class="opt">;</span>
   <span class="kwb">int</span> depth<span class="opt">;</span>
   <span class="kwb">int</span> niter<span class="opt">;</span>
@@ -182,10 +183,10 @@ import <span class="str">&apos;dart:isolate&apos;</span><span class="opt">;</spa
   <span class="kwb">int</span> checkVal <span class="opt">=</span> <span class="kwd">check</span><span class="opt">(</span>tree<span class="opt">);</span>
   <span class="kwa">if</span> <span class="opt">(</span>message<span class="opt">.</span>keepTree <span class="opt">==</span> <span class="kwa">true</span><span class="opt">) {</span>
     <span class="slc">/// Return value and tree if tree is kept - use Isolate Port for it</span>
-    message<span class="opt">.</span>port<span class="opt">.</span><span class="kwd">send</span><span class="opt">(</span><span class="kwa">new</span> <span class="kwb">ResultTreeMessage</span><span class="opt">(</span>message<span class="opt">.</span>id<span class="opt">,</span> tree<span class="opt">,</span> checkVal<span class="opt">,</span> message<span class="opt">.</span>depth<span class="opt">,</span> <span class="kwa">null</span><span class="opt">));</span>
+    message<span class="opt">.</span>port<span class="opt">.</span><span class="kwd">send</span><span class="opt">(</span><span class="kwa">new</span> <span class="kwb">ResultTreeMessage</span><span class="opt">(</span>message<span class="opt">.</span>id<span class="opt">,</span> tree<span class="opt">,</span> checkVal<span class="opt">,</span> message<span class="opt">.</span>depth<span class="opt">,</span> <span class="num">0</span><span class="opt">));</span>
   <span class="opt">}</span> <span class="kwa">else</span> <span class="opt">{</span>
     <span class="slc">/// Return only value if tree is not kept - use Isolate Port for it</span>
-    message<span class="opt">.</span>port<span class="opt">.</span><span class="kwd">send</span><span class="opt">(</span><span class="kwa">new</span> <span class="kwb">ResultTreeMessage</span><span class="opt">(</span>message<span class="opt">.</span>id<span class="opt">,</span> <span class="kwa">null</span><span class="opt">,</span> checkVal<span class="opt">,</span> message<span class="opt">.</span>depth<span class="opt">,</span> <span class="kwa">null</span><span class="opt">));</span>
+    message<span class="opt">.</span>port<span class="opt">.</span><span class="kwd">send</span><span class="opt">(</span><span class="kwa">new</span> <span class="kwb">ResultTreeMessage</span><span class="opt">(</span>message<span class="opt">.</span>id<span class="opt">,</span> <span class="kwa">null</span><span class="opt">,</span> checkVal<span class="opt">,</span> message<span class="opt">.</span>depth<span class="opt">,</span> <span class="num">0</span><span class="opt">));</span>
   <span class="opt">}</span>
 <span class="opt">}</span>
 
@@ -195,15 +196,11 @@ import <span class="str">&apos;dart:isolate&apos;</span><span class="opt">;</spa
   <span class="kwb">int</span> checkVal <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
   <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> i <span class="opt">=</span> <span class="num">1</span><span class="opt">;</span> i <span class="opt">&lt;=</span> niter<span class="opt">;</span> i<span class="opt">++) {</span>
     <span class="slc">/// Create tree and check number of nodes</span>
-    <span class="kwb">List</span> tree <span class="opt">=</span> <span class="kwd">make</span><span class="opt">(</span>message<span class="opt">.</span>depth<span class="opt">);</span>
-    <span class="kwb">int</span> c <span class="opt">=</span> <span class="kwd">check</span><span class="opt">(</span>tree<span class="opt">);</span>
+    <span class="kwa">final</span> <span class="kwb">List</span> tree <span class="opt">=</span> <span class="kwd">make</span><span class="opt">(</span>message<span class="opt">.</span>depth<span class="opt">);</span>
+    <span class="kwa">final</span> <span class="kwb">int</span> c <span class="opt">=</span> <span class="kwd">check</span><span class="opt">(</span>tree<span class="opt">);</span>
 
     <span class="slc">/// Add number of nodes to master value</span>
     checkVal <span class="opt">+=</span> c<span class="opt">;</span>
-
-    <span class="slc">/// Clear references to empty memory</span>
-    c <span class="opt">=</span> <span class="kwa">null</span><span class="opt">;</span>
-    tree <span class="opt">=</span> <span class="kwa">null</span><span class="opt">;</span>
   <span class="opt">}</span>
   message<span class="opt">.</span>port<span class="opt">.</span><span class="kwd">send</span><span class="opt">(</span><span class="kwa">new</span> <span class="kwb">ResultTreeMessage</span><span class="opt">(</span>message<span class="opt">.</span>id<span class="opt">,</span> <span class="kwa">null</span><span class="opt">,</span> checkVal<span class="opt">,</span> message<span class="opt">.</span>depth<span class="opt">,</span> niter<span class="opt">));</span>
 <span class="opt">}</span>
@@ -212,7 +209,7 @@ import <span class="str">&apos;dart:isolate&apos;</span><span class="opt">;</spa
 <span class="slc">/// Trees will be defined by Lists of Lists containing always 2 elements</span>
 <span class="slc">/// make =&gt; Create recursive lists of 2 elements</span>
 <span class="kwb">List</span> <span class="kwd">make</span><span class="opt">(</span><span class="kwb">int</span> depth<span class="opt">) {</span>
-  <span class="kwb">List</span> tree <span class="opt">=</span> <span class="kwa">new</span> <span class="kwb">List</span><span class="opt">(</span><span class="num">2</span><span class="opt">);</span>
+  <span class="kwb">List</span> tree <span class="opt">=</span> <span class="kwb">List</span><span class="opt">.</span><span class="kwd">filled</span><span class="opt">(</span><span class="num">2</span><span class="opt">,</span><span class="kwa">null</span><span class="opt">);</span>
   <span class="kwa">if</span> <span class="opt">(</span>depth <span class="opt">!=</span> <span class="num">0</span><span class="opt">) {</span>
     tree<span class="opt">[</span><span class="num">0</span><span class="opt">] =</span> <span class="kwd">make</span><span class="opt">(</span>depth <span class="opt">-</span> <span class="num">1</span><span class="opt">);</span>
     tree<span class="opt">[</span><span class="num">1</span><span class="opt">] =</span> <span class="kwd">make</span><span class="opt">(</span>depth <span class="opt">-</span> <span class="num">1</span><span class="opt">);</span>
@@ -233,17 +230,19 @@ import <span class="str">&apos;dart:isolate&apos;</span><span class="opt">;</spa
     <pre>
 NOTES:
 64-bit Ubuntu quad core
-Dart SDK version: 2.10.0 (stable) (Mon Sep 28 09:21:23 2020 +0200) on "linux_x64"
---snapshot-kind=app-jit
+Dart SDK version: 2.12.0 (stable) (Thu Feb 25 19:50:53 2021 +0100) on "linux_x64"
+compile jit-snapshot
 
 
-Fri, 02 Oct 2020 02:59:44 GMT
+Fri, 05 Mar 2021 19:12:24 GMT
 
 MAKE:
-/opt/src/dart-sdk/bin/dartanalyzer binarytrees.dartsnapshot-3.dartsnapshot
-Analyzing binarytrees.dartsnapshot-3.dartsnapshot...
+/opt/src/dartsdk/bin/dart analyze 
+Analyzing tmp...
 No issues found!
-/opt/src/dart-sdk/bin/dart --snapshot=binarytrees.dartsnapshot-3.snapshot --snapshot-kind=app-jit binarytrees.dartsnapshot-3.dartsnapshot 10
+
+/opt/src/dartsdk/bin/dart --snapshot=binarytrees.dartsnapshot-3.jit --snapshot-kind=app-jit binarytrees.dartsnapshot-3.dartsnapshot 10
+Info: Compiling with sound null safety
 stretch tree of depth 11	 check: 4095
 1024	 trees of depth 4	 check: 31744
 256	 trees of depth 6	 check: 32512
@@ -251,10 +250,10 @@ stretch tree of depth 11	 check: 4095
 16	 trees of depth 10	 check: 32752
 long lived tree of depth 10	 check: 2047
 
-6.22s to complete and log all make actions
+4.03s to complete and log all make actions
 
 COMMAND LINE:
-/opt/src/dart-sdk/bin/dart  binarytrees.dartsnapshot-3.snapshot 21
+/opt/src/dartsdk/bin/dart run  binarytrees.dartsnapshot-3.jit 21
 
 PROGRAM OUTPUT:
 stretch tree of depth 22	 check: 8388607
