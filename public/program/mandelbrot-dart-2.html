@@ -22,17 +22,24 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
       <h2>source code</h2>
     </div>
     <pre>
+<span class="com">/* The Computer Language Benchmarks Game</span>
+<span class="com">   https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="com"></span>
+<span class="com">   contributed Alexander Fyodorov</span>
+<span class="com">   migrated</span>
+<span class="com">*/</span>
+
+import <span class="str">&apos;dart:async&apos;</span><span class="opt">;</span>
 import <span class="str">&apos;dart:io&apos;</span><span class="opt">;</span>
 import <span class="str">&apos;dart:isolate&apos;</span><span class="opt">;</span>
-import <span class="str">&apos;dart:async&apos;</span><span class="opt">;</span>
 import <span class="str">&apos;dart:typed_data&apos;</span><span class="opt">;</span>
 
 <span class="kwa">void</span> <span class="kwd">main</span><span class="opt">(</span>args<span class="opt">) {</span>
   <span class="kwb">int</span> n <span class="opt">=</span> args<span class="opt">.</span>length <span class="opt">&gt;</span> <span class="num">0</span> ? <span class="kwb">int</span><span class="opt">.</span><span class="kwd">parse</span><span class="opt">(</span>args<span class="opt">[</span><span class="num">0</span><span class="opt">]) :</span> <span class="num">2000</span><span class="opt">;</span>
 
   <span class="kwa">var</span> threads <span class="opt">=</span> <span class="kwb">Platform</span><span class="opt">.</span>numberOfProcessors<span class="opt">;</span>
-  <span class="kwa">var</span> segmentFutures <span class="opt">=</span> <span class="kwa">new</span> <span class="kwb">List</span><span class="opt">&lt;</span><span class="kwb">Future</span><span class="opt">&gt;(</span>threads<span class="opt">);</span>
 
+  <span class="kwb">List</span><span class="opt">&lt;</span><span class="kwb">Future</span><span class="opt">&gt;</span> segmentFutures <span class="opt">= [];</span>
   <span class="kwa">var</span> segmentSize <span class="opt">=</span> <span class="kwa">new</span> <span class="kwb">List</span><span class="opt">.</span><span class="kwd">filled</span><span class="opt">(</span>threads<span class="opt">,</span> n <span class="opt">~/</span> threads<span class="opt">);</span>
   segmentSize<span class="opt">[</span><span class="num">0</span><span class="opt">] +=</span> n <span class="opt">%</span> threads<span class="opt">;</span>
 
@@ -41,17 +48,15 @@ import <span class="str">&apos;dart:typed_data&apos;</span><span class="opt">;</
     <span class="kwa">var</span> len <span class="opt">=</span> segmentSize<span class="opt">[</span>i<span class="opt">];</span>
     <span class="kwa">var</span> response <span class="opt">=</span> <span class="kwa">new</span> <span class="kwb">ReceivePort</span><span class="opt">();</span>
     <span class="kwb">int</span> localFrom <span class="opt">=</span> from<span class="opt">;</span>
-    <span class="kwb">Future</span><span class="opt">&lt;</span><span class="kwb">Isolate</span><span class="opt">&gt;</span> remote <span class="opt">=</span> <span class="kwb">Isolate</span><span class="opt">.</span><span class="kwd">spawn</span><span class="opt">(</span>calculateSegment<span class="opt">,</span> response<span class="opt">.</span>sendPort<span class="opt">);</span>
-    segmentFutures<span class="opt">[</span>i<span class="opt">] =</span> remote<span class="opt">.</span><span class="kwd">then</span><span class="opt">((</span>_<span class="opt">) =&gt;</span> response<span class="opt">.</span>first<span class="opt">).</span><span class="kwd">then</span><span class="opt">((</span>sendPort<span class="opt">) {</span>
+    <span class="kwa">var</span> newFuture <span class="opt">=</span> <span class="kwb">Isolate</span><span class="opt">.</span><span class="kwd">spawn</span><span class="opt">(</span>calculateSegment<span class="opt">,</span> response<span class="opt">.</span>sendPort<span class="opt">)</span>
+        <span class="opt">.</span><span class="kwd">then</span><span class="opt">((</span>_<span class="opt">) =&gt;</span> response<span class="opt">.</span>first<span class="opt">)</span>
+        <span class="opt">.</span><span class="kwd">then</span><span class="opt">((</span>sendPort<span class="opt">) {</span>
       <span class="kwb">ReceivePort</span> response <span class="opt">=</span> <span class="kwa">new</span> <span class="kwb">ReceivePort</span><span class="opt">();</span>
-      sendPort<span class="opt">.</span><span class="kwd">send</span><span class="opt">({</span>
-        <span class="str">&apos;n&apos;</span><span class="opt">:</span> n<span class="opt">,</span>
-        <span class="str">&apos;from&apos;</span><span class="opt">:</span> localFrom<span class="opt">,</span>
-        <span class="str">&apos;len&apos;</span><span class="opt">:</span> len<span class="opt">,</span>
-        <span class="str">&apos;port&apos;</span><span class="opt">:</span> response<span class="opt">.</span>sendPort
-      <span class="opt">});</span>
+      sendPort<span class="opt">.</span><span class="kwd">send</span><span class="opt">(</span>
+          <span class="opt">{</span><span class="str">&apos;n&apos;</span><span class="opt">:</span> n<span class="opt">,</span> <span class="str">&apos;from&apos;</span><span class="opt">:</span> localFrom<span class="opt">,</span> <span class="str">&apos;len&apos;</span><span class="opt">:</span> len<span class="opt">,</span> <span class="str">&apos;port&apos;</span><span class="opt">:</span> response<span class="opt">.</span>sendPort<span class="opt">});</span>
       <span class="kwa">return</span> response<span class="opt">.</span>first<span class="opt">;</span>
     <span class="opt">});</span>
+    segmentFutures<span class="opt">.</span><span class="kwd">add</span><span class="opt">(</span>newFuture<span class="opt">);</span>
     from <span class="opt">+=</span> len<span class="opt">;</span>
   <span class="opt">}</span>
 
@@ -66,7 +71,7 @@ import <span class="str">&apos;dart:typed_data&apos;</span><span class="opt">;</
   <span class="opt">});</span>
 <span class="opt">}</span>
 
-<span class="kwb">Uint</span><span class="num">8L</span>ist <span class="kwd">calculateLine</span> <span class="opt">(</span><span class="kwb">int</span> n<span class="opt">,</span> <span class="kwb">int</span> y<span class="opt">) {</span>
+<span class="kwb">Uint</span><span class="num">8L</span>ist <span class="kwd">calculateLine</span><span class="opt">(</span><span class="kwb">int</span> n<span class="opt">,</span> <span class="kwb">int</span> y<span class="opt">) {</span>
   <span class="kwb">int</span> lineLen <span class="opt">= (</span>n <span class="opt">-</span> <span class="num">1</span><span class="opt">) ~/</span> <span class="num">8</span> <span class="opt">+</span> <span class="num">1</span><span class="opt">;</span>
 
   <span class="kwa">var</span> line <span class="opt">=</span> <span class="kwa">new</span> <span class="kwb">Uint</span><span class="num">8L</span>ist<span class="opt">(</span>lineLen<span class="opt">);</span>
@@ -80,10 +85,7 @@ import <span class="str">&apos;dart:typed_data&apos;</span><span class="opt">;</
       line<span class="opt">[</span>xbyte<span class="opt">++] =</span> bits<span class="opt">;</span>
       bits <span class="opt">=</span> <span class="num">1</span><span class="opt">;</span>
     <span class="opt">}</span>
-    <span class="kwb">double</span> zr <span class="opt">=</span> cr<span class="opt">,</span>
-        zi <span class="opt">=</span> ci<span class="opt">,</span>
-        tr <span class="opt">=</span> cr <span class="opt">*</span> cr<span class="opt">,</span>
-        ti <span class="opt">=</span> ci <span class="opt">*</span> ci<span class="opt">;</span>
+    <span class="kwb">double</span> zr <span class="opt">=</span> cr<span class="opt">,</span> zi <span class="opt">=</span> ci<span class="opt">,</span> tr <span class="opt">=</span> cr <span class="opt">*</span> cr<span class="opt">,</span> ti <span class="opt">=</span> ci <span class="opt">*</span> ci<span class="opt">;</span>
     <span class="kwb">int</span> i <span class="opt">=</span> <span class="num">49</span><span class="opt">;</span>
     <span class="kwa">do</span> <span class="opt">{</span>
       zi <span class="opt">=</span> zr <span class="opt">*</span> zi <span class="opt">+</span> zr <span class="opt">*</span> zi <span class="opt">+</span> ci<span class="opt">;</span>
@@ -92,13 +94,14 @@ import <span class="str">&apos;dart:typed_data&apos;</span><span class="opt">;</
       ti <span class="opt">=</span> zi <span class="opt">*</span> zi<span class="opt">;</span>
     <span class="opt">}</span> <span class="kwa">while</span> <span class="opt">((</span>tr <span class="opt">+</span> ti <span class="opt">&lt;=</span> <span class="num">4.0</span><span class="opt">) &amp;&amp; (--</span>i <span class="opt">&gt;</span> <span class="num">0</span><span class="opt">));</span>
     bits <span class="opt">= (</span>bits <span class="opt">&lt;&lt;</span> <span class="num">1</span><span class="opt">) | (</span>i <span class="opt">==</span> <span class="num">0</span> ? <span class="num">1</span> <span class="opt">:</span> <span class="num">0</span><span class="opt">);</span>
-  <span class="opt">}</span> <span class="kwa">while</span> <span class="opt">(</span>bits <span class="opt">&lt;</span> <span class="num">0x100</span><span class="opt">)</span> bits <span class="opt">= (</span>bits <span class="opt">&lt;&lt;</span> <span class="num">1</span><span class="opt">);</span>
+  <span class="opt">}</span>
+  <span class="kwa">while</span> <span class="opt">(</span>bits <span class="opt">&lt;</span> <span class="num">0x100</span><span class="opt">)</span> bits <span class="opt">= (</span>bits <span class="opt">&lt;&lt;</span> <span class="num">1</span><span class="opt">);</span>
   line<span class="opt">[</span>xbyte<span class="opt">] =</span> bits<span class="opt">;</span>
 
   <span class="kwa">return</span> line<span class="opt">;</span>
 <span class="opt">}</span>
 
-<span class="kwa">void</span> <span class="kwd">calculateSegment</span> <span class="opt">(</span><span class="kwb">SendPort</span> initialReplyTo<span class="opt">) {</span>
+<span class="kwa">void</span> <span class="kwd">calculateSegment</span><span class="opt">(</span><span class="kwb">SendPort</span> initialReplyTo<span class="opt">) {</span>
   <span class="kwa">var</span> port <span class="opt">=</span> <span class="kwa">new</span> <span class="kwb">ReceivePort</span><span class="opt">();</span>
   initialReplyTo<span class="opt">.</span><span class="kwd">send</span><span class="opt">(</span>port<span class="opt">.</span>sendPort<span class="opt">);</span>
   port<span class="opt">.</span><span class="kwd">listen</span><span class="opt">((</span>msg<span class="opt">) {</span>
@@ -107,10 +110,8 @@ import <span class="str">&apos;dart:typed_data&apos;</span><span class="opt">;</
     <span class="kwb">int</span> len <span class="opt">=</span> msg<span class="opt">[</span><span class="str">&apos;len&apos;</span><span class="opt">];</span>
     <span class="kwb">SendPort</span> replyTo <span class="opt">=</span> msg<span class="opt">[</span><span class="str">&apos;port&apos;</span><span class="opt">];</span>
 
-    <span class="kwa">var</span> lines <span class="opt">=</span> <span class="kwa">new</span> <span class="kwb">List</span><span class="opt">&lt;</span><span class="kwb">Uint</span><span class="num">8L</span>ist<span class="opt">&gt;(</span>len<span class="opt">);</span>
-    <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> len<span class="opt">;</span> i<span class="opt">++) {</span>
-      lines<span class="opt">[</span>i<span class="opt">] =</span> <span class="kwd">calculateLine</span><span class="opt">(</span>n<span class="opt">,</span> from <span class="opt">+</span> i<span class="opt">);</span>
-    <span class="opt">}</span>
+    <span class="kwa">var</span> lines <span class="opt">=</span>
+        <span class="kwa">new</span> <span class="kwb">List</span><span class="opt">&lt;</span><span class="kwb">Uint</span><span class="num">8L</span>ist<span class="opt">&gt;.</span><span class="kwd">generate</span><span class="opt">(</span>len<span class="opt">, (</span>i<span class="opt">) =&gt;</span> <span class="kwd">calculateLine</span><span class="opt">(</span>n<span class="opt">,</span> from <span class="opt">+</span> i<span class="opt">));</span>
     replyTo<span class="opt">.</span><span class="kwd">send</span><span class="opt">(</span>lines<span class="opt">);</span>
     port<span class="opt">.</span><span class="kwd">close</span><span class="opt">();</span>
   <span class="opt">});</span>
@@ -127,42 +128,19 @@ NOTES:
 Dart SDK version: 2.12.0 (stable) (Thu Feb 25 19:50:53 2021 +0100) on "linux_x64"
 
 
-Fri, 05 Mar 2021 00:37:32 GMT
+Mon, 08 Mar 2021 17:21:00 GMT
 
 MAKE:
 /opt/src/dartsdk/bin/dart analyze 
 Analyzing tmp...
+No issues found!
 
-   info - 'List' is deprecated and shouldn't be used. Use a list literal, [], or the List.filled constructor instead at mandelbrot.dart-2.dart:10:28 - (deprecated_member_use)
-          Try replacing the use of the deprecated member with the replacement.
-  error - The default 'List' constructor isn't available when null safety is enabled at mandelbrot.dart-2.dart:10:28 - (default_list_constructor)
-          Try using a list literal, 'List.filled' or 'List.generate'.
-   info - 'List' is deprecated and shouldn't be used. Use a list literal, [], or the List.filled constructor instead at mandelbrot.dart-2.dart:86:21 - (deprecated_member_use)
-          Try replacing the use of the deprecated member with the replacement.
-  error - The default 'List' constructor isn't available when null safety is enabled at mandelbrot.dart-2.dart:86:21 - (default_list_constructor)
-          Try using a list literal, 'List.filled' or 'List.generate'.
-
-4 issues found.
-make: [/home/dunham/all-benchmarksgame/2000-benchmarksgame/nanobench/makefiles/u64q.programs.Makefile:470: mandelbrot.dart-2.dart_run] Error 3 (ignored)
-
-3.35s to complete and log all make actions
+3.24s to complete and log all make actions
 
 COMMAND LINE:
-/opt/src/dartsdk/bin/dart  mandelbrot.dart-2.dart 1000
-
-PROGRAM FAILED 
-
+/opt/src/dartsdk/bin/dart  mandelbrot.dart-2.dart 16000
 
 (BINARY) PROGRAM OUTPUT NOT SHOWN
-
-mandelbrot.dart-2.dart:10:28: Error: Can't use the default List constructor.
-Try using List.filled instead.
-  var segmentFutures = new List&lt;Future&gt;(threads);
-                           ^
-mandelbrot.dart-2.dart:86:21: Error: Can't use the default List constructor.
-Try using List.filled instead.
-    var lines = new List&lt;Uint8List&gt;(len);
-                    ^
     </pre>
   </section>
 </article>
