@@ -22,219 +22,156 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
       <h2>source code</h2>
     </div>
     <pre>
-﻿<span class="kwa">namespace</span> nbody <span class="opt">{</span>
-   <span class="com">/**</span>
-<span class="com">    * The Computer Language Benchmarks Game</span>
-<span class="com">    * https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
-<span class="com">    *</span>
-<span class="com">    * Contributed by Derek Ziemba</span>
-<span class="com">    *</span>
-<span class="com">    * Optimized using:</span>
-<span class="com">    * - Unmanaged stack allocated structs (zero memory allocation)</span>
-<span class="com">    * - AVX Vector Intrinsics targeting IvyBridge ix-3xxx series cpus</span>
+<span class="kwa">namespace</span> nbody
+<span class="opt">{</span>
+    <span class="com">/*  The Computer Language Benchmarks Game</span>
+<span class="com">        https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="com"></span>
+<span class="com">        contributed by Isaac Gouy</span>
+<span class="com">        modified by Robert F. Tobler</span>
+<span class="com">        modified by Eric P. Nusbaum</span>
 <span class="com">    */</span>
+
     <span class="kwa">using</span> System<span class="opt">;</span>
-    <span class="kwa">using</span> System<span class="opt">.</span>Runtime<span class="opt">.</span>CompilerServices<span class="opt">;</span>
-    <span class="kwa">using</span> System<span class="opt">.</span>Runtime<span class="opt">.</span>Intrinsics<span class="opt">;</span>
-    <span class="kwa">using</span> System<span class="opt">.</span>Runtime<span class="opt">.</span>Intrinsics<span class="opt">.</span>X86<span class="opt">;</span>
 
-    <span class="kwa">using static</span> System<span class="opt">.</span>Runtime<span class="opt">.</span>CompilerServices<span class="opt">.</span>MethodImplOptions<span class="opt">;</span>
+    <span class="kwa">public class</span> NBody
+    <span class="opt">{</span>
+        <span class="kwa">public static void</span> <span class="kwd">Main</span><span class="opt">(</span>String<span class="opt">[]</span> args<span class="opt">)</span>
+        <span class="opt">{</span>
+                <span class="kwa">int</span> n <span class="opt">=</span> args<span class="opt">.</span>Length <span class="opt">&gt;</span> <span class="num">0</span> <span class="opt">?</span> Int32<span class="opt">.</span><span class="kwd">Parse</span><span class="opt">(</span>args<span class="opt">[</span><span class="num">0</span><span class="opt">]) :</span> <span class="num">10000</span><span class="opt">;</span>
+                NBodySystem bodies <span class="opt">=</span> <span class="kwa">new</span> <span class="kwd">NBodySystem</span><span class="opt">();</span>
+                Console<span class="opt">.</span><span class="kwd">WriteLine</span><span class="opt">(</span><span class="str">&quot;</span><span class="ipl">{0:f9}</span><span class="str">&quot;</span><span class="opt">,</span> bodies<span class="opt">.</span><span class="kwd">Energy</span><span class="opt">());</span>
+                <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">int</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> n<span class="opt">;</span> i<span class="opt">++)</span> bodies<span class="opt">.</span><span class="kwd">Advance</span><span class="opt">(</span><span class="num">0.01</span><span class="opt">);</span>
+                Console<span class="opt">.</span><span class="kwd">WriteLine</span><span class="opt">(</span><span class="str">&quot;</span><span class="ipl">{0:f9}</span><span class="str">&quot;</span><span class="opt">,</span> bodies<span class="opt">.</span><span class="kwd">Energy</span><span class="opt">());</span>
+        <span class="opt">}</span>
+    <span class="opt">}</span>
 
-    <span class="kwa">using</span> V256d <span class="opt">=</span> System<span class="opt">.</span>Runtime<span class="opt">.</span>Intrinsics<span class="opt">.</span>Vector256<span class="opt">&lt;</span><span class="kwa">double</span><span class="opt">&gt;;</span>
-    <span class="kwa">using</span> V128d <span class="opt">=</span> System<span class="opt">.</span>Runtime<span class="opt">.</span>Intrinsics<span class="opt">.</span>Vector128<span class="opt">&lt;</span><span class="kwa">double</span><span class="opt">&gt;;</span>
+    <span class="kwa">public class</span> Body { public double x, y, z, vx, vy, vz, mass; }
+    
 
-    <span class="kwa">public static unsafe class</span> NBody <span class="opt">{</span>
-        <span class="kwa">const</span> MethodImplOptions AllOptimizations <span class="opt">=</span>
-            AggressiveInlining <span class="opt">|</span> AggressiveOptimization<span class="opt">;</span>
+    <span class="kwa">public class</span> NBodySystem
+    <span class="opt">{</span>
+        <span class="kwa">private</span> Body<span class="opt">[]</span> _bodies<span class="opt">;</span>
+        <span class="kwa">private</span> Body<span class="opt">[]</span> _pairL<span class="opt">;</span>
+        <span class="kwa">private</span> Body<span class="opt">[]</span> _pairR<span class="opt">;</span>
+        <span class="kwa">private byte</span> bodyCount <span class="opt">=</span> <span class="num">5</span><span class="opt">;</span>
 
-        <span class="kwa">struct</span> Body <span class="opt">{</span>
-            <span class="kwa">public</span> V256d Position<span class="opt">;</span>
-            <span class="kwa">public</span> V256d Velocity<span class="opt">;</span>
-            <span class="kwa">public</span> V256d Mass<span class="opt">;</span>
+        <span class="kwa">const double</span> Pi <span class="opt">=</span> <span class="num">3.141592653589793</span><span class="opt">;</span>
+        <span class="kwa">const double</span> Solarmass <span class="opt">=</span> <span class="num">4</span> <span class="opt">*</span> Pi <span class="opt">*</span> Pi<span class="opt">;</span>
+        <span class="kwa">const double</span> DaysPeryear <span class="opt">=</span> <span class="num">365.24</span><span class="opt">;</span>
 
-            <span class="kwa">public</span> <span class="kwd">Body</span><span class="opt">(</span><span class="kwa">double</span> x<span class="opt">,</span> <span class="kwa">double</span> y<span class="opt">,</span> <span class="kwa">double</span> z<span class="opt">,</span>
-                        <span class="kwa">double</span> vx<span class="opt">,</span> <span class="kwa">double</span> vy<span class="opt">,</span> <span class="kwa">double</span> vz<span class="opt">,</span> <span class="kwa">double</span> mass<span class="opt">) {</span>
-                <span class="kwa">this</span><span class="opt">.</span>Position <span class="opt">=</span> Vector256<span class="opt">.</span><span class="kwd">Create</span><span class="opt">(</span>x<span class="opt">,</span> y<span class="opt">,</span> z<span class="opt">,</span> <span class="num">0</span>d<span class="opt">);</span>
-                <span class="kwa">this</span><span class="opt">.</span>Velocity <span class="opt">=</span> Vector256<span class="opt">.</span><span class="kwd">Create</span><span class="opt">(</span>vx<span class="opt">,</span> vy<span class="opt">,</span> vz<span class="opt">,</span> <span class="num">0</span>d<span class="opt">);</span>
-                <span class="kwa">this</span><span class="opt">.</span>Mass <span class="opt">=</span> Vector256<span class="opt">.</span><span class="kwd">Create</span><span class="opt">(</span>mass<span class="opt">,</span> mass<span class="opt">,</span> mass<span class="opt">,</span> <span class="num">0</span>d<span class="opt">);</span>
+        <span class="kwa">public</span> <span class="kwd">NBodySystem</span><span class="opt">()</span>
+        <span class="opt">{</span>
+            _bodies <span class="opt">=</span> <span class="kwa">new</span><span class="opt">[]</span>
+            <span class="opt">{</span>
+                <span class="kwa">new</span> <span class="kwd">Body</span><span class="opt">()</span>
+                <span class="opt">{</span>
+                    <span class="slc">// Sun</span>
+                    mass <span class="opt">=</span> Solarmass<span class="opt">,</span>
+                <span class="opt">},</span>
+                <span class="kwa">new</span> <span class="kwd">Body</span><span class="opt">()</span>
+                <span class="opt">{</span>
+                    <span class="slc">// Jupiter</span>
+                    x <span class="opt">=</span> <span class="num">4.84143144246472090e+00</span><span class="opt">,</span>
+                    y <span class="opt">= -</span><span class="num">1.16032004402742839e+00</span><span class="opt">,</span>
+                    z <span class="opt">= -</span><span class="num">1.03622044471123109e-01</span><span class="opt">,</span>
+                    vx <span class="opt">=</span> <span class="num">1.66007664274403694e-03</span><span class="opt">*</span>DaysPeryear<span class="opt">,</span>
+                    vy <span class="opt">=</span> <span class="num">7.69901118419740425e-03</span><span class="opt">*</span>DaysPeryear<span class="opt">,</span>
+                    vz <span class="opt">= -</span><span class="num">6.90460016972063023e-05</span><span class="opt">*</span>DaysPeryear<span class="opt">,</span>
+                    mass <span class="opt">=</span> <span class="num">9.54791938424326609e-04</span><span class="opt">*</span>Solarmass<span class="opt">,</span>
+                <span class="opt">},</span>
+                <span class="kwa">new</span> <span class="kwd">Body</span><span class="opt">()</span>
+                <span class="opt">{</span>
+                    <span class="slc">// Saturn</span>
+                    x <span class="opt">=</span> <span class="num">8.34336671824457987e+00</span><span class="opt">,</span>
+                    y <span class="opt">=</span> <span class="num">4.12479856412430479e+00</span><span class="opt">,</span>
+                    z <span class="opt">= -</span><span class="num">4.03523417114321381e-01</span><span class="opt">,</span>
+                    vx <span class="opt">= -</span><span class="num">2.76742510726862411e-03</span><span class="opt">*</span>DaysPeryear<span class="opt">,</span>
+                    vy <span class="opt">=</span> <span class="num">4.99852801234917238e-03</span><span class="opt">*</span>DaysPeryear<span class="opt">,</span>
+                    vz <span class="opt">=</span> <span class="num">2.30417297573763929e-05</span><span class="opt">*</span>DaysPeryear<span class="opt">,</span>
+                    mass <span class="opt">=</span> <span class="num">2.85885980666130812e-04</span><span class="opt">*</span>Solarmass<span class="opt">,</span>
+                <span class="opt">},</span>
+                <span class="kwa">new</span> <span class="kwd">Body</span><span class="opt">()</span>
+                <span class="opt">{</span>
+                    <span class="slc">// Uranus</span>
+                    x <span class="opt">=</span> <span class="num">1.28943695621391310e+01</span><span class="opt">,</span>
+                    y <span class="opt">= -</span><span class="num">1.51111514016986312e+01</span><span class="opt">,</span>
+                    z <span class="opt">= -</span><span class="num">2.23307578892655734e-01</span><span class="opt">,</span>
+                    vx <span class="opt">=</span> <span class="num">2.96460137564761618e-03</span><span class="opt">*</span>DaysPeryear<span class="opt">,</span>
+                    vy <span class="opt">=</span> <span class="num">2.37847173959480950e-03</span><span class="opt">*</span>DaysPeryear<span class="opt">,</span>
+                    vz <span class="opt">= -</span><span class="num">2.96589568540237556e-05</span><span class="opt">*</span>DaysPeryear<span class="opt">,</span>
+                    mass <span class="opt">=</span> <span class="num">4.36624404335156298e-05</span><span class="opt">*</span>Solarmass<span class="opt">,</span>
+                <span class="opt">},</span>
+                <span class="kwa">new</span> <span class="kwd">Body</span><span class="opt">()</span>
+                <span class="opt">{</span>
+                    <span class="slc">// Neptune</span>
+                    x <span class="opt">=</span> <span class="num">1.53796971148509165e+01</span><span class="opt">,</span>
+                    y <span class="opt">= -</span><span class="num">2.59193146099879641e+01</span><span class="opt">,</span>
+                    z <span class="opt">=</span> <span class="num">1.79258772950371181e-01</span><span class="opt">,</span>
+                    vx <span class="opt">=</span> <span class="num">2.68067772490389322e-03</span><span class="opt">*</span>DaysPeryear<span class="opt">,</span>
+                    vy <span class="opt">=</span> <span class="num">1.62824170038242295e-03</span><span class="opt">*</span>DaysPeryear<span class="opt">,</span>
+                    vz <span class="opt">= -</span><span class="num">9.51592254519715870e-05</span><span class="opt">*</span>DaysPeryear<span class="opt">,</span>
+                    mass <span class="opt">=</span> <span class="num">5.15138902046611451e-05</span><span class="opt">*</span>Solarmass<span class="opt">,</span>
+                <span class="opt">},</span>
+            <span class="opt">};</span>
+
+            _pairL <span class="opt">=</span> <span class="kwa">new</span> Body<span class="opt">[(</span>bodyCount <span class="opt">* (</span>bodyCount <span class="opt">-</span> <span class="num">1</span><span class="opt">) /</span> <span class="num">2</span><span class="opt">)];</span>
+            _pairR <span class="opt">=</span> <span class="kwa">new</span> Body<span class="opt">[(</span>bodyCount <span class="opt">* (</span>bodyCount <span class="opt">-</span> <span class="num">1</span><span class="opt">) /</span> <span class="num">2</span><span class="opt">)];</span>
+            <span class="kwa">var</span> pi <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+            <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">var</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> bodyCount <span class="opt">-</span> <span class="num">1</span><span class="opt">;</span> i<span class="opt">++)</span>
+                <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">var</span> j <span class="opt">=</span> i <span class="opt">+</span> <span class="num">1</span><span class="opt">;</span> j <span class="opt">&lt;</span> bodyCount<span class="opt">;</span> j<span class="opt">++)</span>
+                <span class="opt">{</span>
+                    _pairL<span class="opt">[</span>pi<span class="opt">] =</span> _bodies<span class="opt">[</span>i<span class="opt">];</span>
+                    _pairR<span class="opt">[</span>pi<span class="opt">] =</span> _bodies<span class="opt">[</span>j<span class="opt">];</span>
+                    pi<span class="opt">++;</span>
+                <span class="opt">}</span>
+
+        <span class="kwa">double</span> px <span class="opt">=</span> <span class="num">0.0</span><span class="opt">,</span> py <span class="opt">=</span> <span class="num">0.0</span><span class="opt">,</span> pz <span class="opt">=</span> <span class="num">0.0</span><span class="opt">;</span>
+            <span class="kwa">foreach</span> <span class="opt">(</span><span class="kwa">var</span> b <span class="kwa">in</span> _bodies<span class="opt">)</span>
+            <span class="opt">{</span>
+                px <span class="opt">+=</span> b<span class="opt">.</span>vx <span class="opt">*</span> b<span class="opt">.</span>mass<span class="opt">;</span> py <span class="opt">+=</span> b<span class="opt">.</span>vy <span class="opt">*</span> b<span class="opt">.</span>mass<span class="opt">;</span> pz <span class="opt">+=</span> b<span class="opt">.</span>vz <span class="opt">*</span> b<span class="opt">.</span>mass<span class="opt">;</span>
+            <span class="opt">}</span>
+            <span class="kwa">var</span> sol <span class="opt">=</span> _bodies<span class="opt">[</span><span class="num">0</span><span class="opt">];</span>
+            sol<span class="opt">.</span>vx <span class="opt">= -</span>px <span class="opt">/</span> Solarmass<span class="opt">;</span> sol<span class="opt">.</span>vy <span class="opt">= -</span>py <span class="opt">/</span> Solarmass<span class="opt">;</span> sol<span class="opt">.</span>vz <span class="opt">= -</span>pz <span class="opt">/</span> Solarmass<span class="opt">;</span>
+        <span class="opt">}</span>
+
+        <span class="kwa">public void</span> <span class="kwd">Advance</span><span class="opt">(</span><span class="kwa">double</span> dt<span class="opt">)</span>
+        <span class="opt">{</span>
+            <span class="kwa">var</span> length <span class="opt">=</span> _pairL<span class="opt">.</span>Length<span class="opt">;</span>
+            <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">int</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> length<span class="opt">;</span> i<span class="opt">++)</span>
+            <span class="opt">{</span>
+                Body bi <span class="opt">=</span>  _pairL<span class="opt">[</span>i<span class="opt">],</span> bj <span class="opt">=</span> _pairR<span class="opt">[</span>i<span class="opt">];</span>
+                <span class="kwa">double</span> dx <span class="opt">=</span> bi<span class="opt">.</span>x <span class="opt">-</span> bj<span class="opt">.</span>x<span class="opt">,</span> dy <span class="opt">=</span> bi<span class="opt">.</span>y <span class="opt">-</span> bj<span class="opt">.</span>y<span class="opt">,</span> dz <span class="opt">=</span> bi<span class="opt">.</span>z <span class="opt">-</span> bj<span class="opt">.</span>z<span class="opt">;</span>
+                <span class="kwa">double</span> d2 <span class="opt">=</span> dx <span class="opt">*</span> dx <span class="opt">+</span> dy <span class="opt">*</span> dy <span class="opt">+</span> dz <span class="opt">*</span> dz<span class="opt">;</span>
+                <span class="kwa">double</span> mag <span class="opt">=</span> dt <span class="opt">/ (</span>d2 <span class="opt">*</span> Math<span class="opt">.</span><span class="kwd">Sqrt</span><span class="opt">(</span>d2<span class="opt">));</span>
+                bi<span class="opt">.</span>vx <span class="opt">-=</span> dx <span class="opt">*</span> bj<span class="opt">.</span>mass <span class="opt">*</span> mag<span class="opt">;</span> bj<span class="opt">.</span>vx <span class="opt">+=</span> dx <span class="opt">*</span> bi<span class="opt">.</span>mass <span class="opt">*</span> mag<span class="opt">;</span>
+                bi<span class="opt">.</span>vy <span class="opt">-=</span> dy <span class="opt">*</span> bj<span class="opt">.</span>mass <span class="opt">*</span> mag<span class="opt">;</span> bj<span class="opt">.</span>vy <span class="opt">+=</span> dy <span class="opt">*</span> bi<span class="opt">.</span>mass <span class="opt">*</span> mag<span class="opt">;</span>
+                bi<span class="opt">.</span>vz <span class="opt">-=</span> dz <span class="opt">*</span> bj<span class="opt">.</span>mass <span class="opt">*</span> mag<span class="opt">;</span> bj<span class="opt">.</span>vz <span class="opt">+=</span> dz <span class="opt">*</span> bi<span class="opt">.</span>mass <span class="opt">*</span> mag<span class="opt">;</span>
+            <span class="opt">}</span>
+            <span class="kwa">foreach</span> <span class="opt">(</span><span class="kwa">var</span> b <span class="kwa">in</span> _bodies<span class="opt">)</span>
+            <span class="opt">{</span>
+                b<span class="opt">.</span>x <span class="opt">+=</span> dt <span class="opt">*</span> b<span class="opt">.</span>vx<span class="opt">;</span> b<span class="opt">.</span>y <span class="opt">+=</span> dt <span class="opt">*</span> b<span class="opt">.</span>vy<span class="opt">;</span> b<span class="opt">.</span>z <span class="opt">+=</span> dt <span class="opt">*</span> b<span class="opt">.</span>vz<span class="opt">;</span>
             <span class="opt">}</span>
         <span class="opt">}</span>
 
-        <span class="kwa">public static void</span> <span class="kwd">Main</span><span class="opt">(</span><span class="kwa">string</span><span class="opt">[]</span> args<span class="opt">) {</span>
-            <span class="kwa">unchecked</span> <span class="opt">{</span>
-                <span class="kwa">const double</span> SOLAR_MASS <span class="opt">=</span> <span class="num">4</span> <span class="opt">*</span> Math<span class="opt">.</span>PI <span class="opt">*</span> Math<span class="opt">.</span>PI<span class="opt">;</span>
-                <span class="kwa">const double</span> DAYS_PER_YEAR <span class="opt">=</span> <span class="num">365.24</span><span class="opt">;</span>
-
-                Body<span class="opt">*</span> system <span class="opt">=</span> <span class="kwa">stackalloc</span> Body<span class="opt">[</span><span class="num">5</span><span class="opt">];</span>
-                Body<span class="opt">*</span> last <span class="opt">=</span> system <span class="opt">+</span> <span class="num">4</span><span class="opt">;</span>
-
-                <span class="com">/**** SUN ****/</span>
-                system<span class="opt">[</span><span class="num">0</span><span class="opt">] =</span>
-                    <span class="kwa">new</span> <span class="kwd">Body</span><span class="opt">(</span>x<span class="opt">:</span> <span class="num">0</span><span class="opt">,</span>
-                             <span class="kwc">y</span><span class="opt">:</span> <span class="num">0</span><span class="opt">,</span>
-                             <span class="kwc">z</span><span class="opt">:</span> <span class="num">0</span><span class="opt">,</span>
-                             <span class="kwc">vx</span><span class="opt">:</span> <span class="num">0</span><span class="opt">,</span>
-                             <span class="kwc">vy</span><span class="opt">:</span> <span class="num">0</span><span class="opt">,</span>
-                             <span class="kwc">vz</span><span class="opt">:</span> <span class="num">0</span><span class="opt">,</span>
-                             <span class="kwc">mass</span><span class="opt">:</span> SOLAR_MASS<span class="opt">);</span>
-
-                <span class="com">/**** JUPITER ****/</span>
-                system<span class="opt">[</span><span class="num">1</span><span class="opt">] =</span>
-                    <span class="kwa">new</span> <span class="kwd">Body</span><span class="opt">(</span>x<span class="opt">:</span> <span class="num">4.84143144246472090e+00</span><span class="opt">,</span>
-                             <span class="kwc">y</span><span class="opt">: -</span><span class="num">1.16032004402742839e+00</span><span class="opt">,</span>
-                             <span class="kwc">z</span><span class="opt">: -</span><span class="num">1.03622044471123109e-01</span><span class="opt">,</span>
-                             <span class="kwc">vx</span><span class="opt">:</span> <span class="num">1.66007664274403694e-03</span> <span class="opt">*</span> DAYS_PER_YEAR<span class="opt">,</span>
-                             <span class="kwc">vy</span><span class="opt">:</span> <span class="num">7.69901118419740425e-03</span> <span class="opt">*</span> DAYS_PER_YEAR<span class="opt">,</span>
-                             <span class="kwc">vz</span><span class="opt">: -</span><span class="num">6.90460016972063023e-05</span> <span class="opt">*</span> DAYS_PER_YEAR<span class="opt">,</span>
-                             <span class="kwc">mass</span><span class="opt">:</span> <span class="num">9.54791938424326609e-04</span> <span class="opt">*</span> SOLAR_MASS<span class="opt">);</span>
-
-                <span class="com">/**** SATURN ****/</span>
-                system<span class="opt">[</span><span class="num">2</span><span class="opt">] =</span>
-                    <span class="kwa">new</span> <span class="kwd">Body</span><span class="opt">(</span>x<span class="opt">:</span> <span class="num">8.34336671824457987e+00</span><span class="opt">,</span>
-                             <span class="kwc">y</span><span class="opt">:</span> <span class="num">4.12479856412430479e+00</span><span class="opt">,</span>
-                             <span class="kwc">z</span><span class="opt">: -</span><span class="num">4.03523417114321381e-01</span><span class="opt">,</span>
-                             <span class="kwc">vx</span><span class="opt">: -</span><span class="num">2.76742510726862411e-03</span> <span class="opt">*</span> DAYS_PER_YEAR<span class="opt">,</span>
-                             <span class="kwc">vy</span><span class="opt">:</span> <span class="num">4.99852801234917238e-03</span> <span class="opt">*</span> DAYS_PER_YEAR<span class="opt">,</span>
-                             <span class="kwc">vz</span><span class="opt">:</span> <span class="num">2.30417297573763929e-05</span> <span class="opt">*</span> DAYS_PER_YEAR<span class="opt">,</span>
-                             <span class="kwc">mass</span><span class="opt">:</span> <span class="num">2.85885980666130812e-04</span> <span class="opt">*</span> SOLAR_MASS<span class="opt">);</span>
-
-                <span class="com">/**** URANUS ****/</span>
-                system<span class="opt">[</span><span class="num">3</span><span class="opt">] =</span>
-                    <span class="kwa">new</span> <span class="kwd">Body</span><span class="opt">(</span>x<span class="opt">:</span> <span class="num">1.28943695621391310e+01</span><span class="opt">,</span>
-                             <span class="kwc">y</span><span class="opt">: -</span><span class="num">1.51111514016986312e+01</span><span class="opt">,</span>
-                             <span class="kwc">z</span><span class="opt">: -</span><span class="num">2.23307578892655734e-01</span><span class="opt">,</span>
-                             <span class="kwc">vx</span><span class="opt">:</span> <span class="num">2.96460137564761618e-03</span> <span class="opt">*</span> DAYS_PER_YEAR<span class="opt">,</span>
-                             <span class="kwc">vy</span><span class="opt">:</span> <span class="num">2.37847173959480950e-03</span> <span class="opt">*</span> DAYS_PER_YEAR<span class="opt">,</span>
-                             <span class="kwc">vz</span><span class="opt">: -</span><span class="num">2.96589568540237556e-05</span> <span class="opt">*</span> DAYS_PER_YEAR<span class="opt">,</span>
-                             <span class="kwc">mass</span><span class="opt">:</span> <span class="num">4.36624404335156298e-05</span> <span class="opt">*</span> SOLAR_MASS<span class="opt">);</span>
-
-                <span class="com">/**** NEPTUNE ****/</span>
-                system<span class="opt">[</span><span class="num">4</span><span class="opt">] =</span>
-                    <span class="kwa">new</span> <span class="kwd">Body</span><span class="opt">(</span>x<span class="opt">:</span> <span class="num">1.53796971148509165e+01</span><span class="opt">,</span>
-                             <span class="kwc">y</span><span class="opt">: -</span><span class="num">2.59193146099879641e+01</span><span class="opt">,</span>
-                             <span class="kwc">z</span><span class="opt">:</span> <span class="num">1.79258772950371181e-01</span><span class="opt">,</span>
-                             <span class="kwc">vx</span><span class="opt">:</span> <span class="num">2.68067772490389322e-03</span> <span class="opt">*</span> DAYS_PER_YEAR<span class="opt">,</span>
-                             <span class="kwc">vy</span><span class="opt">:</span> <span class="num">1.62824170038242295e-03</span> <span class="opt">*</span> DAYS_PER_YEAR<span class="opt">,</span>
-                             <span class="kwc">vz</span><span class="opt">: -</span><span class="num">9.51592254519715870e-05</span> <span class="opt">*</span> DAYS_PER_YEAR<span class="opt">,</span>
-                             <span class="kwc">mass</span><span class="opt">:</span> <span class="num">5.15138902046611451e-05</span> <span class="opt">*</span> SOLAR_MASS<span class="opt">);</span>
-
-                <span class="kwd">OffsetMomentumAVX</span><span class="opt">(</span>system<span class="opt">,</span> last<span class="opt">);</span>
-
-                Console<span class="opt">.</span><span class="kwd">WriteLine</span><span class="opt">(</span><span class="kwd">EnergyAVX</span><span class="opt">(</span>system<span class="opt">,</span> last<span class="opt">).</span><span class="kwd">ToString</span><span class="opt">(</span><span class="str">&quot;F9&quot;</span><span class="opt">));</span>
-
-                <span class="kwd">RunSimulation</span><span class="opt">(</span>args<span class="opt">.</span>Length <span class="opt">&gt;</span> <span class="num">0</span> <span class="opt">?</span> Int32<span class="opt">.</span><span class="kwd">Parse</span><span class="opt">(</span>args<span class="opt">[</span><span class="num">0</span><span class="opt">]) :</span> <span class="num">10000</span><span class="opt">,</span>
-                              <span class="num">0.01</span>d<span class="opt">,</span>
-                              system<span class="opt">,</span>
-                              last<span class="opt">);</span>
-
-                Console<span class="opt">.</span><span class="kwd">WriteLine</span><span class="opt">(</span><span class="kwd">EnergyAVX</span><span class="opt">(</span>system<span class="opt">,</span> last<span class="opt">).</span><span class="kwd">ToString</span><span class="opt">(</span><span class="str">&quot;F9&quot;</span><span class="opt">));</span>
-            <span class="opt">}</span><span class="slc">//END unchecked</span>
-        <span class="opt">}</span><span class="slc">//END Method Main</span>
-
-        <span class="kwa">private static void</span>
-        <span class="kwd">OffsetMomentumAVX</span><span class="opt">(</span>Body<span class="opt">*</span> system<span class="opt">,</span> Body<span class="opt">*</span> last<span class="opt">) {</span>
-            <span class="kwa">unchecked</span> <span class="opt">{</span>
-                V256d velocity <span class="opt">=</span> system<span class="opt">-&gt;</span>Velocity<span class="opt">;</span>
-                <span class="kwa">for</span> <span class="opt">(</span>Body<span class="opt">*</span> bi <span class="opt">=</span> system <span class="opt">+</span> <span class="num">1</span><span class="opt">;</span> bi <span class="opt">&lt;=</span> last<span class="opt">; ++</span>bi<span class="opt">) {</span>
-                    velocity <span class="opt">=</span>
-                        Avx<span class="opt">.</span><span class="kwd">Add</span><span class="opt">(</span>velocity<span class="opt">,</span>
-                                Avx<span class="opt">.</span><span class="kwd">Multiply</span><span class="opt">(</span>bi<span class="opt">-&gt;</span>Velocity<span class="opt">,</span>
-                                             bi<span class="opt">-&gt;</span>Mass<span class="opt">));</span>
-                <span class="opt">}</span><span class="slc">//END of i loop</span>
-                system<span class="opt">-&gt;</span>Velocity <span class="opt">=</span>
-                    Avx<span class="opt">.</span><span class="kwd">Divide</span><span class="opt">(</span>velocity<span class="opt">,</span>
-                        Avx<span class="opt">.</span><span class="kwd">Multiply</span><span class="opt">(</span>Vector256<span class="opt">.</span><span class="kwd">Create</span><span class="opt">(-</span><span class="num">1</span>d<span class="opt">),</span>
-                                     system<span class="opt">-&gt;</span>Mass<span class="opt">)).</span><span class="kwd">WithElement</span><span class="opt">(</span><span class="num">3</span><span class="opt">,</span> <span class="num">0</span>d<span class="opt">);</span>
-            <span class="opt">}</span><span class="slc">//END unchecked</span>
-        <span class="opt">}</span><span class="slc">//END Method OffsetMomentumAVX</span>
-
-        <span class="kwa">private static double</span>
-        <span class="kwd">EnergyAVX</span><span class="opt">(</span>Body<span class="opt">*</span> bi<span class="opt">,</span> Body<span class="opt">*</span> last<span class="opt">) {</span>
-            <span class="kwa">unchecked</span> <span class="opt">{</span>
-                <span class="kwa">double</span> e <span class="opt">=</span> <span class="num">0.0</span><span class="opt">;</span>
-                <span class="kwa">for</span> <span class="opt">(;</span> bi <span class="opt">&lt;=</span> last<span class="opt">; ++</span>bi<span class="opt">) {</span>
-                    V256d iPos <span class="opt">=</span> bi<span class="opt">-&gt;</span>Position<span class="opt">;</span>
-                    <span class="kwa">double</span> iVel <span class="opt">=</span> bi<span class="opt">-&gt;</span>Velocity<span class="opt">.</span><span class="kwd">Square</span><span class="opt">().</span><span class="kwd">Sum</span><span class="opt">();</span>
-                    <span class="kwa">double</span> iMass <span class="opt">=</span> bi<span class="opt">-&gt;</span>Mass<span class="opt">.</span><span class="kwd">ToScalar</span><span class="opt">();</span>
-                    e <span class="opt">=</span> e <span class="opt">+</span> <span class="num">0.5</span> <span class="opt">*</span> iMass <span class="opt">*</span> iVel<span class="opt">;</span>
-
-                    <span class="kwa">for</span> <span class="opt">(</span>Body<span class="opt">*</span> bj <span class="opt">=</span> bi <span class="opt">+</span> <span class="num">1</span><span class="opt">;</span> bj <span class="opt">&lt;=</span> last<span class="opt">; ++</span>bj<span class="opt">) {</span>
-                        e <span class="opt">=</span> e
-                            <span class="opt">-</span> iMass
-                            <span class="opt">*</span> bj<span class="opt">-&gt;</span>Mass<span class="opt">.</span><span class="kwd">ToScalar</span><span class="opt">()</span>
-                            <span class="opt">/</span> Math<span class="opt">.</span><span class="kwd">Sqrt</span><span class="opt">(</span>
-                                Avx<span class="opt">.</span><span class="kwd">Subtract</span><span class="opt">(</span>iPos<span class="opt">,</span>
-                                             bj<span class="opt">-&gt;</span>Position<span class="opt">)</span>
-                                <span class="opt">.</span><span class="kwd">Square</span><span class="opt">().</span><span class="kwd">Sum</span><span class="opt">());</span>
-                    <span class="opt">}</span><span class="slc">//END of j loop</span>
-                <span class="opt">}</span><span class="slc">//END of i loop</span>
-                <span class="kwa">return</span> e<span class="opt">;</span>
-            <span class="opt">}</span><span class="slc">//END unchecked</span>
-        <span class="opt">}</span><span class="slc">//END Method EnergyAVX</span>
-
-
-        <span class="opt">[</span><span class="kwd">MethodImpl</span><span class="opt">(</span>AggressiveOptimization<span class="opt">)]</span>
-        <span class="kwa">private static void</span>
-        <span class="kwd">RunSimulation</span><span class="opt">(</span><span class="kwa">int</span> iterations<span class="opt">,</span> <span class="kwa">double</span> step<span class="opt">,</span> Body<span class="opt">*</span> system<span class="opt">,</span> Body<span class="opt">*</span> last<span class="opt">) {</span>
-            <span class="kwa">unchecked</span> <span class="opt">{</span>
-                V256d stepV <span class="opt">=</span> Vector256<span class="opt">.</span><span class="kwd">Create</span><span class="opt">(</span>step<span class="opt">,</span> step<span class="opt">,</span> step<span class="opt">,</span> <span class="num">0</span>d<span class="opt">);</span>
-                <span class="kwa">while</span> <span class="opt">(</span>iterations<span class="opt">-- &gt;</span> <span class="num">0</span><span class="opt">) {</span>
-                    <span class="kwd">AdvanceAVX</span><span class="opt">(</span>stepV<span class="opt">,</span> system<span class="opt">,</span> last<span class="opt">);</span>
+        <span class="kwa">public double</span> <span class="kwd">Energy</span><span class="opt">()</span>
+        <span class="opt">{</span>
+            <span class="kwa">double</span> e <span class="opt">=</span> <span class="num">0.0</span><span class="opt">;</span>
+            <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">int</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> bodyCount<span class="opt">;</span> i<span class="opt">++)</span>
+            <span class="opt">{</span>
+                <span class="kwa">var</span> bi <span class="opt">=</span> _bodies<span class="opt">[</span>i<span class="opt">];</span>
+                e <span class="opt">+=</span> <span class="num">0.5</span> <span class="opt">*</span> bi<span class="opt">.</span>mass <span class="opt">* (</span>bi<span class="opt">.</span>vx <span class="opt">*</span> bi<span class="opt">.</span>vx <span class="opt">+</span> bi<span class="opt">.</span>vy <span class="opt">*</span> bi<span class="opt">.</span>vy <span class="opt">+</span> bi<span class="opt">.</span>vz <span class="opt">*</span> bi<span class="opt">.</span>vz<span class="opt">);</span>
+                <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">int</span> j <span class="opt">=</span> i <span class="opt">+</span> <span class="num">1</span><span class="opt">;</span> j <span class="opt">&lt;</span> bodyCount<span class="opt">;</span> j<span class="opt">++)</span>
+                <span class="opt">{</span>
+                    <span class="kwa">var</span> bj <span class="opt">=</span> _bodies<span class="opt">[</span>j<span class="opt">];</span>
+                    <span class="kwa">double</span> dx <span class="opt">=</span> bi<span class="opt">.</span>x <span class="opt">-</span> bj<span class="opt">.</span>x<span class="opt">,</span> dy <span class="opt">=</span> bi<span class="opt">.</span>y <span class="opt">-</span> bj<span class="opt">.</span>y<span class="opt">,</span> dz <span class="opt">=</span> bi<span class="opt">.</span>z <span class="opt">-</span> bj<span class="opt">.</span>z<span class="opt">;</span>
+                    e <span class="opt">-= (</span>bi<span class="opt">.</span>mass <span class="opt">*</span> bj<span class="opt">.</span>mass<span class="opt">) /</span> Math<span class="opt">.</span><span class="kwd">Sqrt</span><span class="opt">(</span>dx <span class="opt">*</span> dx <span class="opt">+</span> dy <span class="opt">*</span> dy <span class="opt">+</span> dz <span class="opt">*</span> dz<span class="opt">);</span>
                 <span class="opt">}</span>
-            <span class="opt">}</span><span class="slc">//END unchecked</span>
-        <span class="opt">}</span><span class="slc">//END Method RunSimulation</span>
-
-        <span class="opt">[</span><span class="kwd">MethodImpl</span><span class="opt">(</span>AllOptimizations<span class="opt">)]</span>
-        <span class="kwa">private static void</span>
-        <span class="kwd">AdvanceAVX</span><span class="opt">(</span>V256d stepV<span class="opt">,</span> Body<span class="opt">*</span> bi<span class="opt">,</span> Body<span class="opt">*</span> last<span class="opt">) {</span>
-            <span class="kwa">for</span> <span class="opt">(;</span> bi <span class="opt">&lt;</span> last<span class="opt">; ++</span>bi<span class="opt">) {</span>
-                <span class="slc">// It&apos;s slightly more performant to</span>
-                <span class="slc">// copy values locally instead of</span>
-                <span class="slc">// constantly going through the pointer</span>
-                V256d iPos <span class="opt">=</span> bi<span class="opt">-&gt;</span>Position<span class="opt">;</span>
-                V256d iVel <span class="opt">=</span> bi<span class="opt">-&gt;</span>Velocity<span class="opt">;</span>
-                V256d iMass <span class="opt">=</span> bi<span class="opt">-&gt;</span>Mass<span class="opt">;</span>
-
-                <span class="kwa">for</span> <span class="opt">(</span>Body<span class="opt">*</span> bj <span class="opt">=</span> bi <span class="opt">+</span> <span class="num">1</span><span class="opt">;</span> bj <span class="opt">&lt;=</span> last<span class="opt">; ++</span>bj<span class="opt">) {</span>
-                    V256d dx <span class="opt">=</span> Avx<span class="opt">.</span><span class="kwd">Subtract</span><span class="opt">(</span>bj<span class="opt">-&gt;</span>Position<span class="opt">,</span> iPos<span class="opt">);</span>
-                    <span class="kwa">double</span> dp <span class="opt">=</span> dx<span class="opt">.</span><span class="kwd">Square</span><span class="opt">().</span><span class="kwd">Sum</span><span class="opt">();</span>
-                    V256d mag <span class="opt">=</span>
-                        Avx<span class="opt">.</span><span class="kwd">Multiply</span><span class="opt">(</span>dx<span class="opt">,</span>
-                            Vector256<span class="opt">.</span><span class="kwd">Create</span><span class="opt">(</span>
-                                stepV<span class="opt">.</span><span class="kwd">ToScalar</span><span class="opt">() / (</span>dp <span class="opt">*</span> Math<span class="opt">.</span><span class="kwd">Sqrt</span><span class="opt">(</span>dp<span class="opt">))));</span>
-
-                    bj<span class="opt">-&gt;</span>Velocity <span class="opt">=</span>
-                        Avx<span class="opt">.</span><span class="kwd">Subtract</span><span class="opt">(</span>bj<span class="opt">-&gt;</span>Velocity<span class="opt">,</span>
-                                        Avx<span class="opt">.</span><span class="kwd">Multiply</span><span class="opt">(</span>iMass<span class="opt">,</span> mag<span class="opt">));</span>
-                    iVel <span class="opt">=</span>
-                        Avx<span class="opt">.</span><span class="kwd">Add</span><span class="opt">(</span>iVel<span class="opt">,</span>
-                                Avx<span class="opt">.</span><span class="kwd">Multiply</span><span class="opt">(</span>bj<span class="opt">-&gt;</span>Mass<span class="opt">,</span> mag<span class="opt">));</span>
-                <span class="opt">}</span><span class="slc">//END of j loop</span>
-                bi<span class="opt">-&gt;</span>Position <span class="opt">=</span>
-                    Avx<span class="opt">.</span><span class="kwd">Add</span><span class="opt">(</span>iPos<span class="opt">,</span>
-                            Avx<span class="opt">.</span><span class="kwd">Multiply</span><span class="opt">(</span>iVel<span class="opt">,</span> stepV<span class="opt">));</span>
-                bi<span class="opt">-&gt;</span>Velocity <span class="opt">=</span> iVel<span class="opt">;</span>
-            <span class="opt">}</span><span class="slc">//END of i loop</span>
-
-            bi<span class="opt">-&gt;</span>Position <span class="opt">=</span>
-                Avx<span class="opt">.</span><span class="kwd">Add</span><span class="opt">(</span>bi<span class="opt">-&gt;</span>Position<span class="opt">,</span>
-                        Avx<span class="opt">.</span><span class="kwd">Multiply</span><span class="opt">(</span>bi<span class="opt">-&gt;</span>Velocity<span class="opt">,</span> stepV<span class="opt">));</span>
-        <span class="opt">}</span><span class="slc">//END Method AdvanceAVX</span>
-
-
-        <span class="opt">[</span><span class="kwd">MethodImpl</span><span class="opt">(</span>AllOptimizations<span class="opt">)]</span>
-        <span class="kwa">private static</span> V256d <span class="kwd">Square</span><span class="opt">(</span><span class="kwa">this</span> V256d x<span class="opt">) =&gt;</span> Avx<span class="opt">.</span><span class="kwd">Multiply</span><span class="opt">(</span>x<span class="opt">,</span> x<span class="opt">);</span>
-
-        <span class="opt">[</span><span class="kwd">MethodImpl</span><span class="opt">(</span>AllOptimizations<span class="opt">)]</span>
-        <span class="kwa">private static</span> V128d <span class="kwd">SumLanes</span><span class="opt">(</span><span class="kwa">this</span> V256d x<span class="opt">) =&gt;</span> Sse2<span class="opt">.</span><span class="kwd">Add</span><span class="opt">(</span>x<span class="opt">.</span><span class="kwd">GetLower</span><span class="opt">(),</span> x<span class="opt">.</span><span class="kwd">GetUpper</span><span class="opt">());</span>
-
-        <span class="opt">[</span><span class="kwd">MethodImpl</span><span class="opt">(</span>AllOptimizations<span class="opt">)]</span>
-        <span class="kwa">private static double</span> <span class="kwd">Sum</span><span class="opt">(</span><span class="kwa">this</span> V128d x<span class="opt">) =&gt;</span> x<span class="opt">.</span><span class="kwd">ToScalar</span><span class="opt">() +</span> x<span class="opt">.</span><span class="kwd">GetElement</span><span class="opt">(</span><span class="num">1</span><span class="opt">);</span>
-
-        <span class="opt">[</span><span class="kwd">MethodImpl</span><span class="opt">(</span>AllOptimizations<span class="opt">)]</span>
-        <span class="kwa">private static double</span> <span class="kwd">Sum</span><span class="opt">(</span><span class="kwa">this</span> V256d x<span class="opt">) =&gt;</span> x<span class="opt">.</span><span class="kwd">SumLanes</span><span class="opt">().</span><span class="kwd">Sum</span><span class="opt">();</span>
-    <span class="opt">}</span><span class="slc">//END Class</span>
-<span class="opt">}</span><span class="slc">//END Namespace</span>
+            <span class="opt">}</span>
+            <span class="kwa">return</span> e<span class="opt">;</span>
+        <span class="opt">}</span>
+    <span class="opt">}</span>
+<span class="opt">}</span>
     </pre>
   </section>
   <section>
@@ -244,13 +181,13 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
     <pre>
 NOTES:
 64-bit Ubuntu quad core
-.NET SDK 5.0.100
-Host Version: 5.0.0; Commit: cf258a14b7
+.NET SDK 5.0.201
+Host Version: 5.0.4; Commit: f27d337295
 &lt;ServerGarbageCollection&gt;true
 &lt;PublishReadyToRun&gt;true&lt;/PublishReadyToRun&gt;
 
 
-Wed, 11 Nov 2020 21:49:59 GMT
+Sat, 13 Mar 2021 17:40:41 GMT
 
 MAKE:
 cp nbody.csharpaot-2.csharpaot Program.cs
@@ -258,13 +195,13 @@ cp Include/csharpaot/tmp.csproj .
 mkdir obj
 cp Include/csharpaot/project.assets.json ./obj
 /usr/bin/dotnet publish -c Release --no-restore -r ubuntu-x64 --no-self-contained
-Microsoft (R) Build Engine version 16.8.0+126527ff1 for .NET
+Microsoft (R) Build Engine version 16.9.0+57a23d249 for .NET
 Copyright (C) Microsoft Corporation. All rights reserved.
 
   tmp -&gt; /home/dunham/all-benchmarksgame/benchmarksgame_i53330/nbody/tmp/bin/Release/net5.0/ubuntu-x64/tmp.dll
   tmp -&gt; /home/dunham/all-benchmarksgame/benchmarksgame_i53330/nbody/tmp/bin/Release/net5.0/ubuntu-x64/publish/
 
-5.97s to complete and log all make actions
+6.59s to complete and log all make actions
 
 COMMAND LINE:
 ./bin/Release/net5.0/ubuntu-x64/tmp 50000000
