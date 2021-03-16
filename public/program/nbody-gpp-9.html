@@ -110,18 +110,19 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
     <span class="kwb">double</span> mass<span class="opt">;</span>
 <span class="opt">};</span>
 
-<span class="kwb">void</span> <span class="kwd">advance</span><span class="opt">(</span>body state<span class="opt">[</span>BODIES_COUNT<span class="opt">],</span> <span class="kwb">double</span> dt<span class="opt">)</span>
+<span class="kwb">void</span> <span class="kwd">advance</span><span class="opt">(</span>body state<span class="opt">[</span>BODIES_COUNT<span class="opt">],</span> <span class="kwb">double</span> dt<span class="opt">,</span> <span class="kwc">std</span><span class="opt">::</span><span class="kwb">size_t</span> steps<span class="opt">)</span>
 <span class="opt">{</span>
     <span class="com">/*</span>
 <span class="com">     * We precompute the quantity (r_i - r_j)</span>
 <span class="com">     */</span>
     vector3d rij<span class="opt">[</span>BODIES_COUNT<span class="opt">][</span>BODIES_COUNT<span class="opt">];</span>
+    <span class="kwb">double</span> magnitudes<span class="opt">[</span>BODIES_COUNT<span class="opt">][</span>BODIES_COUNT<span class="opt">];</span>
+
+<span class="kwa">for</span> <span class="opt">(</span><span class="kwc">std</span><span class="opt">::</span><span class="kwb">size_t</span> step <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> step <span class="opt">&lt;</span> steps<span class="opt">; ++</span>step<span class="opt">) {</span>
 
     <span class="kwa">for</span> <span class="opt">(</span><span class="kwc">std</span><span class="opt">::</span><span class="kwb">size_t</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> BODIES_COUNT<span class="opt">; ++</span>i<span class="opt">)</span>
         <span class="kwa">for</span> <span class="opt">(</span><span class="kwc">std</span><span class="opt">::</span><span class="kwb">size_t</span> j <span class="opt">=</span> i <span class="opt">+</span> <span class="num">1</span><span class="opt">;</span> j <span class="opt">&lt;</span> BODIES_COUNT<span class="opt">; ++</span>j<span class="opt">)</span>
             rij<span class="opt">[</span>i<span class="opt">][</span>j<span class="opt">] =</span> state<span class="opt">[</span>i<span class="opt">].</span>position <span class="opt">-</span> state<span class="opt">[</span>j<span class="opt">].</span>position<span class="opt">;</span>
-
-    <span class="kwb">double</span> magnitudes<span class="opt">[</span>BODIES_COUNT<span class="opt">][</span>BODIES_COUNT<span class="opt">];</span>
 
     <span class="com">/*</span>
 <span class="com">     * Try to use AVX instructions.  We compute four quantities 1/r_ij^3</span>
@@ -131,7 +132,6 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="com">     * In the third group we include:  (24), (34).</span>
 <span class="com">     */</span>
 
-    <span class="slc">// first group of four</span>
     __m256d pack_x<span class="opt">,</span> pack_y<span class="opt">,</span> pack_z<span class="opt">,</span> norms<span class="opt">,</span> sqrts<span class="opt">,</span> answer<span class="opt">;</span>
     <span class="kwb">const</span> vector3d<span class="opt">&amp;</span> v0 <span class="opt">=</span> state<span class="opt">[</span><span class="num">0</span><span class="opt">].</span>position<span class="opt">;</span>
     <span class="kwb">const</span> vector3d<span class="opt">&amp;</span> v1 <span class="opt">=</span> state<span class="opt">[</span><span class="num">1</span><span class="opt">].</span>position<span class="opt">;</span>
@@ -139,13 +139,20 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
     <span class="kwb">const</span> vector3d<span class="opt">&amp;</span> v3 <span class="opt">=</span> state<span class="opt">[</span><span class="num">3</span><span class="opt">].</span>position<span class="opt">;</span>
     <span class="kwb">const</span> vector3d<span class="opt">&amp;</span> v4 <span class="opt">=</span> state<span class="opt">[</span><span class="num">4</span><span class="opt">].</span>position<span class="opt">;</span>
 
+    <span class="slc">// first group of four</span>
     pack_x <span class="opt">=</span> <span class="kwd">_mm256_set_pd</span><span class="opt">(</span>v0<span class="opt">.</span>x <span class="opt">-</span> v1<span class="opt">.</span>x<span class="opt">,</span> v0<span class="opt">.</span>x <span class="opt">-</span> v2<span class="opt">.</span>x<span class="opt">,</span> v0<span class="opt">.</span>x <span class="opt">-</span> v3<span class="opt">.</span>x<span class="opt">,</span> v0<span class="opt">.</span>x <span class="opt">-</span> v4<span class="opt">.</span>x<span class="opt">);</span>
     pack_y <span class="opt">=</span> <span class="kwd">_mm256_set_pd</span><span class="opt">(</span>v0<span class="opt">.</span>y <span class="opt">-</span> v1<span class="opt">.</span>y<span class="opt">,</span> v0<span class="opt">.</span>y <span class="opt">-</span> v2<span class="opt">.</span>y<span class="opt">,</span> v0<span class="opt">.</span>y <span class="opt">-</span> v3<span class="opt">.</span>y<span class="opt">,</span> v0<span class="opt">.</span>y <span class="opt">-</span> v4<span class="opt">.</span>y<span class="opt">);</span>
     pack_z <span class="opt">=</span> <span class="kwd">_mm256_set_pd</span><span class="opt">(</span>v0<span class="opt">.</span>z <span class="opt">-</span> v1<span class="opt">.</span>z<span class="opt">,</span> v0<span class="opt">.</span>z <span class="opt">-</span> v2<span class="opt">.</span>z<span class="opt">,</span> v0<span class="opt">.</span>z <span class="opt">-</span> v3<span class="opt">.</span>z<span class="opt">,</span> v0<span class="opt">.</span>z <span class="opt">-</span> v4<span class="opt">.</span>z<span class="opt">);</span>
 
     norms <span class="opt">=</span> <span class="kwd">_mm256_mul_pd</span><span class="opt">(</span>pack_x<span class="opt">,</span> pack_x<span class="opt">);</span>
+<span class="ppc">#if !defined(__FMA__)</span>
+    norms <span class="opt">=</span> <span class="kwd">_mm256_add_pd</span><span class="opt">(</span>norms<span class="opt">,</span> <span class="kwd">_mm256_mul_pd</span><span class="opt">(</span>pack_y<span class="opt">,</span> pack_y<span class="opt">));</span>
+    norms <span class="opt">=</span> <span class="kwd">_mm256_add_pd</span><span class="opt">(</span>norms<span class="opt">,</span> <span class="kwd">_mm256_mul_pd</span><span class="opt">(</span>pack_z<span class="opt">,</span> pack_z<span class="opt">));</span>
+<span class="ppc">#endif</span>
+<span class="ppc">#if defined(__FMA__)</span>
     norms <span class="opt">=</span> <span class="kwd">_mm256_fmadd_pd</span><span class="opt">(</span>pack_y<span class="opt">,</span> pack_y<span class="opt">,</span> norms<span class="opt">);</span>
     norms <span class="opt">=</span> <span class="kwd">_mm256_fmadd_pd</span><span class="opt">(</span>pack_z<span class="opt">,</span> pack_z<span class="opt">,</span> norms<span class="opt">);</span>
+<span class="ppc">#endif</span>
 
     sqrts <span class="opt">=</span> <span class="kwd">_mm256_sqrt_pd</span><span class="opt">(</span>norms<span class="opt">);</span>
     answer <span class="opt">=</span> <span class="kwd">_mm256_div_pd</span><span class="opt">(</span><span class="kwd">_mm256_set1_pd</span><span class="opt">(</span>dt<span class="opt">),</span> <span class="kwd">_mm256_mul_pd</span><span class="opt">(</span>sqrts<span class="opt">,</span> norms<span class="opt">));</span>
@@ -163,8 +170,14 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
     pack_z <span class="opt">=</span> <span class="kwd">_mm256_set_pd</span><span class="opt">(</span>v1<span class="opt">.</span>z <span class="opt">-</span> v2<span class="opt">.</span>z<span class="opt">,</span> v1<span class="opt">.</span>z <span class="opt">-</span> v3<span class="opt">.</span>z<span class="opt">,</span> v1<span class="opt">.</span>z <span class="opt">-</span> v4<span class="opt">.</span>z<span class="opt">,</span> v2<span class="opt">.</span>z <span class="opt">-</span> v3<span class="opt">.</span>z<span class="opt">);</span>
 
     norms <span class="opt">=</span> <span class="kwd">_mm256_mul_pd</span><span class="opt">(</span>pack_x<span class="opt">,</span> pack_x<span class="opt">);</span>
+<span class="ppc">#if !defined(__FMA__)</span>
+    norms <span class="opt">=</span> <span class="kwd">_mm256_add_pd</span><span class="opt">(</span>norms<span class="opt">,</span> <span class="kwd">_mm256_mul_pd</span><span class="opt">(</span>pack_y<span class="opt">,</span> pack_y<span class="opt">));</span>
+    norms <span class="opt">=</span> <span class="kwd">_mm256_add_pd</span><span class="opt">(</span>norms<span class="opt">,</span> <span class="kwd">_mm256_mul_pd</span><span class="opt">(</span>pack_z<span class="opt">,</span> pack_z<span class="opt">));</span>
+<span class="ppc">#endif</span>
+<span class="ppc">#if defined(__FMA__)</span>
     norms <span class="opt">=</span> <span class="kwd">_mm256_fmadd_pd</span><span class="opt">(</span>pack_y<span class="opt">,</span> pack_y<span class="opt">,</span> norms<span class="opt">);</span>
     norms <span class="opt">=</span> <span class="kwd">_mm256_fmadd_pd</span><span class="opt">(</span>pack_z<span class="opt">,</span> pack_z<span class="opt">,</span> norms<span class="opt">);</span>
+<span class="ppc">#endif</span>
 
     sqrts <span class="opt">=</span> <span class="kwd">_mm256_sqrt_pd</span><span class="opt">(</span>norms<span class="opt">);</span>
     answer <span class="opt">=</span> <span class="kwd">_mm256_div_pd</span><span class="opt">(</span><span class="kwd">_mm256_set1_pd</span><span class="opt">(</span>dt<span class="opt">),</span> <span class="kwd">_mm256_mul_pd</span><span class="opt">(</span>sqrts<span class="opt">,</span> norms<span class="opt">));</span>
@@ -177,14 +190,20 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 
     magnitudes<span class="opt">[</span><span class="num">2</span><span class="opt">][</span><span class="num">3</span><span class="opt">] = ((</span><span class="kwb">double</span> <span class="opt">*)&amp;</span>answer<span class="opt">)[</span><span class="num">0</span><span class="opt">];</span>
 
-    <span class="slc">// third (incomplete) group, pad with zero</span>
-    pack_x <span class="opt">=</span> <span class="kwd">_mm256_set_pd</span><span class="opt">(</span><span class="num">0</span><span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> v2<span class="opt">.</span>x <span class="opt">-</span> v4<span class="opt">.</span>x<span class="opt">,</span> v3<span class="opt">.</span>x <span class="opt">-</span> v4<span class="opt">.</span>x<span class="opt">);</span>
-    pack_y <span class="opt">=</span> <span class="kwd">_mm256_set_pd</span><span class="opt">(</span><span class="num">0</span><span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> v2<span class="opt">.</span>y <span class="opt">-</span> v4<span class="opt">.</span>y<span class="opt">,</span> v3<span class="opt">.</span>y <span class="opt">-</span> v4<span class="opt">.</span>y<span class="opt">);</span>
-    pack_z <span class="opt">=</span> <span class="kwd">_mm256_set_pd</span><span class="opt">(</span><span class="num">0</span><span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> v2<span class="opt">.</span>z <span class="opt">-</span> v4<span class="opt">.</span>z<span class="opt">,</span> v3<span class="opt">.</span>z <span class="opt">-</span> v4<span class="opt">.</span>z<span class="opt">);</span>
+    <span class="slc">// third (incomplete) group, pad with 1</span>
+    pack_x <span class="opt">=</span> <span class="kwd">_mm256_set_pd</span><span class="opt">(</span><span class="num">1</span><span class="opt">,</span> <span class="num">1</span><span class="opt">,</span> v2<span class="opt">.</span>x <span class="opt">-</span> v4<span class="opt">.</span>x<span class="opt">,</span> v3<span class="opt">.</span>x <span class="opt">-</span> v4<span class="opt">.</span>x<span class="opt">);</span>
+    pack_y <span class="opt">=</span> <span class="kwd">_mm256_set_pd</span><span class="opt">(</span><span class="num">1</span><span class="opt">,</span> <span class="num">1</span><span class="opt">,</span> v2<span class="opt">.</span>y <span class="opt">-</span> v4<span class="opt">.</span>y<span class="opt">,</span> v3<span class="opt">.</span>y <span class="opt">-</span> v4<span class="opt">.</span>y<span class="opt">);</span>
+    pack_z <span class="opt">=</span> <span class="kwd">_mm256_set_pd</span><span class="opt">(</span><span class="num">1</span><span class="opt">,</span> <span class="num">1</span><span class="opt">,</span> v2<span class="opt">.</span>z <span class="opt">-</span> v4<span class="opt">.</span>z<span class="opt">,</span> v3<span class="opt">.</span>z <span class="opt">-</span> v4<span class="opt">.</span>z<span class="opt">);</span>
 
     norms <span class="opt">=</span> <span class="kwd">_mm256_mul_pd</span><span class="opt">(</span>pack_x<span class="opt">,</span> pack_x<span class="opt">);</span>
+<span class="ppc">#if !defined(__FMA__)</span>
+    norms <span class="opt">=</span> <span class="kwd">_mm256_add_pd</span><span class="opt">(</span>norms<span class="opt">,</span> <span class="kwd">_mm256_mul_pd</span><span class="opt">(</span>pack_y<span class="opt">,</span> pack_y<span class="opt">));</span>
+    norms <span class="opt">=</span> <span class="kwd">_mm256_add_pd</span><span class="opt">(</span>norms<span class="opt">,</span> <span class="kwd">_mm256_mul_pd</span><span class="opt">(</span>pack_z<span class="opt">,</span> pack_z<span class="opt">));</span>
+<span class="ppc">#endif</span>
+<span class="ppc">#if defined(__FMA__)</span>
     norms <span class="opt">=</span> <span class="kwd">_mm256_fmadd_pd</span><span class="opt">(</span>pack_y<span class="opt">,</span> pack_y<span class="opt">,</span> norms<span class="opt">);</span>
     norms <span class="opt">=</span> <span class="kwd">_mm256_fmadd_pd</span><span class="opt">(</span>pack_z<span class="opt">,</span> pack_z<span class="opt">,</span> norms<span class="opt">);</span>
+<span class="ppc">#endif</span>
 
     sqrts <span class="opt">=</span> <span class="kwd">_mm256_sqrt_pd</span><span class="opt">(</span>norms<span class="opt">);</span>
     answer <span class="opt">=</span> <span class="kwd">_mm256_div_pd</span><span class="opt">(</span><span class="kwd">_mm256_set1_pd</span><span class="opt">(</span>dt<span class="opt">),</span> <span class="kwd">_mm256_mul_pd</span><span class="opt">(</span>sqrts<span class="opt">,</span> norms<span class="opt">));</span>
@@ -213,6 +232,7 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="com">     */</span>
     <span class="kwa">for</span> <span class="opt">(</span><span class="kwc">std</span><span class="opt">::</span><span class="kwb">size_t</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> BODIES_COUNT<span class="opt">; ++</span>i<span class="opt">)</span>
         state<span class="opt">[</span>i<span class="opt">].</span>position <span class="opt">+=</span> state<span class="opt">[</span>i<span class="opt">].</span>velocity <span class="opt">*</span> dt<span class="opt">;</span>
+<span class="opt">}</span> <span class="slc">// for</span>
 <span class="opt">}</span>
 
 <span class="kwb">void</span> <span class="kwd">offset_momentum</span><span class="opt">(</span>body state<span class="opt">[</span>BODIES_COUNT<span class="opt">])</span>
@@ -291,8 +311,7 @@ body state<span class="opt">[] = {</span>
 
     <span class="kwd">printf</span><span class="opt">(</span><span class="str">&quot;%.9f</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span> <span class="kwd">energy</span><span class="opt">(</span>state<span class="opt">));</span>
 
-    <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> n<span class="opt">; ++</span>i<span class="opt">)</span>
-        <span class="kwd">advance</span><span class="opt">(</span>state<span class="opt">,</span> <span class="num">0.01</span><span class="opt">);</span>
+    <span class="kwd">advance</span><span class="opt">(</span>state<span class="opt">,</span> <span class="num">0.01</span><span class="opt">,</span> n<span class="opt">);</span>
     <span class="kwd">printf</span><span class="opt">(</span><span class="str">&quot;%.9f</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span> <span class="kwd">energy</span><span class="opt">(</span>state<span class="opt">));</span>
 <span class="opt">}</span>
     </pre>
@@ -307,142 +326,21 @@ NOTES:
 g++ (Ubuntu 10.2.0-13ubuntu1) 10.2.0
 
 
-Sun, 14 Mar 2021 22:21:48 GMT
+Tue, 16 Mar 2021 19:01:10 GMT
 
 MAKE:
 /usr/bin/g++ -c -pipe -O3 -fomit-frame-pointer -march=ivybridge  -std=c++2a nbody.gpp-9.c++ -o nbody.gpp-9.c++.o &amp;&amp;  \
         /usr/bin/g++ nbody.gpp-9.c++.o -o nbody.gpp-9.gpp_run  
-In file included from /usr/lib/gcc/x86_64-linux-gnu/10/include/immintrin.h:111,
-                 from nbody.gpp-9.c++:13:
-/usr/lib/gcc/x86_64-linux-gnu/10/include/fmaintrin.h: In function ‘void advance(body*, double)’:
-/usr/lib/gcc/x86_64-linux-gnu/10/include/fmaintrin.h:47:1: error: inlining failed in call to ‘always_inline’ ‘__m256d _mm256_fmadd_pd(__m256d, __m256d, __m256d)’: target specific option mismatch
-   47 | _mm256_fmadd_pd (__m256d __A, __m256d __B, __m256d __C)
-      | ^~~~~~~~~~~~~~~
-nbody.gpp-9.c++:123:28: note: called from here
-  123 |     norms = _mm256_fmadd_pd(pack_y, pack_y, norms);
-      |             ~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~
-In file included from /usr/lib/gcc/x86_64-linux-gnu/10/include/immintrin.h:111,
-                 from nbody.gpp-9.c++:13:
-/usr/lib/gcc/x86_64-linux-gnu/10/include/fmaintrin.h:47:1: error: inlining failed in call to ‘always_inline’ ‘__m256d _mm256_fmadd_pd(__m256d, __m256d, __m256d)’: target specific option mismatch
-   47 | _mm256_fmadd_pd (__m256d __A, __m256d __B, __m256d __C)
-      | ^~~~~~~~~~~~~~~
-nbody.gpp-9.c++:123:28: note: called from here
-  123 |     norms = _mm256_fmadd_pd(pack_y, pack_y, norms);
-      |             ~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~
-In file included from /usr/lib/gcc/x86_64-linux-gnu/10/include/immintrin.h:111,
-                 from nbody.gpp-9.c++:13:
-/usr/lib/gcc/x86_64-linux-gnu/10/include/fmaintrin.h:47:1: error: inlining failed in call to ‘always_inline’ ‘__m256d _mm256_fmadd_pd(__m256d, __m256d, __m256d)’: target specific option mismatch
-   47 | _mm256_fmadd_pd (__m256d __A, __m256d __B, __m256d __C)
-      | ^~~~~~~~~~~~~~~
-nbody.gpp-9.c++:124:28: note: called from here
-  124 |     norms = _mm256_fmadd_pd(pack_z, pack_z, norms);
-      |             ~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~
-In file included from /usr/lib/gcc/x86_64-linux-gnu/10/include/immintrin.h:111,
-                 from nbody.gpp-9.c++:13:
-/usr/lib/gcc/x86_64-linux-gnu/10/include/fmaintrin.h:47:1: error: inlining failed in call to ‘always_inline’ ‘__m256d _mm256_fmadd_pd(__m256d, __m256d, __m256d)’: target specific option mismatch
-   47 | _mm256_fmadd_pd (__m256d __A, __m256d __B, __m256d __C)
-      | ^~~~~~~~~~~~~~~
-nbody.gpp-9.c++:142:28: note: called from here
-  142 |     norms = _mm256_fmadd_pd(pack_y, pack_y, norms);
-      |             ~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~
-In file included from /usr/lib/gcc/x86_64-linux-gnu/10/include/immintrin.h:111,
-                 from nbody.gpp-9.c++:13:
-/usr/lib/gcc/x86_64-linux-gnu/10/include/fmaintrin.h:47:1: error: inlining failed in call to ‘always_inline’ ‘__m256d _mm256_fmadd_pd(__m256d, __m256d, __m256d)’: target specific option mismatch
-   47 | _mm256_fmadd_pd (__m256d __A, __m256d __B, __m256d __C)
-      | ^~~~~~~~~~~~~~~
-nbody.gpp-9.c++:142:28: note: called from here
-  142 |     norms = _mm256_fmadd_pd(pack_y, pack_y, norms);
-      |             ~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~
-In file included from /usr/lib/gcc/x86_64-linux-gnu/10/include/immintrin.h:111,
-                 from nbody.gpp-9.c++:13:
-/usr/lib/gcc/x86_64-linux-gnu/10/include/fmaintrin.h:47:1: error: inlining failed in call to ‘always_inline’ ‘__m256d _mm256_fmadd_pd(__m256d, __m256d, __m256d)’: target specific option mismatch
-   47 | _mm256_fmadd_pd (__m256d __A, __m256d __B, __m256d __C)
-      | ^~~~~~~~~~~~~~~
-nbody.gpp-9.c++:143:28: note: called from here
-  143 |     norms = _mm256_fmadd_pd(pack_z, pack_z, norms);
-      |             ~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~
-In file included from /usr/lib/gcc/x86_64-linux-gnu/10/include/immintrin.h:111,
-                 from nbody.gpp-9.c++:13:
-/usr/lib/gcc/x86_64-linux-gnu/10/include/fmaintrin.h:47:1: error: inlining failed in call to ‘always_inline’ ‘__m256d _mm256_fmadd_pd(__m256d, __m256d, __m256d)’: target specific option mismatch
-   47 | _mm256_fmadd_pd (__m256d __A, __m256d __B, __m256d __C)
-      | ^~~~~~~~~~~~~~~
-nbody.gpp-9.c++:162:28: note: called from here
-  162 |     norms = _mm256_fmadd_pd(pack_y, pack_y, norms);
-      |             ~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~
-In file included from /usr/lib/gcc/x86_64-linux-gnu/10/include/immintrin.h:111,
-                 from nbody.gpp-9.c++:13:
-/usr/lib/gcc/x86_64-linux-gnu/10/include/fmaintrin.h:47:1: error: inlining failed in call to ‘always_inline’ ‘__m256d _mm256_fmadd_pd(__m256d, __m256d, __m256d)’: target specific option mismatch
-   47 | _mm256_fmadd_pd (__m256d __A, __m256d __B, __m256d __C)
-      | ^~~~~~~~~~~~~~~
-nbody.gpp-9.c++:162:28: note: called from here
-  162 |     norms = _mm256_fmadd_pd(pack_y, pack_y, norms);
-      |             ~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~
-In file included from /usr/lib/gcc/x86_64-linux-gnu/10/include/immintrin.h:111,
-                 from nbody.gpp-9.c++:13:
-/usr/lib/gcc/x86_64-linux-gnu/10/include/fmaintrin.h:47:1: error: inlining failed in call to ‘always_inline’ ‘__m256d _mm256_fmadd_pd(__m256d, __m256d, __m256d)’: target specific option mismatch
-   47 | _mm256_fmadd_pd (__m256d __A, __m256d __B, __m256d __C)
-      | ^~~~~~~~~~~~~~~
-nbody.gpp-9.c++:163:28: note: called from here
-  163 |     norms = _mm256_fmadd_pd(pack_z, pack_z, norms);
-      |             ~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~
-In file included from /usr/lib/gcc/x86_64-linux-gnu/10/include/immintrin.h:111,
-                 from nbody.gpp-9.c++:13:
-/usr/lib/gcc/x86_64-linux-gnu/10/include/fmaintrin.h:47:1: error: inlining failed in call to ‘always_inline’ ‘__m256d _mm256_fmadd_pd(__m256d, __m256d, __m256d)’: target specific option mismatch
-   47 | _mm256_fmadd_pd (__m256d __A, __m256d __B, __m256d __C)
-      | ^~~~~~~~~~~~~~~
-nbody.gpp-9.c++:123:28: note: called from here
-  123 |     norms = _mm256_fmadd_pd(pack_y, pack_y, norms);
-      |             ~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~
-In file included from /usr/lib/gcc/x86_64-linux-gnu/10/include/immintrin.h:111,
-                 from nbody.gpp-9.c++:13:
-/usr/lib/gcc/x86_64-linux-gnu/10/include/fmaintrin.h:47:1: error: inlining failed in call to ‘always_inline’ ‘__m256d _mm256_fmadd_pd(__m256d, __m256d, __m256d)’: target specific option mismatch
-   47 | _mm256_fmadd_pd (__m256d __A, __m256d __B, __m256d __C)
-      | ^~~~~~~~~~~~~~~
-nbody.gpp-9.c++:124:28: note: called from here
-  124 |     norms = _mm256_fmadd_pd(pack_z, pack_z, norms);
-      |             ~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~
-In file included from /usr/lib/gcc/x86_64-linux-gnu/10/include/immintrin.h:111,
-                 from nbody.gpp-9.c++:13:
-/usr/lib/gcc/x86_64-linux-gnu/10/include/fmaintrin.h:47:1: error: inlining failed in call to ‘always_inline’ ‘__m256d _mm256_fmadd_pd(__m256d, __m256d, __m256d)’: target specific option mismatch
-   47 | _mm256_fmadd_pd (__m256d __A, __m256d __B, __m256d __C)
-      | ^~~~~~~~~~~~~~~
-nbody.gpp-9.c++:142:28: note: called from here
-  142 |     norms = _mm256_fmadd_pd(pack_y, pack_y, norms);
-      |             ~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~
-In file included from /usr/lib/gcc/x86_64-linux-gnu/10/include/immintrin.h:111,
-                 from nbody.gpp-9.c++:13:
-/usr/lib/gcc/x86_64-linux-gnu/10/include/fmaintrin.h:47:1: error: inlining failed in call to ‘always_inline’ ‘__m256d _mm256_fmadd_pd(__m256d, __m256d, __m256d)’: target specific option mismatch
-   47 | _mm256_fmadd_pd (__m256d __A, __m256d __B, __m256d __C)
-      | ^~~~~~~~~~~~~~~
-nbody.gpp-9.c++:143:28: note: called from here
-  143 |     norms = _mm256_fmadd_pd(pack_z, pack_z, norms);
-      |             ~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~
-In file included from /usr/lib/gcc/x86_64-linux-gnu/10/include/immintrin.h:111,
-                 from nbody.gpp-9.c++:13:
-/usr/lib/gcc/x86_64-linux-gnu/10/include/fmaintrin.h:47:1: error: inlining failed in call to ‘always_inline’ ‘__m256d _mm256_fmadd_pd(__m256d, __m256d, __m256d)’: target specific option mismatch
-   47 | _mm256_fmadd_pd (__m256d __A, __m256d __B, __m256d __C)
-      | ^~~~~~~~~~~~~~~
-nbody.gpp-9.c++:162:28: note: called from here
-  162 |     norms = _mm256_fmadd_pd(pack_y, pack_y, norms);
-      |             ~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~
-In file included from /usr/lib/gcc/x86_64-linux-gnu/10/include/immintrin.h:111,
-                 from nbody.gpp-9.c++:13:
-/usr/lib/gcc/x86_64-linux-gnu/10/include/fmaintrin.h:47:1: error: inlining failed in call to ‘always_inline’ ‘__m256d _mm256_fmadd_pd(__m256d, __m256d, __m256d)’: target specific option mismatch
-   47 | _mm256_fmadd_pd (__m256d __A, __m256d __B, __m256d __C)
-      | ^~~~~~~~~~~~~~~
-nbody.gpp-9.c++:163:28: note: called from here
-  163 |     norms = _mm256_fmadd_pd(pack_z, pack_z, norms);
-      |             ~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~
-make: [/home/dunham/all-benchmarksgame/2000-benchmarksgame/nanobench/makefiles/u64q.programs.Makefile:54: nbody.gpp-9.gpp_run] Error 1 (ignored)
 rm nbody.gpp-9.c++
 
-2.63s to complete and log all make actions
+2.95s to complete and log all make actions
 
 COMMAND LINE:
-./nbody.gpp-9.gpp_run 500000
+./nbody.gpp-9.gpp_run 50000000
 
-MAKE ERROR 
-
+PROGRAM OUTPUT:
+-0.169075164
+-0.169059907
     </pre>
   </section>
 </article>
