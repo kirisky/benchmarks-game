@@ -100,7 +100,7 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="kwa">proc</span> <span class="kwc">calculate</span><span class="opt">(</span>data<span class="opt">,</span> <span class="kwa">param</span> nclSize<span class="opt">) {</span>
   <span class="kwa">var</span> freqs <span class="opt">=</span> <span class="kwa">new</span> <span class="kwc">map</span><span class="opt">(</span><span class="kwb">int</span><span class="opt">,</span> <span class="kwb">int</span><span class="opt">);</span>
 
-  <span class="kwa">var</span> lock$<span class="opt">:</span> <span class="kwa">sync</span> <span class="kwb">bool</span> <span class="opt">=</span> <span class="kwa">true</span><span class="opt">;</span>
+  <span class="kwa">var</span> lock<span class="opt">:</span> <span class="kwa">sync</span> <span class="kwb">bool</span> <span class="opt">=</span> <span class="kwa">true</span><span class="opt">;</span>
   <span class="kwa">const</span> numTasks <span class="opt">=</span> here<span class="opt">.</span>maxTaskPar<span class="opt">;</span>
   <span class="kwa">coforall</span> tid <span class="kwa">in</span> <span class="num">1</span><span class="opt">..</span>numTasks <span class="kwa">with</span> <span class="opt">(</span><span class="kwa">ref</span> freqs<span class="opt">) {</span>
     <span class="kwa">var</span> myFreqs <span class="opt">=</span> <span class="kwa">new</span> <span class="kwc">map</span><span class="opt">(</span><span class="kwb">int</span><span class="opt">,</span> <span class="kwb">int</span><span class="opt">);</span>
@@ -108,10 +108,10 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
     <span class="kwa">for</span> i <span class="kwa">in</span> tid<span class="opt">..(</span>data<span class="opt">.</span>size<span class="opt">-</span>nclSize<span class="opt">)</span> <span class="kwa">by</span> numTasks <span class="kwa">do</span>
       myFreqs<span class="opt">[</span><span class="kwc">hash</span><span class="opt">(</span>data<span class="opt">,</span> i<span class="opt">,</span> nclSize<span class="opt">)] +=</span> <span class="num">1</span><span class="opt">;</span>
 
-    lock$<span class="opt">;</span>        <span class="slc">// acquire lock</span>
+    lock<span class="opt">.</span><span class="kwc">readFE</span><span class="opt">();</span>      <span class="slc">// acquire lock</span>
     <span class="kwa">for</span> <span class="opt">(</span>k<span class="opt">,</span>v<span class="opt">)</span> <span class="kwa">in</span> myFreqs<span class="opt">.</span><span class="kwc">items</span><span class="opt">()</span> <span class="kwa">do</span>
       freqs<span class="opt">[</span>k<span class="opt">] +=</span> v<span class="opt">;</span>
-    lock$ <span class="opt">=</span> <span class="kwa">true</span><span class="opt">;</span> <span class="slc">// release lock</span>
+    lock<span class="opt">.</span><span class="kwc">writeEF</span><span class="opt">(</span><span class="kwa">true</span><span class="opt">);</span> <span class="slc">// release lock</span>
   <span class="opt">}</span>
 
   <span class="kwa">return</span> freqs<span class="opt">;</span>
@@ -164,19 +164,19 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
     <pre>
 NOTES:
 64-bit Ubuntu quad core
-chpl version 1.23.0
-Copyright 2020 Hewlett Packard Enterprise Development LP
+chpl version 1.24.0
+Copyright 2020-2021 Hewlett Packard Enterprise Development LP
 Copyright (c) 2004-2019, Cray Inc.
 
 
-Fri, 23 Oct 2020 22:47:05 GMT
+Fri, 19 Mar 2021 22:44:34 GMT
 
 MAKE:
 mv knucleotide.chapel-3.chapel knucleotide.chapel-3.chpl
-/opt/src/chapel-1.23.0/bin/linux64-x86_64/chpl --target-cpu=ivybridge --fast knucleotide.chapel-3.chpl -o knucleotide.chapel-3.chapel_run
+/opt/src/chapel-1.24.0/bin/linux64-x86_64/chpl --target-cpu=ivybridge --fast knucleotide.chapel-3.chpl -o knucleotide.chapel-3.chapel_run
 rm knucleotide.chapel-3.chpl
 
-21.49s to complete and log all make actions
+21.52s to complete and log all make actions
 
 COMMAND LINE:
 ./knucleotide.chapel-3.chapel_run --n=0 &lt; knucleotide-input25000000.txt
