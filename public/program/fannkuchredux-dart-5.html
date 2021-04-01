@@ -25,12 +25,21 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="com">/* The Computer Language Benchmarks Game</span>
 <span class="com">   https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
 <span class="com"></span>
-<span class="com">   transliterated from Andrey Filatkin&apos;s Node #5 program by Isaac Gouy</span>
+<span class="com">   transliterated from Andrey Filatkin&apos;s Node #3 program by Isaac Gouy</span>
 <span class="com">*/</span>
 
 import <span class="str">&apos;dart:isolate&apos;</span><span class="opt">;</span>
 import <span class="str">&apos;dart:typed_data&apos;</span><span class="opt">;</span>
 import <span class="str">&apos;dart:math&apos;</span><span class="opt">;</span>
+
+<span class="kwb">Int</span><span class="num">32L</span>ist <span class="kwd">nFactorials</span><span class="opt">(</span><span class="kwb">int</span> n<span class="opt">) {</span>
+    <span class="kwa">final</span> fact <span class="opt">=</span> <span class="kwb">Int</span><span class="num">32L</span>ist<span class="opt">(</span>n<span class="opt">+</span><span class="num">1</span><span class="opt">);</span>
+    fact<span class="opt">[</span><span class="num">0</span><span class="opt">] =</span> <span class="num">1</span><span class="opt">;</span>
+    <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> i <span class="opt">=</span> <span class="num">1</span><span class="opt">;</span> i <span class="opt">&lt;=</span> n<span class="opt">;</span> i<span class="opt">++) {</span>
+        fact<span class="opt">[</span>i<span class="opt">] =</span> fact<span class="opt">[</span>i <span class="opt">-</span> <span class="num">1</span><span class="opt">] *</span> i<span class="opt">;</span>
+    <span class="opt">}</span>
+    <span class="kwa">return</span> fact<span class="opt">;</span>
+<span class="opt">}</span>
 
 <span class="kwa">void</span> <span class="kwd">fannkuch</span><span class="opt">(</span><span class="kwb">Request</span> r<span class="opt">) {</span>
         <span class="kwa">final</span> n <span class="opt">=</span> r<span class="opt">.</span>n<span class="opt">;</span>   
@@ -136,6 +145,10 @@ import <span class="str">&apos;dart:math&apos;</span><span class="opt">;</span>
         r<span class="opt">.</span>replyPort<span class="opt">.</span><span class="kwd">send</span><span class="opt">(</span>reply<span class="opt">);</span>        
 <span class="opt">}</span>
 
+<span class="kwb">int</span> <span class="kwd">div</span><span class="opt">(</span><span class="kwb">int</span> val<span class="opt">,</span> <span class="kwb">int</span> by<span class="opt">) {</span>
+    <span class="kwa">return</span> <span class="opt">(</span>val <span class="opt">-</span> val <span class="opt">%</span> by<span class="opt">) ~/</span> by<span class="opt">;</span>
+<span class="opt">}</span>
+
 <span class="kwa">void</span> <span class="kwd">main</span><span class="opt">(</span><span class="kwb">List</span><span class="opt">&lt;</span><span class="kwb">String</span><span class="opt">&gt;</span> args<span class="opt">) {</span>
     <span class="kwa">final</span> n <span class="opt">= (</span>args<span class="opt">.</span>length <span class="opt">&gt;</span> <span class="num">0</span><span class="opt">)</span> ? <span class="kwb">int</span><span class="opt">.</span><span class="kwd">parse</span><span class="opt">(</span>args<span class="opt">[</span><span class="num">0</span><span class="opt">]) :</span> <span class="num">7</span><span class="opt">;</span>
     <span class="kwa">final</span> fact <span class="opt">=</span> <span class="kwd">nFactorials</span><span class="opt">(</span>n<span class="opt">);</span>  
@@ -143,19 +156,18 @@ import <span class="str">&apos;dart:math&apos;</span><span class="opt">;</span>
     <span class="kwa">const</span> nchunks <span class="opt">=</span> <span class="num">4</span><span class="opt">;</span>
     <span class="kwa">var</span> chunkSize <span class="opt">=</span> <span class="kwd">div</span><span class="opt">((</span>fact<span class="opt">[</span>n<span class="opt">] +</span> nchunks <span class="opt">-</span> <span class="num">1</span><span class="opt">),</span> nchunks<span class="opt">);</span>
     chunkSize <span class="opt">+=</span> chunkSize <span class="opt">%</span> <span class="num">2</span><span class="opt">;</span>
-    <span class="kwa">final</span> len <span class="opt">=</span> <span class="kwd">div</span><span class="opt">((</span>fact<span class="opt">[</span>n<span class="opt">] +</span> chunkSize <span class="opt">-</span> <span class="num">1</span><span class="opt">),</span> chunkSize<span class="opt">);</span>    
-
-    <span class="kwb">ReceivePort</span> _replyPort <span class="opt">=</span> <span class="kwb">ReceivePort</span><span class="opt">();</span>     
-    <span class="kwa">final</span> tasks <span class="opt">= &lt;</span><span class="kwb">Request</span><span class="opt">&gt;[];</span>
-    <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">var</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> len<span class="opt">;</span> i<span class="opt">++) {</span>
+    <span class="kwa">var</span> awaited <span class="opt">=</span> <span class="kwd">div</span><span class="opt">((</span>fact<span class="opt">[</span>n<span class="opt">] +</span> chunkSize <span class="opt">-</span> <span class="num">1</span><span class="opt">),</span> chunkSize<span class="opt">);</span>
+    <span class="kwb">ReceivePort</span> _replyPort <span class="opt">=</span> <span class="kwb">ReceivePort</span><span class="opt">();</span>        
+                  
+    <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">var</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> awaited<span class="opt">;</span> i<span class="opt">++) {</span>
         <span class="kwa">final</span> idxMin <span class="opt">=</span> chunkSize <span class="opt">*</span> i<span class="opt">;</span>
         <span class="kwa">final</span> idxMax <span class="opt">=</span> <span class="kwd">min</span><span class="opt">(</span>fact<span class="opt">[</span>n<span class="opt">],</span> idxMin <span class="opt">+</span> chunkSize<span class="opt">);</span>
-        tasks<span class="opt">.</span><span class="kwd">add</span><span class="opt">(</span><span class="kwb">Request</span><span class="opt">(</span>n<span class="opt">,</span>idxMin<span class="opt">,</span>idxMax<span class="opt">,</span>fact<span class="opt">,</span>_replyPort<span class="opt">.</span>sendPort<span class="opt">));</span>     
-    <span class="opt">}</span>    
-    
-    <span class="kwa">var</span> maxFlips <span class="opt">=</span> <span class="num">0</span><span class="opt">,</span> checkSum <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>                 
-    <span class="kwa">var</span> awaited <span class="opt">=</span> tasks<span class="opt">.</span>length<span class="opt">;</span>  
-    
+        <span class="kwa">final</span> chunk <span class="opt">=</span> <span class="kwb">Request</span><span class="opt">(</span>n<span class="opt">,</span>idxMin<span class="opt">,</span>idxMax<span class="opt">,</span>fact<span class="opt">,</span>_replyPort<span class="opt">.</span>sendPort<span class="opt">);</span>     
+        <span class="kwb">Isolate</span><span class="opt">.</span><span class="kwd">spawn</span><span class="opt">(</span>fannkuch<span class="opt">,</span>chunk<span class="opt">);</span>     
+    <span class="opt">}</span>        
+        
+    <span class="kwa">var</span> checkSum <span class="opt">=</span> <span class="num">0</span><span class="opt">,</span> maxFlips <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> 
+          
     _replyPort<span class="opt">.</span><span class="kwd">listen</span><span class="opt">((</span>dynamic stuff<span class="opt">) {</span>
         <span class="kwa">final</span> reply <span class="opt">=</span> stuff as <span class="kwb">Reply</span><span class="opt">;</span>
         checkSum <span class="opt">+=</span> reply<span class="opt">.</span>sum<span class="opt">;</span> 
@@ -168,31 +180,14 @@ import <span class="str">&apos;dart:math&apos;</span><span class="opt">;</span>
             <span class="kwd">print</span><span class="opt">(</span><span class="str">&quot;$checkSum</span><span class="esc">\n</span><span class="str">Pfannkuchen($n) = $maxFlips&quot;</span><span class="opt">);</span>                   
             _replyPort<span class="opt">.</span><span class="kwd">close</span><span class="opt">();</span>          
         <span class="opt">}</span>         
-    <span class="opt">});</span>       
-    
-    <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">var</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> len<span class="opt">;</span> i<span class="opt">++) {</span>
-        <span class="kwb">Isolate</span><span class="opt">.</span><span class="kwd">spawn</span><span class="opt">(</span>fannkuch<span class="opt">,</span>tasks<span class="opt">[</span>i<span class="opt">]);</span>     
-    <span class="opt">}</span>           
-<span class="opt">}</span>
-
-<span class="kwb">Int</span><span class="num">32L</span>ist <span class="kwd">nFactorials</span><span class="opt">(</span><span class="kwb">int</span> n<span class="opt">) {</span>
-    <span class="kwa">final</span> fact <span class="opt">=</span> <span class="kwb">Int</span><span class="num">32L</span>ist<span class="opt">(</span>n<span class="opt">+</span><span class="num">1</span><span class="opt">);</span>
-    fact<span class="opt">[</span><span class="num">0</span><span class="opt">] =</span> <span class="num">1</span><span class="opt">;</span>
-    <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> i <span class="opt">=</span> <span class="num">1</span><span class="opt">;</span> i <span class="opt">&lt;=</span> n<span class="opt">;</span> i<span class="opt">++) {</span>
-        fact<span class="opt">[</span>i<span class="opt">] =</span> fact<span class="opt">[</span>i <span class="opt">-</span> <span class="num">1</span><span class="opt">] *</span> i<span class="opt">;</span>
-    <span class="opt">}</span>
-    <span class="kwa">return</span> fact<span class="opt">;</span>
-<span class="opt">}</span>
-
-<span class="kwb">int</span> <span class="kwd">div</span><span class="opt">(</span><span class="kwb">int</span> val<span class="opt">,</span> <span class="kwb">int</span> by<span class="opt">) {</span>
-    <span class="kwa">return</span> <span class="opt">(</span>val <span class="opt">-</span> val <span class="opt">%</span> by<span class="opt">) ~/</span> by<span class="opt">;</span>
+    <span class="opt">});</span>                    
 <span class="opt">}</span>
 
 <span class="kwa">class</span> <span class="kwb">Request</span> <span class="opt">{</span>
     <span class="kwb">int</span> n <span class="opt">=</span> <span class="num">0</span><span class="opt">,</span> idxMin <span class="opt">=</span> <span class="num">0</span><span class="opt">,</span> idxMax <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>   
     <span class="kwb">Int</span><span class="num">32L</span>ist fact<span class="opt">;</span>     
     <span class="kwb">SendPort</span> replyPort<span class="opt">;</span>       
-    <span class="kwb">Request</span><span class="opt">(</span><span class="kwa">this</span><span class="opt">.</span>n<span class="opt">,</span> <span class="kwa">this</span><span class="opt">.</span>idxMin<span class="opt">,</span> <span class="kwa">this</span><span class="opt">.</span>idxMax<span class="opt">,</span> <span class="kwa">this</span><span class="opt">.</span>fact<span class="opt">,</span> <span class="kwa">this</span><span class="opt">.</span>replyPort<span class="opt">);</span>
+    <span class="kwb">Request</span><span class="opt">(</span><span class="kwa">this</span><span class="opt">.</span>n<span class="opt">,</span><span class="kwa">this</span><span class="opt">.</span>idxMin<span class="opt">,</span><span class="kwa">this</span><span class="opt">.</span>idxMax<span class="opt">,</span><span class="kwa">this</span><span class="opt">.</span>fact<span class="opt">,</span><span class="kwa">this</span><span class="opt">.</span>replyPort<span class="opt">);</span>
 <span class="opt">}</span>
 
 <span class="kwa">class</span> <span class="kwb">Reply</span> <span class="opt">{</span>
@@ -211,14 +206,14 @@ NOTES:
 Dart SDK version: 2.12.0 (stable) (Thu Feb 25 19:50:53 2021 +0100) on "linux_x64"
 
 
-Wed, 31 Mar 2021 21:41:47 GMT
+Thu, 01 Apr 2021 19:31:15 GMT
 
 MAKE:
 /opt/src/dartsdk/bin/dart analyze 
 Analyzing tmp...
 No issues found!
 
-3.22s to complete and log all make actions
+4.11s to complete and log all make actions
 
 COMMAND LINE:
 /opt/src/dartsdk/bin/dart  fannkuchredux.dart-5.dart 12
