@@ -37,45 +37,66 @@ import <span class="str">&apos;dart:isolate&apos;</span><span class="opt">;</spa
     <span class="kwa">final</span> check <span class="opt">=</span> <span class="kwd">itemCheck</span><span class="opt">(</span><span class="kwd">bottomUpTree</span><span class="opt">(</span>stretchDepth<span class="opt">));</span>
     <span class="kwd">print</span><span class="opt">(</span><span class="str">&quot;stretch tree of depth $stretchDepth</span><span class="esc">\t</span> <span class="str">check: $check&quot;</span><span class="opt">);</span>    
     
-    <span class="kwa">final</span> longLivedTree <span class="opt">=</span> <span class="kwd">bottomUpTree</span><span class="opt">(</span>maxDepth<span class="opt">);</span> 
-    
-    <span class="kwb">ReceivePort</span> _replyPort <span class="opt">=</span> <span class="kwb">ReceivePort</span><span class="opt">();</span>  
-    <span class="kwa">var</span> awaited <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>  
-    <span class="kwa">var</span> replies <span class="opt">= &lt;</span><span class="kwb">Reply</span><span class="opt">&gt;[];</span> <span class="slc">// replies will not arrive in order, so cache &amp; sort</span>
-        
+    <span class="kwa">final</span> longLivedTree <span class="opt">=</span> <span class="kwd">bottomUpTree</span><span class="opt">(</span>maxDepth<span class="opt">);</span>     
+           
+    <span class="kwa">final</span> requests <span class="opt">= &lt;</span><span class="kwb">Request</span><span class="opt">&gt;[];</span>                
     <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">var</span> depth <span class="opt">=</span> <span class="num">4</span><span class="opt">;</span> depth <span class="opt">&lt;=</span> maxDepth<span class="opt">;</span> depth <span class="opt">+=</span> <span class="num">2</span><span class="opt">) {</span>
         <span class="kwa">final</span> iterations <span class="opt">=</span> <span class="num">1</span> <span class="opt">&lt;&lt;</span> maxDepth <span class="opt">-</span> depth <span class="opt">+</span> <span class="num">4</span><span class="opt">;</span>         
-        <span class="kwb">Isolate</span><span class="opt">.</span><span class="kwd">spawn</span><span class="opt">(</span>work<span class="opt">,</span><span class="kwb">Request</span><span class="opt">(</span>iterations<span class="opt">,</span>depth<span class="opt">,</span>_replyPort<span class="opt">.</span>sendPort<span class="opt">));</span>
-        awaited<span class="opt">++;</span>         
+        requests<span class="opt">.</span><span class="kwd">add</span><span class="opt">(</span><span class="kwb">Request</span><span class="opt">(</span>iterations<span class="opt">,</span>depth<span class="opt">));</span>                
     <span class="opt">}</span>
+    <span class="kwa">var</span> awaitedReplies <span class="opt">=</span> requests<span class="opt">.</span>length<span class="opt">;</span> <span class="slc">// each request should receive a reply</span>
+
+    <span class="kwb">ReceivePort</span> _replyPort <span class="opt">=</span> <span class="kwb">ReceivePort</span><span class="opt">();</span> 
+    <span class="kwa">var</span> nIsolates <span class="opt">=</span> <span class="num">4</span><span class="opt">;</span>
+    <span class="kwa">while</span> <span class="opt">(</span>nIsolates<span class="opt">-- &gt;</span> <span class="num">0</span><span class="opt">) {</span>
+        <span class="kwb">Isolate</span><span class="opt">.</span><span class="kwd">spawn</span><span class="opt">(</span>requestReply<span class="opt">,</span>_replyPort<span class="opt">.</span>sendPort<span class="opt">);</span>    
+    <span class="opt">}</span>    
     
-    _replyPort<span class="opt">.</span><span class="kwd">listen</span><span class="opt">((</span>dynamic stuff<span class="opt">) {</span>
-        replies<span class="opt">.</span><span class="kwd">add</span><span class="opt">(</span>stuff as <span class="kwb">Reply</span><span class="opt">);</span>          
-        awaited<span class="opt">--;</span>               
-        <span class="kwa">if</span> <span class="opt">(</span>awaited <span class="opt">&lt;</span> <span class="num">1</span><span class="opt">){</span>               
-            replies<span class="opt">.</span><span class="kwd">sort</span><span class="opt">((</span>a<span class="opt">,</span>b<span class="opt">) =&gt;</span> a<span class="opt">.</span>depth<span class="opt">.</span><span class="kwd">compareTo</span><span class="opt">(</span>b<span class="opt">.</span>depth<span class="opt">));</span>
-            replies<span class="opt">.</span><span class="kwd">forEach</span><span class="opt">((</span>r<span class="opt">) =&gt;</span> 
-                <span class="kwd">print</span><span class="opt">(</span><span class="str">&quot;${r.iterations}</span><span class="esc">\t</span> <span class="str">trees of depth ${r.depth}</span><span class="esc">\t</span> <span class="str">check: ${r.check}&quot;</span><span class="opt">)</span>
-            <span class="opt">);</span>                  
-            <span class="kwd">print</span><span class="opt">(</span><span class="str">&quot;long lived tree of depth $maxDepth</span><span class="esc">\t</span> <span class="str">check: ${itemCheck(longLivedTree)}&quot;</span><span class="opt">);</span>              
-            _replyPort<span class="opt">.</span><span class="kwd">close</span><span class="opt">();</span>        
-        <span class="opt">}</span>        
-    <span class="opt">});</span>                                     
+    <span class="kwa">final</span> replies <span class="opt">= &lt;</span><span class="kwb">Reply</span><span class="opt">&gt;[];</span> <span class="slc">// will not arrive in order, so cache &amp; sort</span>
+   
+    _replyPort<span class="opt">.</span><span class="kwd">listen</span><span class="opt">((</span>dynamic message<span class="opt">) {</span>
+        <span class="kwa">if</span> <span class="opt">(</span>message <span class="kwa">is</span> <span class="kwb">SendPort</span><span class="opt">) {</span>
+            <span class="kwa">if</span> <span class="opt">(</span>requests<span class="opt">.</span>length <span class="opt">&gt;</span> <span class="num">0</span><span class="opt">) {</span>          
+                message<span class="opt">.</span><span class="kwd">send</span><span class="opt">(</span>requests<span class="opt">.</span><span class="kwd">removeLast</span><span class="opt">());</span>        
+            <span class="opt">}</span>        
+        <span class="opt">}</span> <span class="kwa">else</span> <span class="opt">{</span>        
+            replies<span class="opt">.</span><span class="kwd">add</span><span class="opt">(</span>message as <span class="kwb">Reply</span><span class="opt">);</span> 
+            awaitedReplies<span class="opt">--;</span>  
+               
+            <span class="kwa">if</span> <span class="opt">(</span>awaitedReplies <span class="opt">&lt;</span> <span class="num">1</span><span class="opt">){</span>     
+                replies<span class="opt">.</span><span class="kwd">sort</span><span class="opt">((</span>a<span class="opt">,</span>b<span class="opt">) =&gt;</span> a<span class="opt">.</span>depth<span class="opt">.</span><span class="kwd">compareTo</span><span class="opt">(</span>b<span class="opt">.</span>depth<span class="opt">));</span>     
+                replies<span class="opt">.</span><span class="kwd">forEach</span><span class="opt">((</span>r<span class="opt">) =&gt;</span> 
+                    <span class="kwd">print</span><span class="opt">(</span><span class="str">&quot;${r.iterations}</span><span class="esc">\t</span> <span class="str">trees of depth ${r.depth}</span><span class="esc">\t</span> <span class="str">check: ${r.check}&quot;</span><span class="opt">)</span>
+                <span class="opt">);</span>            
+                <span class="kwd">print</span><span class="opt">(</span><span class="str">&quot;long lived tree of depth $maxDepth</span><span class="esc">\t</span> <span class="str">check: ${itemCheck(longLivedTree)}&quot;</span><span class="opt">);</span>
+                                 
+                _replyPort<span class="opt">.</span><span class="kwd">close</span><span class="opt">();</span>                                            
+            <span class="opt">}</span>                   
+        <span class="opt">}</span>
+    <span class="opt">});</span>   
 <span class="opt">}</span>
 
-<span class="kwa">void</span> <span class="kwd">work</span><span class="opt">(</span><span class="kwb">Request</span> r<span class="opt">) {</span>
-    <span class="kwa">final</span> iterations <span class="opt">=</span> r<span class="opt">.</span>iterations<span class="opt">,</span> depth <span class="opt">=</span> r<span class="opt">.</span>depth<span class="opt">;</span>
-    <span class="kwa">var</span> check <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
-    <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> iterations<span class="opt">;</span> i<span class="opt">++) {</span>
-        check <span class="opt">+=</span> <span class="kwd">itemCheck</span><span class="opt">(</span><span class="kwd">bottomUpTree</span><span class="opt">(</span>depth<span class="opt">));</span>
-    <span class="opt">}</span>
-    r<span class="opt">.</span>replyPort<span class="opt">.</span><span class="kwd">send</span><span class="opt">(</span><span class="kwb">Reply</span><span class="opt">(</span>iterations<span class="opt">,</span>depth<span class="opt">,</span>check<span class="opt">));</span>     
+<span class="kwa">void</span> <span class="kwd">requestReply</span><span class="opt">(</span><span class="kwb">SendPort</span> p<span class="opt">) {</span>
+    <span class="kwb">ReceivePort</span> _requestPort <span class="opt">=</span> <span class="kwb">ReceivePort</span><span class="opt">();</span>
+    p<span class="opt">.</span><span class="kwd">send</span><span class="opt">(</span>_requestPort<span class="opt">.</span>sendPort<span class="opt">);</span>     
+    
+    _requestPort<span class="opt">.</span><span class="kwd">listen</span><span class="opt">((</span>dynamic message<span class="opt">) {</span>
+        <span class="kwa">if</span> <span class="opt">(</span>message <span class="kwa">is</span> <span class="kwb">Request</span><span class="opt">) {</span>  
+            <span class="kwa">final</span> iterations <span class="opt">=</span> message<span class="opt">.</span>iterations<span class="opt">;</span>  
+            <span class="kwa">final</span> depth <span class="opt">=</span> message<span class="opt">.</span>depth<span class="opt">;</span>                     
+            <span class="kwa">var</span> check <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+            <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> iterations<span class="opt">;</span> i<span class="opt">++) {</span>
+                check <span class="opt">+=</span> <span class="kwd">itemCheck</span><span class="opt">(</span><span class="kwd">bottomUpTree</span><span class="opt">(</span>depth<span class="opt">));</span>
+            <span class="opt">}</span>        
+            p<span class="opt">.</span><span class="kwd">send</span><span class="opt">(</span><span class="kwb">Reply</span><span class="opt">(</span>iterations<span class="opt">,</span>depth<span class="opt">,</span>check<span class="opt">));</span>              
+            p<span class="opt">.</span><span class="kwd">send</span><span class="opt">(</span>_requestPort<span class="opt">.</span>sendPort<span class="opt">);</span> 
+        <span class="opt">}</span>              
+    <span class="opt">});</span>            
 <span class="opt">}</span>
 
 <span class="kwa">class</span> <span class="kwb">Request</span> <span class="opt">{</span>
-    <span class="kwb">int</span> iterations <span class="opt">=</span> <span class="num">0</span><span class="opt">,</span> depth <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
-    <span class="kwb">SendPort</span> replyPort<span class="opt">;</span>    
-    <span class="kwb">Request</span><span class="opt">(</span><span class="kwa">this</span><span class="opt">.</span>iterations<span class="opt">,</span><span class="kwa">this</span><span class="opt">.</span>depth<span class="opt">,</span><span class="kwa">this</span><span class="opt">.</span>replyPort<span class="opt">);</span>    
+    <span class="kwb">int</span> iterations <span class="opt">=</span> <span class="num">0</span><span class="opt">,</span> depth <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>   
+    <span class="kwb">Request</span><span class="opt">(</span><span class="kwa">this</span><span class="opt">.</span>iterations<span class="opt">,</span><span class="kwa">this</span><span class="opt">.</span>depth<span class="opt">);</span>    
 <span class="opt">}</span>
 
 <span class="kwa">class</span> <span class="kwb">Reply</span> <span class="opt">{</span>
@@ -114,7 +135,7 @@ Dart SDK version: 2.12.0 (stable) (Thu Feb 25 19:50:53 2021 +0100) on "linux_x64
 compile exe
 
 
-Thu, 01 Apr 2021 19:24:23 GMT
+Sat, 03 Apr 2021 06:33:06 GMT
 
 MAKE:
 /opt/src/dartsdk/bin/dart analyze 
@@ -125,7 +146,7 @@ No issues found!
 Info: Compiling with sound null safety
 Generated: /home/dunham/all-benchmarksgame/benchmarksgame_i53330/binarytrees/tmp/binarytrees.dartexe-6.dartexe_run
 
-6.29s to complete and log all make actions
+5.74s to complete and log all make actions
 
 COMMAND LINE:
 ./binarytrees.dartexe-6.dartexe_run 21
