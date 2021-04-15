@@ -51,10 +51,12 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
                 zr<span class="opt">,</span> zi<span class="opt">,</span> tr<span class="opt">,</span> ti <span class="opt">=</span> <span class="kwd">calc_sum</span><span class="opt">(</span>cr<span class="opt">,</span> ci<span class="opt">,</span> zr<span class="opt">,</span> zi <span class="opt">,</span> tr<span class="opt">,</span> ti<span class="opt">)</span>
             <span class="kwa">end</span>
             <span class="slc"># If all values are already &gt; 4.0, we already know no</span>
-            <span class="slc"># values will be &lt;= 4.0 at end of iterations. Reduction</span>
-            <span class="slc"># with binary &amp; is used here instead of all function to</span>
-            <span class="slc"># avoid branches caused by short-circuiting behavior.</span>
-            <span class="kwd">foldl</span><span class="opt">(&amp;,</span> <span class="kwc">&#64;ntuple</span><span class="opt">(</span><span class="num">8</span><span class="opt">,</span> k<span class="opt">-&gt;</span> tr<span class="opt">[</span>k<span class="opt">] +</span> ti<span class="opt">[</span>k<span class="opt">] &gt;</span> <span class="num">4.0</span><span class="opt">)) &amp;&amp;</span> <span class="kwa">return</span> <span class="num">0x00</span>
+            <span class="slc"># values will be &lt;= 4.0 at end of iterations.</span>
+            test <span class="opt">=</span> <span class="kwa">true</span>
+            <span class="kwa">for</span> k<span class="opt">=</span><span class="num">1</span><span class="opt">:</span><span class="num">8</span>
+                test <span class="opt">&amp;=</span> <span class="kwc">&#64;inbounds</span> tr<span class="opt">[</span>k<span class="opt">] +</span> ti<span class="opt">[</span>k<span class="opt">] &gt;</span> <span class="num">4.0</span>
+            <span class="kwa">end</span>
+            test <span class="opt">&amp;&amp;</span> <span class="kwa">return</span> <span class="num">0x00</span>
         <span class="kwa">end</span>
     <span class="kwa">else</span>
         <span class="kwa">for</span> _<span class="opt">=</span><span class="num">1</span><span class="opt">:</span><span class="num">50</span>
@@ -63,21 +65,22 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
     <span class="kwa">end</span>
 
     <span class="slc"># For each value &lt;= 4.0, the k-th bit (counting from left) is set to 1</span>
-    <span class="kwd">foldl</span><span class="opt">(|,</span> <span class="kwc">&#64;ntuple</span><span class="opt">(</span><span class="num">8</span><span class="opt">,</span> k<span class="opt">-&gt;</span> <span class="kwa">ifelse</span><span class="opt">(</span>tr<span class="opt">[</span>k<span class="opt">] +</span> ti<span class="opt">[</span>k<span class="opt">] &lt;=</span> <span class="num">4.0</span><span class="opt">,</span> <span class="num">0x80</span> <span class="opt">&gt;&gt; (</span>k <span class="opt">-</span> <span class="num">1</span><span class="opt">),</span> <span class="num">0x00</span><span class="opt">)))</span>
+    byte <span class="opt">=</span> <span class="num">0x00</span>
+    <span class="kwa">for</span> k<span class="opt">=</span><span class="num">1</span><span class="opt">:</span><span class="num">8</span>
+        byte <span class="opt">|=</span> <span class="kwc">&#64;inbounds</span> <span class="kwb">UInt8</span><span class="opt">(</span>tr<span class="opt">[</span>k<span class="opt">] +</span> ti<span class="opt">[</span>k<span class="opt">] &lt;=</span> <span class="num">4.0</span><span class="opt">) &lt;&lt; (</span><span class="num">8</span> <span class="opt">-</span> k<span class="opt">)</span>
+    <span class="kwa">end</span>
+    <span class="kwa">return</span> byte 
 <span class="kwa">end</span>
 
 <span class="slc"># Single iteration of mandelbrot calculation for vector r of real</span>
 <span class="slc"># components and vector i or imaginary components.</span>
 <span class="kwc">&#64;inline</span> <span class="kwa">function</span> <span class="kwd">calc_sum</span><span class="opt">(</span>cr<span class="opt">,</span> ci<span class="opt">,</span> zr<span class="opt">,</span> zi<span class="opt">,</span> tr<span class="opt">,</span> ti<span class="opt">)</span>
-    <span class="slc"># Using broadcasting (r2 = r .* r) generates operations on llvm</span>
-    <span class="slc"># &lt;8 x double&gt; vectors even with --cpu-target=core2 (widest simd</span>
-    <span class="slc"># register on core2 is &lt;2 x double&gt;). &#64;ntuple results in better</span>
-    <span class="slc"># codegen (uses &lt;2 x double&gt;).</span>
+    <span class="slc"># Broadcasting here results in less efficient codegen than using &#64;ntuple</span>
     zi <span class="opt">=</span> <span class="kwc">&#64;ntuple</span> <span class="num">8</span> k<span class="opt">-&gt;</span> <span class="kwd">muladd</span><span class="opt">(</span>zr<span class="opt">[</span>k<span class="opt">] +</span> zr<span class="opt">[</span>k<span class="opt">],</span> zi<span class="opt">[</span>k<span class="opt">],</span> ci<span class="opt">)</span>
     zr <span class="opt">=</span> <span class="kwc">&#64;ntuple</span> <span class="num">8</span> k<span class="opt">-&gt;</span> tr<span class="opt">[</span>k<span class="opt">] -</span> ti<span class="opt">[</span>k<span class="opt">] +</span> cr<span class="opt">[</span>k<span class="opt">]</span>
     tr <span class="opt">=</span> <span class="kwc">&#64;ntuple</span> <span class="num">8</span> k<span class="opt">-&gt;</span> zr<span class="opt">[</span>k<span class="opt">] *</span> zr<span class="opt">[</span>k<span class="opt">]</span>
     ti <span class="opt">=</span> <span class="kwc">&#64;ntuple</span> <span class="num">8</span> k<span class="opt">-&gt;</span> zi<span class="opt">[</span>k<span class="opt">] *</span> zi<span class="opt">[</span>k<span class="opt">]</span>
-    zr<span class="opt">,</span> zi<span class="opt">,</span> tr<span class="opt">,</span> ti
+    <span class="kwa">return</span> zr<span class="opt">,</span> zi<span class="opt">,</span> tr<span class="opt">,</span> ti
 <span class="kwa">end</span>
 
 <span class="slc"># Write n by n portable bitmap image of mandelbrot set to io</span>
@@ -114,9 +117,8 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
         <span class="kwa">end</span>
     <span class="kwa">end</span>
 
-    <span class="kwd">foreach</span><span class="opt">((</span><span class="str">&quot;P4</span><span class="esc">\n</span><span class="str"></span><span class="ipl">$n $n</span><span class="str"></span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span> out<span class="opt">))</span> <span class="kwa">do</span> x
-        <span class="kwd">write</span><span class="opt">(</span>io<span class="opt">,</span> x<span class="opt">)</span>
-    <span class="kwa">end</span>
+    <span class="kwd">write</span><span class="opt">(</span>io<span class="opt">,</span> <span class="str">&quot;P4</span><span class="esc">\n</span><span class="str"></span><span class="ipl">$n $n</span><span class="str"></span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">)</span>
+    <span class="kwd">write</span><span class="opt">(</span>io<span class="opt">,</span> out<span class="opt">)</span>
 <span class="kwa">end</span>
 
 <span class="kwd">isinteractive</span><span class="opt">() ||</span> <span class="kwd">mandelbrot</span><span class="opt">(</span>stdout<span class="opt">,</span> <span class="kwd">parse</span><span class="opt">(</span>Int<span class="opt">,</span> ARGS<span class="opt">[</span><span class="num">1</span><span class="opt">]))</span>
@@ -132,13 +134,11 @@ NOTES:
 julia version 1.6.0
 
 
-Thu, 25 Mar 2021 20:35:53 GMT
+Thu, 15 Apr 2021 17:24:25 GMT
 
 MAKE:
 printenv JULIA_NUM_THREADS
 4
-printenv JULIA_LLVM_ARGS
-make: [/home/dunham/all-benchmarksgame/2000-benchmarksgame/nanobench/makefiles/u64q.programs.Makefile:384: mandelbrot.julia-8.julia_run] Error 1 (ignored)
 
 0.06s to complete and log all make actions
 
