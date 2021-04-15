@@ -61,10 +61,25 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
     <span class="kwa">return</span> e<span class="opt">;</span>
 <span class="opt">}</span>
 
-<span class="kwb">void</span> <span class="kwd">advance</span><span class="opt">(</span><span class="kwb">int</span> n<span class="opt">,</span> <span class="kwb">double</span> dt<span class="opt">,</span> <span class="kwb">double</span> <span class="opt">*</span>m<span class="opt">,</span> v4pd <span class="opt">*</span>p<span class="opt">,</span> v4pd <span class="opt">*</span>v<span class="opt">) {</span>
+<span class="slc">// emulate builtin to get vsqrtpd</span>
+<span class="kwb">static</span> <span class="kwc">inline</span> v4pd <span class="kwd">sqrt_v4pd</span><span class="opt">(</span>v4pd x<span class="opt">) {</span>
+    v4pd y<span class="opt">;</span>
+    <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> <span class="num">4</span><span class="opt">;</span> i<span class="opt">++)</span>
+        y<span class="opt">[</span>i<span class="opt">] =</span> <span class="kwd">sqrt</span><span class="opt">(</span>x<span class="opt">[</span>i<span class="opt">]);</span>
+    <span class="kwa">return</span> y<span class="opt">;</span>
+<span class="opt">}</span>
+
+<span class="kwb">static void</span> <span class="kwd">advance</span><span class="opt">(</span><span class="kwb">int</span> n<span class="opt">,</span> <span class="kwb">double</span> dt<span class="opt">,</span> <span class="kwb">double</span> <span class="opt">*</span>m<span class="opt">,</span> v4pd <span class="opt">*</span>p<span class="opt">,</span> v4pd <span class="opt">*</span>v<span class="opt">) {</span>
     <span class="slc">// store intermediate values for easier vectorization</span>
+    <span class="slc">// array w needs to be aligned to v4pd otherwise it may fail if address is misaligned</span>
+    <span class="slc">// alternative is to use unaligned loads/stores which are slightly slower</span>
     v4pd r<span class="opt">[</span>N <span class="opt">* (</span>N <span class="opt">-</span> <span class="num">1</span><span class="opt">) /</span> <span class="num">2</span><span class="opt">];</span>
-    <span class="kwb">double</span> w<span class="opt">[</span>N <span class="opt">* (</span>N <span class="opt">-</span> <span class="num">1</span><span class="opt">) /</span> <span class="num">2</span><span class="opt">];</span>
+    <span class="kwb">double</span> w<span class="opt">[</span>N <span class="opt">* (</span>N <span class="opt">-</span> <span class="num">1</span><span class="opt">) /</span> <span class="num">2</span> <span class="opt">+</span> <span class="num">3</span><span class="opt">]</span> <span class="kwd">__attribute__</span><span class="opt">((</span><span class="kwd">aligned</span><span class="opt">(</span><span class="kwa">sizeof</span><span class="opt">(</span>v4pd<span class="opt">))));</span>
+
+    <span class="slc">// set overhang values to w = dt^(2/5), where dt / (w * sqrt(w)) = w</span>
+    <span class="slc">// avoid bad values for sqrt and division</span>
+    <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> k <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> k <span class="opt">&lt;</span> <span class="num">3</span><span class="opt">;</span> k<span class="opt">++)</span>
+        w<span class="opt">[</span>N <span class="opt">* (</span>N <span class="opt">-</span> <span class="num">1</span><span class="opt">) /</span> <span class="num">2</span> <span class="opt">+</span> k<span class="opt">] =</span> <span class="kwd">pow</span><span class="opt">(</span>dt<span class="opt">,</span> <span class="num">0.4</span><span class="opt">);</span>
 
     <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> s <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> s <span class="opt">&lt;</span> n<span class="opt">;</span> s<span class="opt">++) {</span>
         <span class="slc">// iterate over values already loaded in the 2nd loop</span>
@@ -78,12 +93,14 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
             w<span class="opt">[</span>k<span class="opt">] =</span> t<span class="opt">[</span><span class="num">1</span><span class="opt">] +</span> t<span class="opt">[</span><span class="num">2</span><span class="opt">] +</span> t<span class="opt">[</span><span class="num">3</span><span class="opt">];</span>
         <span class="opt">}</span>
 
-        <span class="slc">// split the top and bottom part as two loops</span>
-        <span class="slc">// for easier vectorization</span>
-
-        <span class="slc">// compute magnitude</span>
-        <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> k <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> k <span class="opt">&lt;</span> N <span class="opt">* (</span>N <span class="opt">-</span> <span class="num">1</span><span class="opt">) /</span> <span class="num">2</span><span class="opt">;</span> k<span class="opt">++)</span>
-            w<span class="opt">[</span>k<span class="opt">] =</span> dt <span class="opt">/ (</span>w<span class="opt">[</span>k<span class="opt">] *</span> <span class="kwd">sqrt</span><span class="opt">(</span>w<span class="opt">[</span>k<span class="opt">]));</span>
+        <span class="slc">// split the top and bottom part as two loops for easier vectorization</span>
+        <span class="slc">// loop already vectorized so no unrolling needed to identify it</span>
+        <span class="ppc">#pragma GCC unroll 0</span>
+        <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> k <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> k <span class="opt">&lt;</span> N <span class="opt">* (</span>N <span class="opt">-</span> <span class="num">1</span><span class="opt">) /</span> <span class="num">2</span><span class="opt">;</span> k <span class="opt">+=</span> <span class="num">4</span><span class="opt">) {</span>
+            v4pd x <span class="opt">= *(</span>v4pd<span class="opt">*)(</span>w<span class="opt">+</span>k<span class="opt">);</span>
+            x <span class="opt">=</span> dt <span class="opt">/ (</span>x <span class="opt">*</span> <span class="kwd">sqrt_v4pd</span><span class="opt">(</span>x<span class="opt">));</span>
+            <span class="opt">*(</span>v4pd<span class="opt">*)(</span>w<span class="opt">+</span>k<span class="opt">) =</span> x<span class="opt">;</span>
+        <span class="opt">}</span>
 
         <span class="slc">// update velocities</span>
         <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> i <span class="opt">=</span> <span class="num">1</span><span class="opt">,</span> k <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> N<span class="opt">;</span> i<span class="opt">++)</span>
@@ -161,13 +178,17 @@ NOTES:
 Ubuntu clang version 11.0.0-2
 
 
-Thu, 08 Apr 2021 22:53:20 GMT
+Wed, 14 Apr 2021 21:09:36 GMT
 
 MAKE:
 /usr/bin/clang -pipe -Wall -O3 -fomit-frame-pointer -march=ivybridge -fno-math-errno nbody.clang-9.c -o nbody.clang-9.clang_run -lm
+nbody.clang-9.c:74:21: warning: unknown pragma ignored [-Wunknown-pragmas]
+        #pragma GCC unroll 0
+                    ^
+1 warning generated.
 rm nbody.clang-9.c
 
-3.42s to complete and log all make actions
+3.55s to complete and log all make actions
 
 COMMAND LINE:
 ./nbody.clang-9.clang_run 50000000
