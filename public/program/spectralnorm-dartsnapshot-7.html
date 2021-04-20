@@ -27,6 +27,7 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="com"></span>
 <span class="com">   contributed by Isaac Gouy</span>
 <span class="com">   (start end ranges from Andrey Filatkin&apos;s JavaScript #6 program)</span>
+<span class="com">   TransferableTypedData</span>
 <span class="com">*/</span>
 
 import <span class="str">&apos;dart:math&apos;</span><span class="opt">;</span>
@@ -103,8 +104,8 @@ import <span class="str">&apos;dart:io&apos;</span><span class="opt">;</span>
 <span class="kwa">final</span> completers <span class="opt">= &lt;</span><span class="kwb">Completer</span><span class="opt">&gt;[];</span>
 <span class="kwa">final</span> ports <span class="opt">= &lt;</span><span class="kwb">SendPort</span><span class="opt">&gt;[];</span>
 <span class="kwb">ReceivePort</span> mainIsolate <span class="opt">=</span> <span class="kwb">ReceivePort</span><span class="opt">();</span>
-<span class="kwa">final</span> zeroList <span class="opt">=</span> <span class="kwb">TransferableTypedData</span><span class="opt">.</span><span class="kwd">fromList</span><span class="opt">([</span><span class="kwa">new</span> <span class="kwb">Float</span><span class="num">64L</span>ist<span class="opt">(</span><span class="num">0</span><span class="opt">)]);</span>
 <span class="kwb">Float</span><span class="num">64L</span>ist wOutReference <span class="opt">=</span> <span class="kwa">new</span> <span class="kwb">Float</span><span class="num">64L</span>ist<span class="opt">(</span><span class="num">0</span><span class="opt">);</span>
+<span class="kwa">final</span> zeroList <span class="opt">=</span> <span class="kwb">TransferableTypedData</span><span class="opt">.</span><span class="kwd">fromList</span><span class="opt">([</span>wOutReference<span class="opt">]);</span>
 
 <span class="kwa">void</span> <span class="kwd">main</span><span class="opt">(</span><span class="kwb">List</span><span class="opt">&lt;</span><span class="kwb">String</span><span class="opt">&gt;</span> args<span class="opt">)</span> async <span class="opt">{</span>
   <span class="kwa">final</span> n <span class="opt">= (</span>args<span class="opt">.</span>length <span class="opt">&gt;</span> <span class="num">0</span><span class="opt">)</span> ? <span class="kwb">int</span><span class="opt">.</span><span class="kwd">parse</span><span class="opt">(</span>args<span class="opt">[</span><span class="num">0</span><span class="opt">]) :</span> <span class="num">100</span><span class="opt">;</span>
@@ -161,13 +162,14 @@ import <span class="str">&apos;dart:io&apos;</span><span class="opt">;</span>
   requestPort<span class="opt">.</span><span class="kwd">listen</span><span class="opt">((</span>dynamic m<span class="opt">) {</span>
     <span class="slc">// update data and send the same message back</span>
     <span class="kwa">if</span> <span class="opt">(</span>m <span class="kwa">is</span> <span class="kwb">Message</span><span class="opt">) {</span>
+      <span class="kwa">final</span> data <span class="opt">=</span> m<span class="opt">.</span>data<span class="opt">.</span><span class="kwd">materialize</span><span class="opt">().</span><span class="kwd">asFloat64List</span><span class="opt">();</span>
+      <span class="kwb">Float</span><span class="num">64L</span>ist partialResult<span class="opt">;</span>
       <span class="kwa">if</span> <span class="opt">(</span>m<span class="opt">.</span>shouldTranspose<span class="opt">) {</span>
-        m<span class="opt">.</span>data <span class="opt">=</span> <span class="kwb">TransferableTypedData</span><span class="opt">.</span><span class="kwd">fromList</span><span class="opt">(</span>
-            <span class="opt">[</span><span class="kwd">atuFromTo</span><span class="opt">(</span>m<span class="opt">.</span>start<span class="opt">,</span> m<span class="opt">.</span>end<span class="opt">,</span> m<span class="opt">.</span>data<span class="opt">.</span><span class="kwd">materialize</span><span class="opt">().</span><span class="kwd">asFloat64List</span><span class="opt">())]);</span>
+        partialResult <span class="opt">=</span> <span class="kwd">atuFromTo</span><span class="opt">(</span>m<span class="opt">.</span>start<span class="opt">,</span> m<span class="opt">.</span>end<span class="opt">,</span> data<span class="opt">);</span>
       <span class="opt">}</span> <span class="kwa">else</span> <span class="opt">{</span>
-        m<span class="opt">.</span>data <span class="opt">=</span> <span class="kwb">TransferableTypedData</span><span class="opt">.</span><span class="kwd">fromList</span><span class="opt">(</span>
-            <span class="opt">[</span><span class="kwd">auFromTo</span><span class="opt">(</span>m<span class="opt">.</span>start<span class="opt">,</span> m<span class="opt">.</span>end<span class="opt">,</span> m<span class="opt">.</span>data<span class="opt">.</span><span class="kwd">materialize</span><span class="opt">().</span><span class="kwd">asFloat64List</span><span class="opt">())]);</span>
+        partialResult <span class="opt">=</span> <span class="kwd">auFromTo</span><span class="opt">(</span>m<span class="opt">.</span>start<span class="opt">,</span> m<span class="opt">.</span>end<span class="opt">,</span> data<span class="opt">);</span>
       <span class="opt">}</span>
+      m<span class="opt">.</span>data <span class="opt">=</span> <span class="kwb">TransferableTypedData</span><span class="opt">.</span><span class="kwd">fromList</span><span class="opt">([</span>partialResult<span class="opt">]);</span>
       m<span class="opt">.</span>replyTo<span class="opt">.</span><span class="kwd">send</span><span class="opt">(</span>m<span class="opt">);</span>
     <span class="opt">}</span>
   <span class="opt">});</span>
@@ -211,7 +213,7 @@ Dart SDK version: 2.12.0 (stable) (Thu Feb 25 19:50:53 2021 +0100) on "linux_x64
 compile jit-snapshot
 
 
-Mon, 19 Apr 2021 02:14:00 GMT
+Tue, 20 Apr 2021 20:24:03 GMT
 
 MAKE:
 /opt/src/dartsdk/bin/dart analyze 
@@ -222,7 +224,7 @@ No issues found!
 Info: Compiling with sound null safety
 1.274219991
 
-3.60s to complete and log all make actions
+5.70s to complete and log all make actions
 
 COMMAND LINE:
 /opt/src/dartsdk/bin/dart run  spectralnorm.dartsnapshot-7.jit 5500

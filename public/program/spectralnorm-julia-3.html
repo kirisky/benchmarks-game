@@ -22,39 +22,32 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
       <h2>source code</h2>
     </div>
     <pre>
-<span class="slc"># The Computer Language Benchmarks Game</span>
-<span class="slc"># https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
-<span class="slc"># contributed by Adam Beckmeyer</span>
+<span class="com">#=</span>
+<span class="com">The Computer Language Benchmarks Game</span>
+<span class="com">https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="com">contributed by Adam Beckmeyer</span>
+<span class="com">=#</span>
 
 <span class="kwa">using</span> Printf
 
-<span class="kwa">const</span> V <span class="opt">=</span> VecElement
-<span class="kwa">const</span> m128d <span class="opt">=</span> NTuple<span class="opt">{</span><span class="num">2</span><span class="opt">,</span>V<span class="opt">{</span><span class="kwb">Float64</span><span class="opt">}}</span>
-
-<span class="slc"># Use llvmcall to force SIMD vectorization of </span>
-<span class="slc"># packed double addition and division</span>
-Base<span class="opt">.:+(</span>a<span class="opt">::</span>m128d<span class="opt">,</span> b<span class="opt">::</span>m128d<span class="opt">) =</span>
-    Base<span class="opt">.</span><span class="kwd">llvmcall</span><span class="opt">(</span><span class="str">&quot;&quot;&quot;</span>
-<span class="str"></span>        <span class="ipl">%res</span> <span class="str">= fadd &lt;2 x double&gt;</span> <span class="ipl">%0</span><span class="str">,</span> <span class="ipl">%1</span>
-<span class="str">        ret &lt;2 x double&gt;</span> <span class="ipl">%res</span>
-<span class="str">    &quot;&quot;&quot;</span><span class="opt">,</span> m128d<span class="opt">,</span> Tuple<span class="opt">{</span>m128d<span class="opt">,</span> m128d<span class="opt">},</span> a<span class="opt">,</span> b<span class="opt">)</span>
-Base<span class="opt">.:/(</span>a<span class="opt">::</span>m128d<span class="opt">,</span> b<span class="opt">::</span>m128d<span class="opt">) =</span>
-    Base<span class="opt">.</span><span class="kwd">llvmcall</span><span class="opt">(</span><span class="str">&quot;&quot;&quot;</span>
-<span class="str"></span>        <span class="ipl">%res</span> <span class="str">= fdiv &lt;2 x double&gt;</span> <span class="ipl">%0</span><span class="str">,</span> <span class="ipl">%1</span>
-<span class="str">        ret &lt;2 x double&gt;</span> <span class="ipl">%res</span>
-<span class="str">    &quot;&quot;&quot;</span><span class="opt">,</span> m128d<span class="opt">,</span> Tuple<span class="opt">{</span>m128d<span class="opt">,</span> m128d<span class="opt">},</span> a<span class="opt">,</span> b<span class="opt">)</span>
-
-<span class="kwd">A</span><span class="opt">(</span>i<span class="opt">,</span> j<span class="opt">) = (</span>i <span class="opt">+</span> j<span class="opt">) * (</span>i <span class="opt">+</span> j <span class="opt">+</span> <span class="num">1</span><span class="opt">) /</span> <span class="num">2</span> <span class="opt">+</span> i <span class="opt">+</span> <span class="num">1</span>
+<span class="kwd">A</span><span class="opt">(</span>i<span class="opt">,</span> j<span class="opt">) = (</span>i <span class="opt">+</span> j <span class="opt">-</span> <span class="num">2</span><span class="opt">) * (</span>i <span class="opt">+</span> j <span class="opt">-</span> <span class="num">1</span><span class="opt">) /</span> <span class="num">2</span> <span class="opt">+</span> i
 <span class="kwd">At</span><span class="opt">(</span>i<span class="opt">,</span> j<span class="opt">) =</span> <span class="kwd">A</span><span class="opt">(</span>j<span class="opt">,</span> i<span class="opt">)</span>
 
 <span class="kwa">function</span> <span class="kwd">Av</span><span class="opt">!(</span>f<span class="opt">,</span> v<span class="opt">,</span> out<span class="opt">)</span>
     n <span class="opt">=</span> <span class="kwd">length</span><span class="opt">(</span>v<span class="opt">)</span>
-    Threads<span class="opt">.</span><span class="kwc">&#64;threads</span> <span class="kwa">for</span> i<span class="opt">=</span><span class="num">1</span><span class="opt">:</span>n
-        x <span class="opt">= (</span><span class="kwd">V</span><span class="opt">(</span><span class="num">0.0</span><span class="opt">),</span> <span class="kwd">V</span><span class="opt">(</span><span class="num">0.0</span><span class="opt">))</span>
-        <span class="kwc">&#64;inbounds</span> <span class="kwa">for</span> j<span class="opt">=</span><span class="num">1</span><span class="opt">:</span><span class="num">2</span><span class="opt">:</span>n
-            x <span class="opt">+=</span> <span class="kwc">&#64;inbounds</span> <span class="opt">(</span><span class="kwd">V</span><span class="opt">(</span>v<span class="opt">[</span>j<span class="opt">]),</span> <span class="kwd">V</span><span class="opt">(</span>v<span class="opt">[</span>j<span class="opt">+</span><span class="num">1</span><span class="opt">])) / (</span><span class="kwd">V</span><span class="opt">(</span><span class="kwd">f</span><span class="opt">(</span>i<span class="opt">-</span><span class="num">1</span><span class="opt">,</span> j<span class="opt">-</span><span class="num">1</span><span class="opt">)),</span> <span class="kwd">V</span><span class="opt">(</span><span class="kwd">f</span><span class="opt">(</span>i<span class="opt">-</span><span class="num">1</span><span class="opt">,</span> j<span class="opt">)))</span>
+    <span class="slc"># Threads.&#64;threads has lower overhead than Threads.&#64;spawn</span>
+    Threads<span class="opt">.</span><span class="kwc">&#64;threads</span> <span class="opt">:</span>static <span class="kwa">for</span> i<span class="opt">=</span><span class="num">1</span><span class="opt">:</span>n
+        x1 <span class="opt">=</span> x2 <span class="opt">=</span> <span class="num">0.0</span>
+        <span class="slc"># If we used the &#64;simd macro instead of manually iterating by 2s, the compiler would</span>
+        <span class="slc"># emit instructions using the ymm registers instead of xmm which appears to be</span>
+        <span class="slc"># slower on ivybridge cpus</span>
+        <span class="kwa">for</span> j<span class="opt">=</span><span class="num">1</span><span class="opt">:</span><span class="num">2</span><span class="opt">:</span>n
+            <span class="slc"># Manually convert indices to Float64 so that arithmetic in function f can be</span>
+            <span class="slc"># carried out using vectorized  floating point arithmetic</span>
+            x1 <span class="opt">+=</span> <span class="kwc">&#64;inbounds</span> v<span class="opt">[</span>j<span class="opt">] /</span> <span class="kwd">f</span><span class="opt">(</span><span class="kwb">Float64</span><span class="opt">(</span>i<span class="opt">),</span> <span class="kwb">Float64</span><span class="opt">(</span>j<span class="opt">))</span>
+            x2 <span class="opt">+=</span> <span class="kwc">&#64;inbounds</span> v<span class="opt">[</span>j<span class="opt">+</span><span class="num">1</span><span class="opt">] /</span> <span class="kwd">f</span><span class="opt">(</span><span class="kwb">Float64</span><span class="opt">(</span>i<span class="opt">),</span> <span class="kwb">Float64</span><span class="opt">(</span>j<span class="opt">+</span><span class="num">1</span><span class="opt">))</span>
         <span class="kwa">end</span>
-        <span class="kwc">&#64;inbounds</span> out<span class="opt">[</span>i<span class="opt">] =</span> x<span class="opt">[</span><span class="num">1</span><span class="opt">].</span>value <span class="opt">+</span> x<span class="opt">[</span><span class="num">2</span><span class="opt">].</span>value
+        <span class="kwc">&#64;inbounds</span> out<span class="opt">[</span>i<span class="opt">] =</span> x1 <span class="opt">+</span> x2
     <span class="kwa">end</span>
 <span class="kwa">end</span>
 
@@ -82,7 +75,7 @@ Base<span class="opt">.:/(</span>a<span class="opt">::</span>m128d<span class="o
     <span class="kwd">sqrt</span><span class="opt">(</span>uv <span class="opt">/</span> vv<span class="opt">)</span>
 <span class="kwa">end</span>
 
-<span class="kwd">isinteractive</span><span class="opt">() ||</span> <span class="kwc">&#64;printf</span><span class="opt">(</span><span class="str">&quot;%.9f</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span> <span class="kwd">main</span><span class="opt">(</span><span class="kwd">parse</span><span class="opt">(</span>Int<span class="opt">,</span> ARGS<span class="opt">[</span><span class="num">1</span><span class="opt">])))</span>
+<span class="kwd">isinteractive</span><span class="opt">() ||</span> <span class="kwc">&#64;printf</span><span class="opt">(</span><span class="str">&quot;</span><span class="ipl">%9f</span><span class="str"></span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span> <span class="kwd">main</span><span class="opt">(</span><span class="kwd">parse</span><span class="opt">(</span>Int<span class="opt">,</span> ARGS<span class="opt">[</span><span class="num">1</span><span class="opt">])))</span>
     </pre>
   </section>
   <section>
@@ -95,21 +88,26 @@ NOTES:
 julia version 1.6.0
 
 
-Thu, 25 Mar 2021 20:49:15 GMT
+Tue, 20 Apr 2021 23:04:33 GMT
 
 MAKE:
 printenv JULIA_NUM_THREADS
 4
-printenv JULIA_LLVM_ARGS
-make: [/home/dunham/all-benchmarksgame/2000-benchmarksgame/nanobench/makefiles/u64q.programs.Makefile:384: spectralnorm.julia-3.julia_run] Error 1 (ignored)
 
-0.07s to complete and log all make actions
+0.08s to complete and log all make actions
 
 COMMAND LINE:
-/opt/src/julia-1.6.0/bin/julia -O3 --cpu-target=ivybridge  -- spectralnorm.julia-3.julia 5500
+/opt/src/julia-1.6.0/bin/julia -O3 --cpu-target=ivybridge  -- spectralnorm.julia-3.julia 500
+
+UNEXPECTED OUTPUT 
+
+1c1
+&lt;  1.274224
+---
+&gt; 1.274224116
 
 PROGRAM OUTPUT:
-1.274224153
+ 1.274224
     </pre>
   </section>
 </article>
