@@ -31,31 +31,31 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 import <span class="str">&apos;dart:io&apos;</span><span class="opt">;</span>
 import <span class="str">&apos;dart:isolate&apos;</span><span class="opt">;</span>
 
-<span class="kwa">void</span> <span class="kwd">main</span><span class="opt">()</span> async <span class="opt">{</span> 
+<span class="kwa">void</span> <span class="kwd">main</span><span class="opt">() {</span>
+  <span class="kwb">ReceivePort</span> replyPort <span class="opt">=</span> <span class="kwb">ReceivePort</span><span class="opt">();</span>
+  <span class="kwb">Isolate</span><span class="opt">.</span><span class="kwd">spawn</span><span class="opt">(</span>requestReply<span class="opt">,</span> replyPort<span class="opt">.</span>sendPort<span class="opt">);</span>
+  late <span class="kwb">SendPort</span> requestPort<span class="opt">;</span>
+  <span class="kwa">var</span> initial <span class="opt">=</span> <span class="num">0</span><span class="opt">,</span> cleaned <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+
+  replyPort<span class="opt">.</span><span class="kwd">listen</span><span class="opt">((</span>dynamic message<span class="opt">) {</span>
+    <span class="kwa">if</span> <span class="opt">(</span>message <span class="kwa">is</span> <span class="kwb">SendPort</span><span class="opt">) {</span>
+      requestPort <span class="opt">=</span> message<span class="opt">;</span>
+    <span class="opt">}</span> <span class="kwa">else</span> <span class="opt">{</span>
+      <span class="kwd">print</span><span class="opt">(</span><span class="str">&apos;</span><span class="esc">\n</span><span class="str">$initial</span><span class="esc">\n</span><span class="str">$cleaned</span><span class="esc">\n</span><span class="str">${message as int}&apos;</span><span class="opt">);</span>
+      replyPort<span class="opt">.</span><span class="kwd">close</span><span class="opt">();</span>
+    <span class="opt">}</span>
+  <span class="opt">});</span>
+
   <span class="kwb">File</span><span class="opt">(</span><span class="str">&apos;/dev/stdin&apos;</span><span class="opt">).</span><span class="kwd">readAsString</span><span class="opt">().</span><span class="kwd">then</span><span class="opt">((</span><span class="kwb">String</span> s<span class="opt">) {</span>
-    <span class="kwa">var</span> data <span class="opt">=</span> s<span class="opt">;</span>
-    <span class="kwa">final</span> initial <span class="opt">=</span> data<span class="opt">.</span>length<span class="opt">;</span>  
-
-    data <span class="opt">=</span> data<span class="opt">.</span><span class="kwd">replaceAll</span><span class="opt">(</span><span class="kwb">RegExp</span><span class="opt">(</span><span class="str">&apos;&gt;.*</span><span class="esc">\n</span><span class="str">|</span><span class="esc">\n</span><span class="str">&apos;</span><span class="opt">,</span> multiLine<span class="opt">:</span> <span class="kwa">true</span><span class="opt">),</span> <span class="str">&apos;&apos;</span><span class="opt">);</span>
-    <span class="kwa">final</span> cleaned <span class="opt">=</span> data<span class="opt">.</span>length<span class="opt">;</span>
-
-    <span class="kwb">ReceivePort</span> replyPort <span class="opt">=</span> <span class="kwb">ReceivePort</span><span class="opt">();</span>
-    <span class="kwb">Isolate</span><span class="opt">.</span><span class="kwd">spawn</span><span class="opt">(</span>requestReply<span class="opt">,</span> replyPort<span class="opt">.</span>sendPort<span class="opt">);</span>
-
-    replyPort<span class="opt">.</span><span class="kwd">listen</span><span class="opt">((</span>dynamic message<span class="opt">) {</span>
-      <span class="kwa">if</span> <span class="opt">(</span>message <span class="kwa">is</span> <span class="kwb">SendPort</span><span class="opt">) {</span>
-        message<span class="opt">.</span><span class="kwd">send</span><span class="opt">(</span>data<span class="opt">);</span>
-      <span class="opt">}</span> <span class="kwa">else</span> <span class="opt">{</span>
-        <span class="kwd">print</span><span class="opt">(</span><span class="str">&apos;</span><span class="esc">\n</span><span class="str">$initial</span><span class="esc">\n</span><span class="str">$cleaned</span><span class="esc">\n</span><span class="str">${message as int}&apos;</span><span class="opt">);</span>
-        replyPort<span class="opt">.</span><span class="kwd">close</span><span class="opt">();</span> 
-      <span class="opt">}</span>
-    <span class="opt">});</span>
-
-    <span class="kwd">printPatternMatches</span><span class="opt">(</span>data<span class="opt">);</span> 
+    <span class="kwa">final</span> z <span class="opt">= (</span>s<span class="opt">.</span><span class="kwd">replaceAll</span><span class="opt">(</span><span class="kwb">RegExp</span><span class="opt">(</span><span class="str">&apos;&gt;.*</span><span class="esc">\n</span><span class="str">|</span><span class="esc">\n</span><span class="str">&apos;</span><span class="opt">,</span> multiLine<span class="opt">:</span> <span class="kwa">true</span><span class="opt">),</span> <span class="str">&apos;&apos;</span><span class="opt">));</span>
+    requestPort<span class="opt">.</span><span class="kwd">send</span><span class="opt">(</span>z<span class="opt">);</span>
+    <span class="kwd">printPatternMatches</span><span class="opt">(</span>z<span class="opt">);</span>
+    initial <span class="opt">=</span> s<span class="opt">.</span>length<span class="opt">;</span>
+    cleaned <span class="opt">=</span> z<span class="opt">.</span>length<span class="opt">;</span>
   <span class="opt">});</span>
 <span class="opt">}</span>
 
-<span class="kwa">void</span> <span class="kwd">printPatternMatches</span><span class="opt">(</span><span class="kwb">String</span> data<span class="opt">)</span> async <span class="opt">{</span>
+<span class="kwa">void</span> <span class="kwd">printPatternMatches</span><span class="opt">(</span><span class="kwb">String</span> s<span class="opt">) {</span>
   <span class="kwa">const</span> simple <span class="opt">= [</span>
     <span class="str">&apos;agggtaaa|tttaccct&apos;</span><span class="opt">,</span>
     <span class="str">&apos;[cgt]gggtaaa|tttaccc[acg]&apos;</span><span class="opt">,</span>
@@ -70,11 +70,11 @@ import <span class="str">&apos;dart:isolate&apos;</span><span class="opt">;</spa
 
   simple<span class="opt">.</span><span class="kwd">forEach</span><span class="opt">((</span>each<span class="opt">) {</span>
     <span class="kwa">final</span> regex <span class="opt">=</span> <span class="kwb">RegExp</span><span class="opt">(</span>each<span class="opt">,</span> multiLine<span class="opt">:</span> <span class="kwa">true</span><span class="opt">);</span>
-    <span class="kwd">print</span><span class="opt">(</span><span class="str">&apos;$each ${regex.allMatches(data).length}&apos;</span><span class="opt">);</span>
+    <span class="kwd">print</span><span class="opt">(</span><span class="str">&apos;$each ${regex.allMatches(s).length}&apos;</span><span class="opt">);</span>
   <span class="opt">});</span>
 <span class="opt">}</span>
 
-<span class="kwb">int</span> <span class="kwd">magic</span><span class="opt">(</span><span class="kwb">String</span> data<span class="opt">) {</span>
+<span class="kwb">int</span> <span class="kwd">magic</span><span class="opt">(</span><span class="kwb">String</span> s<span class="opt">) {</span>
   <span class="kwa">const</span> magic <span class="opt">= [</span>
     <span class="opt">[</span><span class="str">&apos;tHa[Nt]&apos;</span><span class="opt">,</span> <span class="str">&apos;&lt;4&gt;&apos;</span><span class="opt">],</span>
     <span class="opt">[</span><span class="str">&apos;aND|caN|Ha[DS]|WaS&apos;</span><span class="opt">,</span> <span class="str">&apos;&lt;3&gt;&apos;</span><span class="opt">],</span>
@@ -85,16 +85,16 @@ import <span class="str">&apos;dart:isolate&apos;</span><span class="opt">;</spa
 
   magic<span class="opt">.</span><span class="kwd">forEach</span><span class="opt">((</span>each<span class="opt">) {</span>
     <span class="kwa">final</span> regex <span class="opt">=</span> <span class="kwb">RegExp</span><span class="opt">(</span>each<span class="opt">.</span>first<span class="opt">,</span> multiLine<span class="opt">:</span> <span class="kwa">true</span><span class="opt">);</span>
-    data <span class="opt">=</span> data<span class="opt">.</span><span class="kwd">replaceAll</span><span class="opt">(</span>regex<span class="opt">,</span> each<span class="opt">.</span>last<span class="opt">);</span>
+    s <span class="opt">=</span> s<span class="opt">.</span><span class="kwd">replaceAll</span><span class="opt">(</span>regex<span class="opt">,</span> each<span class="opt">.</span>last<span class="opt">);</span>
   <span class="opt">});</span>
-  <span class="kwa">return</span> data<span class="opt">.</span>length<span class="opt">;</span>
+  <span class="kwa">return</span> s<span class="opt">.</span>length<span class="opt">;</span>
 <span class="opt">}</span>
 
 <span class="kwa">void</span> <span class="kwd">requestReply</span><span class="opt">(</span><span class="kwb">SendPort</span> p<span class="opt">) {</span>
   <span class="kwb">ReceivePort</span> requestPort <span class="opt">=</span> <span class="kwb">ReceivePort</span><span class="opt">();</span>
   p<span class="opt">.</span><span class="kwd">send</span><span class="opt">(</span>requestPort<span class="opt">.</span>sendPort<span class="opt">);</span>
-  requestPort<span class="opt">.</span><span class="kwd">listen</span><span class="opt">((</span>dynamic s<span class="opt">) {</span> 
-    <span class="kwa">if</span> <span class="opt">(</span>s <span class="kwa">is</span> <span class="kwb">String</span><span class="opt">) {</span> 
+  requestPort<span class="opt">.</span><span class="kwd">listen</span><span class="opt">((</span>dynamic s<span class="opt">) {</span>
+    <span class="kwa">if</span> <span class="opt">(</span>s <span class="kwa">is</span> <span class="kwb">String</span><span class="opt">) {</span>
       p<span class="opt">.</span><span class="kwd">send</span><span class="opt">(</span><span class="kwd">magic</span><span class="opt">(</span>s<span class="opt">));</span>
     <span class="opt">}</span>
   <span class="opt">});</span>
@@ -112,7 +112,7 @@ Dart SDK version: 2.12.0 (stable) (Thu Feb 25 19:50:53 2021 +0100) on "linux_x64
 compile exe
 
 
-Thu, 22 Apr 2021 18:19:08 GMT
+Thu, 22 Apr 2021 20:27:50 GMT
 
 MAKE:
 /opt/src/dartsdk/bin/dart analyze 
@@ -123,7 +123,7 @@ No issues found!
 Info: Compiling with sound null safety
 Generated: /home/dunham/all-benchmarksgame/benchmarksgame_i53330/regexredux/tmp/regexredux.dartexe-5.dartexe_run
 
-6.20s to complete and log all make actions
+5.40s to complete and log all make actions
 
 COMMAND LINE:
 ./regexredux.dartexe-5.dartexe_run 0 &lt; regexredux-input5000000.txt
