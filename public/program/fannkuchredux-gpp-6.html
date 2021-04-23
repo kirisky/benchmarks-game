@@ -25,7 +25,7 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="slc">// The Computer Language Benchmarks Game</span>
 <span class="slc">// https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
 <span class="slc">//</span>
-<span class="slc">// Contributed by Andrei Simion</span>
+<span class="slc">// Contributed by Andrei Simion (with patch from Vincent Yu)</span>
 <span class="slc">// Based on &quot;fannkuch-redux C++ g++ #5&quot;, contributed by Dave Compton,</span>
 <span class="slc">// which in turn was based on the C program by Jeremy Zerfasm</span>
 <span class="slc">// which in turn was based on the Ada program by Jonathan Parker and </span>
@@ -98,7 +98,7 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="opt">}</span> 
 
 <span class="kwc">std</span><span class="opt">::</span>array<span class="opt">&lt;</span><span class="kwb">int</span><span class="opt">,</span> <span class="num">2</span><span class="opt">&gt;</span> <span class="kwd">get_blocks_and_size</span><span class="opt">(</span>small_int_t n<span class="opt">,</span> 
-                                       <span class="kwc">std</span><span class="opt">::</span>array<span class="opt">&lt;</span><span class="kwb">int64_t</span><span class="opt">,</span> max_n<span class="opt">&gt;&amp;</span> factorials<span class="opt">)</span>
+                                       <span class="kwc">std</span><span class="opt">::</span>array<span class="opt">&lt;</span>big_int_t<span class="opt">,</span> max_n<span class="opt">&gt;&amp;</span> factorials<span class="opt">)</span>
 <span class="opt">{</span>
     <span class="kwb">int</span> blocks <span class="opt">=</span> max_blocks<span class="opt">;</span>
     <span class="kwa">if</span> <span class="opt">(</span>blocks <span class="opt">&gt;</span> factorials<span class="opt">[</span>n<span class="opt">])</span>
@@ -109,7 +109,7 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="opt">}</span>
 
 <span class="kwc">std</span><span class="opt">::</span>array<span class="opt">&lt;</span>big_int_t<span class="opt">,</span> max_n<span class="opt">&gt;</span> <span class="kwd">create_count</span><span class="opt">(</span>small_int_t n<span class="opt">,</span> big_int_t start<span class="opt">,</span>
-                                          <span class="kwc">std</span><span class="opt">::</span>array<span class="opt">&lt;</span><span class="kwb">int64_t</span><span class="opt">,</span> max_n<span class="opt">&gt;&amp;</span> factorials<span class="opt">)</span>
+                                          <span class="kwc">std</span><span class="opt">::</span>array<span class="opt">&lt;</span>big_int_t<span class="opt">,</span> max_n<span class="opt">&gt;&amp;</span> factorials<span class="opt">)</span>
 <span class="opt">{</span>
     <span class="kwc">std</span><span class="opt">::</span>array<span class="opt">&lt;</span>big_int_t<span class="opt">,</span> max_n<span class="opt">&gt;</span> count<span class="opt">;</span>
    
@@ -169,7 +169,7 @@ __m128i <span class="kwd">create_current</span><span class="opt">(</span>small_i
     small_int_t max_flips <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
     big_int_t checksum  <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
 
-    <span class="slc">// Iterate over each block.</span>
+    <span class="slc">// iterate over each block.</span>
     <span class="ppc">#pragma omp parallel for \</span>
 <span class="ppc">        reduction(max:max_flips) \</span>
 <span class="ppc">        reduction(+:checksum)</span>
@@ -186,7 +186,7 @@ __m128i <span class="kwd">create_current</span><span class="opt">(</span>small_i
 
         small_int_t first <span class="opt">=</span> <span class="kwd">_mm_extract_epi8</span><span class="opt">(</span>current<span class="opt">,</span> <span class="num">0</span><span class="opt">);</span>
 
-        <span class="slc">// Iterate over each permutation in the block.</span>
+        <span class="slc">// iterate over each permutation in the block.</span>
         big_int_t crt_idx <span class="opt">=</span> block_start<span class="opt">;</span>
         big_int_t block_end <span class="opt">=</span> block_start <span class="opt">+</span> block_size<span class="opt">;</span>
 	
@@ -194,15 +194,17 @@ __m128i <span class="kwd">create_current</span><span class="opt">(</span>small_i
         <span class="opt">{</span> 
             <span class="kwa">if</span> <span class="opt">(</span>first <span class="opt">&gt;</span> <span class="num">0</span><span class="opt">)</span>
             <span class="opt">{</span>   
-		small_int_t flips <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+                small_int_t flips <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
                 <span class="kwa">while</span> <span class="opt">(</span>first <span class="opt">!=</span> <span class="num">0</span><span class="opt">)</span> 
                 <span class="opt">{</span>
+                    <span class="slc">// patch from Vincent Yu</span>
+                    <span class="kwc">auto</span> next <span class="opt">=</span> <span class="kwa">reinterpret_cast</span><span class="opt">&lt;</span><span class="kwb">char</span><span class="opt">(&amp;)[</span><span class="num">16</span><span class="opt">]&gt;(</span>current<span class="opt">)[</span>first<span class="opt">];</span>
                     current <span class="opt">=</span> <span class="kwd">reverse</span><span class="opt">(</span>current<span class="opt">,</span> first<span class="opt">,</span> masks<span class="opt">);</span>
-                    first <span class="opt">=</span> <span class="kwd">_mm_extract_epi8</span><span class="opt">(</span>current<span class="opt">,</span> <span class="num">0</span><span class="opt">);</span>
+                    first <span class="opt">=</span> next<span class="opt">;</span>
                     <span class="opt">++</span>flips<span class="opt">;</span>
                 <span class="opt">}</span> 
-
-		checksum <span class="opt">+= (</span>crt_idx <span class="opt">%</span> <span class="num">2</span><span class="opt">) ==</span> <span class="num">0</span> <span class="opt">?</span> flips <span class="opt">: -</span>flips<span class="opt">;</span>
+                
+                checksum <span class="opt">+= (</span>crt_idx <span class="opt">%</span> <span class="num">2</span><span class="opt">) ==</span> <span class="num">0</span> <span class="opt">?</span> flips <span class="opt">: -</span>flips<span class="opt">;</span>
 
                 <span class="kwa">if</span> <span class="opt">(</span>flips <span class="opt">&gt;</span> max_flips<span class="opt">)</span>
                     max_flips <span class="opt">=</span> flips<span class="opt">;</span>
@@ -229,14 +231,14 @@ NOTES:
 g++ (Ubuntu 10.2.0-13ubuntu1) 10.2.0
 
 
-Thu, 18 Feb 2021 18:51:48 GMT
+Fri, 23 Apr 2021 20:19:27 GMT
 
 MAKE:
 /usr/bin/g++ -c -pipe -O3 -fomit-frame-pointer -march=ivybridge  -std=c++17 -fopenmp fannkuchredux.gpp-6.c++ -o fannkuchredux.gpp-6.c++.o &amp;&amp;  \
         /usr/bin/g++ fannkuchredux.gpp-6.c++.o -o fannkuchredux.gpp-6.gpp_run -fopenmp 
 rm fannkuchredux.gpp-6.c++
 
-3.81s to complete and log all make actions
+3.62s to complete and log all make actions
 
 COMMAND LINE:
 ./fannkuchredux.gpp-6.gpp_run 12
