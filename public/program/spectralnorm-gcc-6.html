@@ -26,7 +26,7 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="com"> * https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
 <span class="com"> *</span>
 <span class="com"> * contributed by Miles</span>
-<span class="com"> * optimization with 4x4 kernel + intrinsics from previous C # 2</span>
+<span class="com"> * optimization with 4x4 kernel + intrinsics</span>
 <span class="com"> */</span>
 
 <span class="ppc">#include &lt;stdio.h&gt;</span>
@@ -36,7 +36,8 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 
 <span class="slc">// compute values of A 4 at a time instead of 1</span>
 <span class="kwb">static</span> <span class="kwc">inline</span> __m256d <span class="kwd">eval_A</span><span class="opt">(</span>__m128i i<span class="opt">,</span> __m128i j<span class="opt">) {</span>
-    __m128i ip1 <span class="opt">=</span> <span class="kwd">_mm_add_epi32</span><span class="opt">(</span>i<span class="opt">,</span> <span class="kwd">_mm_set1_epi32</span><span class="opt">(</span><span class="num">1</span><span class="opt">));</span>
+    __m128i ONE <span class="opt">=</span> <span class="kwd">_mm_set1_epi32</span><span class="opt">(</span><span class="num">1</span><span class="opt">);</span>
+    __m128i ip1 <span class="opt">=</span> <span class="kwd">_mm_add_epi32</span><span class="opt">(</span>i<span class="opt">,</span> ONE<span class="opt">);</span>
     __m128i ipj <span class="opt">=</span> <span class="kwd">_mm_add_epi32</span><span class="opt">(</span>i<span class="opt">,</span> j<span class="opt">);</span>
     __m128i ipjp1 <span class="opt">=</span> <span class="kwd">_mm_add_epi32</span><span class="opt">(</span>ip1<span class="opt">,</span> j<span class="opt">);</span>
     __m128i a <span class="opt">=</span> <span class="kwd">_mm_mullo_epi32</span><span class="opt">(</span>ipj<span class="opt">,</span> ipjp1<span class="opt">);</span>
@@ -52,11 +53,11 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
     <span class="slc">// f[i] is each outfix of size 1 for r[i], scaled by u</span>
     <span class="slc">// p[i] is the product of r[i]</span>
     <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> <span class="num">4</span><span class="opt">;</span> i<span class="opt">++) {</span>
-        f<span class="opt">[</span>i<span class="opt">] =</span> <span class="kwd">_mm256_permute_pd</span><span class="opt">(</span>r<span class="opt">[</span>i<span class="opt">],</span> <span class="num">5</span><span class="opt">);</span>
+        f<span class="opt">[</span>i<span class="opt">] =</span> <span class="kwd">_mm256_permute_pd</span><span class="opt">(</span>r<span class="opt">[</span>i<span class="opt">],</span> <span class="num">0b0101</span><span class="opt">);</span>
         p<span class="opt">[</span>i<span class="opt">] =</span> <span class="kwd">_mm256_mul_pd</span><span class="opt">(</span>r<span class="opt">[</span>i<span class="opt">],</span> f<span class="opt">[</span>i<span class="opt">]);</span>
-        r<span class="opt">[</span>i<span class="opt">] =</span> <span class="kwd">_mm256_permute2f128_pd</span><span class="opt">(</span>p<span class="opt">[</span>i<span class="opt">],</span> p<span class="opt">[</span>i<span class="opt">],</span> <span class="num">1</span><span class="opt">);</span>
-        f<span class="opt">[</span>i<span class="opt">] =</span> <span class="kwd">_mm256_mul_pd</span><span class="opt">(</span>r<span class="opt">[</span>i<span class="opt">],</span> f<span class="opt">[</span>i<span class="opt">]);</span>
-        p<span class="opt">[</span>i<span class="opt">] =</span> <span class="kwd">_mm256_mul_pd</span><span class="opt">(</span>r<span class="opt">[</span>i<span class="opt">],</span> p<span class="opt">[</span>i<span class="opt">]);</span>
+        __m256d t <span class="opt">=</span> <span class="kwd">_mm256_permute2f128_pd</span><span class="opt">(</span>p<span class="opt">[</span>i<span class="opt">],</span> p<span class="opt">[</span>i<span class="opt">],</span> <span class="num">0x01</span><span class="opt">);</span>
+        f<span class="opt">[</span>i<span class="opt">] =</span> <span class="kwd">_mm256_mul_pd</span><span class="opt">(</span>t<span class="opt">,</span> f<span class="opt">[</span>i<span class="opt">]);</span>
+        p<span class="opt">[</span>i<span class="opt">] =</span> <span class="kwd">_mm256_mul_pd</span><span class="opt">(</span>t<span class="opt">,</span> p<span class="opt">[</span>i<span class="opt">]);</span>
         f<span class="opt">[</span>i<span class="opt">] =</span> <span class="kwd">_mm256_mul_pd</span><span class="opt">(</span>f<span class="opt">[</span>i<span class="opt">],</span> u<span class="opt">);</span>
     <span class="opt">}</span>
 
@@ -66,7 +67,18 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
     x <span class="opt">=</span> <span class="kwd">_mm256_blend_pd</span><span class="opt">(</span>p<span class="opt">[</span><span class="num">0</span><span class="opt">],</span> p<span class="opt">[</span><span class="num">1</span><span class="opt">],</span> <span class="num">0b1010</span><span class="opt">);</span>
     y <span class="opt">=</span> <span class="kwd">_mm256_blend_pd</span><span class="opt">(</span>p<span class="opt">[</span><span class="num">2</span><span class="opt">],</span> p<span class="opt">[</span><span class="num">3</span><span class="opt">],</span> <span class="num">0b1010</span><span class="opt">);</span>
     z <span class="opt">=</span> <span class="kwd">_mm256_blend_pd</span><span class="opt">(</span>x<span class="opt">,</span> y<span class="opt">,</span> <span class="num">0b1100</span><span class="opt">);</span>
-    z <span class="opt">=</span> <span class="kwd">_mm256_div_pd</span><span class="opt">(</span><span class="kwd">_mm256_set1_pd</span><span class="opt">(</span><span class="num">1.0</span><span class="opt">),</span> z<span class="opt">);</span>
+    __m128 q <span class="opt">=</span> <span class="kwd">_mm256_cvtpd_ps</span><span class="opt">(</span>z<span class="opt">);</span>
+    <span class="slc">// approximate reciprocal</span>
+    q <span class="opt">=</span> <span class="kwd">_mm_rcp_ps</span><span class="opt">(</span>q<span class="opt">);</span>
+    x <span class="opt">=</span> <span class="kwd">_mm256_cvtps_pd</span><span class="opt">(</span>q<span class="opt">);</span>
+    <span class="slc">// refine with variation of Goldschmidt’s algorithm</span>
+    w <span class="opt">=</span> <span class="kwd">_mm256_mul_pd</span><span class="opt">(</span>x<span class="opt">,</span> z<span class="opt">);</span>
+    y <span class="opt">=</span> <span class="kwd">_mm256_set1_pd</span><span class="opt">(</span><span class="num">3.0</span><span class="opt">);</span>
+    z <span class="opt">=</span> <span class="kwd">_mm256_mul_pd</span><span class="opt">(</span>w<span class="opt">,</span> x<span class="opt">);</span>
+    w <span class="opt">=</span> <span class="kwd">_mm256_sub_pd</span><span class="opt">(</span>w<span class="opt">,</span> y<span class="opt">);</span>
+    x <span class="opt">=</span> <span class="kwd">_mm256_mul_pd</span><span class="opt">(</span>x<span class="opt">,</span> y<span class="opt">);</span>
+    z <span class="opt">=</span> <span class="kwd">_mm256_mul_pd</span><span class="opt">(</span>z<span class="opt">,</span> w<span class="opt">);</span>
+    z <span class="opt">=</span> <span class="kwd">_mm256_add_pd</span><span class="opt">(</span>z<span class="opt">,</span> x<span class="opt">);</span>
 
     <span class="slc">// broadcast each 1/z over p[i]</span>
     x <span class="opt">=</span> <span class="kwd">_mm256_unpacklo_pd</span><span class="opt">(</span>z<span class="opt">,</span> z<span class="opt">);</span>
@@ -182,15 +194,27 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
         <span class="kwd">eval_AtA_times_u</span><span class="opt">(</span>n<span class="opt">,</span> v<span class="opt">,</span> u<span class="opt">);</span>
     <span class="opt">}</span>
 
-    <span class="kwb">double</span> uv <span class="opt">=</span> <span class="num">0.0</span><span class="opt">;</span>
-    <span class="kwb">double</span> v2 <span class="opt">=</span> <span class="num">0.0</span><span class="opt">;</span>
+    __m256d uv <span class="opt">=</span> <span class="kwd">_mm256_set1_pd</span><span class="opt">(</span><span class="num">0.0</span><span class="opt">);</span>
+    __m256d v2 <span class="opt">=</span> <span class="kwd">_mm256_set1_pd</span><span class="opt">(</span><span class="num">0.0</span><span class="opt">);</span>
 
-    <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> n<span class="opt">;</span> i<span class="opt">++) {</span>
-        uv <span class="opt">+=</span> u<span class="opt">[</span>i<span class="opt">] *</span> v<span class="opt">[</span>i<span class="opt">];</span>
-        v2 <span class="opt">+=</span> v<span class="opt">[</span>i<span class="opt">] *</span> v<span class="opt">[</span>i<span class="opt">];</span>
+    <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> n<span class="opt">;</span> i <span class="opt">+=</span> <span class="num">4</span><span class="opt">) {</span>
+        __m256d x <span class="opt">=</span> <span class="kwd">_mm256_load_pd</span><span class="opt">(</span>u<span class="opt">+</span>i<span class="opt">);</span>
+        __m256d y <span class="opt">=</span> <span class="kwd">_mm256_load_pd</span><span class="opt">(</span>v<span class="opt">+</span>i<span class="opt">);</span>
+        x <span class="opt">=</span> <span class="kwd">_mm256_mul_pd</span><span class="opt">(</span>x<span class="opt">,</span> y<span class="opt">);</span>
+        y <span class="opt">=</span> <span class="kwd">_mm256_mul_pd</span><span class="opt">(</span>y<span class="opt">,</span> y<span class="opt">);</span>
+        uv <span class="opt">=</span> <span class="kwd">_mm256_add_pd</span><span class="opt">(</span>uv<span class="opt">,</span> x<span class="opt">);</span>
+        v2 <span class="opt">=</span> <span class="kwd">_mm256_add_pd</span><span class="opt">(</span>v2<span class="opt">,</span> y<span class="opt">);</span>
     <span class="opt">}</span>
 
-    <span class="kwd">printf</span><span class="opt">(</span><span class="str">&quot;%0.9f</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span> <span class="kwd">sqrt</span><span class="opt">(</span>uv <span class="opt">/</span> v2<span class="opt">));</span>
+    __m256d z <span class="opt">=</span> <span class="kwd">_mm256_hadd_pd</span><span class="opt">(</span>uv<span class="opt">,</span> v2<span class="opt">);</span>
+    __m128d x <span class="opt">=</span> <span class="kwd">_mm256_extractf128_pd</span><span class="opt">(</span>z<span class="opt">,</span> <span class="num">0</span><span class="opt">);</span>
+    __m128d y <span class="opt">=</span> <span class="kwd">_mm256_extractf128_pd</span><span class="opt">(</span>z<span class="opt">,</span> <span class="num">1</span><span class="opt">);</span>
+    x <span class="opt">=</span> <span class="kwd">_mm_add_pd</span><span class="opt">(</span>x<span class="opt">,</span> y<span class="opt">);</span>
+    x <span class="opt">=</span> <span class="kwd">_mm_sqrt_pd</span><span class="opt">(</span>x<span class="opt">);</span>
+    <span class="kwb">double</span> r<span class="opt">[</span><span class="num">2</span><span class="opt">]</span> <span class="kwd">__attribute__</span><span class="opt">((</span><span class="kwd">aligned</span><span class="opt">(</span><span class="kwa">sizeof</span><span class="opt">(</span>__m128d<span class="opt">))));</span>
+    <span class="kwd">_mm_store_pd</span><span class="opt">(</span>r<span class="opt">,</span> x<span class="opt">);</span>
+
+    <span class="kwd">printf</span><span class="opt">(</span><span class="str">&quot;%0.9f</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span> r<span class="opt">[</span><span class="num">0</span><span class="opt">] /</span> r<span class="opt">[</span><span class="num">1</span><span class="opt">]);</span>
 
     <span class="kwa">return</span> <span class="num">0</span><span class="opt">;</span>
 <span class="opt">}</span>
@@ -206,10 +230,10 @@ NOTES:
 gcc (Ubuntu 10.2.0-13ubuntu1) 10.2.0
 
 
-Tue, 27 Apr 2021 00:16:14 GMT
+Tue, 27 Apr 2021 20:28:58 GMT
 
 MAKE:
-/usr/bin/gcc -pipe -Wall -O3 -fomit-frame-pointer -march=ivybridge -fopenmp -fno-math-errno spectralnorm.gcc-6.c -o spectralnorm.gcc-6.gcc_run 
+/usr/bin/gcc -pipe -Wall -O3 -fomit-frame-pointer -march=ivybridge -fopenmp spectralnorm.gcc-6.c -o spectralnorm.gcc-6.gcc_run 
 rm spectralnorm.gcc-6.c
 
 2.55s to complete and log all make actions
