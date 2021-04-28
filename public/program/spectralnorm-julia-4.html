@@ -25,15 +25,15 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="com">#=</span>
 <span class="com">The Computer Language Benchmarks Game</span>
 <span class="com">https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
-<span class="com">contributed by Adam Beckmeyer</span>
+<span class="com">contributed by Adam Beckmeyer with help from Vincent Yu</span>
 <span class="com">=#</span>
-
-<span class="kwa">using</span> Printf
 
 <span class="kwd">A</span><span class="opt">(</span>i<span class="opt">,</span> j<span class="opt">) = (</span>i <span class="opt">+</span> j <span class="opt">-</span> <span class="num">2</span><span class="opt">) * (</span>i <span class="opt">+</span> j <span class="opt">-</span> <span class="num">1</span><span class="opt">) /</span> <span class="num">2</span> <span class="opt">+</span> i
 <span class="kwd">At</span><span class="opt">(</span>i<span class="opt">,</span> j<span class="opt">) =</span> <span class="kwd">A</span><span class="opt">(</span>j<span class="opt">,</span> i<span class="opt">)</span>
 
-<span class="kwa">function</span> <span class="kwd">Av</span><span class="opt">!(</span>f<span class="opt">,</span> v<span class="opt">,</span> out<span class="opt">)</span>
+<span class="slc"># Multiply vector v by the matrix represented by function f (f(i, j) returns the element in</span>
+<span class="slc"># i-th row and j-th column) and store result in out</span>
+<span class="kwa">function</span> <span class="kwd">mul_by_f</span><span class="opt">!(</span>f<span class="opt">,</span> v<span class="opt">,</span> out<span class="opt">)</span>
     n <span class="opt">=</span> <span class="kwd">length</span><span class="opt">(</span>v<span class="opt">)</span>
     <span class="slc"># Threads.&#64;threads has lower overhead than Threads.&#64;spawn</span>
     Threads<span class="opt">.</span><span class="kwc">&#64;threads</span> <span class="opt">:</span>static <span class="kwa">for</span> i<span class="opt">=</span><span class="num">1</span><span class="opt">:</span>n
@@ -41,14 +41,26 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
         <span class="slc"># If we used the &#64;simd macro instead of manually iterating by 2s, the compiler would</span>
         <span class="slc"># emit instructions using the ymm registers instead of xmm which appears to be</span>
         <span class="slc"># slower on ivybridge cpus</span>
-        <span class="kwa">for</span> j<span class="opt">=</span><span class="num">1</span><span class="opt">:</span><span class="num">2</span><span class="opt">:</span>n
+        <span class="kwc">&#64;inbounds</span> <span class="kwa">for</span> j<span class="opt">=</span><span class="num">1</span><span class="opt">:</span><span class="num">2</span><span class="opt">:</span>n
             <span class="slc"># Manually convert indices to Float64 so that arithmetic in function f can be</span>
             <span class="slc"># carried out using vectorized  floating point arithmetic</span>
-            x1 <span class="opt">+=</span> <span class="kwc">&#64;inbounds</span> v<span class="opt">[</span>j<span class="opt">] /</span> <span class="kwd">f</span><span class="opt">(</span><span class="kwb">Float64</span><span class="opt">(</span>i<span class="opt">),</span> <span class="kwb">Float64</span><span class="opt">(</span>j<span class="opt">))</span>
-            x2 <span class="opt">+=</span> <span class="kwc">&#64;inbounds</span> v<span class="opt">[</span>j<span class="opt">+</span><span class="num">1</span><span class="opt">] /</span> <span class="kwd">f</span><span class="opt">(</span><span class="kwb">Float64</span><span class="opt">(</span>i<span class="opt">),</span> <span class="kwb">Float64</span><span class="opt">(</span>j<span class="opt">+</span><span class="num">1</span><span class="opt">))</span>
+            x1 <span class="opt">+=</span> v<span class="opt">[</span>j<span class="opt">] /</span> <span class="kwd">f</span><span class="opt">(</span><span class="kwb">Float64</span><span class="opt">(</span>i<span class="opt">),</span> <span class="kwb">Float64</span><span class="opt">(</span>j<span class="opt">))</span>
+            x2 <span class="opt">+=</span> v<span class="opt">[</span>j<span class="opt">+</span><span class="num">1</span><span class="opt">] /</span> <span class="kwd">f</span><span class="opt">(</span><span class="kwb">Float64</span><span class="opt">(</span>i<span class="opt">),</span> <span class="kwb">Float64</span><span class="opt">(</span>j<span class="opt">+</span><span class="num">1</span><span class="opt">))</span>
         <span class="kwa">end</span>
         <span class="kwc">&#64;inbounds</span> out<span class="opt">[</span>i<span class="opt">] =</span> x1 <span class="opt">+</span> x2
     <span class="kwa">end</span>
+<span class="kwa">end</span>
+
+<span class="slc"># Multiply vector v by matrix A and store result in out</span>
+<span class="kwd">mul_by_A</span><span class="opt">!(</span>v<span class="opt">,</span> out<span class="opt">) =</span> <span class="kwd">mul_by_f</span><span class="opt">!(</span>A<span class="opt">,</span> v<span class="opt">,</span> out<span class="opt">)</span>
+
+<span class="slc"># Multiply vector v by matrix A&apos; and store result in out</span>
+<span class="kwd">mul_by_At</span><span class="opt">!(</span>v<span class="opt">,</span> out<span class="opt">) =</span> <span class="kwd">mul_by_f</span><span class="opt">!(</span>At<span class="opt">,</span> v<span class="opt">,</span> out<span class="opt">)</span>
+
+<span class="slc"># Multiply v by (A&apos; * A) and store result in out using w as a temporary workspace</span>
+<span class="kwa">function</span> <span class="kwd">mul_by_AtA</span><span class="opt">!(</span>v<span class="opt">,</span> out<span class="opt">,</span> w<span class="opt">)</span>
+    <span class="kwd">mul_by_A</span><span class="opt">!(</span>v<span class="opt">,</span> w<span class="opt">)</span>
+    <span class="kwd">mul_by_At</span><span class="opt">!(</span>w<span class="opt">,</span> out<span class="opt">)</span>
 <span class="kwa">end</span>
 
 <span class="kwa">function</span> <span class="kwd">main</span><span class="opt">(</span>n<span class="opt">)</span>
@@ -61,10 +73,8 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
     w <span class="opt">=</span> Vector<span class="opt">{</span><span class="kwb">Float64</span><span class="opt">}(</span>undef<span class="opt">,</span> n<span class="opt">)</span>
 
     <span class="kwa">for</span> _<span class="opt">=</span><span class="num">1</span><span class="opt">:</span><span class="num">10</span>
-        <span class="kwd">Av</span><span class="opt">!(</span>A<span class="opt">,</span> u<span class="opt">,</span> w<span class="opt">)</span>
-        <span class="kwd">Av</span><span class="opt">!(</span>At<span class="opt">,</span> w<span class="opt">,</span> v<span class="opt">)</span>
-        <span class="kwd">Av</span><span class="opt">!(</span>A<span class="opt">,</span> v<span class="opt">,</span> w<span class="opt">)</span>
-        <span class="kwd">Av</span><span class="opt">!(</span>At<span class="opt">,</span> w<span class="opt">,</span> u<span class="opt">)</span>
+        <span class="kwd">mul_by_AtA</span><span class="opt">!(</span>u<span class="opt">,</span> v<span class="opt">,</span> w<span class="opt">)</span>
+        <span class="kwd">mul_by_AtA</span><span class="opt">!(</span>v<span class="opt">,</span> u<span class="opt">,</span> w<span class="opt">)</span>
     <span class="kwa">end</span>
 
     uv <span class="opt">=</span> vv <span class="opt">=</span> <span class="num">0.0</span>
@@ -75,7 +85,10 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
     <span class="kwd">sqrt</span><span class="opt">(</span>uv <span class="opt">/</span> vv<span class="opt">)</span>
 <span class="kwa">end</span>
 
-<span class="kwd">isinteractive</span><span class="opt">() ||</span> <span class="kwc">&#64;printf</span><span class="opt">(</span><span class="str">&quot;%.9f</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span> <span class="kwd">main</span><span class="opt">(</span><span class="kwd">parse</span><span class="opt">(</span>Int<span class="opt">,</span> ARGS<span class="opt">[</span><span class="num">1</span><span class="opt">])))</span>
+<span class="slc"># The expanded form of Printf.&#64;printf macro takes a significant time to compile, accounting</span>
+<span class="slc"># for 25% of the total program runtime. Base.Ryu.writefixed(::Float64, ::Int) should already</span>
+<span class="slc"># be compiled into the default system image.</span>
+<span class="kwd">isinteractive</span><span class="opt">() ||</span> <span class="kwd">println</span><span class="opt">(</span>Base<span class="opt">.</span>Ryu<span class="opt">.</span><span class="kwd">writefixed</span><span class="opt">(</span><span class="kwd">main</span><span class="opt">(</span><span class="kwd">parse</span><span class="opt">(</span>Int<span class="opt">,</span> ARGS<span class="opt">[</span><span class="num">1</span><span class="opt">])),</span> <span class="num">9</span><span class="opt">))</span>
     </pre>
   </section>
   <section>
@@ -88,16 +101,16 @@ NOTES:
 julia version 1.6.0
 
 
-Thu, 08 Apr 2021 18:55:59 GMT
+Wed, 28 Apr 2021 18:16:20 GMT
 
 MAKE:
 printenv JULIA_NUM_THREADS
 4
 
-0.06s to complete and log all make actions
+0.07s to complete and log all make actions
 
 COMMAND LINE:
-/opt/src/julia-1.6.0/bin/julia -O3 --cpu-target=ivybridge  -- spectralnorm.julia-4.julia 5500
+/opt/src/julia-1.6.0/bin/julia -O3 --cpu-target=ivybridge --math-mode=ieee  -- spectralnorm.julia-4.julia 5500
 
 PROGRAM OUTPUT:
 1.274224153
