@@ -22,101 +22,101 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
       <h2>source code</h2>
     </div>
     <pre>
-<span class="opt">#</span>lang racket<span class="opt">/</span>base
+#lang racket/base
 
-<span class="slc">;; The Computer Language Benchmarks Game</span>
-<span class="slc">;; https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+;; The Computer Language Benchmarks Game
+;; https://salsa.debian.org/benchmarksgame-team/benchmarksgame/
 
-<span class="slc">;; Based on the Perl version of the benchmark</span>
-<span class="slc">;; adapted with a GMP interface by Eli Barzilay</span>
+;; Based on the Perl version of the benchmark
+;; adapted with a GMP interface by Eli Barzilay
 
-<span class="opt">(</span><span class="kwa">require</span> racket<span class="opt">/</span>cmdline
-         <span class="opt">(</span><span class="kwa">for-syntax</span> racket<span class="opt">/</span>base<span class="opt">)</span>
-         ffi<span class="opt">/</span>unsafe<span class="opt">)</span>
+(require racket/cmdline
+         (for-syntax racket/base)
+         ffi/unsafe)
 
-<span class="slc">;; quick libgmp interface, limited to what we need below</span>
-<span class="opt">(</span><span class="kwa">define</span> libgmp <span class="opt">(</span><span class="kwa">ffi-lib</span> <span class="str">&quot;libgmp&quot;</span><span class="opt">))</span>
-<span class="opt">(</span><span class="kwa">define-syntax-rule</span> <span class="opt">(</span><span class="kwa">defgmp</span> op type ...<span class="opt">)</span>
-  <span class="opt">(</span><span class="kwa">define</span> op <span class="opt">(</span><span class="kwa">get-ffi-obj</span> <span class="opt">(</span><span class="kwa">format</span> <span class="str">&quot;__gmpz_~a&quot;</span> <span class="opt">&apos;</span>op<span class="opt">)</span> libgmp <span class="opt">(</span><span class="kwa">_fun</span> type ...<span class="opt">))))</span>
-<span class="opt">(</span><span class="kwa">define-cstruct</span> _mpz <span class="opt">([</span>alloc _int<span class="opt">] [</span>size _int<span class="opt">] [</span>limbs _pointer<span class="opt">]))</span>
-<span class="opt">(</span><span class="kwa">defgmp</span> init_set_ui _mpz-pointer _ulong -<span class="opt">&gt;</span> _void<span class="opt">)</span>
-<span class="opt">(</span><span class="kwa">defgmp</span> set_ui _mpz-pointer _ulong -<span class="opt">&gt;</span> _void<span class="opt">)</span>
-<span class="opt">(</span><span class="kwa">defgmp</span> get_ui    _mpz-pointer -<span class="opt">&gt;</span> _ulong<span class="opt">)</span>
-<span class="opt">(</span><span class="kwa">defgmp</span> add       _mpz-pointer _mpz-pointer _mpz-pointer -<span class="opt">&gt;</span> _void<span class="opt">)</span>
-<span class="opt">(</span><span class="kwa">defgmp</span> mul       _mpz-pointer _mpz-pointer _mpz-pointer -<span class="opt">&gt;</span> _void<span class="opt">)</span>
-<span class="opt">(</span><span class="kwa">defgmp</span> mul_ui    _mpz-pointer _mpz-pointer _long        -<span class="opt">&gt;</span> _void<span class="opt">)</span>
-<span class="opt">(</span><span class="kwa">defgmp</span> addmul    _mpz-pointer _mpz-pointer _mpz-pointer -<span class="opt">&gt;</span> _void<span class="opt">)</span>
-<span class="opt">(</span><span class="kwa">defgmp</span> addmul_ui _mpz-pointer _mpz-pointer _ulong       -<span class="opt">&gt;</span> _void<span class="opt">)</span>
-<span class="opt">(</span><span class="kwa">defgmp</span> submul_ui _mpz-pointer _mpz-pointer _ulong       -<span class="opt">&gt;</span> _void<span class="opt">)</span>
-<span class="opt">(</span><span class="kwa">defgmp</span> tdiv_q    _mpz-pointer _mpz-pointer _mpz-pointer -<span class="opt">&gt;</span> _void<span class="opt">)</span>
-<span class="opt">(</span><span class="kwa">defgmp</span> cmp       _mpz-pointer _mpz-pointer              -<span class="opt">&gt;</span> _int<span class="opt">)</span>
-<span class="opt">(</span><span class="kwa">define</span> <span class="opt">(</span><span class="kwa">make-ui</span> n<span class="opt">) (</span><span class="kwa">let</span> <span class="opt">([</span>i <span class="opt">(</span><span class="kwa">make-mpz</span> <span class="num">0 0</span> <span class="opt">#</span>f<span class="opt">)]) (</span><span class="kwa">init_set_ui</span> i n<span class="opt">)</span> i<span class="opt">))</span>
-<span class="slc">;; &quot;fancy&quot; parser, for fun (only for the limited subset we use)</span>
-<span class="opt">(</span><span class="kwa">define-syntax</span> <span class="opt">(</span><span class="kwa">gmp</span> stx<span class="opt">)</span>
-  <span class="opt">(</span><span class="kwa">define</span> <span class="opt">(</span><span class="kwa">sym</span><span class="opt">=</span>? x y<span class="opt">)</span>
-    <span class="opt">(</span><span class="kwa">eq</span>? <span class="opt">(</span><span class="kwa">if</span> <span class="opt">(</span><span class="kwa">syntax</span>? x<span class="opt">) (</span><span class="kwa">syntax-e</span> x<span class="opt">)</span> x<span class="opt">) (</span><span class="kwa">if</span> <span class="opt">(</span><span class="kwa">syntax</span>? y<span class="opt">) (</span><span class="kwa">syntax-e</span> y<span class="opt">)</span> y<span class="opt">)))</span>
-  <span class="opt">(</span><span class="kwa">define</span> <span class="opt">(</span><span class="kwa">_</span>? stx<span class="opt">)</span>
-    <span class="opt">(</span><span class="kwa">and</span> <span class="opt">(</span><span class="kwa">identifier</span>? stx<span class="opt">)</span>
-         <span class="opt">(</span><span class="kwa">regexp-match</span>? <span class="opt">#</span>rx<span class="str">&quot;^_&quot;</span> <span class="opt">(</span><span class="kwa">symbol-</span><span class="opt">&gt;</span>string <span class="opt">(</span><span class="kwa">syntax-e</span> stx<span class="opt">)))))</span>
-  <span class="opt">(</span><span class="kwa">define</span> <span class="opt">(</span><span class="kwa">split</span> xs<span class="opt">)</span>
-    <span class="opt">(</span><span class="kwa">let</span> loop <span class="opt">([</span>xs xs<span class="opt">] [</span>cur <span class="opt">&apos;()] [</span>r <span class="opt">&apos;()])</span>
-      <span class="opt">(</span><span class="kwa">define</span> <span class="opt">(</span><span class="kwa">add</span><span class="opt">) (</span><span class="kwa">cons</span> <span class="opt">(</span><span class="kwa">reverse</span> cur<span class="opt">)</span> r<span class="opt">))</span>
-      <span class="opt">(</span><span class="kwa">cond</span> <span class="opt">[(</span><span class="kwa">null</span>? xs<span class="opt">) (</span><span class="kwa">reverse</span> <span class="opt">(</span><span class="kwa">add</span><span class="opt">))]</span>
-            <span class="opt">[(</span><span class="kwa">syntax-case</span> <span class="opt">(</span><span class="kwa">car</span> xs<span class="opt">) (</span><span class="kwa">unquote</span><span class="opt">) [,</span>x <span class="opt">#&apos;</span>x<span class="opt">] [</span>else <span class="opt">#</span>f<span class="opt">])</span>
-             <span class="opt">=&gt; (</span><span class="kwa">lambda</span> <span class="opt">(</span><span class="kwa">x</span><span class="opt">) (</span><span class="kwa">loop</span> <span class="opt">(</span><span class="kwa">cdr</span> xs<span class="opt">) (</span><span class="kwa">list</span> x<span class="opt">) (</span><span class="kwa">add</span><span class="opt">)))]</span>
-            <span class="opt">[</span>else <span class="opt">(</span><span class="kwa">loop</span> <span class="opt">(</span><span class="kwa">cdr</span> xs<span class="opt">) (</span><span class="kwa">cons</span> <span class="opt">(</span><span class="kwa">car</span> xs<span class="opt">)</span> cur<span class="opt">)</span> r<span class="opt">)])))</span>
-  <span class="opt">(</span><span class="kwa">define</span> <span class="opt">(</span><span class="kwa">translate</span> expr<span class="opt">)</span>
-    <span class="opt">(</span><span class="kwa">syntax-case</span><span class="opt">*</span> expr <span class="opt">(= +=</span> -<span class="opt">= + * / &lt; &gt;)</span> sym<span class="opt">=</span>?
-      <span class="opt">[(</span><span class="kwa">x</span> <span class="opt">=</span> y <span class="opt">+</span> z<span class="opt">)  #&apos;(</span><span class="kwa">add</span> x y z<span class="opt">)]</span>
-      <span class="opt">[(</span><span class="kwa">x</span> <span class="opt">=</span> y <span class="opt">*</span> z<span class="opt">)  #`(#,(</span><span class="kwa">if</span> <span class="opt">(</span><span class="kwa">_</span>? <span class="opt">#&apos;</span>z<span class="opt">) #&apos;</span>mul <span class="opt">#&apos;</span>mul_ui<span class="opt">)</span> x y z<span class="opt">)]</span>
-      <span class="opt">[(</span><span class="kwa">x</span> <span class="opt">+=</span> y <span class="opt">*</span> z<span class="opt">) #`(#,(</span><span class="kwa">if</span> <span class="opt">(</span><span class="kwa">_</span>? <span class="opt">#&apos;</span>z<span class="opt">) #&apos;</span>addmul <span class="opt">#&apos;</span>addmul_ui<span class="opt">)</span> x y z<span class="opt">)]</span>
-      <span class="opt">[(</span><span class="kwa">x</span> -<span class="opt">=</span> y <span class="opt">*</span> z<span class="opt">) #`(#,(</span><span class="kwa">if</span> <span class="opt">(</span><span class="kwa">_</span>? <span class="opt">#&apos;</span>z<span class="opt">) #&apos;</span>submul <span class="opt">#&apos;</span>submul_ui<span class="opt">)</span> x y z<span class="opt">)]</span>
-      <span class="opt">[(</span><span class="kwa">x</span> <span class="opt">=</span> y <span class="opt">/</span> z<span class="opt">)  #&apos;(</span><span class="kwa">tdiv_q</span> x y z<span class="opt">)]</span>
-      <span class="opt">[(</span><span class="kwa">x</span> <span class="opt">&lt;</span> y<span class="opt">)      #&apos;(&lt; (</span><span class="kwa">cmp</span> x y<span class="opt">)</span> <span class="num">0</span><span class="opt">)]</span>
-      <span class="opt">[(</span><span class="kwa">x</span> <span class="opt">&gt;</span> y<span class="opt">)      #&apos;(&gt; (</span><span class="kwa">cmp</span> x y<span class="opt">)</span> <span class="num">0</span><span class="opt">)]</span>
-      <span class="opt">[(</span><span class="kwa">get</span> x<span class="opt">)      #&apos;(</span><span class="kwa">get_ui</span> x<span class="opt">)]))</span>
-  <span class="opt">(</span><span class="kwa">syntax-case</span> stx <span class="opt">()</span>
-    <span class="opt">[(</span><span class="kwa">_</span> x ...<span class="opt">) #`(</span><span class="kwa">begin</span> <span class="opt">#,&#64;(</span><span class="kwa">map</span> translate <span class="opt">(</span><span class="kwa">split</span> <span class="opt">(</span><span class="kwa">syntax-</span><span class="opt">&gt;</span>list <span class="opt">#&apos;(</span><span class="kwa">x</span> ...<span class="opt">)))))]))</span>
+;; quick libgmp interface, limited to what we need below
+(define libgmp (ffi-lib &quot;libgmp&quot;))
+(define-syntax-rule (defgmp op type ...)
+  (define op (get-ffi-obj (format &quot;__gmpz_~a&quot; &apos;op) libgmp (_fun type ...))))
+(define-cstruct _mpz ([alloc _int] [size _int] [limbs _pointer]))
+(defgmp init_set_ui _mpz-pointer _ulong -&gt; _void)
+(defgmp set_ui _mpz-pointer _ulong -&gt; _void)
+(defgmp get_ui    _mpz-pointer -&gt; _ulong)
+(defgmp add       _mpz-pointer _mpz-pointer _mpz-pointer -&gt; _void)
+(defgmp mul       _mpz-pointer _mpz-pointer _mpz-pointer -&gt; _void)
+(defgmp mul_ui    _mpz-pointer _mpz-pointer _long        -&gt; _void)
+(defgmp addmul    _mpz-pointer _mpz-pointer _mpz-pointer -&gt; _void)
+(defgmp addmul_ui _mpz-pointer _mpz-pointer _ulong       -&gt; _void)
+(defgmp submul_ui _mpz-pointer _mpz-pointer _ulong       -&gt; _void)
+(defgmp tdiv_q    _mpz-pointer _mpz-pointer _mpz-pointer -&gt; _void)
+(defgmp cmp       _mpz-pointer _mpz-pointer              -&gt; _int)
+(define (make-ui n) (let ([i (make-mpz 0 0 #f)]) (init_set_ui i n) i))
+;; &quot;fancy&quot; parser, for fun (only for the limited subset we use)
+(define-syntax (gmp stx)
+  (define (sym=? x y)
+    (eq? (if (syntax? x) (syntax-e x) x) (if (syntax? y) (syntax-e y) y)))
+  (define (_? stx)
+    (and (identifier? stx)
+         (regexp-match? #rx&quot;^_&quot; (symbol-&gt;string (syntax-e stx)))))
+  (define (split xs)
+    (let loop ([xs xs] [cur &apos;()] [r &apos;()])
+      (define (add) (cons (reverse cur) r))
+      (cond [(null? xs) (reverse (add))]
+            [(syntax-case (car xs) (unquote) [,x #&apos;x] [else #f])
+             =&gt; (lambda (x) (loop (cdr xs) (list x) (add)))]
+            [else (loop (cdr xs) (cons (car xs) cur) r)])))
+  (define (translate expr)
+    (syntax-case* expr (= += -= + * / &lt; &gt;) sym=?
+      [(x = y + z)  #&apos;(add x y z)]
+      [(x = y * z)  #`(#,(if (_? #&apos;z) #&apos;mul #&apos;mul_ui) x y z)]
+      [(x += y * z) #`(#,(if (_? #&apos;z) #&apos;addmul #&apos;addmul_ui) x y z)]
+      [(x -= y * z) #`(#,(if (_? #&apos;z) #&apos;submul #&apos;submul_ui) x y z)]
+      [(x = y / z)  #&apos;(tdiv_q x y z)]
+      [(x &lt; y)      #&apos;(&lt; (cmp x y) 0)]
+      [(x &gt; y)      #&apos;(&gt; (cmp x y) 0)]
+      [(get x)      #&apos;(get_ui x)]))
+  (syntax-case stx ()
+    [(_ x ...) #`(begin #,&#64;(map translate (split (syntax-&gt;list #&apos;(x ...)))))]))
 
-<span class="slc">;; the actual code</span>
+;; the actual code
 
-<span class="opt">(</span><span class="kwa">define</span> <span class="opt">(</span><span class="kwa">digits</span> n<span class="opt">)</span>
-  <span class="opt">(</span><span class="kwa">define</span> i <span class="num">0</span><span class="opt">)</span>
-  <span class="opt">(</span><span class="kwa">define</span> _x0 <span class="opt">(</span><span class="kwa">make-ui</span> <span class="num">1</span><span class="opt">))</span>
-  <span class="opt">(</span><span class="kwa">define</span> _x1 <span class="opt">(</span><span class="kwa">make-ui</span> <span class="num">0</span><span class="opt">))</span>
-  <span class="opt">(</span><span class="kwa">define</span> _x2 <span class="opt">(</span><span class="kwa">make-ui</span> <span class="num">1</span><span class="opt">))</span>
-  <span class="opt">(</span><span class="kwa">define</span> _r  <span class="opt">(</span><span class="kwa">make-ui</span> <span class="num">0</span><span class="opt">))</span>
+(define (digits n)
+  (define i 0)
+  (define _x0 (make-ui 1))
+  (define _x1 (make-ui 0))
+  (define _x2 (make-ui 1))
+  (define _r  (make-ui 0))
 
-  <span class="opt">(</span><span class="kwa">define</span> <span class="opt">(</span><span class="kwa">extract-digit</span> n<span class="opt">)</span>
-    <span class="opt">(</span><span class="kwa">gmp</span> _r <span class="opt">=</span> _x0 <span class="opt">*</span> n<span class="opt">,</span> _r <span class="opt">=</span> _r <span class="opt">+</span> _x1<span class="opt">,</span> _r <span class="opt">=</span> _r <span class="opt">/</span> _x2<span class="opt">,</span> get _r<span class="opt">))</span>
+  (define (extract-digit n)
+    (gmp _r = _x0 * n, _r = _r + _x1, _r = _r / _x2, get _r))
 
-  <span class="opt">(</span><span class="kwa">let</span> loop <span class="opt">([</span>k <span class="num">0</span><span class="opt">])</span>
+  (let loop ([k 0])
 
-    <span class="opt">(</span><span class="kwa">define-syntax-rule</span> <span class="opt">(</span><span class="kwa">compose1</span><span class="opt">!+</span>loop<span class="opt">)</span>
-      <span class="opt">(</span><span class="kwa">let</span><span class="opt">* ([</span>k <span class="opt">(</span><span class="kwa">add1</span> k<span class="opt">)] [</span>y2 <span class="opt">(</span><span class="kwa">add1</span> <span class="opt">(*</span> k <span class="num">2</span><span class="opt">))])</span>
-        <span class="opt">(</span><span class="kwa">gmp</span> _x1 <span class="opt">=</span> _x1 <span class="opt">*</span> y2<span class="opt">,</span> _x1 <span class="opt">+=</span> _x0 <span class="opt">* (*</span> y2 <span class="num">2</span><span class="opt">),</span> _x0 <span class="opt">=</span> _x0 <span class="opt">*</span> k<span class="opt">,</span>_x2 <span class="opt">=</span> _x2 <span class="opt">*</span> y2<span class="opt">)</span>
-        <span class="opt">(</span><span class="kwa">loop</span> k<span class="opt">)))</span>
-    <span class="opt">(</span><span class="kwa">define-syntax-rule</span> <span class="opt">(</span><span class="kwa">compose2</span><span class="opt">!</span> d<span class="opt">)</span>
-      <span class="opt">(</span><span class="kwa">begin</span> <span class="opt">(</span><span class="kwa">gmp</span> _x1 -<span class="opt">=</span> _x2 <span class="opt">*</span> d<span class="opt">,</span> _x1 <span class="opt">=</span> _x1 <span class="opt">*</span> <span class="num">10</span><span class="opt">,</span> _x0 <span class="opt">=</span> _x0 <span class="opt">*</span> <span class="num">10</span><span class="opt">)</span>
-             <span class="opt">(</span><span class="kwa">loop</span> k<span class="opt">)))</span>
+    (define-syntax-rule (compose1!+loop)
+      (let* ([k (add1 k)] [y2 (add1 (* k 2))])
+        (gmp _x1 = _x1 * y2, _x1 += _x0 * (* y2 2), _x0 = _x0 * k,_x2 = _x2 * y2)
+        (loop k)))
+    (define-syntax-rule (compose2! d)
+      (begin (gmp _x1 -= _x2 * d, _x1 = _x1 * 10, _x0 = _x0 * 10)
+             (loop k)))
 
-    <span class="opt">(</span><span class="kwa">if</span> <span class="opt">(</span><span class="kwa">gmp</span> _x0 <span class="opt">&gt;</span> _x1<span class="opt">)</span>
-      <span class="opt">(</span><span class="kwa">compose1</span><span class="opt">!+</span>loop<span class="opt">)</span>
-      <span class="opt">(</span><span class="kwa">let</span> <span class="opt">([</span>d <span class="opt">(</span><span class="kwa">extract-digit</span> <span class="num">3</span><span class="opt">)])</span>
-        <span class="opt">(</span><span class="kwa">if</span> <span class="opt">(</span><span class="kwa">not</span> <span class="opt">(=</span> d <span class="opt">(</span><span class="kwa">extract-digit</span> <span class="num">4</span><span class="opt">)))</span>
-          <span class="opt">(</span><span class="kwa">compose1</span><span class="opt">!+</span>loop<span class="opt">)</span>
-          <span class="opt">(</span><span class="kwa">begin</span> <span class="opt">(</span><span class="kwa">display</span> d<span class="opt">)</span>
-                 <span class="opt">(</span><span class="kwa">set</span><span class="opt">!</span> i <span class="opt">(</span><span class="kwa">add1</span> i<span class="opt">))</span>
-                 <span class="opt">(</span><span class="kwa">let</span> <span class="opt">([</span>m <span class="opt">(</span><span class="kwa">modulo</span> i <span class="num">10</span><span class="opt">)])</span>
-                   <span class="opt">(</span><span class="kwa">when</span> <span class="opt">(</span><span class="kwa">zero</span>? m<span class="opt">) (</span><span class="kwa">printf</span> <span class="str">&quot;</span><span class="esc">\t</span><span class="str">:~a</span><span class="esc">\n</span><span class="str">&quot;</span> i<span class="opt">))</span>
-                   <span class="opt">(</span><span class="kwa">if</span> <span class="opt">(&lt;</span> i n<span class="opt">)</span>
-                     <span class="opt">(</span><span class="kwa">compose2</span><span class="opt">!</span> d<span class="opt">)</span>
-                     <span class="opt">(</span><span class="kwa">unless</span> <span class="opt">(</span><span class="kwa">zero</span>? m<span class="opt">)</span>
-                       <span class="opt">(</span><span class="kwa">printf</span> <span class="str">&quot;~a</span><span class="esc">\t</span><span class="str">:~a</span><span class="esc">\n</span><span class="str">&quot;</span>
-                               <span class="opt">(</span><span class="kwa">make-string</span> <span class="opt">(</span><span class="kwa">-</span> <span class="num">10</span> m<span class="opt">) #</span>\space<span class="opt">)</span>
-                               n<span class="opt">))))))))))</span>
+    (if (gmp _x0 &gt; _x1)
+      (compose1!+loop)
+      (let ([d (extract-digit 3)])
+        (if (not (= d (extract-digit 4)))
+          (compose1!+loop)
+          (begin (display d)
+                 (set! i (add1 i))
+                 (let ([m (modulo i 10)])
+                   (when (zero? m) (printf &quot;\t:~a\n&quot; i))
+                   (if (&lt; i n)
+                     (compose2! d)
+                     (unless (zero? m)
+                       (printf &quot;~a\t:~a\n&quot;
+                               (make-string (- 10 m) #\space)
+                               n))))))))))
 
-<span class="opt">(</span><span class="kwa">digits</span> <span class="opt">(</span><span class="kwa">command-line</span> <span class="opt">#:</span>args <span class="opt">(</span><span class="kwa">n</span><span class="opt">) (</span><span class="kwa">string-</span><span class="opt">&gt;</span>number n<span class="opt">)))</span>
+(digits (command-line #:args (n) (string-&gt;number n)))
     </pre>
   </section>
   <section>
@@ -126,18 +126,18 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
     <pre>
 NOTES:
 64-bit Ubuntu quad core
-Welcome to Racket v8.0 [bc].
+Welcome to Racket v8.1 [bc].
 
 
-Fri, 19 Feb 2021 05:21:15 GMT
+Sat, 08 May 2021 20:47:24 GMT
 
 MAKE:
-/opt/src/racket-8.0-bc/bin/raco make pidigits.racketbc-2.racketbc
+/opt/src/racket-8.1-bc/bin/raco make pidigits.racketbc-2.racketbc
 
-2.20s to complete and log all make actions
+2.59s to complete and log all make actions
 
 COMMAND LINE:
-/opt/src/racket-8.0-bc/bin/racket pidigits.racketbc-2.racketbc 10000
+/opt/src/racket-8.1-bc/bin/racket pidigits.racketbc-2.racketbc 10000
 
 (TRUNCATED) PROGRAM OUTPUT:
 3141592653	:10

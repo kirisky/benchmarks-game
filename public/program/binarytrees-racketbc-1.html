@@ -22,62 +22,62 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
       <h2>source code</h2>
     </div>
     <pre>
-<span class="opt">#</span>lang racket<span class="opt">/</span>base
+#lang racket/base
 
-<span class="slc">;;; The Computer Language Benchmarks Game</span>
-<span class="slc">;;; https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+;;; The Computer Language Benchmarks Game
+;;; https://salsa.debian.org/benchmarksgame-team/benchmarksgame/
 
-<span class="slc">;;; Derived from the Chicken variant by Sven Hartrumpf</span>
-<span class="slc">;;; contributed by Matthew Flatt</span>
-<span class="slc">;;; *reset*</span>
+;;; Derived from the Chicken variant by Sven Hartrumpf
+;;; contributed by Matthew Flatt
+;;; *reset*
 
-<span class="opt">(</span><span class="kwa">require</span> racket<span class="opt">/</span>cmdline<span class="opt">)</span>
+(require racket/cmdline)
 
-<span class="opt">(</span><span class="kwa">struct</span> node <span class="opt">(</span><span class="kwa">left</span> val right<span class="opt">))</span>
+(struct node (left val right))
 
-<span class="slc">;; Instead of (define-struct leaf (val)):</span>
-<span class="opt">(</span><span class="kwa">define</span> <span class="opt">(</span><span class="kwa">leaf</span> val<span class="opt">) (</span><span class="kwa">node</span> <span class="opt">#</span>f val <span class="opt">#</span>f<span class="opt">))</span>
-<span class="opt">(</span><span class="kwa">define</span> <span class="opt">(</span><span class="kwa">leaf</span>? l<span class="opt">) (</span><span class="kwa">not</span> <span class="opt">(</span><span class="kwa">node-left</span> l<span class="opt">)))</span>
-<span class="opt">(</span><span class="kwa">define</span> <span class="opt">(</span><span class="kwa">leaf-val</span> l<span class="opt">) (</span><span class="kwa">node-val</span> l<span class="opt">))</span>
+;; Instead of (define-struct leaf (val)):
+(define (leaf val) (node #f val #f))
+(define (leaf? l) (not (node-left l)))
+(define (leaf-val l) (node-val l))
 
-<span class="opt">(</span><span class="kwa">define</span> <span class="opt">(</span><span class="kwa">make</span> item d<span class="opt">)</span>
-  <span class="opt">(</span><span class="kwa">if</span> <span class="opt">(=</span> d <span class="num">0</span><span class="opt">)</span>
-      <span class="opt">(</span><span class="kwa">leaf</span> item<span class="opt">)</span>
-      <span class="opt">(</span><span class="kwa">let</span> <span class="opt">((</span><span class="kwa">item2</span> <span class="opt">(*</span> item <span class="num">2</span><span class="opt">))</span>
-            <span class="opt">(</span><span class="kwa">d2</span> <span class="opt">(</span><span class="kwa">-</span> d <span class="num">1</span><span class="opt">)))</span>
-        <span class="opt">(</span><span class="kwa">node</span> <span class="opt">(</span><span class="kwa">make</span> <span class="opt">(</span><span class="kwa">-</span> item2 <span class="num">1</span><span class="opt">)</span> d2<span class="opt">)</span> 
+(define (make item d)
+  (if (= d 0)
+      (leaf item)
+      (let ((item2 (* item 2))
+            (d2 (- d 1)))
+        (node (make (- item2 1) d2) 
               item 
-              <span class="opt">(</span><span class="kwa">make</span> item2 d2<span class="opt">)))))</span>
+              (make item2 d2)))))
 
-<span class="opt">(</span><span class="kwa">define</span> <span class="opt">(</span><span class="kwa">check</span> t<span class="opt">)</span>
-  <span class="opt">(</span><span class="kwa">if</span> <span class="opt">(</span><span class="kwa">leaf</span>? t<span class="opt">)</span>
-      <span class="num">1</span>
-      <span class="opt">(+</span> <span class="num">1</span> <span class="opt">(+ (</span><span class="kwa">check</span> <span class="opt">(</span><span class="kwa">node-left</span> t<span class="opt">))</span> 
-                         <span class="opt">(</span><span class="kwa">check</span> <span class="opt">(</span><span class="kwa">node-right</span> t<span class="opt">))))))</span>
+(define (check t)
+  (if (leaf? t)
+      1
+      (+ 1 (+ (check (node-left t)) 
+                         (check (node-right t))))))
 
-<span class="opt">(</span><span class="kwa">define</span> <span class="opt">(</span><span class="kwa">main</span> n<span class="opt">)</span>
-  <span class="opt">(</span><span class="kwa">let</span><span class="opt">* ((</span><span class="kwa">min-depth</span> <span class="num">4</span><span class="opt">)</span>
-         <span class="opt">(</span><span class="kwa">max-depth</span> <span class="opt">(</span><span class="kwa">max</span> <span class="opt">(+</span> min-depth <span class="num">2</span><span class="opt">)</span> n<span class="opt">)))</span>
-    <span class="opt">(</span><span class="kwa">let</span> <span class="opt">((</span><span class="kwa">stretch-depth</span> <span class="opt">(+</span> max-depth <span class="num">1</span><span class="opt">)))</span>
-      <span class="opt">(</span><span class="kwa">printf</span> <span class="str">&quot;stretch tree of depth ~a</span><span class="esc">\t</span> <span class="str">check: ~a</span><span class="esc">\n</span><span class="str">&quot;</span>
+(define (main n)
+  (let* ((min-depth 4)
+         (max-depth (max (+ min-depth 2) n)))
+    (let ((stretch-depth (+ max-depth 1)))
+      (printf &quot;stretch tree of depth ~a\t check: ~a\n&quot;
               stretch-depth
-              <span class="opt">(</span><span class="kwa">check</span> <span class="opt">(</span><span class="kwa">make</span> <span class="num">0</span> stretch-depth<span class="opt">))))</span>
-    <span class="opt">(</span><span class="kwa">let</span> <span class="opt">((</span><span class="kwa">long-lived-tree</span> <span class="opt">(</span><span class="kwa">make</span> <span class="num">0</span> max-depth<span class="opt">)))</span>
-      <span class="opt">(</span><span class="kwa">for</span> <span class="opt">((</span><span class="kwa">d</span> <span class="opt">(</span><span class="kwa">in-range</span> <span class="num">4</span> <span class="opt">(</span><span class="kwa">add1</span> max-depth<span class="opt">)</span> <span class="num">2</span><span class="opt">)))</span>
-        <span class="opt">(</span><span class="kwa">let</span> <span class="opt">((</span><span class="kwa">iterations</span> <span class="opt">(</span><span class="kwa">arithmetic-shift</span> <span class="num">1</span> <span class="opt">(+ (</span><span class="kwa">-</span> max-depth d<span class="opt">)</span> min-depth<span class="opt">))))</span>
-          <span class="opt">(</span><span class="kwa">printf</span> <span class="str">&quot;~a</span><span class="esc">\t</span> <span class="str">trees of depth ~a</span><span class="esc">\t</span> <span class="str">check: ~a</span><span class="esc">\n</span><span class="str">&quot;</span>
+              (check (make 0 stretch-depth))))
+    (let ((long-lived-tree (make 0 max-depth)))
+      (for ((d (in-range 4 (add1 max-depth) 2)))
+        (let ((iterations (arithmetic-shift 1 (+ (- max-depth d) min-depth))))
+          (printf &quot;~a\t trees of depth ~a\t check: ~a\n&quot;
                   iterations
                   d
-                  <span class="opt">(</span><span class="kwa">for</span><span class="opt">/</span>fold <span class="opt">([</span>c <span class="num">0</span><span class="opt">])</span>
-                            <span class="opt">([</span>i <span class="opt">(</span><span class="kwa">in-range</span> iterations<span class="opt">)])</span>
-                    <span class="opt">(+</span> c 
-                       <span class="opt">(</span><span class="kwa">check</span> <span class="opt">(</span><span class="kwa">make</span> i d<span class="opt">)) )))))</span>
-      <span class="opt">(</span><span class="kwa">printf</span> <span class="str">&quot;long lived tree of depth ~a</span><span class="esc">\t</span> <span class="str">check: ~a</span><span class="esc">\n</span><span class="str">&quot;</span>
+                  (for/fold ([c 0])
+                            ([i (in-range iterations)])
+                    (+ c 
+                       (check (make i d)) )))))
+      (printf &quot;long lived tree of depth ~a\t check: ~a\n&quot;
               max-depth
-              <span class="opt">(</span><span class="kwa">check</span> long-lived-tree<span class="opt">)))))</span>
+              (check long-lived-tree)))))
 
-<span class="opt">(</span><span class="kwa">command-line</span> <span class="opt">#:</span>args <span class="opt">(</span><span class="kwa">n</span><span class="opt">)</span> 
-              <span class="opt">(</span><span class="kwa">main</span> <span class="opt">(</span><span class="kwa">string-</span><span class="opt">&gt;</span>number n<span class="opt">)))</span>
+(command-line #:args (n) 
+              (main (string-&gt;number n)))
     </pre>
   </section>
   <section>
@@ -87,18 +87,18 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
     <pre>
 NOTES:
 64-bit Ubuntu quad core
-Welcome to Racket v8.0 [bc].
+Welcome to Racket v8.1 [bc].
 
 
-Fri, 19 Feb 2021 04:29:40 GMT
+Sat, 08 May 2021 19:03:47 GMT
 
 MAKE:
-/opt/src/racket-8.0-bc/bin/raco make binarytrees.racketbc
+/opt/src/racket-8.1-bc/bin/raco make binarytrees.racketbc
 
-1.99s to complete and log all make actions
+2.73s to complete and log all make actions
 
 COMMAND LINE:
-/opt/src/racket-8.0-bc/bin/racket binarytrees.racketbc 21
+/opt/src/racket-8.1-bc/bin/racket binarytrees.racketbc 21
 
 PROGRAM OUTPUT:
 stretch tree of depth 22	 check: 8388607

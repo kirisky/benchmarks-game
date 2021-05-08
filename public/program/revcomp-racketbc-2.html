@@ -22,89 +22,89 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
       <h2>source code</h2>
     </div>
     <pre>
-<span class="opt">#</span>lang racket<span class="opt">/</span>base
+#lang racket/base
 
-<span class="slc">;;; The Computer Language Benchmarks Game</span>
-<span class="slc">;;; https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
-<span class="slc">;;; contributed by Eli Barzilay</span>
+;;; The Computer Language Benchmarks Game
+;;; https://salsa.debian.org/benchmarksgame-team/benchmarksgame/
+;;; contributed by Eli Barzilay
 
-<span class="opt">(</span><span class="kwa">define</span> translation <span class="opt">(</span><span class="kwa">make-vector</span> <span class="num">128</span><span class="opt">))</span>
+(define translation (make-vector 128))
 
-<span class="opt">(</span><span class="kwa">for</span> <span class="opt">([</span>from <span class="opt">(</span><span class="kwa">in-string</span> <span class="str">&quot;ACGTUMRWSYKVHDBN&quot;</span><span class="opt">)]</span>
-      <span class="opt">[</span>to   <span class="opt">(</span><span class="kwa">in-string</span> <span class="str">&quot;TGCAAKYWSRMBDHVN&quot;</span><span class="opt">)])</span>
-  <span class="opt">(</span><span class="kwa">let</span> <span class="opt">([</span>to <span class="opt">(</span><span class="kwa">char-</span><span class="opt">&gt;</span>integer to<span class="opt">)])</span>
-    <span class="opt">(</span><span class="kwa">vector-set</span><span class="opt">!</span> translation <span class="opt">(</span><span class="kwa">char-</span><span class="opt">&gt;</span>integer from<span class="opt">)</span> to<span class="opt">)</span>
-    <span class="opt">(</span><span class="kwa">vector-set</span><span class="opt">!</span> translation <span class="opt">(</span><span class="kwa">char-</span><span class="opt">&gt;</span>integer <span class="opt">(</span><span class="kwa">char-downcase</span> from<span class="opt">))</span> to<span class="opt">)))</span>
+(for ([from (in-string &quot;ACGTUMRWSYKVHDBN&quot;)]
+      [to   (in-string &quot;TGCAAKYWSRMBDHVN&quot;)])
+  (let ([to (char-&gt;integer to)])
+    (vector-set! translation (char-&gt;integer from) to)
+    (vector-set! translation (char-&gt;integer (char-downcase from)) to)))
 
-<span class="opt">(</span><span class="kwa">define</span> I <span class="opt">(</span><span class="kwa">current-input-port</span><span class="opt">))</span>
-<span class="opt">(</span><span class="kwa">define</span> O <span class="opt">(</span><span class="kwa">current-output-port</span><span class="opt">))</span>
+(define I (current-input-port))
+(define O (current-output-port))
 
-<span class="opt">(</span><span class="kwa">define</span> marker <span class="opt">(</span><span class="kwa">char-</span><span class="opt">&gt;</span>integer <span class="opt">#</span>\<span class="opt">&gt;))</span>
+(define marker (char-&gt;integer #\&gt;))
 
-<span class="opt">(</span><span class="kwa">require</span> racket<span class="opt">/</span>require <span class="opt">(</span><span class="kwa">for-syntax</span> racket<span class="opt">/</span>base<span class="opt">)</span>
-         <span class="opt">(</span><span class="kwa">filtered-in</span> <span class="opt">(</span><span class="kwa">lambda</span> <span class="opt">(</span><span class="kwa">name</span><span class="opt">) (</span><span class="kwa">regexp-replace</span> <span class="opt">#</span>rx<span class="str">&quot;unsafe-&quot;</span> name <span class="str">&quot;&quot;</span><span class="opt">))</span>
-                      racket<span class="opt">/</span>unsafe<span class="opt">/</span>ops<span class="opt">))</span>
+(require racket/require (for-syntax racket/base)
+         (filtered-in (lambda (name) (regexp-replace #rx&quot;unsafe-&quot; name &quot;&quot;))
+                      racket/unsafe/ops))
 
-<span class="opt">(</span><span class="kwa">define</span> line-length <span class="num">60</span><span class="opt">)</span>
-<span class="opt">(</span><span class="kwa">define</span> buf-size <span class="opt">(*</span> <span class="num">64 1024</span><span class="opt">))</span>
-<span class="opt">(</span><span class="kwa">define</span> out-buf <span class="slc">; so there&apos;s always enough room for newlines</span>
-  <span class="opt">(</span><span class="kwa">make-bytes</span> <span class="opt">(+</span> buf-size <span class="num">1</span> <span class="opt">(</span><span class="kwa">quotient</span> buf-size line-length<span class="opt">))))</span>
-<span class="opt">(</span><span class="kwa">define</span> LF <span class="opt">(</span><span class="kwa">char-</span><span class="opt">&gt;</span>integer <span class="opt">#</span><span class="esc">\n</span>ewline<span class="opt">))</span>
+(define line-length 60)
+(define buf-size (* 64 1024))
+(define out-buf ; so there&apos;s always enough room for newlines
+  (make-bytes (+ buf-size 1 (quotient buf-size line-length))))
+(define LF (char-&gt;integer #\newline))
 
-<span class="opt">#</span>|
-The basic idea is to read the input in chunks<span class="opt">,</span> and keep pointers to
-them<span class="opt">,</span> then on output process each chunk to translate and reverse it
+#|
+The basic idea is to read the input in chunks, and keep pointers to
+them, then on output process each chunk to translate and reverse it
 before dumping it out.
-|<span class="opt">#</span>
+|#
 
-<span class="opt">(</span><span class="kwa">define</span> <span class="opt">(</span><span class="kwa">output</span> chunks<span class="opt">)</span>
-  <span class="opt">(</span><span class="kwa">let</span> loop <span class="opt">([</span>chunks chunks<span class="opt">] [</span>col line-length<span class="opt">])</span>
-    <span class="opt">(</span><span class="kwa">when</span> <span class="opt">(</span><span class="kwa">pair</span>? chunks<span class="opt">)</span>
-      <span class="opt">(</span><span class="kwa">let</span> <span class="opt">([</span>chunk <span class="opt">(</span><span class="kwa">car</span> chunks<span class="opt">)])</span>
-        <span class="opt">(</span><span class="kwa">let</span> <span class="opt">([</span>start  <span class="opt">(</span><span class="kwa">vector-ref</span> chunk <span class="num">0</span><span class="opt">)]</span>
-              <span class="opt">[</span>end    <span class="opt">(</span><span class="kwa">vector-ref</span> chunk <span class="num">1</span><span class="opt">)]</span>
-              <span class="opt">[</span>in-buf <span class="opt">(</span><span class="kwa">vector-ref</span> chunk <span class="num">2</span><span class="opt">)])</span>
-          <span class="opt">(</span><span class="kwa">let</span> chunk-loop <span class="opt">([</span>i end<span class="opt">] [</span>j <span class="num">0</span><span class="opt">] [</span>col col<span class="opt">])</span>
-            <span class="opt">(</span><span class="kwa">if</span> <span class="opt">(</span><span class="kwa">fx</span><span class="opt">&gt;</span> i start<span class="opt">)</span>
-              <span class="opt">(</span><span class="kwa">let</span><span class="opt">* ([</span>i <span class="opt">(</span><span class="kwa">fx-</span> i <span class="num">1</span><span class="opt">)] [</span>b <span class="opt">(</span><span class="kwa">bytes-ref</span> in-buf i<span class="opt">)])</span>
-                <span class="opt">(</span><span class="kwa">if</span> <span class="opt">(</span><span class="kwa">fx</span><span class="opt">=</span> b LF<span class="opt">)</span>
-                  <span class="opt">(</span><span class="kwa">chunk-loop</span> i j col<span class="opt">)</span>
-                  <span class="opt">(</span><span class="kwa">let</span> <span class="opt">([</span>b <span class="opt">(</span><span class="kwa">vector-ref</span> translation b<span class="opt">)])</span>
-                    <span class="opt">(</span><span class="kwa">if</span> <span class="opt">(</span><span class="kwa">fx</span><span class="opt">=</span> <span class="num">0</span> col<span class="opt">)</span>
-                      <span class="opt">(</span><span class="kwa">begin</span> <span class="opt">(</span><span class="kwa">bytes-set</span><span class="opt">!</span> out-buf j LF<span class="opt">)</span>
-                             <span class="opt">(</span><span class="kwa">bytes-set</span><span class="opt">!</span> out-buf <span class="opt">(</span><span class="kwa">fx</span><span class="opt">+</span> j <span class="num">1</span><span class="opt">)</span> b<span class="opt">)</span>
-                             <span class="opt">(</span><span class="kwa">chunk-loop</span> i <span class="opt">(</span><span class="kwa">fx</span><span class="opt">+</span> j <span class="num">2</span><span class="opt">) (</span><span class="kwa">fx-</span> line-length <span class="num">1</span><span class="opt">)))</span>
-                      <span class="opt">(</span><span class="kwa">begin</span> <span class="opt">(</span><span class="kwa">bytes-set</span><span class="opt">!</span> out-buf j b<span class="opt">)</span>
-                             <span class="opt">(</span><span class="kwa">chunk-loop</span> i <span class="opt">(</span><span class="kwa">fx</span><span class="opt">+</span> j <span class="num">1</span><span class="opt">) (</span><span class="kwa">fx-</span> col <span class="num">1</span><span class="opt">)))))))</span>
-              <span class="opt">(</span><span class="kwa">begin</span> <span class="opt">(</span><span class="kwa">write-bytes</span> out-buf O <span class="num">0</span> j<span class="opt">)</span>
-                     <span class="opt">(</span><span class="kwa">loop</span> <span class="opt">(</span><span class="kwa">cdr</span> chunks<span class="opt">)</span> col<span class="opt">))))))))</span>
-  <span class="opt">(</span><span class="kwa">newline</span> O<span class="opt">))</span>
+(define (output chunks)
+  (let loop ([chunks chunks] [col line-length])
+    (when (pair? chunks)
+      (let ([chunk (car chunks)])
+        (let ([start  (vector-ref chunk 0)]
+              [end    (vector-ref chunk 1)]
+              [in-buf (vector-ref chunk 2)])
+          (let chunk-loop ([i end] [j 0] [col col])
+            (if (fx&gt; i start)
+              (let* ([i (fx- i 1)] [b (bytes-ref in-buf i)])
+                (if (fx= b LF)
+                  (chunk-loop i j col)
+                  (let ([b (vector-ref translation b)])
+                    (if (fx= 0 col)
+                      (begin (bytes-set! out-buf j LF)
+                             (bytes-set! out-buf (fx+ j 1) b)
+                             (chunk-loop i (fx+ j 2) (fx- line-length 1)))
+                      (begin (bytes-set! out-buf j b)
+                             (chunk-loop i (fx+ j 1) (fx- col 1)))))))
+              (begin (write-bytes out-buf O 0 j)
+                     (loop (cdr chunks) col))))))))
+  (newline O))
 
-<span class="opt">(</span><span class="kwa">define-syntax</span> case-regexp-posns
-  <span class="opt">(</span><span class="kwa">syntax-rules</span> <span class="opt">(=&gt;</span> else<span class="opt">)</span>
-    <span class="opt">[(</span><span class="kwa">_</span> rx buf start <span class="opt">[</span>id B1 ...<span class="opt">] [</span>else B2 ...<span class="opt">])</span>
-     <span class="opt">(</span><span class="kwa">let</span> <span class="opt">([</span>m <span class="opt">(</span><span class="kwa">regexp-match-positions</span> rx buf start<span class="opt">)])</span>
-       <span class="opt">(</span><span class="kwa">if</span> m <span class="opt">(</span><span class="kwa">let</span> <span class="opt">([</span>id <span class="opt">(</span><span class="kwa">car</span> m<span class="opt">)])</span> B1 ...<span class="opt">) (</span><span class="kwa">begin</span> B2 ...<span class="opt">)))]))</span>
+(define-syntax case-regexp-posns
+  (syntax-rules (=&gt; else)
+    [(_ rx buf start [id B1 ...] [else B2 ...])
+     (let ([m (regexp-match-positions rx buf start)])
+       (if m (let ([id (car m)]) B1 ...) (begin B2 ...)))]))
 
-<span class="opt">(</span><span class="kwa">let</span> <span class="opt">([</span>m <span class="opt">(</span><span class="kwa">regexp-match</span> <span class="opt">#</span>rx<span class="str">&quot;^([^</span><span class="esc">\n</span><span class="str">]+)</span><span class="esc">\n</span><span class="str">&quot;</span> I<span class="opt">)]) (</span><span class="kwa">display</span> <span class="opt">(</span><span class="kwa">car</span> m<span class="opt">)))</span>
+(let ([m (regexp-match #rx&quot;^([^\n]+)\n&quot; I)]) (display (car m)))
 
-<span class="opt">(</span><span class="kwa">let</span> loop <span class="opt">([</span>buf <span class="opt">(</span><span class="kwa">read-bytes</span> buf-size I<span class="opt">)] [</span>start <span class="num">0</span><span class="opt">] [</span>chunks <span class="opt">&apos;()])</span>
-  <span class="opt">(</span><span class="kwa">if</span> <span class="opt">(</span><span class="kwa">eof-object</span>? buf<span class="opt">)</span>
-    <span class="opt">(</span><span class="kwa">begin</span> <span class="opt">(</span><span class="kwa">output</span> chunks<span class="opt">) (</span><span class="kwa">void</span><span class="opt">))</span>
-    <span class="opt">(</span><span class="kwa">case-regexp-posns</span> <span class="opt">#</span>rx<span class="str">&quot;&gt;&quot;</span> buf start
-      <span class="opt">[</span>p1 <span class="opt">(</span><span class="kwa">output</span> <span class="opt">(</span><span class="kwa">cons</span> <span class="opt">(</span><span class="kwa">vector</span> start <span class="opt">(</span><span class="kwa">car</span> p1<span class="opt">)</span> buf<span class="opt">)</span> chunks<span class="opt">))</span>
-          <span class="opt">(</span><span class="kwa">case-regexp-posns</span> <span class="opt">#</span>rx<span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span> buf <span class="opt">(</span><span class="kwa">cdr</span> p1<span class="opt">)</span>
-            <span class="opt">[</span>p2 <span class="opt">(</span><span class="kwa">write-bytes</span> buf O <span class="opt">(</span><span class="kwa">car</span> p1<span class="opt">) (</span><span class="kwa">cdr</span> p2<span class="opt">))</span>
-                <span class="opt">(</span><span class="kwa">loop</span> buf <span class="opt">(</span><span class="kwa">cdr</span> p2<span class="opt">) &apos;())]</span>
-            <span class="opt">[</span>else <span class="opt">(</span><span class="kwa">write-bytes</span> buf O <span class="opt">(</span><span class="kwa">car</span> p1<span class="opt">))</span>
-                  <span class="opt">(</span><span class="kwa">let</span> header-loop <span class="opt">()</span>
-                    <span class="opt">(</span><span class="kwa">let</span> <span class="opt">([</span>buf <span class="opt">(</span><span class="kwa">read-bytes</span> buf-size I<span class="opt">)])</span>
-                      <span class="opt">(</span><span class="kwa">case-regexp-posns</span> <span class="opt">#</span>rx<span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span> buf <span class="num">0</span>
-                        <span class="opt">[</span>p2 <span class="opt">(</span><span class="kwa">write-bytes</span> buf O <span class="num">0</span> <span class="opt">(</span><span class="kwa">cdr</span> p2<span class="opt">))</span>
-                            <span class="opt">(</span><span class="kwa">loop</span> buf <span class="opt">(</span><span class="kwa">cdr</span> p2<span class="opt">) &apos;())]</span>
-                        <span class="opt">[</span>else <span class="opt">(</span><span class="kwa">write-bytes</span> buf O<span class="opt">) (</span><span class="kwa">header-loop</span><span class="opt">)])))])]</span>
-      <span class="opt">[</span>else <span class="opt">(</span><span class="kwa">loop</span> <span class="opt">(</span><span class="kwa">read-bytes</span> buf-size I<span class="opt">)</span> <span class="num">0</span>
-                  <span class="opt">(</span><span class="kwa">cons</span> <span class="opt">(</span><span class="kwa">vector</span> start <span class="opt">(</span><span class="kwa">bytes-length</span> buf<span class="opt">)</span> buf<span class="opt">)</span> chunks<span class="opt">))])))</span>
+(let loop ([buf (read-bytes buf-size I)] [start 0] [chunks &apos;()])
+  (if (eof-object? buf)
+    (begin (output chunks) (void))
+    (case-regexp-posns #rx&quot;&gt;&quot; buf start
+      [p1 (output (cons (vector start (car p1) buf) chunks))
+          (case-regexp-posns #rx&quot;\n&quot; buf (cdr p1)
+            [p2 (write-bytes buf O (car p1) (cdr p2))
+                (loop buf (cdr p2) &apos;())]
+            [else (write-bytes buf O (car p1))
+                  (let header-loop ()
+                    (let ([buf (read-bytes buf-size I)])
+                      (case-regexp-posns #rx&quot;\n&quot; buf 0
+                        [p2 (write-bytes buf O 0 (cdr p2))
+                            (loop buf (cdr p2) &apos;())]
+                        [else (write-bytes buf O) (header-loop)])))])]
+      [else (loop (read-bytes buf-size I) 0
+                  (cons (vector start (bytes-length buf) buf) chunks))])))
     </pre>
   </section>
   <section>
@@ -114,18 +114,18 @@ before dumping it out.
     <pre>
 NOTES:
 64-bit Ubuntu quad core
-Welcome to Racket v8.0 [bc].
+Welcome to Racket v8.1 [bc].
 
 
-Fri, 19 Feb 2021 05:31:23 GMT
+Sat, 08 May 2021 21:09:41 GMT
 
 MAKE:
-/opt/src/racket-8.0-bc/bin/raco make revcomp.racketbc-2.racketbc
+/opt/src/racket-8.1-bc/bin/raco make revcomp.racketbc-2.racketbc
 
-2.11s to complete and log all make actions
+3.19s to complete and log all make actions
 
 COMMAND LINE:
-/opt/src/racket-8.0-bc/bin/racket revcomp.racketbc-2.racketbc 0 &lt; revcomp-input100000000.txt
+/opt/src/racket-8.1-bc/bin/racket revcomp.racketbc-2.racketbc 0 &lt; revcomp-input100000000.txt
 
 (TRUNCATED) PROGRAM OUTPUT:
 &gt;ONE Homo sapiens alu

@@ -22,63 +22,63 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
       <h2>source code</h2>
     </div>
     <pre>
-<span class="opt">#</span>lang racket<span class="opt">/</span>base
+#lang racket/base
 
-<span class="slc">;;; The Computer Language Benchmarks Game</span>
-<span class="slc">;; https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
-<span class="slc">;;; contributed by Eli Barzilay</span>
+;;; The Computer Language Benchmarks Game
+;; https://salsa.debian.org/benchmarksgame-team/benchmarksgame/
+;;; contributed by Eli Barzilay
 
-<span class="opt">(</span><span class="kwa">require</span> racket<span class="opt">/</span>require racket<span class="opt">/</span>require-syntax <span class="opt">(</span><span class="kwa">for-syntax</span> racket<span class="opt">/</span>base<span class="opt">))</span>
-<span class="opt">(</span><span class="kwa">define-require-syntax</span> overriding-in
-  <span class="opt">(</span><span class="kwa">syntax-rules</span> <span class="opt">() [(</span><span class="kwa">_</span> R1 R2<span class="opt">) (</span><span class="kwa">combine-in</span> R2 <span class="opt">(</span><span class="kwa">subtract-in</span> R1 R2<span class="opt">))]))</span>
-<span class="opt">(</span><span class="kwa">require</span> <span class="opt">(</span><span class="kwa">overriding-in</span>
-          racket<span class="opt">/</span>flonum
-          <span class="opt">(</span><span class="kwa">filtered-in</span> <span class="opt">(</span><span class="kwa">lambda</span> <span class="opt">(</span><span class="kwa">name</span><span class="opt">) (</span><span class="kwa">regexp-replace</span> <span class="opt">#</span>rx<span class="str">&quot;unsafe-&quot;</span> name <span class="str">&quot;&quot;</span><span class="opt">))</span>
-                       racket<span class="opt">/</span>unsafe<span class="opt">/</span>ops<span class="opt">))</span>
-         racket<span class="opt">/</span>cmdline<span class="opt">)</span>
+(require racket/require racket/require-syntax (for-syntax racket/base))
+(define-require-syntax overriding-in
+  (syntax-rules () [(_ R1 R2) (combine-in R2 (subtract-in R1 R2))]))
+(require (overriding-in
+          racket/flonum
+          (filtered-in (lambda (name) (regexp-replace #rx&quot;unsafe-&quot; name &quot;&quot;))
+                       racket/unsafe/ops))
+         racket/cmdline)
 
-<span class="opt">(</span><span class="kwa">define</span> O <span class="opt">(</span><span class="kwa">current-output-port</span><span class="opt">))</span>
+(define O (current-output-port))
 
-<span class="opt">(</span><span class="kwa">define</span> LIMIT-SQR <span class="num">4.0</span><span class="opt">)</span>
-<span class="opt">(</span><span class="kwa">define</span> ITERATIONS <span class="num">50</span><span class="opt">)</span>
-<span class="opt">(</span><span class="kwa">define</span> N <span class="opt">(</span><span class="kwa">command-line</span> <span class="opt">#:</span>args <span class="opt">(</span><span class="kwa">n</span><span class="opt">) (</span><span class="kwa">string-</span><span class="opt">&gt;</span>number n<span class="opt">)))</span>
-<span class="opt">(</span><span class="kwa">define</span> N<span class="num">.0</span> <span class="opt">(</span><span class="kwa">fx-</span><span class="opt">&gt;</span>fl N<span class="opt">))</span>
-<span class="opt">(</span><span class="kwa">define</span> <span class="num">2</span><span class="opt">/</span>N <span class="opt">(</span><span class="kwa">fl</span><span class="opt">/</span> <span class="num">2.0</span> N<span class="num">.0</span><span class="opt">))</span>
-<span class="opt">(</span><span class="kwa">define</span> Crs
-  <span class="opt">(</span><span class="kwa">let</span> <span class="opt">([</span>v <span class="opt">(</span><span class="kwa">make-flvector</span> N<span class="opt">)])</span>
-    <span class="opt">(</span><span class="kwa">for</span> <span class="opt">([</span>x <span class="opt">(</span><span class="kwa">in-range</span> N<span class="opt">)])</span>
-      <span class="opt">(</span><span class="kwa">flvector-set</span><span class="opt">!</span> v x <span class="opt">(</span><span class="kwa">fl-</span> <span class="opt">(</span><span class="kwa">fl</span><span class="opt">/ (</span><span class="kwa">fx-</span><span class="opt">&gt;</span>fl <span class="opt">(</span><span class="kwa">fx</span><span class="opt">*</span> <span class="num">2</span> x<span class="opt">))</span> N<span class="num">.0</span><span class="opt">)</span> <span class="num">1.5</span><span class="opt">)))</span>
-    v<span class="opt">))</span>
+(define LIMIT-SQR 4.0)
+(define ITERATIONS 50)
+(define N (command-line #:args (n) (string-&gt;number n)))
+(define N.0 (fx-&gt;fl N))
+(define 2/N (fl/ 2.0 N.0))
+(define Crs
+  (let ([v (make-flvector N)])
+    (for ([x (in-range N)])
+      (flvector-set! v x (fl- (fl/ (fx-&gt;fl (fx* 2 x)) N.0) 1.5)))
+    v))
 
-<span class="opt">(</span><span class="kwa">define-syntax</span> <span class="opt">(</span><span class="kwa">let-n</span> stx<span class="opt">)</span>
-  <span class="opt">(</span><span class="kwa">syntax-case</span> stx <span class="opt">()</span>
-    <span class="opt">[(</span><span class="kwa">_</span> N bindings E<span class="opt">)</span>
-     <span class="opt">(</span><span class="kwa">let</span> loop <span class="opt">([</span>N <span class="opt">(</span><span class="kwa">syntax-e</span> <span class="opt">#&apos;</span>N<span class="opt">)] [</span>E <span class="opt">#&apos;</span>E<span class="opt">])</span>
-       <span class="opt">(</span><span class="kwa">if</span> <span class="opt">(</span><span class="kwa">zero</span>? N<span class="opt">)</span> E <span class="opt">(</span><span class="kwa">loop</span> <span class="opt">(</span><span class="kwa">sub1</span> N<span class="opt">) #`(</span><span class="kwa">let</span> bindings <span class="opt">#,</span>E<span class="opt">))))]))</span>
+(define-syntax (let-n stx)
+  (syntax-case stx ()
+    [(_ N bindings E)
+     (let loop ([N (syntax-e #&apos;N)] [E #&apos;E])
+       (if (zero? N) E (loop (sub1 N) #`(let bindings #,E))))]))
 
-<span class="opt">(</span><span class="kwa">define-syntax-rule</span> <span class="opt">(</span><span class="kwa">mandelbrot</span> Cr Ci<span class="opt">)</span>
-  <span class="opt">(</span><span class="kwa">let</span> loop <span class="opt">([</span>i <span class="num">0</span><span class="opt">] [</span>Zr <span class="num">0.0</span><span class="opt">] [</span>Zi <span class="num">0.0</span><span class="opt">])</span>
-    <span class="opt">(</span><span class="kwa">cond</span> <span class="opt">[(</span><span class="kwa">fl</span><span class="opt">&gt; (</span><span class="kwa">fl</span><span class="opt">+ (</span><span class="kwa">fl</span><span class="opt">*</span> Zr Zr<span class="opt">) (</span><span class="kwa">fl</span><span class="opt">*</span> Zi Zi<span class="opt">))</span> LIMIT-SQR<span class="opt">)</span> <span class="num">0</span><span class="opt">]</span>
-          <span class="opt">[(</span><span class="kwa">fx</span><span class="opt">=</span> i ITERATIONS<span class="opt">)</span> <span class="num">1</span><span class="opt">]</span>
-          <span class="opt">[</span>else <span class="opt">(</span><span class="kwa">let-n</span> <span class="num">5</span> <span class="opt">([</span>Zr <span class="opt">(</span><span class="kwa">fl</span><span class="opt">+ (</span><span class="kwa">fl-</span> <span class="opt">(</span><span class="kwa">fl</span><span class="opt">*</span> Zr Zr<span class="opt">) (</span><span class="kwa">fl</span><span class="opt">*</span> Zi Zi<span class="opt">))</span> Cr<span class="opt">)]</span>
-                          <span class="opt">[</span>Zi <span class="opt">(</span><span class="kwa">fl</span><span class="opt">+ (</span><span class="kwa">fl</span><span class="opt">*</span> <span class="num">2.0</span> <span class="opt">(</span><span class="kwa">fl</span><span class="opt">*</span> Zr Zi<span class="opt">))</span> Ci<span class="opt">)])</span>
-                  <span class="opt">(</span><span class="kwa">loop</span> <span class="opt">(</span><span class="kwa">fx</span><span class="opt">+</span> i <span class="num">5</span><span class="opt">)</span> Zr Zi<span class="opt">))])))</span>
+(define-syntax-rule (mandelbrot Cr Ci)
+  (let loop ([i 0] [Zr 0.0] [Zi 0.0])
+    (cond [(fl&gt; (fl+ (fl* Zr Zr) (fl* Zi Zi)) LIMIT-SQR) 0]
+          [(fx= i ITERATIONS) 1]
+          [else (let-n 5 ([Zr (fl+ (fl- (fl* Zr Zr) (fl* Zi Zi)) Cr)]
+                          [Zi (fl+ (fl* 2.0 (fl* Zr Zi)) Ci)])
+                  (loop (fx+ i 5) Zr Zi))])))
 
-<span class="opt">(</span><span class="kwa">fprintf</span> O <span class="str">&quot;P4</span><span class="esc">\n</span><span class="str">~a ~a</span><span class="esc">\n</span><span class="str">&quot;</span> N N<span class="opt">)</span>
-<span class="opt">(</span><span class="kwa">let</span> loop-y <span class="opt">([</span>y N<span class="opt">])</span>
-  <span class="opt">(</span><span class="kwa">let</span> <span class="opt">([</span>Ci <span class="opt">(</span><span class="kwa">fl-</span> <span class="opt">(</span><span class="kwa">fl</span><span class="opt">*</span> <span class="num">2</span><span class="opt">/</span>N <span class="opt">(</span><span class="kwa">fx-</span><span class="opt">&gt;</span>fl y<span class="opt">))</span> <span class="num">1.0</span><span class="opt">)])</span>
-    <span class="opt">(</span><span class="kwa">let</span> loop-x <span class="opt">([</span>x <span class="num">0</span><span class="opt">] [</span>bitnum <span class="num">0</span><span class="opt">] [</span>byteacc <span class="num">0</span><span class="opt">])</span>
-      <span class="opt">(</span><span class="kwa">if</span> <span class="opt">(</span><span class="kwa">fx</span><span class="opt">&lt;</span> x N<span class="opt">)</span>
-        <span class="opt">(</span><span class="kwa">let</span><span class="opt">* ([</span>Cr <span class="opt">(</span><span class="kwa">flvector-ref</span> Crs x<span class="opt">)]</span>
-               <span class="opt">[</span>bitnum <span class="opt">(</span><span class="kwa">fx</span><span class="opt">+</span> bitnum <span class="num">1</span><span class="opt">)]</span>
-               <span class="opt">[</span>byteacc <span class="opt">(</span><span class="kwa">fx</span><span class="opt">+ (</span><span class="kwa">fxlshift</span> byteacc <span class="num">1</span><span class="opt">) (</span><span class="kwa">mandelbrot</span> Cr Ci<span class="opt">))])</span>
-          <span class="opt">(</span><span class="kwa">cond</span> <span class="opt">[(</span><span class="kwa">fx</span><span class="opt">=</span> bitnum <span class="num">8</span><span class="opt">)</span>
-                 <span class="opt">(</span><span class="kwa">write-byte</span> byteacc O<span class="opt">)</span>
-                 <span class="opt">(</span><span class="kwa">loop-x</span> <span class="opt">(</span><span class="kwa">fx</span><span class="opt">+</span> x <span class="num">1</span><span class="opt">)</span> <span class="num">0 0</span><span class="opt">)]</span>
-                <span class="opt">[</span>else <span class="opt">(</span><span class="kwa">loop-x</span> <span class="opt">(</span><span class="kwa">fx</span><span class="opt">+</span> x <span class="num">1</span><span class="opt">)</span> bitnum byteacc<span class="opt">)]))</span>
-        <span class="opt">(</span><span class="kwa">begin</span> <span class="opt">(</span><span class="kwa">when</span> <span class="opt">(</span><span class="kwa">fx</span><span class="opt">&gt;</span> bitnum <span class="num">0</span><span class="opt">)</span>
-                 <span class="opt">(</span><span class="kwa">write-byte</span> <span class="opt">(</span><span class="kwa">fxlshift</span> byteacc <span class="opt">(</span><span class="kwa">fx-</span> <span class="num">8</span> <span class="opt">(</span><span class="kwa">fxand</span> N <span class="opt">#</span>x7<span class="opt">)))</span> O<span class="opt">))</span>
-               <span class="opt">(</span><span class="kwa">when</span> <span class="opt">(</span><span class="kwa">fx</span><span class="opt">&gt;</span> y <span class="num">1</span><span class="opt">) (</span><span class="kwa">loop-y</span> <span class="opt">(</span><span class="kwa">fx-</span> y <span class="num">1</span><span class="opt">))))))))</span>
+(fprintf O &quot;P4\n~a ~a\n&quot; N N)
+(let loop-y ([y N])
+  (let ([Ci (fl- (fl* 2/N (fx-&gt;fl y)) 1.0)])
+    (let loop-x ([x 0] [bitnum 0] [byteacc 0])
+      (if (fx&lt; x N)
+        (let* ([Cr (flvector-ref Crs x)]
+               [bitnum (fx+ bitnum 1)]
+               [byteacc (fx+ (fxlshift byteacc 1) (mandelbrot Cr Ci))])
+          (cond [(fx= bitnum 8)
+                 (write-byte byteacc O)
+                 (loop-x (fx+ x 1) 0 0)]
+                [else (loop-x (fx+ x 1) bitnum byteacc)]))
+        (begin (when (fx&gt; bitnum 0)
+                 (write-byte (fxlshift byteacc (fx- 8 (fxand N #x7))) O))
+               (when (fx&gt; y 1) (loop-y (fx- y 1))))))))
     </pre>
   </section>
   <section>
@@ -88,18 +88,18 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
     <pre>
 NOTES:
 64-bit Ubuntu quad core
-Welcome to Racket v8.0 [bc].
+Welcome to Racket v8.1 [bc].
 
 
-Fri, 19 Feb 2021 04:54:38 GMT
+Sat, 08 May 2021 20:22:31 GMT
 
 MAKE:
-/opt/src/racket-8.0-bc/bin/raco make mandelbrot.racketbc-3.racketbc
+/opt/src/racket-8.1-bc/bin/raco make mandelbrot.racketbc-3.racketbc
 
-1.81s to complete and log all make actions
+3.18s to complete and log all make actions
 
 COMMAND LINE:
-/opt/src/racket-8.0-bc/bin/racket mandelbrot.racketbc-3.racketbc 16000
+/opt/src/racket-8.1-bc/bin/racket mandelbrot.racketbc-3.racketbc 16000
 
 (BINARY) PROGRAM OUTPUT NOT SHOWN
     </pre>

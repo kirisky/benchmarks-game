@@ -22,52 +22,52 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
       <h2>source code</h2>
     </div>
     <pre>
-<span class="opt">#</span>lang racket<span class="opt">/</span>base
+#lang racket/base
 
-<span class="slc">;; The Computer Language Benchmarks Game</span>
-<span class="slc">;; https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+;; The Computer Language Benchmarks Game
+;; https://salsa.debian.org/benchmarksgame-team/benchmarksgame/
 
-<span class="slc">;; Based on the MLton version of the benchmark by Scott Cruzen</span>
-<span class="slc">;;; contributed by Matthew Flatt</span>
+;; Based on the MLton version of the benchmark by Scott Cruzen
+;;; contributed by Matthew Flatt
 
-<span class="opt">(</span><span class="kwa">require</span> racket<span class="opt">/</span>cmdline<span class="opt">)</span>
+(require racket/cmdline)
 
-<span class="opt">(</span><span class="kwa">define</span> <span class="opt">(</span><span class="kwa">floor_ev</span> q r s t x<span class="opt">)</span>
-  <span class="opt">(</span><span class="kwa">quotient</span> <span class="opt">(+ (*</span> q x<span class="opt">)</span> r<span class="opt">) (+ (*</span> s x<span class="opt">)</span> t<span class="opt">)))</span>
+(define (floor_ev q r s t x)
+  (quotient (+ (* q x) r) (+ (* s x) t)))
 
-<span class="opt">(</span><span class="kwa">define</span> <span class="opt">(</span><span class="kwa">comp</span> q r s t  q2 r2 s2 t2<span class="opt">)</span>
-  <span class="opt">(</span><span class="kwa">values</span> <span class="opt">(+ (*</span> q q2<span class="opt">) (*</span> r s2<span class="opt">))</span>
-          <span class="opt">(+ (*</span> q r2<span class="opt">) (*</span> r t2<span class="opt">))</span>
-          <span class="opt">(+ (*</span> s q2<span class="opt">) (*</span> t s2<span class="opt">))</span>
-          <span class="opt">(+ (*</span> s r2<span class="opt">) (*</span> t t2<span class="opt">))))</span>
+(define (comp q r s t  q2 r2 s2 t2)
+  (values (+ (* q q2) (* r s2))
+          (+ (* q r2) (* r t2))
+          (+ (* s q2) (* t s2))
+          (+ (* s r2) (* t t2))))
 
-<span class="opt">(</span><span class="kwa">define</span> <span class="opt">(</span><span class="kwa">next</span> q r s t<span class="opt">) (</span><span class="kwa">floor_ev</span> q r s t <span class="num">3</span><span class="opt">))</span>
-<span class="opt">(</span><span class="kwa">define</span> <span class="opt">(</span><span class="kwa">safe</span>? q r s t n<span class="opt">) (=</span> n <span class="opt">(</span><span class="kwa">floor_ev</span> q r s t <span class="num">4</span><span class="opt">)))</span>
-<span class="opt">(</span><span class="kwa">define</span> <span class="opt">(</span><span class="kwa">prod</span> q r s t n<span class="opt">) (</span><span class="kwa">comp</span> <span class="num">10</span> <span class="opt">(*</span> -<span class="num">10</span> n<span class="opt">)</span> <span class="num">0 1</span>  q r s t<span class="opt">))</span>
-<span class="opt">(</span><span class="kwa">define</span> <span class="opt">(</span><span class="kwa">mk</span> q r s t k<span class="opt">) (</span><span class="kwa">comp</span> q r s t k <span class="opt">(*</span> <span class="num">2</span> <span class="opt">(</span><span class="kwa">add1</span> <span class="opt">(*</span> <span class="num">2</span> k<span class="opt">)))</span> <span class="num">0</span> <span class="opt">(</span><span class="kwa">add1</span> <span class="opt">(*</span> <span class="num">2</span> k<span class="opt">))))</span>
+(define (next q r s t) (floor_ev q r s t 3))
+(define (safe? q r s t n) (= n (floor_ev q r s t 4)))
+(define (prod q r s t n) (comp 10 (* -10 n) 0 1  q r s t))
+(define (mk q r s t k) (comp q r s t k (* 2 (add1 (* 2 k))) 0 (add1 (* 2 k))))
 
-<span class="opt">(</span><span class="kwa">define</span> <span class="opt">(</span><span class="kwa">digit</span> k  q r s t  n row col<span class="opt">)</span>
-  <span class="opt">(</span><span class="kwa">if</span> <span class="opt">(&gt;</span> n <span class="num">0</span><span class="opt">)</span>
-      <span class="opt">(</span><span class="kwa">let</span> <span class="opt">([</span>y <span class="opt">(</span><span class="kwa">next</span> q r s t<span class="opt">)])</span>
-        <span class="opt">(</span><span class="kwa">if</span> <span class="opt">(</span><span class="kwa">safe</span>? q r s t y<span class="opt">)</span>
-            <span class="opt">(</span><span class="kwa">let-values</span> <span class="opt">([(</span><span class="kwa">q</span> r s t<span class="opt">) (</span><span class="kwa">prod</span> q r s t y<span class="opt">)])</span>
-              <span class="opt">(</span><span class="kwa">if</span> <span class="opt">(=</span> col <span class="num">10</span><span class="opt">)</span>
-                  <span class="opt">(</span><span class="kwa">let</span> <span class="opt">([</span>row <span class="opt">(+</span> row <span class="num">10</span><span class="opt">)])</span>
-                    <span class="opt">(</span><span class="kwa">printf</span> <span class="str">&quot;</span><span class="esc">\t</span><span class="str">:~a</span><span class="esc">\n</span><span class="str">~a&quot;</span> row y<span class="opt">)</span>
-                    <span class="opt">(</span><span class="kwa">digit</span> k q r s t <span class="opt">(</span><span class="kwa">sub1</span> n<span class="opt">)</span> row <span class="num">1</span><span class="opt">))</span>
-                  <span class="opt">(</span><span class="kwa">begin</span>
-                    <span class="opt">(</span><span class="kwa">printf</span> <span class="str">&quot;~a&quot;</span> y<span class="opt">)</span>
-                    <span class="opt">(</span><span class="kwa">digit</span> k q r s t <span class="opt">(</span><span class="kwa">sub1</span> n<span class="opt">)</span> row <span class="opt">(</span><span class="kwa">add1</span> col<span class="opt">)))))</span>
-            <span class="opt">(</span><span class="kwa">let-values</span> <span class="opt">([(</span><span class="kwa">q</span> r s t<span class="opt">) (</span><span class="kwa">mk</span> q r s t k<span class="opt">)])</span>
-              <span class="opt">(</span><span class="kwa">digit</span> <span class="opt">(</span><span class="kwa">add1</span> k<span class="opt">)</span> q r s t n row col<span class="opt">))))</span>
-      <span class="opt">(</span><span class="kwa">printf</span> <span class="str">&quot;~a</span><span class="esc">\t</span><span class="str">:~a</span><span class="esc">\n</span><span class="str">&quot;</span>
-              <span class="opt">(</span><span class="kwa">make-string</span> <span class="opt">(</span><span class="kwa">-</span> <span class="num">10</span> col<span class="opt">) #</span>\space<span class="opt">)</span>
-              <span class="opt">(+</span> row col<span class="opt">))))</span>
+(define (digit k  q r s t  n row col)
+  (if (&gt; n 0)
+      (let ([y (next q r s t)])
+        (if (safe? q r s t y)
+            (let-values ([(q r s t) (prod q r s t y)])
+              (if (= col 10)
+                  (let ([row (+ row 10)])
+                    (printf &quot;\t:~a\n~a&quot; row y)
+                    (digit k q r s t (sub1 n) row 1))
+                  (begin
+                    (printf &quot;~a&quot; y)
+                    (digit k q r s t (sub1 n) row (add1 col)))))
+            (let-values ([(q r s t) (mk q r s t k)])
+              (digit (add1 k) q r s t n row col))))
+      (printf &quot;~a\t:~a\n&quot;
+              (make-string (- 10 col) #\space)
+              (+ row col))))
 
-<span class="opt">(</span><span class="kwa">define</span> <span class="opt">(</span><span class="kwa">digits</span> n<span class="opt">)</span>
-  <span class="opt">(</span><span class="kwa">digit</span> <span class="num">1  1 0 0 1</span>  n <span class="num">0 0</span><span class="opt">))</span>
+(define (digits n)
+  (digit 1  1 0 0 1  n 0 0))
 
-<span class="opt">(</span><span class="kwa">digits</span> <span class="opt">(</span><span class="kwa">command-line</span> <span class="opt">#:</span>args <span class="opt">(</span><span class="kwa">n</span><span class="opt">) (</span><span class="kwa">string-</span><span class="opt">&gt;</span>number n<span class="opt">)))</span>
+(digits (command-line #:args (n) (string-&gt;number n)))
     </pre>
   </section>
   <section>
@@ -77,18 +77,18 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
     <pre>
 NOTES:
 64-bit Ubuntu quad core
-Welcome to Racket v8.0 [bc].
+Welcome to Racket v8.1 [bc].
 
 
-Fri, 19 Feb 2021 05:21:29 GMT
+Sat, 08 May 2021 20:46:09 GMT
 
 MAKE:
-/opt/src/racket-8.0-bc/bin/raco make pidigits.racketbc
+/opt/src/racket-8.1-bc/bin/raco make pidigits.racketbc
 
-1.87s to complete and log all make actions
+2.71s to complete and log all make actions
 
 COMMAND LINE:
-/opt/src/racket-8.0-bc/bin/racket pidigits.racketbc 10000
+/opt/src/racket-8.1-bc/bin/racket pidigits.racketbc 10000
 
 (TRUNCATED) PROGRAM OUTPUT:
 3141592653	:10

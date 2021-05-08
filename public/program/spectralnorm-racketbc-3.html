@@ -22,67 +22,67 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
       <h2>source code</h2>
     </div>
     <pre>
-<span class="opt">#</span>lang racket<span class="opt">/</span>base
-<span class="slc">;; The Computer Language Benchmarks Game</span>
-<span class="slc">;; https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
-<span class="slc">;; Translated from Mike Pall&apos;s Lua version.</span>
-<span class="slc">;; Parallelized by Sam Tobin-Hochstadt</span>
+#lang racket/base
+;; The Computer Language Benchmarks Game
+;; https://salsa.debian.org/benchmarksgame-team/benchmarksgame/
+;; Translated from Mike Pall&apos;s Lua version.
+;; Parallelized by Sam Tobin-Hochstadt
 
-<span class="opt">(</span><span class="kwa">require</span> racket<span class="opt">/</span>cmdline racket<span class="opt">/</span>future
-         racket<span class="opt">/</span>require <span class="opt">(</span><span class="kwa">for-syntax</span> racket<span class="opt">/</span>base<span class="opt">)</span>
-         <span class="opt">(</span><span class="kwa">filtered-in</span> <span class="opt">(</span>λ <span class="opt">(</span><span class="kwa">name</span><span class="opt">) (</span><span class="kwa">regexp-replace</span> <span class="opt">#</span>rx<span class="str">&quot;unsafe-&quot;</span> name <span class="str">&quot;&quot;</span><span class="opt">))</span>
-                      racket<span class="opt">/</span>unsafe<span class="opt">/</span>ops<span class="opt">)</span>
-         <span class="opt">(</span><span class="kwa">only-in</span> racket<span class="opt">/</span>flonum make-flvector<span class="opt">))</span>
+(require racket/cmdline racket/future
+         racket/require (for-syntax racket/base)
+         (filtered-in (λ (name) (regexp-replace #rx&quot;unsafe-&quot; name &quot;&quot;))
+                      racket/unsafe/ops)
+         (only-in racket/flonum make-flvector))
 
-<span class="opt">(</span><span class="kwa">define-syntax-rule</span> <span class="opt">(</span><span class="kwa">for</span><span class="opt">/</span>par k <span class="opt">([</span>i N<span class="opt">])</span> b<span class="opt">)</span>  
-  <span class="opt">(</span><span class="kwa">let</span> <span class="opt">([</span>stride <span class="opt">(</span><span class="kwa">fxquotient</span> N k<span class="opt">)])</span>
-    <span class="opt">(</span><span class="kwa">define</span> fs 
-      <span class="opt">(</span><span class="kwa">for</span><span class="opt">/</span>list <span class="opt">([</span>n k<span class="opt">])</span>
-        <span class="opt">(</span><span class="kwa">future</span> <span class="opt">(</span>λ <span class="opt">() (</span><span class="kwa">for</span> <span class="opt">([</span>i <span class="opt">(</span><span class="kwa">in-range</span> <span class="opt">(</span><span class="kwa">fx</span><span class="opt">*</span> n stride<span class="opt">) (</span><span class="kwa">fxmin</span> N <span class="opt">(</span><span class="kwa">fx</span><span class="opt">* (</span><span class="kwa">fx</span><span class="opt">+</span> n <span class="num">1</span><span class="opt">)</span> stride<span class="opt">)))])</span> b<span class="opt">)))))</span>
-    <span class="opt">(</span><span class="kwa">for-each</span> touch fs<span class="opt">)))</span>
+(define-syntax-rule (for/par k ([i N]) b)  
+  (let ([stride (fxquotient N k)])
+    (define fs 
+      (for/list ([n k])
+        (future (λ () (for ([i (in-range (fx* n stride) (fxmin N (fx* (fx+ n 1) stride)))]) b)))))
+    (for-each touch fs)))
 
 
-<span class="slc">;; the big let improves performance by about 20%</span>
-<span class="opt">(</span><span class="kwa">let</span><span class="opt">* ()</span>
-  <span class="opt">(</span><span class="kwa">define</span> N <span class="opt">(</span><span class="kwa">command-line</span> <span class="opt">#:</span>args <span class="opt">(</span><span class="kwa">n</span><span class="opt">) (</span><span class="kwa">string-</span><span class="opt">&gt;</span>number n<span class="opt">)))</span>
-  <span class="opt">(</span><span class="kwa">define</span> C <span class="opt">(</span><span class="kwa">processor-count</span><span class="opt">))</span>
-  <span class="opt">(</span><span class="kwa">define</span> <span class="opt">(</span><span class="kwa">A</span> i j<span class="opt">)</span>
-    <span class="opt">(</span><span class="kwa">let</span> <span class="opt">([</span>ij <span class="opt">(</span><span class="kwa">fx</span><span class="opt">+</span> i j<span class="opt">)])</span>
-      <span class="opt">(</span><span class="kwa">fl</span><span class="opt">/</span> <span class="num">1.0</span> <span class="opt">(</span><span class="kwa">fl</span><span class="opt">+ (</span><span class="kwa">fl</span><span class="opt">* (</span><span class="kwa">fl</span><span class="opt">* (</span><span class="kwa">fx-</span><span class="opt">&gt;</span>fl ij<span class="opt">)</span>
-                              <span class="opt">(</span><span class="kwa">fx-</span><span class="opt">&gt;</span>fl <span class="opt">(</span><span class="kwa">fx</span><span class="opt">+</span> ij <span class="num">1</span><span class="opt">)))</span>
-                         <span class="num">0.5</span><span class="opt">)</span> 
-                    <span class="opt">(</span><span class="kwa">fx-</span><span class="opt">&gt;</span>fl <span class="opt">(</span><span class="kwa">fx</span><span class="opt">+</span> i <span class="num">1</span><span class="opt">))))))</span>
-  <span class="opt">(</span><span class="kwa">define</span> <span class="opt">(</span><span class="kwa">Av</span> x y N<span class="opt">)</span>
-    <span class="opt">(</span><span class="kwa">for</span><span class="opt">/</span>par C <span class="opt">([</span>i N<span class="opt">])</span>
-      <span class="opt">(</span><span class="kwa">flvector-set</span><span class="opt">!</span>
+;; the big let improves performance by about 20%
+(let* ()
+  (define N (command-line #:args (n) (string-&gt;number n)))
+  (define C (processor-count))
+  (define (A i j)
+    (let ([ij (fx+ i j)])
+      (fl/ 1.0 (fl+ (fl* (fl* (fx-&gt;fl ij)
+                              (fx-&gt;fl (fx+ ij 1)))
+                         0.5) 
+                    (fx-&gt;fl (fx+ i 1))))))
+  (define (Av x y N)
+    (for/par C ([i N])
+      (flvector-set!
        y i
-       <span class="opt">(</span><span class="kwa">let</span> L <span class="opt">([</span>a <span class="num">0.0</span><span class="opt">] [</span>j <span class="num">0</span><span class="opt">])</span>
-         <span class="opt">(</span><span class="kwa">if</span> <span class="opt">(</span><span class="kwa">fx</span><span class="opt">=</span> j N<span class="opt">)</span> a
-             <span class="opt">(</span><span class="kwa">L</span> <span class="opt">(</span><span class="kwa">fl</span><span class="opt">+</span> a <span class="opt">(</span><span class="kwa">fl</span><span class="opt">* (</span><span class="kwa">flvector-ref</span> x j<span class="opt">) (</span><span class="kwa">A</span> i j<span class="opt">)))</span>
-                <span class="opt">(</span><span class="kwa">fx</span><span class="opt">+</span> j <span class="num">1</span><span class="opt">)))))))</span>
-  <span class="opt">(</span><span class="kwa">define</span> <span class="opt">(</span><span class="kwa">Atv</span> x y N<span class="opt">)</span>
-    <span class="opt">(</span><span class="kwa">for</span><span class="opt">/</span>par C <span class="opt">([</span>i N<span class="opt">])</span>
-      <span class="opt">(</span><span class="kwa">flvector-set</span><span class="opt">!</span>
+       (let L ([a 0.0] [j 0])
+         (if (fx= j N) a
+             (L (fl+ a (fl* (flvector-ref x j) (A i j)))
+                (fx+ j 1)))))))
+  (define (Atv x y N)
+    (for/par C ([i N])
+      (flvector-set!
        y i
-       <span class="opt">(</span><span class="kwa">let</span> L <span class="opt">([</span>a <span class="num">0.0</span><span class="opt">] [</span>j <span class="num">0</span><span class="opt">])</span>
-         <span class="opt">(</span><span class="kwa">if</span> <span class="opt">(</span><span class="kwa">fx</span><span class="opt">=</span> j N<span class="opt">)</span> a
-             <span class="opt">(</span><span class="kwa">L</span> <span class="opt">(</span><span class="kwa">fl</span><span class="opt">+</span> a <span class="opt">(</span><span class="kwa">fl</span><span class="opt">* (</span><span class="kwa">flvector-ref</span> x j<span class="opt">) (</span><span class="kwa">A</span> j i<span class="opt">)))</span>
-                <span class="opt">(</span><span class="kwa">fx</span><span class="opt">+</span> j <span class="num">1</span><span class="opt">)))))))</span>
-  <span class="opt">(</span><span class="kwa">define</span> <span class="opt">(</span><span class="kwa">AtAv</span> x y t N<span class="opt">) (</span><span class="kwa">Av</span> x t N<span class="opt">) (</span><span class="kwa">Atv</span> t y N<span class="opt">))</span>
-  <span class="opt">(</span><span class="kwa">define</span> u <span class="opt">(</span><span class="kwa">make-flvector</span> N <span class="num">1.0</span><span class="opt">))</span>
-  <span class="opt">(</span><span class="kwa">define</span> v <span class="opt">(</span><span class="kwa">make-flvector</span> N<span class="opt">))</span>
-  <span class="opt">(</span><span class="kwa">define</span> t <span class="opt">(</span><span class="kwa">make-flvector</span> N<span class="opt">))</span>
-  <span class="opt">(</span><span class="kwa">for</span> <span class="opt">([</span>i <span class="opt">(</span><span class="kwa">in-range</span> <span class="num">10</span><span class="opt">)])</span>
-    <span class="opt">(</span><span class="kwa">AtAv</span> u v t N<span class="opt">) (</span><span class="kwa">AtAv</span> v u t N<span class="opt">))</span>
-  <span class="opt">(</span><span class="kwa">displayln</span> <span class="opt">(</span><span class="kwa">real-</span><span class="opt">&gt;</span>decimal-string 
-              <span class="opt">(</span><span class="kwa">flsqrt</span> 
-               <span class="opt">(</span><span class="kwa">let</span> L <span class="opt">([</span>vBv <span class="num">0.0</span><span class="opt">] [</span>vv <span class="num">0.0</span><span class="opt">] [</span>i <span class="num">0</span><span class="opt">])</span>
-                 <span class="opt">(</span><span class="kwa">if</span> <span class="opt">(</span><span class="kwa">fx</span><span class="opt">=</span> i N<span class="opt">) (</span><span class="kwa">fl</span><span class="opt">/</span> vBv vv<span class="opt">)</span>
-                     <span class="opt">(</span><span class="kwa">let</span> <span class="opt">([</span>ui <span class="opt">(</span><span class="kwa">flvector-ref</span> u i<span class="opt">)] [</span>vi <span class="opt">(</span><span class="kwa">flvector-ref</span> v i<span class="opt">)])</span>
-                       <span class="opt">(</span><span class="kwa">L</span> <span class="opt">(</span><span class="kwa">fl</span><span class="opt">+</span> vBv <span class="opt">(</span><span class="kwa">fl</span><span class="opt">*</span> ui vi<span class="opt">))</span>
-                          <span class="opt">(</span><span class="kwa">fl</span><span class="opt">+</span> vv <span class="opt">(</span><span class="kwa">fl</span><span class="opt">*</span> vi vi<span class="opt">))</span>
-                          <span class="opt">(</span><span class="kwa">fx</span><span class="opt">+</span> i <span class="num">1</span><span class="opt">))))))</span>
-              <span class="num">9</span><span class="opt">)))</span>
+       (let L ([a 0.0] [j 0])
+         (if (fx= j N) a
+             (L (fl+ a (fl* (flvector-ref x j) (A j i)))
+                (fx+ j 1)))))))
+  (define (AtAv x y t N) (Av x t N) (Atv t y N))
+  (define u (make-flvector N 1.0))
+  (define v (make-flvector N))
+  (define t (make-flvector N))
+  (for ([i (in-range 10)])
+    (AtAv u v t N) (AtAv v u t N))
+  (displayln (real-&gt;decimal-string 
+              (flsqrt 
+               (let L ([vBv 0.0] [vv 0.0] [i 0])
+                 (if (fx= i N) (fl/ vBv vv)
+                     (let ([ui (flvector-ref u i)] [vi (flvector-ref v i)])
+                       (L (fl+ vBv (fl* ui vi))
+                          (fl+ vv (fl* vi vi))
+                          (fx+ i 1))))))
+              9)))
     </pre>
   </section>
   <section>
@@ -92,18 +92,18 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
     <pre>
 NOTES:
 64-bit Ubuntu quad core
-Welcome to Racket v8.0 [bc].
+Welcome to Racket v8.1 [bc].
 
 
-Fri, 19 Feb 2021 05:32:57 GMT
+Sat, 08 May 2021 21:11:16 GMT
 
 MAKE:
-/opt/src/racket-8.0-bc/bin/raco make spectralnorm.racketbc-3.racketbc
+/opt/src/racket-8.1-bc/bin/raco make spectralnorm.racketbc-3.racketbc
 
-2.12s to complete and log all make actions
+2.79s to complete and log all make actions
 
 COMMAND LINE:
-/opt/src/racket-8.0-bc/bin/racket spectralnorm.racketbc-3.racketbc 5500
+/opt/src/racket-8.1-bc/bin/racket spectralnorm.racketbc-3.racketbc 5500
 
 PROGRAM OUTPUT:
 1.274224153
