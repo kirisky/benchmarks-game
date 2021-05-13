@@ -22,6 +22,207 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
       <h2>source code</h2>
     </div>
     <pre>
+<span class="slc">// The Computer Language Benchmarks Game</span>
+<span class="slc">// https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">//</span>
+<span class="slc">// contributed by roman blog</span>
+
+<span class="ppc">#include&lt;boost/hana.hpp&gt;</span>
+<span class="ppc">#include&lt;limits&gt;</span>
+<span class="ppc">#include&lt;array&gt;</span>
+<span class="ppc">#include&lt;sys/mman.h&gt;</span>
+<span class="ppc">#include&lt;unistd.h&gt;</span>
+<span class="ppc">#undef NDEBUG</span>
+<span class="ppc">#include&lt;cassert&gt;</span>
+<span class="ppc">#include&lt;filesystem&gt;</span>
+<span class="ppc">#include&lt;string_view&gt;</span>
+<span class="ppc">#include&lt;vector&gt;</span>
+<span class="ppc">#include&lt;fcntl.h&gt;</span>
+
+<span class="ppc">#include&lt;chrono&gt;</span>
+<span class="ppc">#include&lt;compare&gt;</span>
+<span class="ppc">#include&lt;sys/sendfile.h&gt;</span>
+<span class="ppc">#include&lt;string.h&gt;</span>
+
+<span class="kwa">namespace</span> hana <span class="opt">=</span> <span class="kwc">boost</span><span class="opt">::</span>hana<span class="opt">;</span>
+<span class="kwa">namespace</span> fs <span class="opt">=</span> <span class="kwc">std</span><span class="opt">::</span>filesystem<span class="opt">;</span>
+
+<span class="kwa">using namespace</span> <span class="kwc">hana</span><span class="opt">::</span>literals<span class="opt">;</span>
+
+<span class="kwa">using</span> sv <span class="opt">=</span> <span class="kwc">std</span><span class="opt">::</span>string_view<span class="opt">;</span>
+<span class="kwa">using namespace</span> <span class="kwc">std</span><span class="opt">::</span>literals<span class="opt">;</span>
+<span class="kwa">using</span> <span class="kwc">hana</span><span class="opt">::</span>_<span class="opt">;</span>
+
+<span class="kwa">namespace</span> <span class="opt">{</span>
+<span class="kwc">constexpr</span> <span class="kwb">uint8_t</span> <span class="kwd">swmap</span><span class="opt">(</span><span class="kwb">uint8_t</span> c<span class="opt">) {</span>
+  <span class="kwa">switch</span><span class="opt">(</span>c<span class="opt">) {</span>
+    <span class="kwa">case</span> <span class="str">&apos;A&apos;</span><span class="opt">:</span> <span class="kwa">case</span> <span class="str">&apos;a&apos;</span><span class="opt">:</span> <span class="kwa">return</span> <span class="str">&apos;T&apos;</span><span class="opt">;</span><span class="slc">// &apos;A&apos; | &apos;a&apos; =&gt; &apos;T&apos;,</span>
+    <span class="kwa">case</span> <span class="str">&apos;C&apos;</span><span class="opt">:</span> <span class="kwa">case</span> <span class="str">&apos;c&apos;</span><span class="opt">:</span> <span class="kwa">return</span> <span class="str">&apos;G&apos;</span><span class="opt">;</span><span class="slc">// &apos;C&apos; | &apos;c&apos; =&gt; &apos;G&apos;,</span>
+    <span class="kwa">case</span> <span class="str">&apos;G&apos;</span><span class="opt">:</span> <span class="kwa">case</span> <span class="str">&apos;g&apos;</span><span class="opt">:</span> <span class="kwa">return</span> <span class="str">&apos;C&apos;</span><span class="opt">;</span><span class="slc">// &apos;G&apos; | &apos;g&apos; =&gt; &apos;C&apos;,</span>
+    <span class="kwa">case</span> <span class="str">&apos;T&apos;</span><span class="opt">:</span> <span class="kwa">case</span> <span class="str">&apos;t&apos;</span><span class="opt">:</span> <span class="kwa">return</span> <span class="str">&apos;A&apos;</span><span class="opt">;</span><span class="slc">// &apos;T&apos; | &apos;t&apos; =&gt; &apos;A&apos;,</span>
+    <span class="kwa">case</span> <span class="str">&apos;U&apos;</span><span class="opt">:</span> <span class="kwa">case</span> <span class="str">&apos;u&apos;</span><span class="opt">:</span> <span class="kwa">return</span> <span class="str">&apos;A&apos;</span><span class="opt">;</span><span class="slc">// &apos;U&apos; | &apos;u&apos; =&gt; &apos;A&apos;,</span>
+    <span class="kwa">case</span> <span class="str">&apos;M&apos;</span><span class="opt">:</span> <span class="kwa">case</span> <span class="str">&apos;m&apos;</span><span class="opt">:</span> <span class="kwa">return</span> <span class="str">&apos;K&apos;</span><span class="opt">;</span><span class="slc">// &apos;M&apos; | &apos;m&apos; =&gt; &apos;K&apos;,</span>
+    <span class="kwa">case</span> <span class="str">&apos;R&apos;</span><span class="opt">:</span> <span class="kwa">case</span> <span class="str">&apos;r&apos;</span><span class="opt">:</span> <span class="kwa">return</span> <span class="str">&apos;Y&apos;</span><span class="opt">;</span><span class="slc">// &apos;R&apos; | &apos;r&apos; =&gt; &apos;Y&apos;,</span>
+    <span class="kwa">case</span> <span class="str">&apos;W&apos;</span><span class="opt">:</span> <span class="kwa">case</span> <span class="str">&apos;w&apos;</span><span class="opt">:</span> <span class="kwa">return</span> <span class="str">&apos;W&apos;</span><span class="opt">;</span><span class="slc">// &apos;W&apos; | &apos;w&apos; =&gt; &apos;W&apos;,</span>
+    <span class="kwa">case</span> <span class="str">&apos;S&apos;</span><span class="opt">:</span> <span class="kwa">case</span> <span class="str">&apos;s&apos;</span><span class="opt">:</span> <span class="kwa">return</span> <span class="str">&apos;S&apos;</span><span class="opt">;</span><span class="slc">// &apos;S&apos; | &apos;s&apos; =&gt; &apos;S&apos;,</span>
+    <span class="kwa">case</span> <span class="str">&apos;Y&apos;</span><span class="opt">:</span> <span class="kwa">case</span> <span class="str">&apos;y&apos;</span><span class="opt">:</span> <span class="kwa">return</span> <span class="str">&apos;R&apos;</span><span class="opt">;</span><span class="slc">// &apos;Y&apos; | &apos;y&apos; =&gt; &apos;R&apos;,</span>
+    <span class="kwa">case</span> <span class="str">&apos;K&apos;</span><span class="opt">:</span> <span class="kwa">case</span> <span class="str">&apos;k&apos;</span><span class="opt">:</span> <span class="kwa">return</span> <span class="str">&apos;M&apos;</span><span class="opt">;</span><span class="slc">// &apos;K&apos; | &apos;k&apos; =&gt; &apos;M&apos;,</span>
+    <span class="kwa">case</span> <span class="str">&apos;V&apos;</span><span class="opt">:</span> <span class="kwa">case</span> <span class="str">&apos;v&apos;</span><span class="opt">:</span> <span class="kwa">return</span> <span class="str">&apos;B&apos;</span><span class="opt">;</span><span class="slc">// &apos;V&apos; | &apos;v&apos; =&gt; &apos;B&apos;,</span>
+    <span class="kwa">case</span> <span class="str">&apos;H&apos;</span><span class="opt">:</span> <span class="kwa">case</span> <span class="str">&apos;h&apos;</span><span class="opt">:</span> <span class="kwa">return</span> <span class="str">&apos;D&apos;</span><span class="opt">;</span><span class="slc">// &apos;H&apos; | &apos;h&apos; =&gt; &apos;D&apos;,</span>
+    <span class="kwa">case</span> <span class="str">&apos;D&apos;</span><span class="opt">:</span> <span class="kwa">case</span> <span class="str">&apos;d&apos;</span><span class="opt">:</span> <span class="kwa">return</span> <span class="str">&apos;H&apos;</span><span class="opt">;</span><span class="slc">// &apos;D&apos; | &apos;d&apos; =&gt; &apos;H&apos;,</span>
+    <span class="kwa">case</span> <span class="str">&apos;B&apos;</span><span class="opt">:</span> <span class="kwa">case</span> <span class="str">&apos;b&apos;</span><span class="opt">:</span> <span class="kwa">return</span> <span class="str">&apos;V&apos;</span><span class="opt">;</span><span class="slc">// &apos;B&apos; | &apos;b&apos; =&gt; &apos;V&apos;,</span>
+    <span class="kwa">case</span> <span class="str">&apos;N&apos;</span><span class="opt">:</span> <span class="kwa">case</span> <span class="str">&apos;n&apos;</span><span class="opt">:</span> <span class="kwa">return</span> <span class="str">&apos;N&apos;</span><span class="opt">;</span><span class="slc">// &apos;N&apos; | &apos;n&apos; =&gt; &apos;N&apos;,</span>
+    <span class="kwa">default</span><span class="opt">:</span> <span class="kwa">return</span> <span class="str">&apos;_&apos;</span><span class="opt">;</span>
+  <span class="opt">}</span>
+<span class="opt">}</span>
+
+<span class="kwc">constexpr auto</span> map <span class="opt">= ([] {</span>
+  <span class="kwc">constexpr auto</span> max <span class="opt">=</span> <span class="kwc">std</span><span class="opt">::</span>numeric_limits<span class="opt">&lt;</span><span class="kwb">uint8_t</span><span class="opt">&gt;::</span><span class="kwd">max</span><span class="opt">() +</span> <span class="kwb">size_t</span><span class="opt">{</span><span class="num">1</span><span class="opt">};</span>
+  <span class="kwc">std</span><span class="opt">::</span>array<span class="opt">&lt;</span><span class="kwb">uint16_t</span><span class="opt">,</span> max <span class="opt">*</span> max<span class="opt">&gt;</span> map<span class="opt">{};</span>
+  <span class="kwa">for</span><span class="opt">(</span><span class="kwb">size_t</span> it <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> it <span class="opt">&lt;</span> map<span class="opt">.</span><span class="kwd">size</span><span class="opt">(); ++</span>it<span class="opt">) {</span>
+    <span class="kwb">uint8_t</span> hi <span class="opt">= (</span>it <span class="opt">&gt;&gt;</span> <span class="num">8</span><span class="opt">),</span> lo <span class="opt">=</span> it<span class="opt">;</span>
+    map<span class="opt">[</span>it<span class="opt">] = (</span><span class="kwd">swmap</span><span class="opt">(</span>lo<span class="opt">) &lt;&lt;</span> <span class="num">8</span><span class="opt">) | (</span><span class="kwd">swmap</span><span class="opt">(</span>hi<span class="opt">));</span>
+  <span class="opt">}</span>
+  <span class="kwa">return</span> map<span class="opt">;</span>
+<span class="opt">})();</span>
+
+<span class="kwc">constexpr auto</span> map256 <span class="opt">= ([] {</span>
+  <span class="kwc">constexpr auto</span> max <span class="opt">=</span> <span class="kwc">std</span><span class="opt">::</span>numeric_limits<span class="opt">&lt;</span><span class="kwb">uint8_t</span><span class="opt">&gt;::</span><span class="kwd">max</span><span class="opt">() +</span> <span class="kwb">size_t</span><span class="opt">{</span><span class="num">1</span><span class="opt">};</span>
+  <span class="kwc">std</span><span class="opt">::</span>array<span class="opt">&lt;</span><span class="kwb">uint8_t</span><span class="opt">,</span> max<span class="opt">&gt;</span> map<span class="opt">{};</span>
+  <span class="kwa">for</span><span class="opt">(</span><span class="kwb">size_t</span> it <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> it <span class="opt">&lt;</span> max<span class="opt">; ++</span>it<span class="opt">)</span>
+    map<span class="opt">[</span>it<span class="opt">] =</span> <span class="kwd">swmap</span><span class="opt">(</span>it<span class="opt">);</span>
+  <span class="kwa">return</span> map<span class="opt">;</span>
+<span class="opt">})();</span>
+
+<span class="kwc">template</span><span class="opt">&lt;</span><span class="kwb">size_t</span> noffset<span class="opt">&gt;</span> <span class="kwb">void</span> <span class="kwd">replace60</span><span class="opt">(</span><span class="kwb">const char</span> <span class="opt">*</span> in<span class="opt">,</span> <span class="kwb">char</span> <span class="opt">*</span> out<span class="opt">) {</span>
+  <span class="kwc">constexpr auto</span> offset <span class="opt">=</span> <span class="kwc">hana</span><span class="opt">::</span>llong_c<span class="opt">&lt;</span>noffset<span class="opt">&gt;;</span>
+  
+  <span class="kwc">auto</span> op <span class="opt">= [&amp;] {</span>
+    <span class="opt">*(</span><span class="kwb">uint16_t</span> <span class="opt">*)</span>out <span class="opt">=</span> map<span class="opt">[*(</span><span class="kwb">const uint16_t</span> <span class="opt">*)(</span>in <span class="opt">-=</span> <span class="num">2</span><span class="opt">)];</span>
+    out <span class="opt">+=</span> <span class="num">2</span><span class="opt">;</span>
+  <span class="opt">};</span>
+  
+  <span class="kwc">auto</span> tail_size <span class="opt">= ((</span><span class="num">60</span>_c <span class="opt">-</span> offset<span class="opt">) /</span> <span class="num">2</span>_c<span class="opt">);</span>
+  tail_size<span class="opt">.</span><span class="kwd">times</span><span class="opt">(</span>op<span class="opt">);</span>
+  
+  <span class="kwa">if</span> <span class="kwc">constexpr</span><span class="opt">(</span>offset <span class="opt">%</span> <span class="num">2</span>_c<span class="opt">) {</span>
+<span class="slc">//   ...1\n  </span>
+<span class="slc">//   0...  </span>
+    <span class="opt">*</span>out<span class="opt">++ =</span> map256<span class="opt">[*(--</span>in<span class="opt">)];</span>
+    <span class="opt">--</span>in<span class="opt">;</span>
+<span class="slc">//     assert(*in == &apos;\n&apos;);</span>
+    <span class="opt">*</span>out<span class="opt">++ =</span> map256<span class="opt">[*(--</span>in<span class="opt">)];</span>
+    <span class="opt">(</span><span class="num">29</span>_c <span class="opt">-</span> tail_size<span class="opt">).</span><span class="kwd">times</span><span class="opt">(</span>op<span class="opt">);</span>
+  <span class="opt">}</span> <span class="kwa">else</span> <span class="opt">{</span><span class="slc">// even</span>
+<span class="slc">//   ...\n  </span>
+<span class="slc">//   ...  </span>
+    in <span class="opt">-=</span> <span class="num">1</span><span class="opt">;</span>
+<span class="slc">//     assert(*in == &apos;\n&apos;);</span>
+    <span class="opt">(</span><span class="num">30</span>_c <span class="opt">-</span> tail_size<span class="opt">).</span><span class="kwd">times</span><span class="opt">(</span>op<span class="opt">);</span>
+  <span class="opt">}</span>
+  <span class="opt">*(</span>out<span class="opt">++) =</span> <span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span><span class="opt">;</span>
+<span class="opt">}</span>
+<span class="opt">}</span>
+
+<span class="kwb">struct</span> range<span class="opt">{</span>
+  <span class="kwb">size_t</span> begin<span class="opt">{},</span> size<span class="opt">{};</span>
+  <span class="kwc">auto operator</span><span class="opt">&lt;=&gt;(</span><span class="kwb">const</span> range <span class="opt">&amp;)</span> <span class="kwb">const</span> <span class="opt">=</span> <span class="kwa">default</span><span class="opt">;</span>
+<span class="opt">};</span>
+
+<span class="kwc">auto</span> select_replace60 <span class="opt">= [](</span>range r<span class="opt">) {</span>
+  <span class="kwc">constexpr</span> <span class="kwb">static</span> <span class="kwc">auto</span> replace60_map <span class="opt">= ([] {</span>
+    <span class="kwc">std</span><span class="opt">::</span>array<span class="opt">&lt;</span><span class="kwc">decltype</span><span class="opt">(</span>replace60<span class="opt">&lt;</span><span class="num">0</span><span class="opt">&gt;) *,</span> <span class="num">60</span><span class="opt">&gt;</span> map<span class="opt">{};</span>
+    <span class="opt">(</span><span class="num">60</span>_c<span class="opt">).</span>times<span class="opt">.</span><span class="kwd">with_index</span><span class="opt">([&amp;](</span><span class="kwc">auto</span> index<span class="opt">) {</span>
+      map<span class="opt">[</span><span class="kwd">index</span><span class="opt">()] =</span> replace60<span class="opt">&lt;</span><span class="kwd">index</span><span class="opt">()&gt;;</span>
+    <span class="opt">});</span>
+    <span class="kwa">return</span> map<span class="opt">;</span>
+  <span class="opt">})();</span>
+  <span class="kwa">return</span> replace60_map<span class="opt">.</span><span class="kwd">at</span><span class="opt">(</span><span class="num">60</span> <span class="opt">- (</span>r<span class="opt">.</span>size <span class="opt">%</span> <span class="num">61</span><span class="opt">));</span>
+<span class="opt">};</span>
+
+
+<span class="kwb">void</span> <span class="kwd">replace</span><span class="opt">(</span><span class="kwb">int</span> fd<span class="opt">,</span> range r<span class="opt">) {</span>
+  <span class="kwc">auto</span> op <span class="opt">=</span> <span class="kwd">select_replace60</span><span class="opt">(</span>r<span class="opt">);</span>
+  <span class="kwc">constexpr</span> <span class="kwb">size_t</span> line_size <span class="opt">=</span> <span class="num">61</span><span class="opt">;</span>
+  <span class="kwc">constexpr</span> <span class="kwb">size_t</span> block_size <span class="opt">=</span> line_size <span class="opt">*</span> <span class="num">1024</span><span class="opt">;</span>
+  <span class="kwb">char</span> buf<span class="opt">[</span>block_size<span class="opt">]{};</span>
+  <span class="kwb">char</span> outbuf<span class="opt">[</span>block_size<span class="opt">]{};</span>
+  <span class="kwc">auto</span> nblock <span class="opt">=</span> r<span class="opt">.</span>size <span class="opt">/</span> block_size<span class="opt">;</span>
+  <span class="kwc">auto</span> tail <span class="opt">=</span> r<span class="opt">.</span>size <span class="opt">- (</span>nblock <span class="opt">*</span> block_size<span class="opt">);</span>
+  
+  <span class="kwa">for</span><span class="opt">(</span><span class="kwb">size_t</span> n <span class="opt">=</span> <span class="num">1</span><span class="opt">;</span> n <span class="opt">&lt;=</span> nblock<span class="opt">; ++</span>n<span class="opt">) {</span>
+    <span class="kwd">pread</span><span class="opt">(</span>fd<span class="opt">,</span> buf<span class="opt">,</span> block_size<span class="opt">,</span> r<span class="opt">.</span>begin <span class="opt">+</span> r<span class="opt">.</span>size <span class="opt">-</span> n <span class="opt">*</span> block_size<span class="opt">);</span>
+    <span class="kwc">auto</span> it <span class="opt">=</span> <span class="kwc">std</span><span class="opt">::</span><span class="kwd">end</span><span class="opt">(</span>buf<span class="opt">),</span> oit <span class="opt">=</span> <span class="kwc">std</span><span class="opt">::</span><span class="kwd">begin</span><span class="opt">(</span>outbuf<span class="opt">),</span> oend <span class="opt">=</span> <span class="kwc">std</span><span class="opt">::</span><span class="kwd">end</span><span class="opt">(</span>outbuf<span class="opt">);</span>
+    <span class="kwa">while</span><span class="opt">(</span>oit <span class="opt">&lt;</span> oend<span class="opt">) {</span>
+      <span class="kwd">op</span><span class="opt">(</span>it<span class="opt">,</span> oit<span class="opt">);</span> it <span class="opt">-=</span> line_size<span class="opt">;</span> oit <span class="opt">+=</span> line_size<span class="opt">;</span>
+    <span class="opt">}</span>
+    <span class="kwd">write</span><span class="opt">(</span>STDOUT_FILENO<span class="opt">,</span> outbuf<span class="opt">,</span> block_size<span class="opt">);</span>
+  <span class="opt">}</span>
+  
+  <span class="kwd">pread</span><span class="opt">(</span>fd<span class="opt">,</span> buf<span class="opt">,</span> tail<span class="opt">,</span> r<span class="opt">.</span>begin<span class="opt">);</span>
+  <span class="kwc">auto</span> it <span class="opt">=</span> <span class="kwc">std</span><span class="opt">::</span><span class="kwd">begin</span><span class="opt">(</span>buf<span class="opt">) +</span> tail<span class="opt">,</span> oit <span class="opt">=</span> <span class="kwc">std</span><span class="opt">::</span><span class="kwd">begin</span><span class="opt">(</span>outbuf<span class="opt">);</span>
+  
+  <span class="kwa">for</span><span class="opt">(</span><span class="kwb">size_t</span> n <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> n <span class="opt">&lt;</span> tail <span class="opt">/</span> line_size<span class="opt">; ++</span>n<span class="opt">) {</span>
+    <span class="kwd">op</span><span class="opt">(</span>it<span class="opt">,</span> oit<span class="opt">);</span> it <span class="opt">-=</span> line_size<span class="opt">;</span> oit <span class="opt">+=</span> line_size<span class="opt">;</span>
+  <span class="opt">}</span>
+  
+  <span class="kwa">for</span><span class="opt">(</span><span class="kwb">size_t</span> n <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> n <span class="opt">&lt; (</span>tail <span class="opt">- (</span>tail <span class="opt">/</span> line_size<span class="opt">) *</span> line_size<span class="opt">); ++</span>n<span class="opt">) {</span>
+    <span class="opt">*</span>oit<span class="opt">++ =</span> map256<span class="opt">[*(--</span>it<span class="opt">)];</span>
+  <span class="opt">}</span>
+  
+  <span class="kwd">write</span><span class="opt">(</span>STDOUT_FILENO<span class="opt">,</span> outbuf<span class="opt">,</span> tail<span class="opt">);</span>
+  <span class="kwd">write</span><span class="opt">(</span>STDOUT_FILENO<span class="opt">,</span> <span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span> <span class="num">1</span><span class="opt">);</span>
+<span class="opt">}</span>
+
+
+<span class="kwc">auto</span> <span class="kwd">find_first_of</span><span class="opt">(</span><span class="kwb">int</span> fd<span class="opt">,</span> <span class="kwb">char</span> c<span class="opt">,</span> <span class="kwb">size_t</span> pos<span class="opt">,</span> <span class="kwb">size_t</span> <span class="opt">&amp;</span> endfile<span class="opt">) {</span>
+  <span class="kwc">constexpr</span> <span class="kwb">size_t</span> block_size <span class="opt">=</span> <span class="num">1024</span> <span class="opt">*</span> <span class="num">32</span><span class="opt">;</span>
+  <span class="kwb">uint8_t</span> mem<span class="opt">[</span>block_size<span class="opt">]{};</span>
+  <span class="kwa">if</span><span class="opt">(</span>pos <span class="opt">==</span> <span class="kwc">sv</span><span class="opt">::</span>npos<span class="opt">)</span> <span class="kwa">return</span> pos<span class="opt">;</span>
+  <span class="kwa">while</span><span class="opt">(</span><span class="kwa">true</span><span class="opt">) {</span>
+    <span class="kwc">auto</span> bytes <span class="opt">=</span> <span class="kwd">pread</span><span class="opt">(</span>fd<span class="opt">,</span> mem<span class="opt">,</span> block_size<span class="opt">,</span> pos<span class="opt">);</span>
+    <span class="kwa">assert</span><span class="opt">(</span>bytes <span class="opt">&gt;=</span> <span class="num">0</span><span class="opt">);</span>
+    <span class="kwa">if</span><span class="opt">(!</span>bytes<span class="opt">) {</span> endfile <span class="opt">=</span> pos<span class="opt">;</span> <span class="kwa">return</span> <span class="kwc">sv</span><span class="opt">::</span>npos<span class="opt">; }</span>
+    <span class="kwc">auto</span> r <span class="opt">=</span> sv<span class="opt">{(</span><span class="kwb">const char</span> <span class="opt">*)</span>mem<span class="opt">,</span> <span class="kwb">size_t</span><span class="opt">(</span>bytes<span class="opt">)}.</span><span class="kwd">find_first_of</span><span class="opt">(</span>c<span class="opt">);</span>
+    <span class="kwa">if</span><span class="opt">(</span>r <span class="opt">!=</span> <span class="kwc">sv</span><span class="opt">::</span>npos<span class="opt">)</span> <span class="kwa">return</span> pos <span class="opt">+</span> r<span class="opt">;</span>
+    pos <span class="opt">+=</span> bytes<span class="opt">;</span>
+  <span class="opt">}</span>
+<span class="opt">}</span>
+
+<span class="kwb">int</span> <span class="kwd">main</span><span class="opt">() {</span>
+  <span class="kwc">fs</span><span class="opt">::</span>path path<span class="opt">{</span><span class="str">&quot;/dev/stdin&quot;</span><span class="opt">};</span>
+  <span class="kwb">int</span> fd <span class="opt">=</span> <span class="kwd">open</span><span class="opt">(</span>path<span class="opt">.</span><span class="kwd">c_str</span><span class="opt">(),</span> O_RDONLY<span class="opt">);</span>
+  <span class="kwa">assert</span><span class="opt">(</span>fd <span class="opt">!= -</span><span class="num">1</span><span class="opt">);</span>
+  <span class="kwc">auto</span> start <span class="opt">=</span> <span class="kwc">std</span><span class="opt">::</span><span class="kwc">chrono</span><span class="opt">::</span><span class="kwc">high_resolution_clock</span><span class="opt">::</span><span class="kwd">now</span><span class="opt">();</span>
+  
+  
+  <span class="kwc">auto</span> next <span class="opt">= [=,</span> prev <span class="opt">=</span> <span class="num">0ul</span><span class="opt">]()</span> <span class="kwc">mutable</span> <span class="opt">-&gt;</span> <span class="kwc">std</span><span class="opt">::</span>pair<span class="opt">&lt;</span>range<span class="opt">,</span> range<span class="opt">&gt; {</span>
+    <span class="kwb">size_t</span> endfile<span class="opt">{};</span>
+    <span class="kwc">auto</span> arrow_pos <span class="opt">=</span> <span class="kwd">find_first_of</span><span class="opt">(</span>fd<span class="opt">,</span> <span class="str">&apos;&gt;&apos;</span><span class="opt">,</span> prev<span class="opt">,</span> endfile<span class="opt">);</span>
+    <span class="kwc">auto</span> begin_pos <span class="opt">=</span> <span class="kwd">find_first_of</span><span class="opt">(</span>fd<span class="opt">,</span> <span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span><span class="opt">,</span> arrow_pos<span class="opt">,</span> endfile<span class="opt">);</span>
+    <span class="kwa">if</span><span class="opt">(</span>begin_pos <span class="opt">==</span> <span class="kwc">sv</span><span class="opt">::</span>npos<span class="opt">)</span> <span class="kwa">return</span> <span class="opt">{};</span>
+    prev <span class="opt">=</span> <span class="kwd">find_first_of</span><span class="opt">(</span>fd<span class="opt">,</span> <span class="str">&apos;&gt;&apos;</span><span class="opt">,</span> begin_pos<span class="opt">,</span> endfile<span class="opt">);</span>
+    prev <span class="opt">= (</span>prev <span class="opt">==</span> <span class="kwc">sv</span><span class="opt">::</span>npos<span class="opt">) ?</span> endfile <span class="opt">:</span> prev<span class="opt">;</span>
+    <span class="kwa">return</span> <span class="opt">{{</span>arrow_pos<span class="opt">,</span> begin_pos <span class="opt">-</span> arrow_pos <span class="opt">+</span> <span class="num">1</span><span class="opt">}, {</span>begin_pos <span class="opt">+</span> <span class="num">1</span><span class="opt">,</span> prev <span class="opt">-</span> begin_pos <span class="opt">-</span> <span class="num">2</span><span class="opt">}};</span>
+  <span class="opt">};</span>
+  
+  <span class="kwc">std</span><span class="opt">::</span>vector<span class="opt">&lt;</span><span class="kwc">std</span><span class="opt">::</span>pair<span class="opt">&lt;</span>range<span class="opt">,</span> range<span class="opt">&gt;&gt;</span> index<span class="opt">;</span>
+  <span class="kwa">for</span><span class="opt">(</span><span class="kwc">auto</span> pair <span class="opt">=</span> <span class="kwd">next</span><span class="opt">();</span> pair <span class="opt">!=</span> <span class="kwc">std</span><span class="opt">::</span>pair<span class="opt">&lt;</span>range<span class="opt">,</span> range<span class="opt">&gt;{};</span> pair <span class="opt">=</span> <span class="kwd">next</span><span class="opt">())</span> index<span class="opt">.</span><span class="kwd">emplace_back</span><span class="opt">(</span>pair<span class="opt">);</span>
+  
+<span class="slc">//   fprintf(stderr, &quot;%.3f\n&quot;, std::chrono::duration&lt;double&gt;{std::chrono::high_resolution_clock::now() - start}.count());</span>
+  
+  start <span class="opt">=</span> <span class="kwc">std</span><span class="opt">::</span><span class="kwc">chrono</span><span class="opt">::</span><span class="kwc">high_resolution_clock</span><span class="opt">::</span><span class="kwd">now</span><span class="opt">();</span>
+  
+  <span class="kwa">for</span><span class="opt">(</span><span class="kwc">auto</span> <span class="opt">[</span>h<span class="opt">,</span> q<span class="opt">]:</span> index<span class="opt">) {</span>
+    off_t begin <span class="opt">=</span> h<span class="opt">.</span>begin<span class="opt">;</span>
+    <span class="kwd">sendfile</span><span class="opt">(</span>STDOUT_FILENO<span class="opt">,</span> fd<span class="opt">, &amp;</span>begin<span class="opt">,</span> h<span class="opt">.</span>size<span class="opt">);</span>
+    <span class="kwd">replace</span><span class="opt">(</span>fd<span class="opt">,</span> q<span class="opt">);</span>
+  <span class="opt">};</span>
+  
+<span class="slc">//   fprintf(stderr, &quot;%.3f\n&quot;, std::chrono::duration&lt;double&gt;{std::chrono::high_resolution_clock::now() - start}.count());</span>
+<span class="opt">}</span>
+ 
+ 
     </pre>
   </section>
   <section>
@@ -33,7 +234,205 @@ NOTES:
 64-bit Ubuntu quad core
 g++ (Ubuntu 10.2.0-13ubuntu1) 10.2.0
 
-    </pre>
+
+Tue, 11 May 2021 17:04:51 GMT
+
+MAKE:
+/usr/bin/g++ -c -pipe -O3 -fomit-frame-pointer -march=ivybridge  -std=c++20 revcomp.gpp-7.c++ -o revcomp.gpp-7.c++.o &amp;&amp;  \
+        /usr/bin/g++ revcomp.gpp-7.c++.o -o revcomp.gpp-7.gpp_run  
+revcomp.gpp-7.c++: In function ‘void replace(int, range)’:
+revcomp.gpp-7.c++:130:10: warning: ignoring return value of ‘ssize_t pread(int, void*, size_t, __off_t)’ declared with attribute ‘warn_unused_result’ [-Wunused-result]
+  130 |     pread(fd, buf, block_size, r.begin + r.size - n * block_size);
+      |     ~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+revcomp.gpp-7.c++:135:10: warning: ignoring return value of ‘ssize_t write(int, const void*, size_t)’ declared with attribute ‘warn_unused_result’ [-Wunused-result]
+  135 |     write(STDOUT_FILENO, outbuf, block_size);
+      |     ~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+revcomp.gpp-7.c++:138:8: warning: ignoring return value of ‘ssize_t pread(int, void*, size_t, __off_t)’ declared with attribute ‘warn_unused_result’ [-Wunused-result]
+  138 |   pread(fd, buf, tail, r.begin);
+      |   ~~~~~^~~~~~~~~~~~~~~~~~~~~~~~
+revcomp.gpp-7.c++:149:8: warning: ignoring return value of ‘ssize_t write(int, const void*, size_t)’ declared with attribute ‘warn_unused_result’ [-Wunused-result]
+  149 |   write(STDOUT_FILENO, outbuf, tail);
+      |   ~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+revcomp.gpp-7.c++:150:8: warning: ignoring return value of ‘ssize_t write(int, const void*, size_t)’ declared with attribute ‘warn_unused_result’ [-Wunused-result]
+  150 |   write(STDOUT_FILENO, &quot;\n&quot;, 1);
+      |   ~~~~~^~~~~~~~~~~~~~~~~~~~~~~~
+rm revcomp.gpp-7.c++
+
+7.31s to complete and log all make actions
+
+COMMAND LINE:
+./revcomp.gpp-7.gpp_run 0 &lt; revcomp-input100000000.txt
+
+(TRUNCATED) PROGRAM OUTPUT:
+&gt;ONE Homo sapiens alu
+GGGATTACAGGCGTGAGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGC
+CCAGGCTGGAGTGCAGTGGCGCGATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAA
+GCGATTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCACCACGCCC
+GGCTAATTTTTGTATTTTTAGTAGAGACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCG
+AACTCCTGACCTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTACAGGCG
+TGAGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTG
+CAGTGGCGCGATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTGC
+CTCAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCACCACGCCCGGCTAATTTTTGT
+ATTTTTAGTAGAGACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAACTCCTGACCTC
+AGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTACAGGCGTGAGCCACCGCGC
+CCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCGCGATC
+TCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCAGCCTCCCGA
+GTAGCTGGGATTACAGGCGCGCGCCACCACGCCCGGCTAATTTTTGTATTTTTAGTAGAG
+ACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAACTCCTGACCTCAGGTGATCCGCCC
+GCCTCGGCCTCCCAAAGTGCTGGGATTACAGGCGTGAGCCACCGCGCCCGGCCTTTTTGA
+GACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCGCGATCTCGGCTCACTGCA
+ACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATTA
+CAGGCGCGCGCCACCACGCCCGGCTAATTTTTGTATTTTTAGTAGAGACGGGGTTTCACC
+ATGTTGGCCAGGCTGGTCTCGAACTCCTGACCTCAGGTGATCCGCCCGCCTCGGCCTCCC
+AAAGTGCTGGGATTACAGGCGTGAGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGC
+TCTGTCGCCCAGGCTGGAGTGCAGTGGCGCGATCTCGGCTCACTGCAACCTCCGCCTCCC
+GGGTTCAAGCGATTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCA
+CCACGCCCGGCTAATTTTTGTATTTTTAGTAGAGACGGGGTTTCACCATGTTGGCCAGGC
+TGGTCTCGAACTCCTGACCTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGAT
+TACAGGCGTGAGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGG
+CTGGAGTGCAGTGGCGCGATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGAT
+TCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCACCACGCCCGGCTA
+ATTTTTGTATTTTTAGTAGAGACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAACTC
+CTGACCTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTACAGGCGTGAGC
+CACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTG
+GCGCGATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCAG
+CCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCACCACGCCCGGCTAATTTTTGTATTTT
+TAGTAGAGACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAACTCCTGACCTCAGGTG
+ATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTACAGGCGTGAGCCACCGCGCCCGGC
+CTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCGCGATCTCGGC
+TCACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCAGCCTCCCGAGTAGC
+TGGGATTACAGGCGCGCGCCACCACGCCCGGCTAATTTTTGTATTTTTAGTAGAGACGGG
+GTTTCACCATGTTGGCCAGGCTGGTCTCGAACTCCTGACCTCAGGTGATCCGCCCGCCTC
+GGCCTCCCAAAGTGCTGGGATTACAGGCGTGAGCCACCGCGCCCGGCCTTTTTGAGACGG
+AGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCGCGATCTCGGCTCACTGCAACCTC
+CGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATTACAGGC
+GCGCGCCACCACGCCCGGCTAATTTTTGTATTTTTAGTAGAGACGGGGTTTCACCATGTT
+GGCCAGGCTGGTCTCGAACTCCTGACCTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAGT
+GCTGGGATTACAGGCGTGAGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGT
+CGCCCAGGCTGGAGTGCAGTGGCGCGATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTT
+CAAGCGATTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCACCACG
+CCCGGCTAATTTTTGTATTTTTAGTAGAGACGGGGTTTCACCATGTTGGCCAGGCTGGTC
+TCGAACTCCTGACCTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTACAG
+GCGTGAGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGGA
+GTGCAGTGGCGCGATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTCTCC
+TGCCTCAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCACCACGCCCGGCTAATTTT
+TGTATTTTTAGTAGAGACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAACTCCTGAC
+CTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTACAGGCGTGAGCCACCG
+CGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCGCG
+ATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCAGCCTCC
+CGAGTAGCTGGGATTACAGGCGCGCGCCACCACGCCCGGCTAATTTTTGTATTTTTAGTA
+GAGACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAACTCCTGACCTCAGGTGATCCG
+CCCGCCTCGGCCTCCCAAAGTGCTGGGATTACAGGCGTGAGCCACCGCGCCCGGCCTTTT
+TGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCGCGATCTCGGCTCACT
+GCAACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGA
+TTACAGGCGCGCGCCACCACGCCCGGCTAATTTTTGTATTTTTAGTAGAGACGGGGTTTC
+ACCATGTTGGCCAGGCTGGTCTCGAACTCCTGACCTCAGGTGATCCGCCCGCCTCGGCCT
+CCCAAAGTGCTGGGATTACAGGCGTGAGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCT
+CGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCGCGATCTCGGCTCACTGCAACCTCCGCCT
+CCCGGGTTCAAGCGATTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCG
+CCACCACGCCCGGCTAATTTTTGTATTTTTAGTAGAGACGGGGTTTCACCATGTTGGCCA
+GGCTGGTCTCGAACTCCTGACCTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGG
+GATTACAGGCGTGAGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCC
+AGGCTGGAGTGCAGTGGCGCGATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGC
+GATTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCACCACGCCCGG
+CTAATTTTTGTATTTTTAGTAGAGACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAA
+CTCCTGACCTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTACAGGCGTG
+AGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCA
+GTGGCGCGATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTGCCT
+CAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCACCACGCCCGGCTAATTTTTGTAT
+TTTTAGTAGAGACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAACTCCTGACCTCAG
+GTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTACAGGCGTGAGCCACCGCGCCC
+GGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCGCGATCTC
+GGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCAGCCTCCCGAGT
+AGCTGGGATTACAGGCGCGCGCCACCACGCCCGGCTAATTTTTGTATTTTTAGTAGAGAC
+GGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAACTCCTGACCTCAGGTGATCCGCCCGC
+CTCGGCCTCCCAAAGTGCTGGGATTACAGGCGTGAGCCACCGCGCCCGGCCTTTTTGAGA
+CGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCGCGATCTCGGCTCACTGCAAC
+CTCCGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATTACA
+GGCGCGCGCCACCACGCCCGGCTAATTTTTGTATTTTTAGTAGAGACGGGGTTTCACCAT
+GTTGGCCAGGCTGGTCTCGAACTCCTGACCTCAGGTGATCCGCCCGCCTCGGCCTCCCAA
+AGTGCTGGGATTACAGGCGTGAGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTC
+TGTCGCCCAGGCTGGAGTGCAGTGGCGCGATCTCGGCTCACTGCAACCTCCGCCTCCCGG
+GTTCAAGCGATTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCACC
+ACGCCCGGCTAATTTTTGTATTTTTAGTAGAGACGGGGTTTCACCATGTTGGCCAGGCTG
+GTCTCGAACTCCTGACCTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTA
+CAGGCGTGAGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCT
+GGAGTGCAGTGGCGCGATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTC
+TCCTGCCTCAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCACCACGCCCGGCTAAT
+TTTTGTATTTTTAGTAGAGACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAACTCCT
+GACCTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTACAGGCGTGAGCCA
+CCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGC
+GCGATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCAGCC
+TCCCGAGTAGCTGGGATTACAGGCGCGCGCCACCACGCCCGGCTAATTTTTGTATTTTTA
+GTAGAGACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAACTCCTGACCTCAGGTGAT
+CCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTACAGGCGTGAGCCACCGCGCCCGGCCT
+TTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCGCGATCTCGGCTC
+ACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCAGCCTCCCGAGTAGCTG
+GGATTACAGGCGCGCGCCACCACGCCCGGCTAATTTTTGTATTTTTAGTAGAGACGGGGT
+TTCACCATGTTGGCCAGGCTGGTCTCGAACTCCTGACCTCAGGTGATCCGCCCGCCTCGG
+CCTCCCAAAGTGCTGGGATTACAGGCGTGAGCCACCGCGCCCGGCCTTTTTGAGACGGAG
+TCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCGCGATCTCGGCTCACTGCAACCTCCG
+CCTCCCGGGTTCAAGCGATTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATTACAGGCGC
+GCGCCACCACGCCCGGCTAATTTTTGTATTTTTAGTAGAGACGGGGTTTCACCATGTTGG
+CCAGGCTGGTCTCGAACTCCTGACCTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGC
+TGGGATTACAGGCGTGAGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCG
+CCCAGGCTGGAGTGCAGTGGCGCGATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCA
+AGCGATTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCACCACGCC
+CGGCTAATTTTTGTATTTTTAGTAGAGACGGGGTTTCACCATGTTGGCCAGGCTGGTCTC
+GAACTCCTGACCTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTACAGGC
+GTGAGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGT
+GCAGTGGCGCGATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTG
+CCTCAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCACCACGCCCGGCTAATTTTTG
+TATTTTTAGTAGAGACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAACTCCTGACCT
+CAGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTACAGGCGTGAGCCACCGCG
+CCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCGCGAT
+CTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCAGCCTCCCG
+AGTAGCTGGGATTACAGGCGCGCGCCACCACGCCCGGCTAATTTTTGTATTTTTAGTAGA
+GACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAACTCCTGACCTCAGGTGATCCGCC
+CGCCTCGGCCTCCCAAAGTGCTGGGATTACAGGCGTGAGCCACCGCGCCCGGCCTTTTTG
+AGACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCGCGATCTCGGCTCACTGC
+AACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATT
+ACAGGCGCGCGCCACCACGCCCGGCTAATTTTTGTATTTTTAGTAGAGACGGGGTTTCAC
+CATGTTGGCCAGGCTGGTCTCGAACTCCTGACCTCAGGTGATCCGCCCGCCTCGGCCTCC
+CAAAGTGCTGGGATTACAGGCGTGAGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCG
+CTCTGTCGCCCAGGCTGGAGTGCAGTGGCGCGATCTCGGCTCACTGCAACCTCCGCCTCC
+CGGGTTCAAGCGATTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCC
+ACCACGCCCGGCTAATTTTTGTATTTTTAGTAGAGACGGGGTTTCACCATGTTGGCCAGG
+CTGGTCTCGAACTCCTGACCTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGA
+TTACAGGCGTGAGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAG
+GCTGGAGTGCAGTGGCGCGATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGA
+TTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCACCACGCCCGGCT
+AATTTTTGTATTTTTAGTAGAGACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAACT
+CCTGACCTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTACAGGCGTGAG
+CCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGT
+GGCGCGATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCA
+GCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCACCACGCCCGGCTAATTTTTGTATTT
+TTAGTAGAGACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAACTCCTGACCTCAGGT
+GATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTACAGGCGTGAGCCACCGCGCCCGG
+CCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCGCGATCTCGG
+CTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCAGCCTCCCGAGTAG
+CTGGGATTACAGGCGCGCGCCACCACGCCCGGCTAATTTTTGTATTTTTAGTAGAGACGG
+GGTTTCACCATGTTGGCCAGGCTGGTCTCGAACTCCTGACCTCAGGTGATCCGCCCGCCT
+CGGCCTCCCAAAGTGCTGGGATTACAGGCGTGAGCCACCGCGCCCGGCCTTTTTGAGACG
+GAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCGCGATCTCGGCTCACTGCAACCT
+CCGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATTACAGG
+CGCGCGCCACCACGCCCGGCTAATTTTTGTATTTTTAGTAGAGACGGGGTTTCACCATGT
+TGGCCAGGCTGGTCTCGAACTCCTGACCTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAG
+TGCTGGGATTACAGGCGTGAGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTG
+TCGCCCAGGCTGGAGTGCAGTGGCGCGATCTCGGCTCACTGCAACCTCCGCCTCCCGGGT
+TCAAGCGATTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCACCAC
+GCCCGGCTAATTTTTGTATTTTTAGTAGAGACGGGGTTTCACCATGTTGGCCAGGCTGGT
+CTCGAACTCCTGACCTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTACA
+GGCGTGAGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGG
+AGTGCAGTGGCGCGATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTCTC
+CTGCCTCAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCACCACGCCCGGCTAATTT
+TTGTATTTTTAGTAGAGACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAACTCCTGA
+CCTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTACAGGCGTGAGCCACC
+GCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCGC
+GATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCAGCCTC
+CCGAGTAGCTGGGATTACAGGCGCGCGCCACCACGCCCGGCTAATTTTTGTATTTTTAGT
+AGAGACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAACTCCTGACCTCAGGTGATCC
+GCCCGCCTCGGCCTCCCAAAGTGCTGGGATT    </pre>
   </section>
 </article>
 <footer>
