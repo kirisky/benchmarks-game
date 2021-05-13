@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,follow,noarchive">
+
+<title>fannkuch-redux Erlang program | Computer Language Benchmarks Game </title>
+<style><!--
+a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,header{margin:auto;width:92%}body{font:100% Droid Sans, Ubuntu, Verdana, sans-serif;margin:0;-webkit-text-size-adjust:100%}h3, h1, h2, li a{font-family:Ubuntu Mono,Consolas,Menlo,monospace}div,footer,header{max-width:31em}footer{padding:2.6em 0 0}h3{font-size:1.4em;font-weight:bold;margin:0;padding: .4em}h3, h3 a{color:white;background-color:#77216f}h3 small{font-size:0.64em}h1,h2{margin:1.5em 0 0}h1{font-size:1.4em;font-weight:normal}h2{font-size:1.2em}li{list-style-type:none;vertical-align:top}li a{display:block;font-size:1.2em;margin: .5em .5em 0;padding: .5em .5em .3em}ul{clear:left;margin:-0.3em 0 1.5em;padding-left:0;text-align:center}p{color:#333;line-height:1.4;margin: .3em 0 0}p a, a span{border-bottom: .1em solid #333;padding-bottom: .1em}.com,.slc{color:#888}.kwa{color:#066}.kwb{color:#900}.kwc{color:#050}.kwa,.kwb,.kwc{font-weight:bold}.dstr,.str,.sym,.num{color:#930}pre{color:#222;font-size:1em;overflow-wrap:break-word;white-space:pre-wrap;word-wrap:break-word}@media only screen and (min-width: 60em){article,footer,header{font-size:1.25em}}
+--></style>
+<link rel="shortcut icon" href="../favicon.ico">
+<header>
+  <h3><a href="https://benchmarksgame-team.pages.debian.net/benchmarksgame/index.html">The&nbsp;<small>Computer&nbsp;Language</small><br>Benchmarks&nbsp;Game</a></h3>
+</header>
+<article>
+  <div>
+    <h1>fannkuch-redux Erlang program</h1>
+    <aside>
+      <p><a href="../description/fannkuchredux.html#fannkuchredux">description</a>
+    </aside>
+  </div>
+  <section>
+    <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+% The Computer Language Benchmarks Game
+% https://salsa.debian.org/benchmarksgame-team/benchmarksgame/
+%%
+%% Contributed by : Alkis Gotovos and Maria Christakis, 13 Nov 2010
+
+-module(fannkuchredux).
+
+-compile([native, {hipe, [o3]}]).
+
+-export([main/1]).
+
+main([Arg]) -&gt;
+    main(list_to_integer(Arg)),
+    halt(0);
+main(N) when N &gt; 0 -&gt;
+    {MaxFlips, Checksum} = 
+	case N of
+	    1 -&gt; {0, 0};
+	    _Other -&gt;
+		Chunk = fact(N - 1),
+		divide(0, N, lists:seq(1, N), Chunk),
+		join(N, 0, 0)
+	end,
+    io:format(&quot;~p~nPfannkuchen(~p) = ~p~n&quot;, [Checksum, N, MaxFlips]),
+    {MaxFlips, Checksum}.
+
+divide(N, N, _L, _C) -&gt; ok;
+divide(N, MaxN, [H|T] = List, Chunk) -&gt;
+    Self = self(),
+    Fun = fun() -&gt;
+	      work(N, List, N * Chunk, (N + 1) * Chunk, MaxN, 0, 0, Self)
+	  end,
+    spawn(Fun),
+    divide(N + 1, MaxN, T ++ [H], Chunk).
+
+join(0, MaxFlips, Checksum) -&gt; {MaxFlips, Checksum};
+join(N, MaxFlips, Checksum) -&gt;
+    receive
+	{Flips, Sum} -&gt; join(N - 1, max(MaxFlips, Flips), Checksum + Sum)
+    end.
+
+work(_P, _L, Index, Index, _R, MaxFlips, Checksum, Target) -&gt;
+    Target ! {MaxFlips, Checksum};
+work(Proc, List, Index, MaxIndex, R, MaxFlips, Checksum, Target) -&gt;
+    reset(R),
+    {Flips, Sum} = flip_sum(Index, List),
+    NewFlips = max(Flips, MaxFlips),
+    NewSum = Checksum + Sum,
+    {NewList, NewR} = next(Proc, List, 1),
+    work(Proc, NewList, Index + 1, MaxIndex, NewR, NewFlips, NewSum, Target).
+
+next(Proc, List, R) -&gt;
+    NewList = next_aux(R, List),
+    case put(R, get(R) - 1) of
+	1 -&gt; next(Proc, NewList, R + 1);
+	_Other -&gt; {NewList, R}
+    end.
+
+next_aux(1, [E1, E2|T]) -&gt; [E2, E1|T];
+next_aux(2, [E1, E2, E3|T]) -&gt; [E2, E3, E1|T];
+next_aux(3, [E1, E2, E3, E4|T]) -&gt; [E2, E3, E4, E1|T];
+next_aux(R, [H|T]) -&gt;
+    {Front, Back} = lists:split(R, T),
+    Front ++ [H] ++ Back.    
+
+flip_sum(Index, List) -&gt;
+    Flips = flip(List, 0),
+    Sum = 
+	case Index band 1 of
+	    0 -&gt; Flips;
+	    1 -&gt; -Flips
+	end,
+    {Flips, Sum}.
+
+flip([1|_T], N) -&gt;
+    N;
+flip([2, E1|T], N) -&gt;
+    flip([E1, 2|T], N + 1);
+flip([3, E1, E2|T], N) -&gt;
+    flip([E2, E1, 3|T], N + 1);
+flip([4, E1, E2, E3|T], N) -&gt;
+    flip([E3, E2, E1, 4|T], N + 1);
+flip([5, E1, E2, E3, E4|T], N) -&gt;
+    flip([E4, E3, E2, E1, 5|T], N + 1);
+flip([6, E1, E2, E3, E4, E5|T], N) -&gt;
+    flip([E5, E4, E3, E2, E1, 6|T], N + 1);
+flip([7, E1, E2, E3, E4, E5, E6|T], N) -&gt;
+    flip([E6, E5, E4, E3, E2, E1, 7|T], N + 1);
+flip([8, E1, E2, E3, E4, E5, E6, E7|T], N) -&gt;
+    flip([E7, E6, E5, E4, E3, E2, E1, 8|T], N + 1);
+flip([9, E1, E2, E3, E4, E5, E6, E7, E8|T], N) -&gt;
+    flip([E8, E7, E6, E5, E4, E3, E2, E1, 9|T], N + 1);
+flip([10, E1, E2, E3, E4, E5, E6, E7, E8, E9|T], N) -&gt;
+    flip([E9, E8, E7, E6, E5, E4, E3, E2, E1, 10|T], N + 1);
+flip([11, E1, E2, E3, E4, E5, E6, E7, E8, E9, E10|T], N) -&gt;
+    flip([E10, E9, E8, E7, E6, E5, E4, E3, E2, E1, 11|T], N + 1);
+flip([12, E1, E2, E3, E4, E5, E6, E7, E8, E9, E10, E11|T], N) -&gt;
+    flip([E11, E10, E9, E8, E7, E6, E5, E4, E3, E2, E1, 12|T], N + 1);
+flip([H|_T] = List, N) -&gt;
+    {First, Last} = lists:split(H, List),
+    flip(lists:reverse(First) ++ Last, N + 1).
+
+reset(1) -&gt; ok;    
+reset(N) -&gt; put(N - 1, N), reset(N - 1).
+
+fact(1) -&gt; 1;
+fact(N) -&gt; N * fact(N - 1).
+    </pre>
+  </section>
+  <section>
+    <div>
+      <h2 id="log">notes, command-line, and program output</h2>
+    </div>
+    <pre>
+NOTES:
+64-bit Ubuntu quad core
+Erlang/OTP 24 [erts-12.0] [source] [64-bit]
+[smp:4:4] [ds:4:4:10] [async-threads:1] [jit]
+
+
+
+Thu, 13 May 2021 01:01:46 GMT
+
+MAKE:
+mv fannkuchredux.erlang fannkuchredux.erl
+/opt/src/otp_src_24.0/bin/erlc fannkuchredux.erl
+rm fannkuchredux.erl
+
+0.61s to complete and log all make actions
+
+COMMAND LINE:
+/opt/src/otp_src_24.0/bin/erl -smp enable -noshell -run  fannkuchredux main 12
+
+PROGRAM OUTPUT:
+3968050
+Pfannkuchen(12) = 65
+    </pre>
+  </section>
+</article>
+<footer>
+  <nav>
+    <ul>
+      <li><a href="../license.html"><span>3-Clause BSD License</span></a>
+    </ul>
+  </nav>
+</footer>
+

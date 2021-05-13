@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,follow,noarchive">
+
+<title>regex-redux Erlang&nbsp;#6 program | Computer Language Benchmarks Game </title>
+<style><!--
+a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,header{margin:auto;width:92%}body{font:100% Droid Sans, Ubuntu, Verdana, sans-serif;margin:0;-webkit-text-size-adjust:100%}h3, h1, h2, li a{font-family:Ubuntu Mono,Consolas,Menlo,monospace}div,footer,header{max-width:31em}footer{padding:2.6em 0 0}h3{font-size:1.4em;font-weight:bold;margin:0;padding: .4em}h3, h3 a{color:white;background-color:#77216f}h3 small{font-size:0.64em}h1,h2{margin:1.5em 0 0}h1{font-size:1.4em;font-weight:normal}h2{font-size:1.2em}li{list-style-type:none;vertical-align:top}li a{display:block;font-size:1.2em;margin: .5em .5em 0;padding: .5em .5em .3em}ul{clear:left;margin:-0.3em 0 1.5em;padding-left:0;text-align:center}p{color:#333;line-height:1.4;margin: .3em 0 0}p a, a span{border-bottom: .1em solid #333;padding-bottom: .1em}.com,.slc{color:#888}.kwa{color:#066}.kwb{color:#900}.kwc{color:#050}.kwa,.kwb,.kwc{font-weight:bold}.dstr,.str,.sym,.num{color:#930}pre{color:#222;font-size:1em;overflow-wrap:break-word;white-space:pre-wrap;word-wrap:break-word}@media only screen and (min-width: 60em){article,footer,header{font-size:1.25em}}
+--></style>
+<link rel="shortcut icon" href="../favicon.ico">
+<header>
+  <h3><a href="https://benchmarksgame-team.pages.debian.net/benchmarksgame/index.html">The&nbsp;<small>Computer&nbsp;Language</small><br>Benchmarks&nbsp;Game</a></h3>
+</header>
+<article>
+  <div>
+    <h1>regex-redux Erlang&nbsp;#6 program</h1>
+    <aside>
+      <p><a href="../description/regexredux.html#regexredux">description</a>
+    </aside>
+  </div>
+  <section>
+    <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+% The Computer Language Benchmarks Game
+% https://salsa.debian.org/benchmarksgame-team/benchmarksgame/
+% Contributed by: Hynek Vychodil 2009
+% Fixed by Alexander Fyodorov
+
+
+% Inspired by regex-dna Erlang HiPE #5 program
+%    by Sergei Matusevich 2007 and Thanassis Avgerinos 2009
+
+% Main changes:
+%   1/ Very fast Port line input instead stdio (~5x)
+%   2/ Faster IUB code alternatives explicit expansion
+%      using binary instead lists (~5x)
+%   3/ Precompile regexps in data loading phase
+%   4/ Simpler dispatch and result join code
+
+% Note: re module is damn slow. Boyer-Moore like binary matcher
+% written in Erlang should be magnitude faster (HiPE of course).
+
+-module(regexredux).
+
+-compile([native, {hipe, [o3]}]).
+
+-export([main/1]).
+
+main(_) -&gt; main().
+
+main() -&gt; do(), halt().
+
+do() -&gt;
+    S = self(),
+    Worker = spawn_link(fun () -&gt; work(S) end),
+    Worker ! {data, read()},
+    receive finish -&gt; ok end.
+
+work(Master) -&gt;
+    S = self(),
+    Patterns = [{Pat, re:compile(Pat, [caseless])}
+		|| Pat &lt;- patterns()],
+    {RawSize, [B3, B2, B1 | _]} = receive
+				    {data, Data} -&gt; Data
+				  end,
+    L = [size(X) || X &lt;- [B1, B2, B3]],
+    Size = lists:sum(L),
+    PIDS = [{spawn_link(matcher(S, B2, B3, MR)),
+	     printer(Pat)}
+	    || {Pat, {ok, MR}} &lt;- Patterns],
+    Final = apply_final_patterns([B2,B3], final_patterns()),
+    FinalSize = size(B1) + size(Final),
+    results(PIDS),
+    io:format(&quot;~n~b~n~b~n~b~n&quot;,
+	      [RawSize, Size, FinalSize]),
+    Master ! finish.
+
+apply_final_patterns(S, [{Pat, Rep}|Rest]) -&gt;
+  apply_final_patterns(re:replace(S, Pat, Rep,[{return,binary},caseless,global,never_utf]), Rest);
+apply_final_patterns(S, []) -&gt;
+  S.
+
+matcher(S, B2, B3, MR) -&gt;
+    fun () -&gt;
+	    S !
+	      {self(), countMatches(B2, MR) + countMatches(B3, MR)}
+    end.
+
+printer(Pat) -&gt;
+    fun (Num) -&gt; io:format(&quot;~s ~b~n&quot;, [Pat, Num]) end.
+
+countMatches(Data, RE) -&gt;
+    case re:run(Data, RE, [global]) of
+      {match, M} -&gt; length(M);
+      nomatch -&gt; 0
+    end.
+
+results([{PID, Fin} | R]) -&gt;
+    receive {PID, Ret} -&gt; Fin(Ret), results(R) end;
+results([]) -&gt; ok.
+
+patterns() -&gt;
+    [&quot;agggtaaa|tttaccct&quot;, &quot;[cgt]gggtaaa|tttaccc[acg]&quot;,
+     &quot;a[act]ggtaaa|tttacc[agt]t&quot;,
+     &quot;ag[act]gtaaa|tttac[agt]ct&quot;,
+     &quot;agg[act]taaa|ttta[agt]cct&quot;,
+     &quot;aggg[acg]aaa|ttt[cgt]ccct&quot;,
+     &quot;agggt[cgt]aa|tt[acg]accct&quot;,
+     &quot;agggta[cgt]a|t[acg]taccct&quot;,
+     &quot;agggtaa[cgt]|[acg]ttaccct&quot;].
+
+final_patterns() -&gt;
+  [
+    {&quot;tHa[Nt]&quot;, &quot;&lt;4&gt;&quot;},
+    {&quot;aND|caN|Ha[DS]|WaS&quot;, &quot;&lt;3&gt;&quot;},
+    {&quot;a[NSt]|BY&quot;, &quot;&lt;2&gt;&quot;},
+    {&quot;&lt;[^&gt;]*&gt;&quot;, &quot;|&quot;},
+    {&quot;\\|[^|][^|]*\\|&quot;, &quot;-&quot;}
+  ].
+
+read() -&gt;
+    Port = open_port({fd, 0, 1}, [in, binary, {line, 256}]),
+    read(Port, 0, [], []).
+
+read(Port, Size, Seg, R) -&gt;
+    receive
+      {Port, {data, {eol, &lt;&lt;$&gt;:8, _/binary&gt;&gt; = Line}}} -&gt;
+	  read(Port, Size + size(Line) + 1, [],
+	       [iolist_to_binary(lists:reverse(Seg, [])) | R]);
+      {Port, {data, {eol, Line}}} -&gt;
+	  read(Port, Size + size(Line) + 1, [Line | Seg], R);
+      {&apos;EXIT&apos;, Port, normal} -&gt;
+	  {Size, [iolist_to_binary(lists:reverse(Seg, [])) | R]};
+      Other -&gt;
+	  io:format(&quot;&gt;&gt;&gt;&gt;&gt;&gt;&gt; Wrong! ~p~n&quot;, [Other]),
+	  exit(bad_data)
+    end.
+    </pre>
+  </section>
+  <section>
+    <div>
+      <h2 id="log">notes, command-line, and program output</h2>
+    </div>
+    <pre>
+NOTES:
+64-bit Ubuntu quad core
+Erlang/OTP 24 [erts-12.0] [source] [64-bit]
+[smp:4:4] [ds:4:4:10] [async-threads:1] [jit]
+
+
+
+Thu, 13 May 2021 01:30:36 GMT
+
+MAKE:
+mv regexredux.erlang-6.erlang regexredux.erl
+/opt/src/otp_src_24.0/bin/erlc regexredux.erl
+
+0.66s to complete and log all make actions
+
+COMMAND LINE:
+/opt/src/otp_src_24.0/bin/erl -smp enable -noshell -run -noinput -run regexredux main 0 &lt; regexredux-input5000000.txt
+
+PROGRAM OUTPUT:
+agggtaaa|tttaccct 356
+[cgt]gggtaaa|tttaccc[acg] 1250
+a[act]ggtaaa|tttacc[agt]t 4252
+ag[act]gtaaa|tttac[agt]ct 2894
+agg[act]taaa|ttta[agt]cct 5435
+aggg[acg]aaa|ttt[cgt]ccct 1537
+agggt[cgt]aa|tt[acg]accct 1431
+agggta[cgt]a|t[acg]taccct 1608
+agggtaa[cgt]|[acg]ttaccct 2178
+
+50833411
+50000000
+27388361
+    </pre>
+  </section>
+</article>
+<footer>
+  <nav>
+    <ul>
+      <li><a href="../license.html"><span>3-Clause BSD License</span></a>
+    </ul>
+  </nav>
+</footer>
+

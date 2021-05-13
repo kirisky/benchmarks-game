@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,follow,noarchive">
+
+<title>k-nucleotide Erlang&nbsp;#3 program | Computer Language Benchmarks Game </title>
+<style><!--
+a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,header{margin:auto;width:92%}body{font:100% Droid Sans, Ubuntu, Verdana, sans-serif;margin:0;-webkit-text-size-adjust:100%}h3, h1, h2, li a{font-family:Ubuntu Mono,Consolas,Menlo,monospace}div,footer,header{max-width:31em}footer{padding:2.6em 0 0}h3{font-size:1.4em;font-weight:bold;margin:0;padding: .4em}h3, h3 a{color:white;background-color:#77216f}h3 small{font-size:0.64em}h1,h2{margin:1.5em 0 0}h1{font-size:1.4em;font-weight:normal}h2{font-size:1.2em}li{list-style-type:none;vertical-align:top}li a{display:block;font-size:1.2em;margin: .5em .5em 0;padding: .5em .5em .3em}ul{clear:left;margin:-0.3em 0 1.5em;padding-left:0;text-align:center}p{color:#333;line-height:1.4;margin: .3em 0 0}p a, a span{border-bottom: .1em solid #333;padding-bottom: .1em}.com,.slc{color:#888}.kwa{color:#066}.kwb{color:#900}.kwc{color:#050}.kwa,.kwb,.kwc{font-weight:bold}.dstr,.str,.sym,.num{color:#930}pre{color:#222;font-size:1em;overflow-wrap:break-word;white-space:pre-wrap;word-wrap:break-word}@media only screen and (min-width: 60em){article,footer,header{font-size:1.25em}}
+--></style>
+<link rel="shortcut icon" href="../favicon.ico">
+<header>
+  <h3><a href="https://benchmarksgame-team.pages.debian.net/benchmarksgame/index.html">The&nbsp;<small>Computer&nbsp;Language</small><br>Benchmarks&nbsp;Game</a></h3>
+</header>
+<article>
+  <div>
+    <h1>k-nucleotide Erlang&nbsp;#3 program</h1>
+    <aside>
+      <p><a href="../description/knucleotide.html#knucleotide">description</a>
+    </aside>
+  </div>
+  <section>
+    <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+% The Computer Language Benchmarks Game
+% https://salsa.debian.org/benchmarksgame-team/benchmarksgame/
+%% contributed by Fredrik Svahn based on an earlier submission
+%%             by Kenneth Johansson, Vlad Dumitrescu and Ulf Wiger
+
+-module(knucleotide).
+-export([main/1]).
+
+to_upper(&lt;&lt;C, Cs/binary&gt;&gt;, Acc) when C &gt;= $a, C =&lt; $z -&gt;
+    to_upper(Cs, [C-($a-$A)| Acc]);
+to_upper(&lt;&lt;$\n, Cs/binary&gt;&gt;, Acc) -&gt; to_upper(Cs, Acc);
+to_upper(&lt;&lt;C, Cs/binary&gt;&gt;, Acc) -&gt; to_upper(Cs, [C | Acc]);
+to_upper(&lt;&lt;&gt;&gt;, Acc) -&gt; list_to_binary(lists:reverse(Acc)).
+
+%% Read and discard until start of third segment
+seek_three() -&gt;
+    case io:get_line(&apos;&apos;) of
+	&lt;&lt;&quot;&gt;TH&quot;, _/binary&gt;&gt; -&gt; done;
+	eof        -&gt; erlang:error(eof);
+	_          -&gt; seek_three()
+    end.
+
+%% Read third segment
+get_seq_three(Seq) -&gt;
+    case io:get_line(&apos;&apos;) of
+	eof -&gt; iolist_to_binary(lists:reverse(Seq));
+	Str -&gt; get_seq_three([to_upper(Str, [])|Seq])
+    end.
+
+%% Generate frequency hash table
+gen_freq_table(FreqT, Seq, Len) -&gt;
+    gen_freq_table(Seq, Len, FreqT, size(Seq)-Len).
+
+gen_freq_table(_, _, _, -1) -&gt; done;
+gen_freq_table(Seq, Len, FreqT, Dec) -&gt;
+    &lt;&lt;_:Dec/binary, Key:Len/binary, _/binary&gt;&gt; = Seq,
+    update_counter(Key, FreqT),
+    gen_freq_table(Seq, Len, FreqT, Dec-1).
+
+%% Update hash table counter for already existing pattern or insert new
+update_counter(Key, FreqT) -&gt;
+    try ets:update_counter(FreqT, Key, 1) of _ -&gt; ok
+    catch error:badarg -&gt; ets:insert(FreqT, {Key, 1})
+    end.
+
+%% Print the frequency table in the right order
+print_freq_table(FreqT) -&gt;
+    FreqList = lists:reverse(lists:keysort(2, ets:tab2list(FreqT))),
+    Tot = lists:foldr(fun({_, Cnt}, Acc)-&gt; Acc + Cnt end, 0, FreqList),
+    lists:foreach(fun({Nucleoid, Cnt})-&gt;
+			  io:fwrite(&quot;~s ~.3f\n&quot;,[Nucleoid, Cnt*100/Tot])
+		  end, FreqList),
+    io:fwrite(&quot;\n&quot;).
+
+%% Print number of occurrences for a specific pattern
+print_count(FreqT, Pattern) -&gt;
+    case ets:lookup(FreqT, Pattern) of
+	[{_, Value}] -&gt; io:fwrite(&quot;~w\t~s\n&quot;,[Value, Pattern]);
+	[] -&gt; io:fwrite(&quot;~w\t~s\n&quot;,[0, Pattern])
+    end.
+
+%% Spawn a worker process with its own hash table
+do({PrintFun, Pattern}, Seq) -&gt;
+    spawn( fun()-&gt;
+		   FreqT = ets:new(hash, [set]),
+		   gen_freq_table(FreqT, Seq, size(Pattern)),
+		   %Work is done, wait for token and print
+		   receive Pids -&gt;
+			   PrintFun(FreqT, Pattern),
+			   hd(Pids) ! tl(Pids)
+		   end,
+		   ets:delete(FreqT)
+	   end ).
+
+main(_Arg) -&gt;
+    io:setopts(standard_io, [binary]),
+    seek_three(),
+    Seq = get_seq_three([]),
+    PrintFreq = fun(Res, _Pattern)-&gt; print_freq_table(Res) end,
+    PrintCount = fun(Res, Pattern)-&gt; print_count(Res, Pattern) end,
+    Actions = [{PrintFreq,  &lt;&lt;&quot;?&quot;&gt;&gt;},
+	       {PrintFreq,  &lt;&lt;&quot;??&quot;&gt;&gt;},
+	       {PrintCount, &lt;&lt;&quot;GGT&quot;&gt;&gt;},
+	       {PrintCount, &lt;&lt;&quot;GGTA&quot;&gt;&gt;},
+	       {PrintCount, &lt;&lt;&quot;GGTATT&quot;&gt;&gt;},
+	       {PrintCount, &lt;&lt;&quot;GGTATTTTAATT&quot;&gt;&gt;},
+	       {PrintCount, &lt;&lt;&quot;GGTATTTTAATTTATAGT&quot;&gt;&gt;}],
+
+    Pids = [ do(Action, Seq) || Action &lt;- Actions ],
+    %Pass token to print in right order
+    hd(Pids) ! tl(Pids) ++ [self()],
+    receive _Pid -&gt; halt(0) end.
+    </pre>
+  </section>
+  <section>
+    <div>
+      <h2 id="log">notes, command-line, and program output</h2>
+    </div>
+    <pre>
+NOTES:
+64-bit Ubuntu quad core
+Erlang/OTP 24 [erts-12.0] [source] [64-bit]
+[smp:4:4] [ds:4:4:10] [async-threads:1] [jit]
+
+
+
+Thu, 13 May 2021 01:10:52 GMT
+
+MAKE:
+mv knucleotide.erlang-3.erlang knucleotide.erl
+/opt/src/otp_src_24.0/bin/erlc knucleotide.erl
+
+0.65s to complete and log all make actions
+
+COMMAND LINE:
+/opt/src/otp_src_24.0/bin/erl -smp enable -noshell -run  knucleotide main 0 &lt; knucleotide-input25000000.txt
+
+PROGRAM OUTPUT:
+A 30.295
+T 30.151
+C 19.800
+G 19.754
+
+AA 9.177
+TA 9.132
+AT 9.131
+TT 9.091
+CA 6.002
+AC 6.001
+AG 5.987
+GA 5.984
+CT 5.971
+TC 5.971
+GT 5.957
+TG 5.956
+CC 3.917
+GC 3.911
+CG 3.909
+GG 3.902
+
+1471758	GGT
+446535	GGTA
+47336	GGTATT
+893	GGTATTTTAATT
+893	GGTATTTTAATTTATAGT
+    </pre>
+  </section>
+</article>
+<footer>
+  <nav>
+    <ul>
+      <li><a href="../license.html"><span>3-Clause BSD License</span></a>
+    </ul>
+  </nav>
+</footer>
+

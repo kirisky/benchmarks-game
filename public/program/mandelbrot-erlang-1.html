@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,follow,noarchive">
+
+<title>mandelbrot Erlang program | Computer Language Benchmarks Game </title>
+<style><!--
+a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,header{margin:auto;width:92%}body{font:100% Droid Sans, Ubuntu, Verdana, sans-serif;margin:0;-webkit-text-size-adjust:100%}h3, h1, h2, li a{font-family:Ubuntu Mono,Consolas,Menlo,monospace}div,footer,header{max-width:31em}footer{padding:2.6em 0 0}h3{font-size:1.4em;font-weight:bold;margin:0;padding: .4em}h3, h3 a{color:white;background-color:#77216f}h3 small{font-size:0.64em}h1,h2{margin:1.5em 0 0}h1{font-size:1.4em;font-weight:normal}h2{font-size:1.2em}li{list-style-type:none;vertical-align:top}li a{display:block;font-size:1.2em;margin: .5em .5em 0;padding: .5em .5em .3em}ul{clear:left;margin:-0.3em 0 1.5em;padding-left:0;text-align:center}p{color:#333;line-height:1.4;margin: .3em 0 0}p a, a span{border-bottom: .1em solid #333;padding-bottom: .1em}.com,.slc{color:#888}.kwa{color:#066}.kwb{color:#900}.kwc{color:#050}.kwa,.kwb,.kwc{font-weight:bold}.dstr,.str,.sym,.num{color:#930}pre{color:#222;font-size:1em;overflow-wrap:break-word;white-space:pre-wrap;word-wrap:break-word}@media only screen and (min-width: 60em){article,footer,header{font-size:1.25em}}
+--></style>
+<link rel="shortcut icon" href="../favicon.ico">
+<header>
+  <h3><a href="https://benchmarksgame-team.pages.debian.net/benchmarksgame/index.html">The&nbsp;<small>Computer&nbsp;Language</small><br>Benchmarks&nbsp;Game</a></h3>
+</header>
+<article>
+  <div>
+    <h1>mandelbrot Erlang program</h1>
+    <aside>
+      <p><a href="../description/mandelbrot.html#mandelbrot">description</a>
+    </aside>
+  </div>
+  <section>
+    <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+% The Computer Language Benchmarks Game
+% https://salsa.debian.org/benchmarksgame-team/benchmarksgame/
+%% Contributed by Fredrik Svahn based on Per Gustafsson&apos;s mandelbrot program
+
+-module(mandelbrot).
+-export([main/1]).
+-define(LIM_SQR, 4.0).
+-define(ITER, 50).
+-define(SR, -1.5).
+-define(SI, -1).
+
+main([Arg]) -&gt;
+    N = list_to_integer(Arg),
+    io:put_chars([&quot;P4\n&quot;, Arg, &quot; &quot;, Arg, &quot;\n&quot;]),
+    
+    %% Spawn one process per row
+    Row = fun(Y)-&gt; spawn(fun()-&gt; row(0, ?SI+Y*2/N, N, 0, [], 7) end) end,
+    Pids = lists:map(Row, lists:seq(0,N-1)),
+
+    %Pass token around to make sure printouts are in the right order
+    hd(Pids) ! tl(Pids) ++ [ self() ],
+    receive _Token -&gt; halt(0) end.
+
+%Iterate over a row, collect bits, bytes and finally print the row
+row(X, _, N, Bits, Bytes, BitC) when X =:= N-1 -&gt;
+    receive Pids -&gt;
+	    put_chars(Bits, Bytes, BitC),
+	    hd(Pids) ! tl(Pids)
+    end;
+
+row(X, Y2, N, Bits, Bytes, 0) -&gt;
+    row(X+1, Y2, N, 0, [Bits bsl 1 + m(?ITER, ?SR+X*2/N, Y2) | Bytes], 7);
+
+row(X, Y2, N, Bits, Bytes, BitC) -&gt;
+    row(X+1, Y2, N, Bits bsl 1 + m(?ITER, ?SR+X*2/N, Y2), Bytes, BitC-1).
+
+%Mandelbrot algorithm
+m(Iter, CR,CI) -&gt; m(Iter - 1, CR, CI, CR, CI).
+
+m(Iter, R, I, CR, CI) -&gt;
+    case R*R+I*I &gt; ?LIM_SQR of 
+	false when Iter &gt; 0 -&gt; m(Iter-1, R*R-I*I+CR, 2*R*I+CI, CR, CI);
+	false -&gt; 1;
+	true -&gt; 0
+    end.
+
+put_chars(_, Bytes, 7)-&gt; io:put_chars(lists:reverse(Bytes));
+put_chars(Bits, Bytes, C) -&gt; io:put_chars(lists:reverse([Bits bsl (C+1) | Bytes])).
+    </pre>
+  </section>
+  <section>
+    <div>
+      <h2 id="log">notes, command-line, and program output</h2>
+    </div>
+    <pre>
+NOTES:
+64-bit Ubuntu quad core
+Erlang/OTP 24 [erts-12.0] [source] [64-bit]
+[smp:4:4] [ds:4:4:10] [async-threads:1] [jit]
+
+
+
+Thu, 13 May 2021 01:14:36 GMT
+
+MAKE:
+mv mandelbrot.erlang mandelbrot.erl
+/opt/src/otp_src_24.0/bin/erlc mandelbrot.erl
+rm mandelbrot.erl
+
+0.56s to complete and log all make actions
+
+COMMAND LINE:
+/opt/src/otp_src_24.0/bin/erl -smp enable -noshell -run  mandelbrot main 16000
+
+(BINARY) PROGRAM OUTPUT NOT SHOWN
+    </pre>
+  </section>
+</article>
+<footer>
+  <nav>
+    <ul>
+      <li><a href="../license.html"><span>3-Clause BSD License</span></a>
+    </ul>
+  </nav>
+</footer>
+
