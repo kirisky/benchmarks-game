@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,follow,noarchive">
+
+<title>binary-trees Julia&nbsp;#3 program | Computer Language Benchmarks Game </title>
+<style><!--
+a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,header{margin:auto;width:92%}body{font:100% Droid Sans, Ubuntu, Verdana, sans-serif;margin:0;-webkit-text-size-adjust:100%}h3, h1, h2, li a{font-family:Ubuntu Mono,Consolas,Menlo,monospace}div,footer,header{max-width:31em}footer{padding:2.6em 0 0}h3{font-size:1.4em;font-weight:bold;margin:0;padding: .4em}h3, h3 a{color:white;background-color:#77216f}h3 small{font-size:0.64em}h1,h2{margin:1.5em 0 0}h1{font-size:1.4em;font-weight:normal}h2{font-size:1.2em}li{list-style-type:none;vertical-align:top}li a{display:block;font-size:1.2em;margin: .5em .5em 0;padding: .5em .5em .3em}ul{clear:left;margin:-0.3em 0 1.5em;padding-left:0;text-align:center}p{color:#333;line-height:1.4;margin: .3em 0 0}p a, a span{border-bottom: .1em solid #333;padding-bottom: .1em}.com,.slc{color:#888}.kwa{color:#066}.kwb{color:#900}.kwc{color:#050}.kwa,.kwb,.kwc{font-weight:bold}.dstr,.str,.sym,.num{color:#930}pre{color:#222;font-size:1em;overflow-wrap:break-word;white-space:pre-wrap;word-wrap:break-word}@media only screen and (min-width: 60em){article,footer,header{font-size:1.25em}}
+--></style>
+<link rel="shortcut icon" href="../favicon.ico">
+<header>
+  <h3><a href="https://benchmarksgame-team.pages.debian.net/benchmarksgame/index.html">The&nbsp;<small>Computer&nbsp;Language</small><br>Benchmarks&nbsp;Game</a></h3>
+</header>
+<article>
+  <div>
+    <h1>binary-trees Julia&nbsp;#3 program</h1>
+    <aside>
+      <p><a href="../description/binarytrees.html#binarytrees">description</a>
+    </aside>
+  </div>
+  <section>
+    <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc"># The Computer Language Benchmarks Game</span>
+<span class="slc"># https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">#</span>
+<span class="slc"># Contributed by Joonas Muhonen. Based on code by Adam Beckmeyer, Jarret Revels, Alex</span>
+<span class="slc"># Arslan, Michal Stransky, Jens Adam.</span>
+
+<span class="kwa">struct</span> Node
+    l<span class="opt">::</span>Union<span class="opt">{</span>Node<span class="opt">,</span>Nothing<span class="opt">}</span>
+    r<span class="opt">::</span>Union<span class="opt">{</span>Node<span class="opt">,</span>Nothing<span class="opt">}</span>
+<span class="kwa">end</span>
+
+mutable <span class="kwa">struct</span> Latch
+    count<span class="opt">::</span>Int
+    cond<span class="opt">::</span>Threads<span class="opt">.</span>Condition
+<span class="kwa">end</span>
+
+<span class="kwa">function</span> <span class="kwd">Latch</span><span class="opt">(</span>n<span class="opt">::</span>Int<span class="opt">)::</span>Latch
+    <span class="kwd">Latch</span><span class="opt">(</span>n<span class="opt">,</span>Threads<span class="opt">.</span><span class="kwd">Condition</span><span class="opt">())</span>
+<span class="kwa">end</span>
+
+<span class="kwa">function</span> <span class="kwd">countDown</span><span class="opt">(</span>latch<span class="opt">::</span>Latch<span class="opt">)</span>
+    <span class="kwd">lock</span><span class="opt">(</span>latch<span class="opt">.</span>cond<span class="opt">)</span> <span class="kwa">do</span>
+        latch<span class="opt">.</span>count <span class="opt">-=</span> <span class="num">1</span>
+        <span class="kwd">notify</span><span class="opt">(</span>latch<span class="opt">.</span>cond<span class="opt">)</span>
+    <span class="kwa">end</span>
+<span class="kwa">end</span>
+
+<span class="kwa">function</span> <span class="kwd">await</span><span class="opt">(</span>latch<span class="opt">::</span>Latch<span class="opt">)</span>
+    <span class="kwd">lock</span><span class="opt">(</span>latch<span class="opt">.</span>cond<span class="opt">)</span>
+    <span class="kwa">try</span>
+        <span class="kwa">while</span> latch<span class="opt">.</span>count <span class="opt">!=</span> <span class="num">0</span>
+            <span class="kwd">wait</span><span class="opt">(</span>latch<span class="opt">.</span>cond<span class="opt">)</span>
+        <span class="kwa">end</span>
+    <span class="kwa">finally</span>
+        <span class="kwd">unlock</span><span class="opt">(</span>latch<span class="opt">.</span>cond<span class="opt">)</span>
+    <span class="kwa">end</span>
+<span class="kwa">end</span>
+
+<span class="kwa">function</span> <span class="kwd">make</span><span class="opt">(</span>n<span class="opt">::</span>Int<span class="opt">)::</span>Node
+    n <span class="opt">===</span> <span class="num">0</span> <span class="opt">?</span> <span class="kwd">Node</span><span class="opt">(</span>nothing<span class="opt">,</span> nothing<span class="opt">) :</span> <span class="kwd">Node</span><span class="opt">(</span><span class="kwd">make</span><span class="opt">(</span>n<span class="opt">-</span><span class="num">1</span><span class="opt">),</span> <span class="kwd">make</span><span class="opt">(</span>n<span class="opt">-</span><span class="num">1</span><span class="opt">))</span>
+<span class="kwa">end</span>
+
+<span class="kwa">function</span> <span class="kwd">check</span><span class="opt">(</span>node<span class="opt">::</span>Node<span class="opt">)::</span>Int
+    node<span class="opt">.</span>l <span class="opt">===</span> nothing <span class="opt">?</span> <span class="num">1</span> <span class="opt">:</span> <span class="num">1</span> <span class="opt">+</span> <span class="kwd">check</span><span class="opt">(</span>node<span class="opt">.</span>l<span class="opt">) +</span> <span class="kwd">check</span><span class="opt">(</span>node<span class="opt">.</span>r<span class="opt">)</span>
+<span class="kwa">end</span>
+
+<span class="kwa">function</span> <span class="kwd">binary_trees</span><span class="opt">(</span>io<span class="opt">,</span> n<span class="opt">::</span>Int<span class="opt">)</span>
+    <span class="kwd">write</span><span class="opt">(</span>io<span class="opt">,</span> <span class="str">&quot;stretch tree of depth</span> <span class="ipl">$(n+1)</span><span class="str"></span><span class="esc">\t</span> <span class="str">check:</span> <span class="ipl">$(check(make(n+1)</span><span class="str">))</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">)</span>
+
+    long_tree<span class="opt">::</span>Node <span class="opt">=</span> <span class="kwd">make</span><span class="opt">(</span>n<span class="opt">)</span>
+
+    minDepth<span class="opt">::</span>Int <span class="opt">=</span> <span class="num">4</span>
+    resultSize<span class="opt">::</span>Int <span class="opt">=</span> <span class="kwd">trunc</span><span class="opt">(</span>Int<span class="opt">,(</span>n <span class="opt">-</span> minDepth<span class="opt">) /</span> <span class="num">2</span> <span class="opt">) +</span> <span class="num">1</span>
+    results <span class="opt">=</span> Vector<span class="opt">{</span>String<span class="opt">}(</span>undef<span class="opt">,</span>resultSize<span class="opt">)</span>
+    latch<span class="opt">::</span>Latch <span class="opt">=</span> <span class="kwd">Latch</span><span class="opt">(</span>resultSize<span class="opt">)</span>
+    Threads<span class="opt">.</span><span class="kwc">&#64;threads</span> <span class="kwa">for</span> depth<span class="opt">::</span>Int <span class="opt">=</span> minDepth<span class="opt">:</span><span class="num">2</span><span class="opt">:</span>n
+        c<span class="opt">::</span>Int <span class="opt">=</span> <span class="num">0</span>
+        niter<span class="opt">::</span>Int <span class="opt">=</span> <span class="num">1</span> <span class="opt">&lt;&lt; (</span>n <span class="opt">-</span> depth <span class="opt">+</span> minDepth<span class="opt">)</span>
+        lk<span class="opt">::</span>ReentrantLock <span class="opt">=</span> <span class="kwd">ReentrantLock</span><span class="opt">()</span>
+        Threads<span class="opt">.</span><span class="kwc">&#64;threads</span> <span class="kwa">for</span> _ <span class="opt">=</span> <span class="num">1</span><span class="opt">:</span>niter
+            <span class="kwd">lock</span><span class="opt">(</span>lk<span class="opt">)</span> <span class="kwa">do</span>
+                c<span class="opt">+=</span><span class="kwd">check</span><span class="opt">(</span><span class="kwd">make</span><span class="opt">(</span>depth<span class="opt">))</span>
+            <span class="kwa">end</span>
+        <span class="kwa">end</span><span class="slc">#for</span>
+        index<span class="opt">::</span>Int <span class="opt">=</span> <span class="kwd">trunc</span><span class="opt">(</span>Int<span class="opt">,(</span>depth <span class="opt">-</span> minDepth<span class="opt">)/</span><span class="num">2</span><span class="opt">) +</span> <span class="num">1</span>
+        results<span class="opt">[</span>index<span class="opt">] =</span> <span class="str">&quot;</span><span class="ipl">$niter</span><span class="str"></span><span class="esc">\t</span> <span class="str">trees of depth</span> <span class="ipl">$depth</span><span class="str"></span><span class="esc">\t</span> <span class="str">check:</span> <span class="ipl">$c</span><span class="str"></span><span class="esc">\n</span><span class="str">&quot;</span>
+        <span class="kwd">countDown</span><span class="opt">(</span>latch<span class="opt">)</span>
+    <span class="kwa">end</span>
+    <span class="kwd">await</span><span class="opt">(</span>latch<span class="opt">)</span>
+    <span class="kwa">for</span> i <span class="kwa">in</span> results
+        <span class="kwd">write</span><span class="opt">(</span>io<span class="opt">,</span>i<span class="opt">)</span>
+    <span class="kwa">end</span>
+
+    <span class="kwd">write</span><span class="opt">(</span>io<span class="opt">,</span> <span class="str">&quot;long lived tree of depth</span> <span class="ipl">$n</span><span class="str"></span><span class="esc">\t</span> <span class="str">check:</span> <span class="ipl">$(check(long_tree)</span><span class="str">)</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">)</span>
+<span class="kwa">end</span><span class="slc">#function</span>
+
+<span class="kwd">isinteractive</span><span class="opt">() ||</span> <span class="kwd">binary_trees</span><span class="opt">(</span>stdout<span class="opt">,</span> <span class="kwd">parse</span><span class="opt">(</span>Int<span class="opt">,</span> ARGS<span class="opt">[</span><span class="num">1</span><span class="opt">]))</span> 
+    </pre>
+  </section>
+  <section>
+    <div>
+      <h2 id="log">notes, command-line, and program output</h2>
+    </div>
+    <pre>
+NOTES:
+64-bit Ubuntu quad core
+julia version 1.6.0
+
+
+Wed, 19 May 2021 16:01:39 GMT
+
+MAKE:
+printenv JULIA_NUM_THREADS
+4
+
+0.06s to complete and log all make actions
+
+COMMAND LINE:
+/opt/src/julia-1.6.0/bin/julia -O3 --cpu-target=ivybridge --math-mode=ieee  -- binarytrees.julia-3.julia 21
+
+PROGRAM OUTPUT:
+stretch tree of depth 22	 check: 8388607
+2097152	 trees of depth 4	 check: 65011712
+524288	 trees of depth 6	 check: 66584576
+131072	 trees of depth 8	 check: 66977792
+32768	 trees of depth 10	 check: 67076096
+8192	 trees of depth 12	 check: 67100672
+2048	 trees of depth 14	 check: 67106816
+512	 trees of depth 16	 check: 67108352
+128	 trees of depth 18	 check: 67108736
+32	 trees of depth 20	 check: 67108832
+long lived tree of depth 21	 check: 4194303
+    </pre>
+  </section>
+</article>
+<footer>
+  <nav>
+    <ul>
+      <li><a href="../license.html"><span>3-Clause BSD License</span></a>
+    </ul>
+  </nav>
+</footer>
+
