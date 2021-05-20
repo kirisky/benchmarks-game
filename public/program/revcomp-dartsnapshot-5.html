@@ -105,28 +105,11 @@ import <span class="str">&apos;dart:typed_data&apos;</span><span class="opt">;</
 <span class="opt">}</span>
 
 <span class="kwa">void</span> <span class="kwd">other</span><span class="opt">(</span><span class="kwb">Sequence</span> seq<span class="opt">) {</span>
-  <span class="kwa">var</span> requiredLength <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+  <span class="kwa">var</span> builder <span class="opt">=</span> <span class="kwb">BytesBuilder</span><span class="opt">(</span>copy<span class="opt">:</span> <span class="kwa">false</span><span class="opt">);</span>
   <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">var</span> k <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> k <span class="opt">&lt;</span> seq<span class="opt">.</span>blocks<span class="opt">.</span>length<span class="opt">;</span> k<span class="opt">++) {</span>
-    requiredLength <span class="opt">+=</span> seq<span class="opt">.</span>blocks<span class="opt">[</span>k<span class="opt">].</span>length<span class="opt">;</span>
+    builder<span class="opt">.</span><span class="kwd">add</span><span class="opt">(</span>seq<span class="opt">.</span>blocks<span class="opt">[</span>k<span class="opt">]);</span>
   <span class="opt">}</span>
-  <span class="kwa">var</span> buf <span class="opt">=</span> <span class="kwb">Uint</span><span class="num">8L</span>ist<span class="opt">(</span>requiredLength<span class="opt">);</span>
-
-  <span class="kwa">final</span> otherIsolate <span class="opt">=</span> <span class="kwb">ReceivePort</span><span class="opt">();</span>
-  otherIsolate<span class="opt">.</span><span class="kwd">listen</span><span class="opt">((</span>dynamic nextToWrite<span class="opt">) {</span>
-    <span class="kwa">if</span> <span class="opt">(</span>nextToWrite <span class="opt">==</span> seq<span class="opt">.</span>number<span class="opt">) {</span>
-      stdout<span class="opt">.</span><span class="kwd">write</span><span class="opt">(</span><span class="kwb">String</span><span class="opt">.</span><span class="kwd">fromCharCodes</span><span class="opt">(</span>buf<span class="opt">));</span>
-      seq<span class="opt">.</span>p<span class="opt">.</span><span class="kwd">send</span><span class="opt">(</span><span class="num">1</span><span class="opt">);</span> <span class="slc">// Sequence written — increment nextToWrite.</span>
-      seq<span class="opt">.</span>blocks<span class="opt">.</span><span class="kwd">clear</span><span class="opt">();</span>
-    <span class="opt">}</span>
-  <span class="opt">});</span>
-
-  <span class="slc">// Concatenate all blocks needed for the sequence.</span>
-  <span class="kwa">var</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">,</span> j <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
-  <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">var</span> k <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> k <span class="opt">&lt;</span> seq<span class="opt">.</span>blocks<span class="opt">.</span>length<span class="opt">;</span> k<span class="opt">++) {</span>
-    j <span class="opt">+=</span> seq<span class="opt">.</span>blocks<span class="opt">[</span>k<span class="opt">].</span>length<span class="opt">;</span>
-    buf<span class="opt">.</span><span class="kwd">setRange</span><span class="opt">(</span>i<span class="opt">,</span> j<span class="opt">,</span> seq<span class="opt">.</span>blocks<span class="opt">[</span>k<span class="opt">]);</span>
-    i <span class="opt">+=</span> seq<span class="opt">.</span>blocks<span class="opt">[</span>k<span class="opt">].</span>length<span class="opt">;</span>
-  <span class="opt">}</span>
+  <span class="kwa">var</span> buf <span class="opt">=</span> builder<span class="opt">.</span><span class="kwd">takeBytes</span><span class="opt">();</span>
 
   <span class="slc">// Walk from both ends of the sequence, complementing and swapping.</span>
   <span class="kwa">final</span> lut <span class="opt">=</span> <span class="kwd">codeComplements</span><span class="opt">();</span>
@@ -135,7 +118,7 @@ import <span class="str">&apos;dart:typed_data&apos;</span><span class="opt">;</
   <span class="kwa">var</span> loCode <span class="opt">=</span> <span class="num">0</span><span class="opt">,</span> hiCode <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
 
   <span class="kwa">while</span> <span class="opt">(</span>lo <span class="opt">&lt;</span> hi<span class="opt">) {</span>
-    <span class="kwa">if</span> <span class="opt">(</span>buf<span class="opt">[</span>lo<span class="opt">] ==</span> nl<span class="opt">) {</span> <span class="slc">// skip past </span>
+    <span class="kwa">if</span> <span class="opt">(</span>buf<span class="opt">[</span>lo<span class="opt">] ==</span> nl<span class="opt">) {</span> <span class="slc">// Skip.</span>
       <span class="kwa">if</span> <span class="opt">(++</span>lo <span class="opt">&lt;</span> hi<span class="opt">) {</span>
         loCode <span class="opt">=</span> buf<span class="opt">[</span>lo<span class="opt">];</span>
       <span class="opt">}</span> <span class="kwa">else</span> <span class="opt">{</span>
@@ -144,7 +127,7 @@ import <span class="str">&apos;dart:typed_data&apos;</span><span class="opt">;</
     <span class="opt">}</span> <span class="kwa">else</span> <span class="opt">{</span>
       loCode <span class="opt">=</span> buf<span class="opt">[</span>lo<span class="opt">];</span>
     <span class="opt">}</span>
-    <span class="kwa">if</span> <span class="opt">(</span>buf<span class="opt">[</span>hi<span class="opt">] ==</span> nl<span class="opt">) {</span> <span class="slc">// skip past</span>
+    <span class="kwa">if</span> <span class="opt">(</span>buf<span class="opt">[</span>hi<span class="opt">] ==</span> nl<span class="opt">) {</span> <span class="slc">// Skip.</span>
       <span class="kwa">if</span> <span class="opt">(--</span>hi <span class="opt">&gt;</span> lo<span class="opt">) {</span>
         hiCode <span class="opt">=</span> buf<span class="opt">[</span>hi<span class="opt">];</span>
       <span class="opt">}</span> <span class="kwa">else</span> <span class="opt">{</span>
@@ -156,9 +139,17 @@ import <span class="str">&apos;dart:typed_data&apos;</span><span class="opt">;</
     buf<span class="opt">[</span>lo<span class="opt">++] =</span> lut<span class="opt">[</span>hiCode<span class="opt">];</span>
     buf<span class="opt">[</span>hi<span class="opt">--] =</span> lut<span class="opt">[</span>loCode<span class="opt">];</span>
   <span class="opt">}</span>
-
+  
+  <span class="kwa">final</span> otherIsolate <span class="opt">=</span> <span class="kwb">ReceivePort</span><span class="opt">();</span>
+  otherIsolate<span class="opt">.</span><span class="kwd">listen</span><span class="opt">((</span>dynamic nextToWrite<span class="opt">) {</span>
+    <span class="kwa">if</span> <span class="opt">(</span>nextToWrite <span class="opt">==</span> seq<span class="opt">.</span>number<span class="opt">) {</span>
+      stdout<span class="opt">.</span><span class="kwd">write</span><span class="opt">(</span><span class="kwb">String</span><span class="opt">.</span><span class="kwd">fromCharCodes</span><span class="opt">(</span>buf<span class="opt">));</span>      
+      seq<span class="opt">.</span>p<span class="opt">.</span><span class="kwd">send</span><span class="opt">(</span><span class="num">1</span><span class="opt">);</span> <span class="slc">// Sequence written — increment nextToWrite.</span>
+      seq<span class="opt">.</span>blocks<span class="opt">.</span><span class="kwd">clear</span><span class="opt">();</span>
+    <span class="opt">}</span>
+  <span class="opt">});</span>
   <span class="slc">// Ready to write, so ask which sequence is next to write.</span>
-  seq<span class="opt">.</span>p<span class="opt">.</span><span class="kwd">send</span><span class="opt">(</span>otherIsolate<span class="opt">.</span>sendPort<span class="opt">);</span>
+  seq<span class="opt">.</span>p<span class="opt">.</span><span class="kwd">send</span><span class="opt">(</span>otherIsolate<span class="opt">.</span>sendPort<span class="opt">);</span>  
 <span class="opt">}</span>
 
 <span class="kwa">class</span> <span class="kwb">Sequence</span> <span class="opt">{</span>
@@ -193,7 +184,7 @@ Dart SDK version: 2.12.0 (stable) (Thu Feb 25 19:50:53 2021 +0100) on "linux_x64
 compile jit-snapshot
 
 
-Thu, 20 May 2021 18:30:06 GMT
+Thu, 20 May 2021 22:18:36 GMT
 
 MAKE:
 /opt/src/dartsdk/bin/dart analyze 
@@ -41874,7 +41865,7 @@ TCCCCGTTGTGGATGAATTTCGTCAATAAGAATTGATCTTATCATCTAAAGGTATGTCCC
 TTCTAACTTCGGAGATATGGACCCTCGCCCGCAGTCCAGACAATTCATAAGCCGCACAAG
 TTGTCGTCCCTACATATCGT
 
-4.53s to complete and log all make actions
+3.21s to complete and log all make actions
 
 COMMAND LINE:
 /opt/src/dartsdk/bin/dart run  revcomp.dartsnapshot-5.jit 0 &lt; revcomp-input100000000.txt
