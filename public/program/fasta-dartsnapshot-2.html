@@ -26,6 +26,7 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="com">   https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
 <span class="com"></span>
 <span class="com">   contributed by Isaac Gouy based on Jeremy Zerfas&apos;s #5 C program </span>
+<span class="com">   Write line-by-line, sequential.</span>
 <span class="com">*/</span>
 
 import <span class="str">&apos;dart:io&apos;</span><span class="opt">;</span>
@@ -34,27 +35,30 @@ import <span class="str">&apos;dart:typed_data&apos;</span><span class="opt">;</
 <span class="kwa">const</span> width <span class="opt">=</span> <span class="num">60</span><span class="opt">;</span>
 <span class="kwa">final</span> nl <span class="opt">=</span> <span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span><span class="opt">.</span><span class="kwd">codeUnitAt</span><span class="opt">(</span><span class="num">0</span><span class="opt">);</span>
 
-<span class="kwb">Uint</span><span class="num">8L</span>ist <span class="kwd">repeatedSequence</span><span class="opt">(</span><span class="kwb">String</span> sequence<span class="opt">,</span> <span class="kwb">int</span> size<span class="opt">) {</span>
+<span class="kwa">void</span> <span class="kwd">writeRepeatedSequence</span><span class="opt">(</span><span class="kwb">String</span> sequence<span class="opt">,</span> <span class="kwb">int</span> size<span class="opt">) {</span>
   <span class="kwa">final</span> codes <span class="opt">=</span> sequence<span class="opt">.</span>codeUnits<span class="opt">;</span>
   <span class="kwa">final</span> codesLength <span class="opt">=</span> codes<span class="opt">.</span>length<span class="opt">;</span>
-  <span class="kwa">final</span> lines <span class="opt">=</span> <span class="kwb">BytesBuilder</span><span class="opt">();</span>
 
   <span class="kwa">final</span> codesExtended <span class="opt">=</span> <span class="kwb">Uint</span><span class="num">8L</span>ist<span class="opt">(</span>codesLength <span class="opt">+</span> width<span class="opt">);</span>
   <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">var</span> column <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> column <span class="opt">&lt;</span> codesLength <span class="opt">+</span> width<span class="opt">;</span> column<span class="opt">++) {</span>
     codesExtended<span class="opt">[</span>column<span class="opt">] =</span> codes<span class="opt">[</span>column <span class="opt">%</span> codesLength<span class="opt">];</span>
   <span class="opt">}</span>
   <span class="kwa">var</span> offset <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+  <span class="kwa">var</span> line <span class="opt">=</span> <span class="kwb">Uint</span><span class="num">8L</span>ist<span class="opt">(</span>width <span class="opt">+</span> <span class="num">1</span><span class="opt">);</span>
+  line<span class="opt">[</span>width<span class="opt">] =</span> nl<span class="opt">;</span>
   <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">var</span> currentSize <span class="opt">=</span> size<span class="opt">;</span> currentSize <span class="opt">&gt;</span> <span class="num">0</span><span class="opt">;) {</span>
-    <span class="kwa">final</span> lineLength <span class="opt">= (</span>currentSize <span class="opt">&lt;</span> width<span class="opt">)</span> ? currentSize <span class="opt">:</span> width<span class="opt">;</span>
-    <span class="kwa">final</span> line <span class="opt">=</span> <span class="kwb">Uint</span><span class="num">8L</span>ist<span class="opt">(</span>lineLength <span class="opt">+</span> <span class="num">1</span><span class="opt">);</span>
-    line<span class="opt">[</span>lineLength<span class="opt">] =</span> nl<span class="opt">;</span>
+    <span class="kwa">var</span> lineLength <span class="opt">=</span> width<span class="opt">;</span>
+    <span class="kwa">if</span> <span class="opt">(</span>currentSize <span class="opt">&lt;</span> width<span class="opt">) {</span>
+      lineLength <span class="opt">=</span> currentSize<span class="opt">;</span>
+      line <span class="opt">=</span> <span class="kwb">Uint</span><span class="num">8L</span>ist<span class="opt">(</span>lineLength <span class="opt">+</span> <span class="num">1</span><span class="opt">);</span> <span class="slc">// Shorten fixed-size last line.</span>
+      line<span class="opt">[</span>lineLength<span class="opt">] =</span> nl<span class="opt">;</span>
+    <span class="opt">}</span>
     line<span class="opt">.</span><span class="kwd">setRange</span><span class="opt">(</span><span class="num">0</span><span class="opt">,</span> lineLength<span class="opt">,</span> codesExtended<span class="opt">,</span> offset<span class="opt">);</span>
     offset <span class="opt">+=</span> lineLength<span class="opt">;</span>
     <span class="kwa">if</span> <span class="opt">(</span>offset <span class="opt">&gt;</span> codesLength<span class="opt">)</span> offset <span class="opt">-=</span> codesLength<span class="opt">;</span>
-    lines<span class="opt">.</span><span class="kwd">add</span><span class="opt">(</span>line<span class="opt">);</span>
+    stdout<span class="opt">.</span><span class="kwd">add</span><span class="opt">(</span>line<span class="opt">);</span>
     currentSize <span class="opt">-=</span> lineLength<span class="opt">;</span>
   <span class="opt">}</span>
-  <span class="kwa">return</span> lines<span class="opt">.</span><span class="kwd">takeBytes</span><span class="opt">();</span>
 <span class="opt">}</span>
 
 <span class="kwa">const</span> iM <span class="opt">=</span> <span class="num">139968</span><span class="opt">;</span>
@@ -67,19 +71,23 @@ import <span class="str">&apos;dart:typed_data&apos;</span><span class="opt">;</
   <span class="kwa">return</span> max <span class="opt">/</span> iM <span class="opt">*</span> seed<span class="opt">;</span>
 <span class="opt">}</span>
 
-<span class="kwb">Uint</span><span class="num">8L</span>ist <span class="kwd">weightedLcgSequence</span><span class="opt">(</span>
+<span class="kwa">void</span> <span class="kwd">writeWeightedLcgSequence</span><span class="opt">(</span>
     <span class="kwb">String</span> codeString<span class="opt">,</span> <span class="kwb">List</span><span class="opt">&lt;</span><span class="kwb">double</span><span class="opt">&gt;</span> probabilities<span class="opt">,</span> <span class="kwb">int</span> size<span class="opt">) {</span>
   <span class="kwa">final</span> codes <span class="opt">=</span> codeString<span class="opt">.</span>codeUnits<span class="opt">;</span>
-  <span class="kwa">final</span> lines <span class="opt">=</span> <span class="kwb">BytesBuilder</span><span class="opt">();</span>
   <span class="kwa">var</span> sum <span class="opt">=</span> <span class="num">0.0</span><span class="opt">;</span>
   <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">var</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> probabilities<span class="opt">.</span>length<span class="opt">;</span> i<span class="opt">++) {</span>
     sum <span class="opt">+=</span> probabilities<span class="opt">[</span>i<span class="opt">];</span>
     probabilities<span class="opt">[</span>i<span class="opt">] =</span> sum <span class="opt">*</span> iM<span class="opt">;</span>
   <span class="opt">}</span>
+  <span class="kwa">var</span> line <span class="opt">=</span> <span class="kwb">Uint</span><span class="num">8L</span>ist<span class="opt">(</span>width <span class="opt">+</span> <span class="num">1</span><span class="opt">);</span>
+  line<span class="opt">[</span>width<span class="opt">] =</span> nl<span class="opt">;</span>
   <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">var</span> currentSize <span class="opt">=</span> size<span class="opt">;</span> currentSize <span class="opt">&gt;</span> <span class="num">0</span><span class="opt">;) {</span>
-    <span class="kwa">final</span> lineLength <span class="opt">= (</span>currentSize <span class="opt">&lt;</span> width<span class="opt">)</span> ? currentSize <span class="opt">:</span> width<span class="opt">;</span>
-    <span class="kwa">final</span> line <span class="opt">=</span> <span class="kwb">Uint</span><span class="num">8L</span>ist<span class="opt">(</span>lineLength <span class="opt">+</span> <span class="num">1</span><span class="opt">);</span>
-    line<span class="opt">[</span>lineLength<span class="opt">] =</span> nl<span class="opt">;</span>
+    <span class="kwa">var</span> lineLength <span class="opt">=</span> width<span class="opt">;</span>
+    <span class="kwa">if</span> <span class="opt">(</span>currentSize <span class="opt">&lt;</span> width<span class="opt">) {</span>
+      lineLength <span class="opt">=</span> currentSize<span class="opt">;</span>
+      line <span class="opt">=</span> <span class="kwb">Uint</span><span class="num">8L</span>ist<span class="opt">(</span>lineLength <span class="opt">+</span> <span class="num">1</span><span class="opt">);</span> <span class="slc">// Shorten fixed-size last line.</span>
+      line<span class="opt">[</span>lineLength<span class="opt">] =</span> nl<span class="opt">;</span>
+    <span class="opt">}</span>
     <span class="kwa">final</span> last <span class="opt">=</span> probabilities<span class="opt">.</span>length <span class="opt">-</span> <span class="num">1</span><span class="opt">;</span>
     <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">var</span> column <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> column <span class="opt">&lt;</span> lineLength<span class="opt">;</span> column<span class="opt">++) {</span>
       <span class="kwa">final</span> r <span class="opt">=</span> <span class="kwd">nextLcgNumber</span><span class="opt">(</span>iM<span class="opt">);</span>
@@ -89,17 +97,16 @@ import <span class="str">&apos;dart:typed_data&apos;</span><span class="opt">;</
       <span class="opt">}</span>
       line<span class="opt">[</span>column<span class="opt">] =</span> codes<span class="opt">[</span>i<span class="opt">];</span>
     <span class="opt">}</span>
-    lines<span class="opt">.</span><span class="kwd">add</span><span class="opt">(</span>line<span class="opt">);</span>
+    stdout<span class="opt">.</span><span class="kwd">add</span><span class="opt">(</span>line<span class="opt">);</span>
     currentSize <span class="opt">-=</span> lineLength<span class="opt">;</span>
   <span class="opt">}</span>
-  <span class="kwa">return</span> lines<span class="opt">.</span><span class="kwd">takeBytes</span><span class="opt">();</span>
 <span class="opt">}</span>
 
 <span class="kwa">void</span> <span class="kwd">main</span><span class="opt">(</span><span class="kwb">List</span><span class="opt">&lt;</span><span class="kwb">String</span><span class="opt">&gt;</span> args<span class="opt">) {</span>
   <span class="kwa">final</span> n <span class="opt">= (</span>args<span class="opt">.</span>length <span class="opt">&gt;</span> <span class="num">0</span><span class="opt">)</span> ? <span class="kwb">int</span><span class="opt">.</span><span class="kwd">parse</span><span class="opt">(</span>args<span class="opt">[</span><span class="num">0</span><span class="opt">]) :</span> <span class="num">1000</span><span class="opt">;</span>
 
   stdout<span class="opt">.</span><span class="kwd">writeln</span><span class="opt">(</span><span class="str">&apos;&gt;ONE Homo sapiens alu&apos;</span><span class="opt">);</span>
-  stdout<span class="opt">.</span><span class="kwd">add</span><span class="opt">(</span><span class="kwd">repeatedSequence</span><span class="opt">(</span>
+  <span class="kwd">writeRepeatedSequence</span><span class="opt">(</span>
       <span class="str">&apos;GGCCGGGCGCGGTGGCTCACGCCT&apos;</span>
       <span class="str">&apos;GTAATCCCAGCACTTTGGGAGGCC&apos;</span>
       <span class="str">&apos;GAGGCGGGCGGATCACCTGAGGTC&apos;</span>
@@ -112,21 +119,21 @@ import <span class="str">&apos;dart:typed_data&apos;</span><span class="opt">;</
       <span class="str">&apos;AGGTTGCAGTGAGCCGAGATCGCG&apos;</span>
       <span class="str">&apos;CCACTGCACTCCAGCCTGGGCGAC&apos;</span>
       <span class="str">&apos;AGAGCGAGACTCCGTCTCAAAAA&apos;</span><span class="opt">,</span>
-      n <span class="opt">*</span> <span class="num">2</span><span class="opt">));</span>
+      n <span class="opt">*</span> <span class="num">2</span><span class="opt">);</span>
 
   stdout<span class="opt">.</span><span class="kwd">writeln</span><span class="opt">(</span><span class="str">&apos;&gt;TWO IUB ambiguity codes&apos;</span><span class="opt">);</span>
-  stdout<span class="opt">.</span><span class="kwd">add</span><span class="opt">(</span><span class="kwd">weightedLcgSequence</span><span class="opt">(</span>
+  <span class="kwd">writeWeightedLcgSequence</span><span class="opt">(</span>
       <span class="str">&apos;acgtBDHKMNRSVWY&apos;</span><span class="opt">,</span>
       <span class="opt">[</span><span class="num">0.27</span><span class="opt">,</span> <span class="num">0.12</span><span class="opt">,</span> <span class="num">0.12</span><span class="opt">,</span> <span class="num">0.27</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">] +</span>
           <span class="opt">[</span><span class="num">0.02</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">] +</span>
           <span class="opt">[</span><span class="num">0.02</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">],</span>
-      n <span class="opt">*</span> <span class="num">3</span><span class="opt">));</span>
+      n <span class="opt">*</span> <span class="num">3</span><span class="opt">);</span>
 
   stdout<span class="opt">.</span><span class="kwd">writeln</span><span class="opt">(</span><span class="str">&apos;&gt;THREE Homo sapiens frequency&apos;</span><span class="opt">);</span>
-  stdout<span class="opt">.</span><span class="kwd">add</span><span class="opt">(</span><span class="kwd">weightedLcgSequence</span><span class="opt">(</span>
+  <span class="kwd">writeWeightedLcgSequence</span><span class="opt">(</span>
       <span class="str">&apos;acgt&apos;</span><span class="opt">,</span>
       <span class="opt">[</span><span class="num">0.3029549426680</span><span class="opt">,</span> <span class="num">0.1979883004921</span><span class="opt">,</span> <span class="num">0.1975473066391</span><span class="opt">,</span> <span class="num">0.3015094502008</span><span class="opt">],</span>
-      n <span class="opt">*</span> <span class="num">5</span><span class="opt">));</span>
+      n <span class="opt">*</span> <span class="num">5</span><span class="opt">);</span>
 <span class="opt">}</span>
     </pre>
   </section>
@@ -141,7 +148,7 @@ Dart SDK version: 2.12.0 (stable) (Thu Feb 25 19:50:53 2021 +0100) on "linux_x64
 compile jit-snapshot
 
 
-Thu, 27 May 2021 04:49:16 GMT
+Thu, 27 May 2021 18:07:31 GMT
 
 MAKE:
 /opt/src/dartsdk/bin/dart analyze 
@@ -322,7 +329,7 @@ atccaagcgcgttatctgattagagtttacaactcagtattttatcagtacgttttgttt
 ccaacattacccggtatgacaaaatgacgccacgtgtcgaataatggtctgaccaatgta
 ggaagtgaaaagataaatat
 
-2.32s to complete and log all make actions
+4.45s to complete and log all make actions
 
 COMMAND LINE:
 /opt/src/dartsdk/bin/dart run  fasta.dartsnapshot-2.jit 25000000

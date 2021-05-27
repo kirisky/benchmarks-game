@@ -26,6 +26,7 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="com">   https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
 <span class="com"></span>
 <span class="com">   contributed by Isaac Gouy based on Jeremy Zerfas&apos;s #5 C program </span>
+<span class="com">   Write buffered, naive parallel.</span>
 <span class="com">*/</span>
 
 import <span class="str">&apos;dart:io&apos;</span><span class="opt">;</span>
@@ -96,113 +97,62 @@ import <span class="str">&apos;dart:typed_data&apos;</span><span class="opt">;</
   <span class="kwa">return</span> lines<span class="opt">.</span><span class="kwd">takeBytes</span><span class="opt">();</span>
 <span class="opt">}</span>
 
-<span class="kwb">Float</span><span class="num">64L</span>ist <span class="kwd">fullyCalculatedLcgNumbers</span><span class="opt">(</span><span class="kwb">int</span> size<span class="opt">) {</span>
-  <span class="kwa">final</span> numbers <span class="opt">=</span> <span class="kwb">Float</span><span class="num">64L</span>ist<span class="opt">(</span>size<span class="opt">);</span>
-  <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">var</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> size<span class="opt">;</span> i<span class="opt">++) {</span>
-    numbers<span class="opt">[</span>i<span class="opt">] =</span> <span class="kwd">nextLcgNumber</span><span class="opt">(</span>iM<span class="opt">);</span>
-  <span class="opt">}</span>
-  <span class="kwa">return</span> numbers<span class="opt">;</span>
-<span class="opt">}</span>
-
-<span class="kwb">Uint</span><span class="num">8L</span>ist <span class="kwd">weightedPriorLcgSequence</span><span class="opt">(</span><span class="kwb">String</span> codeString<span class="opt">,</span> <span class="kwb">List</span><span class="opt">&lt;</span><span class="kwb">double</span><span class="opt">&gt;</span> probabilities<span class="opt">,</span>
-    <span class="kwb">Float</span><span class="num">64L</span>ist priorLcgNumbers<span class="opt">) {</span>
-  <span class="kwa">final</span> codes <span class="opt">=</span> codeString<span class="opt">.</span>codeUnits<span class="opt">;</span>
-  <span class="kwa">final</span> lines <span class="opt">=</span> <span class="kwb">BytesBuilder</span><span class="opt">();</span>
-  <span class="kwa">var</span> sum <span class="opt">=</span> <span class="num">0.0</span><span class="opt">;</span>
-  <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">var</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> probabilities<span class="opt">.</span>length<span class="opt">;</span> i<span class="opt">++) {</span>
-    sum <span class="opt">+=</span> probabilities<span class="opt">[</span>i<span class="opt">];</span>
-    probabilities<span class="opt">[</span>i<span class="opt">] =</span> sum <span class="opt">*</span> iM<span class="opt">;</span>
-  <span class="opt">}</span>
-  <span class="kwa">var</span> size <span class="opt">=</span> priorLcgNumbers<span class="opt">.</span>length<span class="opt">;</span>
-  <span class="kwa">var</span> k <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
-  <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">var</span> currentSize <span class="opt">=</span> size<span class="opt">;</span> currentSize <span class="opt">&gt;</span> <span class="num">0</span><span class="opt">;) {</span>
-    <span class="kwa">final</span> lineLength <span class="opt">= (</span>currentSize <span class="opt">&lt;</span> width<span class="opt">)</span> ? currentSize <span class="opt">:</span> width<span class="opt">;</span>
-    <span class="kwa">final</span> line <span class="opt">=</span> <span class="kwb">Uint</span><span class="num">8L</span>ist<span class="opt">(</span>lineLength <span class="opt">+</span> <span class="num">1</span><span class="opt">);</span>
-    line<span class="opt">[</span>lineLength<span class="opt">] =</span> nl<span class="opt">;</span>
-    <span class="kwa">final</span> last <span class="opt">=</span> probabilities<span class="opt">.</span>length <span class="opt">-</span> <span class="num">1</span><span class="opt">;</span>
-    <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">var</span> column <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> column <span class="opt">&lt;</span> lineLength<span class="opt">;</span> column<span class="opt">++) {</span>
-      <span class="kwa">final</span> r <span class="opt">=</span> priorLcgNumbers<span class="opt">[</span>k<span class="opt">++];</span>
-      <span class="kwa">var</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
-      <span class="kwa">for</span> <span class="opt">(;</span> i <span class="opt">&lt;</span> last<span class="opt">;</span> i<span class="opt">++) {</span>
-        <span class="kwa">if</span> <span class="opt">(</span>probabilities<span class="opt">[</span>i<span class="opt">] &gt;</span> r<span class="opt">)</span> <span class="kwa">break</span><span class="opt">;</span>
-      <span class="opt">}</span>
-      line<span class="opt">[</span>column<span class="opt">] =</span> codes<span class="opt">[</span>i<span class="opt">];</span>
-    <span class="opt">}</span>
-    lines<span class="opt">.</span><span class="kwd">add</span><span class="opt">(</span>line<span class="opt">);</span>
-    currentSize <span class="opt">-=</span> lineLength<span class="opt">;</span>
-  <span class="opt">}</span>
-  <span class="kwa">return</span> lines<span class="opt">.</span><span class="kwd">takeBytes</span><span class="opt">();</span>
-<span class="opt">}</span>
-
 <span class="kwa">void</span> <span class="kwd">main</span><span class="opt">(</span><span class="kwb">List</span><span class="opt">&lt;</span><span class="kwb">String</span><span class="opt">&gt;</span> args<span class="opt">) {</span>
   <span class="kwa">final</span> mainIsolate <span class="opt">=</span> <span class="kwb">ReceivePort</span><span class="opt">();</span>
   <span class="kwa">final</span> n <span class="opt">= (</span>args<span class="opt">.</span>length <span class="opt">&gt;</span> <span class="num">0</span><span class="opt">)</span> ? <span class="kwb">int</span><span class="opt">.</span><span class="kwd">parse</span><span class="opt">(</span>args<span class="opt">[</span><span class="num">0</span><span class="opt">]) :</span> <span class="num">1000</span><span class="opt">;</span>
-  <span class="kwa">final</span> priorLcgNumbers <span class="opt">=</span> <span class="kwd">fullyCalculatedLcgNumbers</span><span class="opt">(</span>n <span class="opt">*</span> <span class="num">3</span><span class="opt">);</span>
 
   <span class="kwb">Isolate</span><span class="opt">.</span><span class="kwd">spawn</span><span class="opt">(</span>
       other<span class="opt">,</span>
       <span class="kwb">Request</span><span class="opt">(</span>
-          <span class="str">&apos;&gt;THREE Homo sapiens frequency&apos;</span><span class="opt">,</span>
-          <span class="str">&apos;acgt&apos;</span><span class="opt">,</span>
-          <span class="opt">[</span><span class="num">0.3029549426680</span><span class="opt">,</span> <span class="num">0.1979883004921</span><span class="opt">,</span> <span class="num">0.1975473066391</span><span class="opt">,</span> <span class="num">0.3015094502008</span><span class="opt">],</span>
-          seed<span class="opt">,</span>
-          n <span class="opt">*</span> <span class="num">5</span><span class="opt">,</span>
+          <span class="str">&apos;&gt;ONE Homo sapiens alu&apos;</span><span class="opt">,</span>
+          <span class="str">&apos;GGCCGGGCGCGGTGGCTCACGCCT&apos;</span>
+              <span class="str">&apos;GTAATCCCAGCACTTTGGGAGGCC&apos;</span>
+              <span class="str">&apos;GAGGCGGGCGGATCACCTGAGGTC&apos;</span>
+              <span class="str">&apos;AGGAGTTCGAGACCAGCCTGGCCA&apos;</span>
+              <span class="str">&apos;ACATGGTGAAACCCCGTCTCTACT&apos;</span>
+              <span class="str">&apos;AAAAATACAAAAATTAGCCGGGCG&apos;</span>
+              <span class="str">&apos;TGGTGGCGCGCGCCTGTAATCCCA&apos;</span>
+              <span class="str">&apos;GCTACTCGGGAGGCTGAGGCAGGA&apos;</span>
+              <span class="str">&apos;GAATCGCTTGAACCCGGGAGGCGG&apos;</span>
+              <span class="str">&apos;AGGTTGCAGTGAGCCGAGATCGCG&apos;</span>
+              <span class="str">&apos;CCACTGCACTCCAGCCTGGGCGAC&apos;</span>
+              <span class="str">&apos;AGAGCGAGACTCCGTCTCAAAAA&apos;</span><span class="opt">,</span>
+          n <span class="opt">*</span> <span class="num">2</span><span class="opt">,</span>
           mainIsolate<span class="opt">.</span>sendPort<span class="opt">));</span>
 
-  stdout<span class="opt">.</span><span class="kwd">writeln</span><span class="opt">(</span><span class="str">&apos;&gt;ONE Homo sapiens alu&apos;</span><span class="opt">);</span>
-  stdout<span class="opt">.</span><span class="kwd">add</span><span class="opt">(</span><span class="kwd">repeatedSequence</span><span class="opt">(</span>
-      <span class="str">&apos;GGCCGGGCGCGGTGGCTCACGCCT&apos;</span>
-      <span class="str">&apos;GTAATCCCAGCACTTTGGGAGGCC&apos;</span>
-      <span class="str">&apos;GAGGCGGGCGGATCACCTGAGGTC&apos;</span>
-      <span class="str">&apos;AGGAGTTCGAGACCAGCCTGGCCA&apos;</span>
-      <span class="str">&apos;ACATGGTGAAACCCCGTCTCTACT&apos;</span>
-      <span class="str">&apos;AAAAATACAAAAATTAGCCGGGCG&apos;</span>
-      <span class="str">&apos;TGGTGGCGCGCGCCTGTAATCCCA&apos;</span>
-      <span class="str">&apos;GCTACTCGGGAGGCTGAGGCAGGA&apos;</span>
-      <span class="str">&apos;GAATCGCTTGAACCCGGGAGGCGG&apos;</span>
-      <span class="str">&apos;AGGTTGCAGTGAGCCGAGATCGCG&apos;</span>
-      <span class="str">&apos;CCACTGCACTCCAGCCTGGGCGAC&apos;</span>
-      <span class="str">&apos;AGAGCGAGACTCCGTCTCAAAAA&apos;</span><span class="opt">,</span>
-      n <span class="opt">*</span> <span class="num">2</span><span class="opt">));</span>
-
-  stdout<span class="opt">.</span><span class="kwd">writeln</span><span class="opt">(</span><span class="str">&apos;&gt;TWO IUB ambiguity codes&apos;</span><span class="opt">);</span>
-  stdout<span class="opt">.</span><span class="kwd">add</span><span class="opt">(</span><span class="kwd">weightedPriorLcgSequence</span><span class="opt">(</span>
+  <span class="kwa">final</span> sequenceTwo <span class="opt">=</span> <span class="kwd">weightedLcgSequence</span><span class="opt">(</span>
       <span class="str">&apos;acgtBDHKMNRSVWY&apos;</span><span class="opt">,</span>
       <span class="opt">[</span><span class="num">0.27</span><span class="opt">,</span> <span class="num">0.12</span><span class="opt">,</span> <span class="num">0.12</span><span class="opt">,</span> <span class="num">0.27</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">] +</span>
           <span class="opt">[</span><span class="num">0.02</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">] +</span>
           <span class="opt">[</span><span class="num">0.02</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">],</span>
-      priorLcgNumbers<span class="opt">));</span>
+      n <span class="opt">*</span> <span class="num">3</span><span class="opt">);</span>
 
-  mainIsolate<span class="opt">.</span><span class="kwd">listen</span><span class="opt">((</span>dynamic p<span class="opt">) {</span>
-    <span class="kwa">if</span> <span class="opt">(</span>p <span class="kwa">is</span> <span class="kwb">SendPort</span><span class="opt">) {</span>
-      stdout<span class="opt">.</span><span class="kwd">writeln</span><span class="opt">(</span><span class="str">&apos;&gt;THREE Homo sapiens frequency&apos;</span><span class="opt">);</span>
-      p<span class="opt">.</span><span class="kwd">send</span><span class="opt">(</span><span class="num">1</span><span class="opt">);</span>
-    <span class="opt">}</span> <span class="kwa">else</span> <span class="opt">{</span>
-      mainIsolate<span class="opt">.</span><span class="kwd">close</span><span class="opt">();</span>
-    <span class="opt">}</span>
+  <span class="kwa">final</span> sequenceThree <span class="opt">=</span> <span class="kwd">weightedLcgSequence</span><span class="opt">(</span>
+      <span class="str">&apos;acgt&apos;</span><span class="opt">,</span>
+      <span class="opt">[</span><span class="num">0.3029549426680</span><span class="opt">,</span> <span class="num">0.1979883004921</span><span class="opt">,</span> <span class="num">0.1975473066391</span><span class="opt">,</span> <span class="num">0.3015094502008</span><span class="opt">],</span>
+      n <span class="opt">*</span> <span class="num">5</span><span class="opt">);</span>
+
+  mainIsolate<span class="opt">.</span><span class="kwd">listen</span><span class="opt">((</span>dynamic _<span class="opt">) {</span>
+    stdout<span class="opt">.</span><span class="kwd">writeln</span><span class="opt">(</span><span class="str">&apos;&gt;TWO IUB ambiguity codes&apos;</span><span class="opt">);</span>
+    stdout<span class="opt">.</span><span class="kwd">add</span><span class="opt">(</span>sequenceTwo<span class="opt">);</span>
+    stdout<span class="opt">.</span><span class="kwd">writeln</span><span class="opt">(</span><span class="str">&apos;&gt;THREE Homo sapiens frequency&apos;</span><span class="opt">);</span>
+    stdout<span class="opt">.</span><span class="kwd">add</span><span class="opt">(</span>sequenceThree<span class="opt">);</span>
+    mainIsolate<span class="opt">.</span><span class="kwd">close</span><span class="opt">();</span>
   <span class="opt">});</span>
 <span class="opt">}</span>
 
 <span class="kwa">void</span> <span class="kwd">other</span><span class="opt">(</span><span class="kwb">Request</span> ini<span class="opt">) {</span>
-  <span class="kwa">final</span> otherIsolate <span class="opt">=</span> <span class="kwb">ReceivePort</span><span class="opt">();</span>
-  ini<span class="opt">.</span>p<span class="opt">.</span><span class="kwd">send</span><span class="opt">(</span>otherIsolate<span class="opt">.</span>sendPort<span class="opt">);</span>
-  seed <span class="opt">=</span> ini<span class="opt">.</span>priorSeed<span class="opt">;</span>
-  <span class="kwa">var</span> bytes <span class="opt">=</span> <span class="kwd">weightedLcgSequence</span><span class="opt">(</span>ini<span class="opt">.</span>codes<span class="opt">,</span> ini<span class="opt">.</span>probabilities<span class="opt">,</span> ini<span class="opt">.</span>size<span class="opt">);</span>
-  otherIsolate<span class="opt">.</span><span class="kwd">listen</span><span class="opt">((</span>dynamic _<span class="opt">) {</span>
-    stdout<span class="opt">.</span><span class="kwd">add</span><span class="opt">(</span>bytes<span class="opt">);</span>
-    ini<span class="opt">.</span>p<span class="opt">.</span><span class="kwd">send</span><span class="opt">(</span><span class="num">0</span><span class="opt">);</span>
-  <span class="opt">});</span>
+  stdout<span class="opt">.</span><span class="kwd">writeln</span><span class="opt">(</span>ini<span class="opt">.</span>defLine<span class="opt">);</span>
+  stdout<span class="opt">.</span><span class="kwd">add</span><span class="opt">(</span><span class="kwd">repeatedSequence</span><span class="opt">(</span>ini<span class="opt">.</span>sequence<span class="opt">,</span> ini<span class="opt">.</span>size<span class="opt">));</span>
+  ini<span class="opt">.</span>p<span class="opt">.</span><span class="kwd">send</span><span class="opt">(</span><span class="num">1</span><span class="opt">);</span>
 <span class="opt">}</span>
 
 <span class="kwa">class</span> <span class="kwb">Request</span> <span class="opt">{</span>
   <span class="kwb">String</span> defLine<span class="opt">;</span>
-  <span class="kwb">String</span> codes<span class="opt">;</span>
-  <span class="kwb">List</span><span class="opt">&lt;</span><span class="kwb">double</span><span class="opt">&gt;</span> probabilities<span class="opt">;</span>
-  <span class="kwb">int</span> priorSeed<span class="opt">;</span>
+  <span class="kwb">String</span> sequence<span class="opt">;</span>
   <span class="kwb">int</span> size<span class="opt">;</span>
   <span class="kwb">SendPort</span> p<span class="opt">;</span>
-  <span class="kwb">Request</span><span class="opt">(</span><span class="kwa">this</span><span class="opt">.</span>defLine<span class="opt">,</span> <span class="kwa">this</span><span class="opt">.</span>codes<span class="opt">,</span> <span class="kwa">this</span><span class="opt">.</span>probabilities<span class="opt">,</span> <span class="kwa">this</span><span class="opt">.</span>priorSeed<span class="opt">,</span>
-      <span class="kwa">this</span><span class="opt">.</span>size<span class="opt">,</span> <span class="kwa">this</span><span class="opt">.</span>p<span class="opt">);</span>
+  <span class="kwb">Request</span><span class="opt">(</span><span class="kwa">this</span><span class="opt">.</span>defLine<span class="opt">,</span> <span class="kwa">this</span><span class="opt">.</span>sequence<span class="opt">,</span> <span class="kwa">this</span><span class="opt">.</span>size<span class="opt">,</span> <span class="kwa">this</span><span class="opt">.</span>p<span class="opt">);</span>
 <span class="opt">}</span>
     </pre>
   </section>
@@ -217,7 +167,7 @@ Dart SDK version: 2.12.0 (stable) (Thu Feb 25 19:50:53 2021 +0100) on "linux_x64
 compile jit-snapshot
 
 
-Thu, 27 May 2021 04:55:54 GMT
+Thu, 27 May 2021 18:15:04 GMT
 
 MAKE:
 /opt/src/dartsdk/bin/dart analyze 
@@ -398,7 +348,7 @@ atccaagcgcgttatctgattagagtttacaactcagtattttatcagtacgttttgttt
 ccaacattacccggtatgacaaaatgacgccacgtgtcgaataatggtctgaccaatgta
 ggaagtgaaaagataaatat
 
-4.81s to complete and log all make actions
+3.65s to complete and log all make actions
 
 COMMAND LINE:
 /opt/src/dartsdk/bin/dart run  fasta.dartsnapshot-4.jit 25000000
