@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,follow,noarchive">
+
+<title>mandelbrot Dart JIT&nbsp;#3 program | Computer Language Benchmarks Game </title>
+<style><!--
+a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,header{margin:auto;width:92%}body{font:100% Droid Sans, Ubuntu, Verdana, sans-serif;margin:0;-webkit-text-size-adjust:100%}h3, h1, h2, li a{font-family:Ubuntu Mono,Consolas,Menlo,monospace}div,footer,header{max-width:31em}footer{padding:2.6em 0 0}h3{font-size:1.4em;font-weight:bold;margin:0;padding: .4em}h3, h3 a{color:white;background-color:#77216f}h3 small{font-size:0.64em}h1,h2{margin:1.5em 0 0}h1{font-size:1.4em;font-weight:normal}h2{font-size:1.2em}li{list-style-type:none;vertical-align:top}li a{display:block;font-size:1.2em;margin: .5em .5em 0;padding: .5em .5em .3em}ul{clear:left;margin:-0.3em 0 1.5em;padding-left:0;text-align:center}p{color:#333;line-height:1.4;margin: .3em 0 0}p a, a span{border-bottom: .1em solid #333;padding-bottom: .1em}.com,.slc{color:#888}.kwa{color:#066}.kwb{color:#900}.kwc{color:#050}.kwa,.kwb,.kwc{font-weight:bold}.dstr,.str,.sym,.num{color:#930}pre{color:#222;font-size:1em;overflow-wrap:break-word;white-space:pre-wrap;word-wrap:break-word}@media only screen and (min-width: 60em){article,footer,header{font-size:1.25em}}
+--></style>
+<link rel="shortcut icon" href="../favicon.ico">
+<header>
+  <h3><a href="https://benchmarksgame-team.pages.debian.net/benchmarksgame/index.html">The&nbsp;<small>Computer&nbsp;Language</small><br>Benchmarks&nbsp;Game</a></h3>
+</header>
+<article>
+  <div>
+    <h1>mandelbrot Dart JIT&nbsp;#3 program</h1>
+    <aside>
+      <p><a href="../description/mandelbrot.html#mandelbrot">description</a>
+    </aside>
+  </div>
+  <section>
+    <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+/* The Computer Language Benchmarks Game
+   https://salsa.debian.org/benchmarksgame-team/benchmarksgame/
+
+   Contributed by Isaac Gouy. Make time on each Isolate similar.
+   calculateLine borrowed from Alexander Fyodorov&apos;s program. 
+*/
+
+import &apos;dart:async&apos;;
+import &apos;dart:collection&apos;;
+import &apos;dart:io&apos;;
+import &apos;dart:isolate&apos;;
+import &apos;dart:typed_data&apos;;
+
+final nIsolates = 4;
+
+void main(List&lt;String&gt; args) {
+  final mainIsolate = ReceivePort();
+  final n = (args.length &gt; 0) ? int.parse(args[0]) : 200;
+  stdout.write(&apos;P4\n$n $n\n&apos;);
+
+  var i = nIsolates;
+  while (i-- &gt; 0) {
+    Isolate.spawn(other, mainIsolate.sendPort);
+  }
+  final requests = rowParameters(n);
+  var awaited = requests.length;
+  final ports = ListQueue&lt;SendPort&gt;();
+
+  mainIsolate.listen((dynamic p) {
+    if (p is SendPort) {
+      ports.add(p);
+      p.send(requests.removeFirst());
+    } else {
+      if (--awaited &lt;= 0) {
+        if (ports.isEmpty) {
+          mainIsolate.close();
+        } else {
+          ports.removeFirst().send(1);
+        }
+      }
+    }
+  });
+}
+
+void other(SendPort p) {
+  final otherIsolate = ReceivePort();
+  p.send(otherIsolate.sendPort);
+
+  var mandelbrot = &lt;Uint8List&gt;[];
+
+  otherIsolate.listen((dynamic ini) async {
+    if (ini is Parameters) {
+      for (var y = ini.lo; y &lt; ini.hi; y++) {
+        mandelbrot.add(calculateLine(ini.n, y));
+      }
+      p.send(1);
+    } else {
+      await stdout.addStream(Stream.fromIterable(mandelbrot));
+      p.send(0);
+    }
+  });
+}
+
+Uint8List calculateLine(int n, int y) {
+  int lineLen = (n - 1) ~/ 8 + 1;
+
+  var line = new Uint8List(lineLen);
+
+  int xbyte = 0, bits = 1;
+  double ci = y * 2.0 / n - 1.0;
+
+  for (int x = 0; x &lt; n; x++) {
+    double cr = x * 2.0 / n - 1.5;
+    if (bits &gt; 0xff) {
+      line[xbyte++] = bits;
+      bits = 1;
+    }
+    double zr = cr, zi = ci, tr = cr * cr, ti = ci * ci;
+    int i = 49;
+    do {
+      zi = zr * zi + zr * zi + ci;
+      zr = tr - ti + cr;
+      tr = zr * zr;
+      ti = zi * zi;
+    } while ((tr + ti &lt;= 4.0) &amp;&amp; (--i &gt; 0));
+    bits = (bits &lt;&lt; 1) | (i == 0 ? 1 : 0);
+  }
+  while (bits &lt; 0x100) bits = (bits &lt;&lt; 1);
+  line[xbyte] = bits;
+  return line;
+}
+
+ListQueue&lt;Parameters&gt; rowParameters(int n) {
+  const weights = [0.35, 0.5, 0.65];
+  var lo = 0, w = 0;
+  var p = ListQueue&lt;Parameters&gt;();
+  for (var i = 0; i &lt; weights.length; i++) {
+    w = (weights[i] * n).floor();
+    p.add(Parameters(lo, w, n));
+    lo = w;
+  }
+  p.add(Parameters(w, n, n));
+  return p;
+}
+
+class Parameters {
+  var lo = 0, hi = 0, n = 0;
+  Parameters(this.lo, this.hi, this.n);
+}
+    </pre>
+  </section>
+  <section>
+    <div>
+      <h2 id="log">notes, command-line, and program output</h2>
+    </div>
+    <pre>
+NOTES:
+64-bit Ubuntu quad core
+Dart SDK version: 2.13.1 (stable) (Fri May 21 12:45:36 2021 +0200) on "linux_x64"
+
+
+Fri, 04 Jun 2021 02:40:37 GMT
+
+MAKE:
+/opt/src/dart-sdk/bin/dart analyze 
+Analyzing tmp...
+No issues found!
+
+2.52s to complete and log all make actions
+
+COMMAND LINE:
+/opt/src/dart-sdk/bin/dart run  mandelbrot.dartjit-3.dartjit 16000
+
+(BINARY) PROGRAM OUTPUT NOT SHOWN
+    </pre>
+  </section>
+</article>
+<footer>
+  <nav>
+    <ul>
+      <li><a href="../license.html"><span>3-Clause BSD License</span></a>
+    </ul>
+  </nav>
+</footer>
+

@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,follow,noarchive">
+
+<title>spectral-norm Dart JIT&nbsp;#6 program | Computer Language Benchmarks Game </title>
+<style><!--
+a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,header{margin:auto;width:92%}body{font:100% Droid Sans, Ubuntu, Verdana, sans-serif;margin:0;-webkit-text-size-adjust:100%}h3, h1, h2, li a{font-family:Ubuntu Mono,Consolas,Menlo,monospace}div,footer,header{max-width:31em}footer{padding:2.6em 0 0}h3{font-size:1.4em;font-weight:bold;margin:0;padding: .4em}h3, h3 a{color:white;background-color:#77216f}h3 small{font-size:0.64em}h1,h2{margin:1.5em 0 0}h1{font-size:1.4em;font-weight:normal}h2{font-size:1.2em}li{list-style-type:none;vertical-align:top}li a{display:block;font-size:1.2em;margin: .5em .5em 0;padding: .5em .5em .3em}ul{clear:left;margin:-0.3em 0 1.5em;padding-left:0;text-align:center}p{color:#333;line-height:1.4;margin: .3em 0 0}p a, a span{border-bottom: .1em solid #333;padding-bottom: .1em}.com,.slc{color:#888}.kwa{color:#066}.kwb{color:#900}.kwc{color:#050}.kwa,.kwb,.kwc{font-weight:bold}.dstr,.str,.sym,.num{color:#930}pre{color:#222;font-size:1em;overflow-wrap:break-word;white-space:pre-wrap;word-wrap:break-word}@media only screen and (min-width: 60em){article,footer,header{font-size:1.25em}}
+--></style>
+<link rel="shortcut icon" href="../favicon.ico">
+<header>
+  <h3><a href="https://benchmarksgame-team.pages.debian.net/benchmarksgame/index.html">The&nbsp;<small>Computer&nbsp;Language</small><br>Benchmarks&nbsp;Game</a></h3>
+</header>
+<article>
+  <div>
+    <h1>spectral-norm Dart JIT&nbsp;#6 program</h1>
+    <aside>
+      <p><a href="../description/spectralnorm.html#spectralnorm">description</a>
+    </aside>
+  </div>
+  <section>
+    <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+/* The Computer Language Benchmarks Game
+   https://salsa.debian.org/benchmarksgame-team/benchmarksgame/
+
+   contributed by Isaac Gouy
+   (Span.initialize from Andrey Filatkin&apos;s JavaScript #6 program)
+*/
+
+import &apos;dart:math&apos;;
+import &apos;dart:typed_data&apos;;
+import &apos;dart:isolate&apos;;
+import &apos;dart:async&apos;;
+import &apos;dart:io&apos;;
+
+double a(int i, int j) {
+  return 1.0 / (((i + j) * (i + j + 1) &gt;&gt; 1) + i + 1);
+}
+
+Float64List auFromTo(int start, int end, Float64List u) {
+  final n = u.length;
+  final w = new Float64List(n);
+  for (int i = start; i &lt; end; ++i) {
+    double t = 0.0;
+    for (int j = 0; j &lt; n; ++j) {
+      t += u[j] * a(i, j);
+    }
+    w[i] = t;
+  }
+  return w;
+}
+
+Float64List atuFromTo(int start, int end, Float64List u) {
+  final n = u.length;
+  final w = new Float64List(n);
+  for (int i = start; i &lt; end; ++i) {
+    double t = 0.0;
+    for (int j = 0; j &lt; n; ++j) {
+      t += u[j] * a(j, i);
+    }
+    w[i] = t;
+  }
+  return w;
+}
+
+// same w out reference style as sequential program
+Future&lt;void&gt; au(Float64List u, Float64List w) async {
+  await mapToIsolates(false, u, w);
+}
+
+// same w out reference style as sequential program
+Future&lt;void&gt; atu(Float64List u, Float64List w) async {
+  await mapToIsolates(true, u, w);
+}
+
+// same w out reference style as sequential program
+Future&lt;void&gt; atAu(Float64List u, Float64List v, Float64List w) async {
+  await au(u, w);
+  await atu(w, v);
+}
+
+Future&lt;double&gt; spectralNorm(int n) async {
+  var u = new Float64List(n)..fillRange(0, n, 1.0),
+      v = new Float64List(n),
+      w = new Float64List(n),
+      vBv = 0.0,
+      vv = 0.0;
+  // same w out reference style as sequential program
+  for (int i = 0; i &lt; 10; ++i) {
+    await atAu(u, v, w);
+    await atAu(v, u, w);
+  }
+  for (int i = 0; i &lt; n; ++i) {
+    vBv += u[i] * v[i];
+    vv += v[i] * v[i];
+  }
+  return sqrt(vBv / vv);
+}
+
+var nIsolates = 0;
+final completers = &lt;Completer&gt;[];
+final ports = &lt;SendPort&gt;[];
+var wOutReference = new Float64List(0);
+
+void main(List&lt;String&gt; args) {
+  final mainIsolate = ReceivePort();
+  final n = (args.length &gt; 0) ? int.parse(args[0]) : 100;
+  nIsolates = Platform.numberOfProcessors;
+  Span.initialize(n, nIsolates);
+
+  var i = nIsolates;
+  while (i-- &gt; 0) {
+    Isolate.spawn(other, mainIsolate.sendPort);
+  }
+  var awaited = nIsolates;
+
+  mainIsolate.listen((dynamic s) async {
+    if (s is Span) {
+      // Copy partial auFromTo / atuFromTo result to w out reference.
+      List.copyRange(wOutReference, s.start, s.data, s.start, s.end);
+      completers.removeLast().complete();
+      
+    } else if (s is SendPort) {
+      ports.add(s);
+      if (--awaited == 0) { // Wait until all nIsolates are known.
+        print((await spectralNorm(n)).toStringAsFixed(9));
+        mainIsolate.close();
+      }
+    }
+  });
+}
+
+void other(SendPort p) {
+  final otherIsolate = ReceivePort();
+  p.send(otherIsolate.sendPort);
+
+  otherIsolate.listen((dynamic s) {
+    // update data and send the same Span back
+    if (s is Span) {
+      if (s.shouldTranspose) {
+        s.data = atuFromTo(s.start, s.end, s.data);
+      } else {
+        s.data = auFromTo(s.start, s.end, s.data);
+      }
+      p.send(s);
+    }
+  });
+}
+
+var next = 0;
+
+Future&lt;void&gt; mapToIsolates(
+    bool shouldTranspose, Float64List u, Float64List w) async {
+  wOutReference = w; // same out reference style as sequential program
+  final barrier = &lt;Future&gt;[];
+  for (var each in Span.spans) {
+    each.shouldTranspose = shouldTranspose;
+    each.data = u;
+    final c = Completer&lt;dynamic&gt;();
+    completers.add(c);
+    barrier.add(c.future);
+    next = (next + 1) % ports.length;
+    ports[next].send(each);
+  }
+  await Future.wait&lt;void&gt;(barrier);
+}
+
+class Span {
+  static final spans = &lt;Span&gt;[];
+
+  int start, end;
+  bool shouldTranspose = false;
+  Float64List data = new Float64List(0);
+  Span(this.start, this.end);
+
+  static void initialize(int n, int nSpans) {
+    final length = (n / nSpans).ceil();
+    for (var i = 0; i &lt; nSpans; i++) {
+      final start = i * length;
+      var end = start + length;
+      if (end &gt; n) {
+        end = n;
+      }
+      spans.add(Span(start, end));
+    }
+  }
+}
+    </pre>
+  </section>
+  <section>
+    <div>
+      <h2 id="log">notes, command-line, and program output</h2>
+    </div>
+    <pre>
+NOTES:
+64-bit Ubuntu quad core
+Dart SDK version: 2.13.1 (stable) (Fri May 21 12:45:36 2021 +0200) on "linux_x64"
+
+
+Fri, 04 Jun 2021 03:47:24 GMT
+
+MAKE:
+/opt/src/dart-sdk/bin/dart analyze 
+Analyzing tmp...
+No issues found!
+
+1.52s to complete and log all make actions
+
+COMMAND LINE:
+/opt/src/dart-sdk/bin/dart run  spectralnorm.dartjit-6.dartjit 5500
+
+PROGRAM OUTPUT:
+1.274224153
+    </pre>
+  </section>
+</article>
+<footer>
+  <nav>
+    <ul>
+      <li><a href="../license.html"><span>3-Clause BSD License</span></a>
+    </ul>
+  </nav>
+</footer>
+

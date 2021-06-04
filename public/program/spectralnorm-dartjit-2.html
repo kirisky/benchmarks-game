@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,follow,noarchive">
+
+<title>spectral-norm Dart JIT&nbsp;#2 program | Computer Language Benchmarks Game </title>
+<style><!--
+a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,header{margin:auto;width:92%}body{font:100% Droid Sans, Ubuntu, Verdana, sans-serif;margin:0;-webkit-text-size-adjust:100%}h3, h1, h2, li a{font-family:Ubuntu Mono,Consolas,Menlo,monospace}div,footer,header{max-width:31em}footer{padding:2.6em 0 0}h3{font-size:1.4em;font-weight:bold;margin:0;padding: .4em}h3, h3 a{color:white;background-color:#77216f}h3 small{font-size:0.64em}h1,h2{margin:1.5em 0 0}h1{font-size:1.4em;font-weight:normal}h2{font-size:1.2em}li{list-style-type:none;vertical-align:top}li a{display:block;font-size:1.2em;margin: .5em .5em 0;padding: .5em .5em .3em}ul{clear:left;margin:-0.3em 0 1.5em;padding-left:0;text-align:center}p{color:#333;line-height:1.4;margin: .3em 0 0}p a, a span{border-bottom: .1em solid #333;padding-bottom: .1em}.com,.slc{color:#888}.kwa{color:#066}.kwb{color:#900}.kwc{color:#050}.kwa,.kwb,.kwc{font-weight:bold}.dstr,.str,.sym,.num{color:#930}pre{color:#222;font-size:1em;overflow-wrap:break-word;white-space:pre-wrap;word-wrap:break-word}@media only screen and (min-width: 60em){article,footer,header{font-size:1.25em}}
+--></style>
+<link rel="shortcut icon" href="../favicon.ico">
+<header>
+  <h3><a href="https://benchmarksgame-team.pages.debian.net/benchmarksgame/index.html">The&nbsp;<small>Computer&nbsp;Language</small><br>Benchmarks&nbsp;Game</a></h3>
+</header>
+<article>
+  <div>
+    <h1>spectral-norm Dart JIT&nbsp;#2 program</h1>
+    <aside>
+      <p><a href="../description/spectralnorm.html#spectralnorm">description</a>
+    </aside>
+  </div>
+  <section>
+    <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+// The Computer Language Benchmarks Game
+// https://salsa.debian.org/benchmarksgame-team/benchmarksgame/
+//
+// updated the version of Jos Hirth with inspiration from the 
+// Java version by Ziad Hatahet
+// isolates added by Maximilian Simmoteit
+
+import &apos;dart:math&apos; as math;
+import &apos;dart:typed_data&apos;;
+import &apos;dart:isolate&apos;;
+import &apos;dart:async&apos;;
+import &apos;dart:io&apos;;
+
+final num_threads = 2 * Platform.numberOfProcessors;
+
+double a(int i, int j) {
+  var div = ((i + j) * (i + j + 1) &gt;&gt; 1) + i + 1;
+  return 1.0 / div;
+}
+
+Float64List timesCalculation(Float64List u, int ii, int n, bool transpose) {
+  final ul = u.length;
+  var v = Float64List(n);
+  for (var i = ii; i &lt; ii + n; i++) {
+    var vi = 0.0;
+    for (var j = 0; j &lt; ul; j++) {
+      if (transpose) {
+        vi += u[j] * a(j, i);
+      } else {
+        vi += u[j] * a(i, j);
+      }
+    }
+    v[i - ii] = vi;
+  }
+  return v;
+}
+
+void calculateTimes(SendPort initialReplyTo) {
+  var port = ReceivePort();
+  initialReplyTo.send(port.sendPort);
+
+  port.listen((msg) {
+    Float64List u = msg[&apos;u&apos;];
+    int from = msg[&apos;from&apos;];
+    int len = msg[&apos;len&apos;];
+    bool transpose = msg[&apos;transp&apos;];
+    SendPort replyTo = msg[&apos;port&apos;];
+
+    var timesSegment = timesCalculation(u, from, len, transpose);
+    replyTo.send(timesSegment);
+  });
+}
+
+Future&lt;void&gt; AtAu(Float64List u, Float64List v, Float64List w,
+    List&lt;SendPort?&gt; isolate_communication_send) async {
+  var partial_u_to_w_results = List&lt;Future&lt;dynamic&gt;?&gt;.filled(num_threads, null);
+  var segmentSize = List.filled(num_threads, u.length ~/ num_threads);
+  segmentSize[0] += u.length % num_threads;
+
+  var from = 0;
+  for (var i = 0; i &lt; num_threads; i++) {
+    var len = segmentSize[i];
+    var response = ReceivePort();
+    var localFrom = from;
+    isolate_communication_send[i]?.send({
+      &apos;u&apos;: u,
+      &apos;from&apos;: localFrom,
+      &apos;len&apos;: len,
+      &apos;transp&apos;: false,
+      &apos;port&apos;: response.sendPort
+    });
+    var newFuture = response.first;
+    partial_u_to_w_results[i] = newFuture;
+    from += len;
+  }
+
+  var w_idx = 0;
+
+  // write the partial results to w
+  for (var res_float_list in partial_u_to_w_results) {
+    var float_list = (await res_float_list)!;
+    for (var i = 0; i &lt; float_list.length; i++) {
+      w[w_idx] = float_list[i];
+      w_idx++;
+    }
+  }
+
+  var partial_w_to_v_results = List&lt;Future&lt;dynamic&gt;?&gt;.filled(num_threads, null);
+  from = 0;
+  for (var i = 0; i &lt; num_threads; i++) {
+    var len = segmentSize[i];
+    var response = ReceivePort();
+    var localFrom = from;
+    isolate_communication_send[i]?.send({
+      &apos;u&apos;: w,
+      &apos;from&apos;: localFrom,
+      &apos;len&apos;: len,
+      &apos;transp&apos;: true,
+      &apos;port&apos;: response.sendPort
+    });
+    var newFuture = response.first;
+    partial_w_to_v_results[i] = newFuture;
+    from += len;
+  }
+
+  var v_idx = 0;
+
+  // write the partial results to v
+  for (var res_float_list in partial_w_to_v_results) {
+    var float_list = (await res_float_list)!;
+    for (var i = 0; i &lt; float_list.length; i++) {
+      v[v_idx] = float_list[i];
+      v_idx++;
+    }
+  }
+}
+
+Future&lt;double&gt; spectralNorm(n) async {
+  var u = Float64List(n)..fillRange(0, n, 1.0),
+      v = Float64List(n),
+      w = Float64List(n),
+      vv = 0.0 as double,
+      vBv = 0.0 as double;
+
+  var isolate_communication_send = List&lt;SendPort?&gt;.filled(num_threads, null);
+  // spawn Isolates
+  for (var i = 0; i &lt; num_threads; i++) {
+    var response = ReceivePort();
+    isolate_communication_send[i] =
+        await Isolate.spawn(calculateTimes, response.sendPort)
+            .then((_) =&gt; response.first) as SendPort;
+  }
+
+  for (var i = 0; i &lt; 10; ++i) {
+    await AtAu(u, v, w, isolate_communication_send);
+    await AtAu(v, u, w, isolate_communication_send);
+  }
+
+  for (var i = 0; i &lt; n; ++i) {
+    vBv += u[i] * v[i];
+    vv += v[i] * v[i];
+  }
+
+  return math.sqrt(vBv / vv);
+}
+
+void main(args) async {
+  var n = args.length &gt; 0 ? int.parse(args[0]) : 100;
+  print((await spectralNorm(n)).toStringAsFixed(9));
+}
+    </pre>
+  </section>
+  <section>
+    <div>
+      <h2 id="log">notes, command-line, and program output</h2>
+    </div>
+    <pre>
+NOTES:
+64-bit Ubuntu quad core
+Dart SDK version: 2.13.1 (stable) (Fri May 21 12:45:36 2021 +0200) on "linux_x64"
+
+
+Fri, 04 Jun 2021 03:47:48 GMT
+
+MAKE:
+/opt/src/dart-sdk/bin/dart analyze 
+Analyzing tmp...
+No issues found!
+
+1.53s to complete and log all make actions
+
+COMMAND LINE:
+/opt/src/dart-sdk/bin/dart run  spectralnorm.dartjit-2.dartjit 5500
+
+PROGRAM OUTPUT:
+1.274224153
+    </pre>
+  </section>
+</article>
+<footer>
+  <nav>
+    <ul>
+      <li><a href="../license.html"><span>3-Clause BSD License</span></a>
+    </ul>
+  </nav>
+</footer>
+
