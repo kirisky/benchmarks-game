@@ -22,123 +22,123 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
       <h2>source code</h2>
     </div>
     <pre>
-/* The Computer Language Benchmarks Game
-   https://salsa.debian.org/benchmarksgame-team/benchmarksgame/
+<span class="com">/* The Computer Language Benchmarks Game</span>
+<span class="com">   https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="com"></span>
+<span class="com">   contributed by Isaac Gouy based on Jeremy Zerfas&apos;s #5 C program</span>
+<span class="com">   Write buffered, sequential. </span>
+<span class="com">*/</span>
 
-   contributed by Isaac Gouy based on Jeremy Zerfas&apos;s #5 C program
-   Write buffered, sequential. 
-*/
+<span class="kwa">import</span> <span class="str">&apos;dart:io&apos;</span><span class="opt">;</span>
+<span class="kwa">import</span> <span class="str">&apos;dart:typed_data&apos;</span><span class="opt">;</span>
 
-import &apos;dart:io&apos;;
-import &apos;dart:typed_data&apos;;
+<span class="kwa">const</span> width <span class="opt">=</span> <span class="num">60</span><span class="opt">;</span>
+<span class="kwa">final</span> nl <span class="opt">=</span> <span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span><span class="opt">.</span><span class="kwd">codeUnitAt</span><span class="opt">(</span><span class="num">0</span><span class="opt">);</span>
 
-const width = 60;
-final nl = &apos;\n&apos;.codeUnitAt(0);
+<span class="kwb">Uint</span><span class="num">8L</span>ist <span class="kwd">repeatedSequence</span><span class="opt">(</span><span class="kwb">String</span> sequence<span class="opt">,</span> <span class="kwb">int</span> size<span class="opt">) {</span>
+  <span class="kwa">final</span> codes <span class="opt">=</span> sequence<span class="opt">.</span>codeUnits<span class="opt">;</span>
+  <span class="kwa">final</span> codesLength <span class="opt">=</span> codes<span class="opt">.</span>length<span class="opt">;</span>
+  <span class="kwa">final</span> lines <span class="opt">=</span> <span class="kwb">BytesBuilder</span><span class="opt">();</span>
 
-Uint8List repeatedSequence(String sequence, int size) {
-  final codes = sequence.codeUnits;
-  final codesLength = codes.length;
-  final lines = BytesBuilder();
+  <span class="kwa">final</span> codesExtended <span class="opt">=</span> <span class="kwb">Uint</span><span class="num">8L</span>ist<span class="opt">(</span>codesLength <span class="opt">+</span> width<span class="opt">);</span>
+  <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">var</span> column <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> column <span class="opt">&lt;</span> codesLength <span class="opt">+</span> width<span class="opt">;</span> column<span class="opt">++) {</span>
+    codesExtended<span class="opt">[</span>column<span class="opt">] =</span> codes<span class="opt">[</span>column <span class="opt">%</span> codesLength<span class="opt">];</span>
+  <span class="opt">}</span>
+  <span class="kwa">var</span> offset <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+  <span class="kwa">var</span> line <span class="opt">=</span> <span class="kwb">Uint</span><span class="num">8L</span>ist<span class="opt">(</span>width <span class="opt">+</span> <span class="num">1</span><span class="opt">);</span>
+  line<span class="opt">[</span>width<span class="opt">] =</span> nl<span class="opt">;</span>
+  <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">var</span> currentSize <span class="opt">=</span> size<span class="opt">;</span> currentSize <span class="opt">&gt;</span> <span class="num">0</span><span class="opt">;) {</span>
+    <span class="kwa">var</span> lineLength <span class="opt">=</span> width<span class="opt">;</span>
+    <span class="kwa">if</span> <span class="opt">(</span>currentSize <span class="opt">&lt;</span> width<span class="opt">) {</span>
+      lineLength <span class="opt">=</span> currentSize<span class="opt">;</span>
+      line <span class="opt">=</span> <span class="kwb">Uint</span><span class="num">8L</span>ist<span class="opt">(</span>lineLength <span class="opt">+</span> <span class="num">1</span><span class="opt">);</span> <span class="slc">// Shorten fixed-size last line.</span>
+      line<span class="opt">[</span>lineLength<span class="opt">] =</span> nl<span class="opt">;</span>
+    <span class="opt">}</span>
+    line<span class="opt">.</span><span class="kwd">setRange</span><span class="opt">(</span><span class="num">0</span><span class="opt">,</span> lineLength<span class="opt">,</span> codesExtended<span class="opt">,</span> offset<span class="opt">);</span>
+    offset <span class="opt">+=</span> lineLength<span class="opt">;</span>
+    <span class="kwa">if</span> <span class="opt">(</span>offset <span class="opt">&gt;</span> codesLength<span class="opt">)</span> offset <span class="opt">-=</span> codesLength<span class="opt">;</span>
+    lines<span class="opt">.</span><span class="kwd">add</span><span class="opt">(</span>line<span class="opt">);</span>
+    currentSize <span class="opt">-=</span> lineLength<span class="opt">;</span>
+  <span class="opt">}</span>
+  <span class="kwa">return</span> lines<span class="opt">.</span><span class="kwd">takeBytes</span><span class="opt">();</span>
+<span class="opt">}</span>
 
-  final codesExtended = Uint8List(codesLength + width);
-  for (var column = 0; column &lt; codesLength + width; column++) {
-    codesExtended[column] = codes[column % codesLength];
-  }
-  var offset = 0;
-  var line = Uint8List(width + 1);
-  line[width] = nl;
-  for (var currentSize = size; currentSize &gt; 0;) {
-    var lineLength = width;
-    if (currentSize &lt; width) {
-      lineLength = currentSize;
-      line = Uint8List(lineLength + 1); // Shorten fixed-size last line.
-      line[lineLength] = nl;
-    }
-    line.setRange(0, lineLength, codesExtended, offset);
-    offset += lineLength;
-    if (offset &gt; codesLength) offset -= codesLength;
-    lines.add(line);
-    currentSize -= lineLength;
-  }
-  return lines.takeBytes();
-}
+<span class="kwa">const</span> iM <span class="opt">=</span> <span class="num">139968</span><span class="opt">;</span>
+<span class="kwa">const</span> iA <span class="opt">=</span> <span class="num">3877</span><span class="opt">;</span>
+<span class="kwa">const</span> iC <span class="opt">=</span> <span class="num">29573</span><span class="opt">;</span>
+<span class="kwa">var</span> seed <span class="opt">=</span> <span class="num">42</span><span class="opt">;</span>
 
-const iM = 139968;
-const iA = 3877;
-const iC = 29573;
-var seed = 42;
+<span class="kwb">double</span> <span class="kwd">nextLcgNumber</span><span class="opt">(</span><span class="kwb">int</span> max<span class="opt">) {</span>
+  seed <span class="opt">= (</span>seed <span class="opt">*</span> iA <span class="opt">+</span> iC<span class="opt">) %</span> iM<span class="opt">;</span>
+  <span class="kwa">return</span> max <span class="opt">/</span> iM <span class="opt">*</span> seed<span class="opt">;</span>
+<span class="opt">}</span>
 
-double nextLcgNumber(int max) {
-  seed = (seed * iA + iC) % iM;
-  return max / iM * seed;
-}
+<span class="kwb">Uint</span><span class="num">8L</span>ist <span class="kwd">weightedLcgSequence</span><span class="opt">(</span>
+    <span class="kwb">String</span> codeString<span class="opt">,</span> <span class="kwb">List</span><span class="opt">&lt;</span><span class="kwb">double</span><span class="opt">&gt;</span> probabilities<span class="opt">,</span> <span class="kwb">int</span> size<span class="opt">) {</span>
+  <span class="kwa">final</span> codes <span class="opt">=</span> codeString<span class="opt">.</span>codeUnits<span class="opt">;</span>
+  <span class="kwa">final</span> lines <span class="opt">=</span> <span class="kwb">BytesBuilder</span><span class="opt">();</span>
+  <span class="kwa">var</span> sum <span class="opt">=</span> <span class="num">0.0</span><span class="opt">;</span>
+  <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">var</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> probabilities<span class="opt">.</span>length<span class="opt">;</span> i<span class="opt">++) {</span>
+    sum <span class="opt">+=</span> probabilities<span class="opt">[</span>i<span class="opt">];</span>
+    probabilities<span class="opt">[</span>i<span class="opt">] =</span> sum <span class="opt">*</span> iM<span class="opt">;</span>
+  <span class="opt">}</span>
+  <span class="kwa">var</span> line <span class="opt">=</span> <span class="kwb">Uint</span><span class="num">8L</span>ist<span class="opt">(</span>width <span class="opt">+</span> <span class="num">1</span><span class="opt">);</span>
+  line<span class="opt">[</span>width<span class="opt">] =</span> nl<span class="opt">;</span>
+  <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">var</span> currentSize <span class="opt">=</span> size<span class="opt">;</span> currentSize <span class="opt">&gt;</span> <span class="num">0</span><span class="opt">;) {</span>
+    <span class="kwa">var</span> lineLength <span class="opt">=</span> width<span class="opt">;</span>
+    <span class="kwa">if</span> <span class="opt">(</span>currentSize <span class="opt">&lt;</span> width<span class="opt">) {</span>
+      lineLength <span class="opt">=</span> currentSize<span class="opt">;</span>
+      line <span class="opt">=</span> <span class="kwb">Uint</span><span class="num">8L</span>ist<span class="opt">(</span>lineLength <span class="opt">+</span> <span class="num">1</span><span class="opt">);</span> <span class="slc">// Shorten fixed-size last line.</span>
+      line<span class="opt">[</span>lineLength<span class="opt">] =</span> nl<span class="opt">;</span>
+    <span class="opt">}</span>
+    <span class="kwa">final</span> last <span class="opt">=</span> probabilities<span class="opt">.</span>length <span class="opt">-</span> <span class="num">1</span><span class="opt">;</span>
+    <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">var</span> column <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> column <span class="opt">&lt;</span> lineLength<span class="opt">;</span> column<span class="opt">++) {</span>
+      <span class="kwa">final</span> r <span class="opt">=</span> <span class="kwd">nextLcgNumber</span><span class="opt">(</span>iM<span class="opt">);</span>
+      <span class="kwa">var</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+      <span class="kwa">for</span> <span class="opt">(;</span> i <span class="opt">&lt;</span> last<span class="opt">;</span> i<span class="opt">++) {</span>
+        <span class="kwa">if</span> <span class="opt">(</span>probabilities<span class="opt">[</span>i<span class="opt">] &gt;</span> r<span class="opt">)</span> <span class="kwa">break</span><span class="opt">;</span>
+      <span class="opt">}</span>
+      line<span class="opt">[</span>column<span class="opt">] =</span> codes<span class="opt">[</span>i<span class="opt">];</span>
+    <span class="opt">}</span>
+    lines<span class="opt">.</span><span class="kwd">add</span><span class="opt">(</span>line<span class="opt">);</span>
+    currentSize <span class="opt">-=</span> lineLength<span class="opt">;</span>
+  <span class="opt">}</span>
+  <span class="kwa">return</span> lines<span class="opt">.</span><span class="kwd">takeBytes</span><span class="opt">();</span>
+<span class="opt">}</span>
 
-Uint8List weightedLcgSequence(
-    String codeString, List&lt;double&gt; probabilities, int size) {
-  final codes = codeString.codeUnits;
-  final lines = BytesBuilder();
-  var sum = 0.0;
-  for (var i = 0; i &lt; probabilities.length; i++) {
-    sum += probabilities[i];
-    probabilities[i] = sum * iM;
-  }
-  var line = Uint8List(width + 1);
-  line[width] = nl;
-  for (var currentSize = size; currentSize &gt; 0;) {
-    var lineLength = width;
-    if (currentSize &lt; width) {
-      lineLength = currentSize;
-      line = Uint8List(lineLength + 1); // Shorten fixed-size last line.
-      line[lineLength] = nl;
-    }
-    final last = probabilities.length - 1;
-    for (var column = 0; column &lt; lineLength; column++) {
-      final r = nextLcgNumber(iM);
-      var i = 0;
-      for (; i &lt; last; i++) {
-        if (probabilities[i] &gt; r) break;
-      }
-      line[column] = codes[i];
-    }
-    lines.add(line);
-    currentSize -= lineLength;
-  }
-  return lines.takeBytes();
-}
+<span class="kwa">void</span> <span class="kwd">main</span><span class="opt">(</span><span class="kwb">List</span><span class="opt">&lt;</span><span class="kwb">String</span><span class="opt">&gt;</span> args<span class="opt">) {</span>
+  <span class="kwa">final</span> n <span class="opt">= (</span>args<span class="opt">.</span>length <span class="opt">&gt;</span> <span class="num">0</span><span class="opt">)</span> ? <span class="kwb">int</span><span class="opt">.</span><span class="kwd">parse</span><span class="opt">(</span>args<span class="opt">[</span><span class="num">0</span><span class="opt">]) :</span> <span class="num">1000</span><span class="opt">;</span>
 
-void main(List&lt;String&gt; args) {
-  final n = (args.length &gt; 0) ? int.parse(args[0]) : 1000;
+  stdout<span class="opt">.</span><span class="kwd">writeln</span><span class="opt">(</span><span class="str">&apos;&gt;ONE Homo sapiens alu&apos;</span><span class="opt">);</span>
+  stdout<span class="opt">.</span><span class="kwd">add</span><span class="opt">(</span><span class="kwd">repeatedSequence</span><span class="opt">(</span>
+      <span class="str">&apos;GGCCGGGCGCGGTGGCTCACGCCT&apos;</span>
+      <span class="str">&apos;GTAATCCCAGCACTTTGGGAGGCC&apos;</span>
+      <span class="str">&apos;GAGGCGGGCGGATCACCTGAGGTC&apos;</span>
+      <span class="str">&apos;AGGAGTTCGAGACCAGCCTGGCCA&apos;</span>
+      <span class="str">&apos;ACATGGTGAAACCCCGTCTCTACT&apos;</span>
+      <span class="str">&apos;AAAAATACAAAAATTAGCCGGGCG&apos;</span>
+      <span class="str">&apos;TGGTGGCGCGCGCCTGTAATCCCA&apos;</span>
+      <span class="str">&apos;GCTACTCGGGAGGCTGAGGCAGGA&apos;</span>
+      <span class="str">&apos;GAATCGCTTGAACCCGGGAGGCGG&apos;</span>
+      <span class="str">&apos;AGGTTGCAGTGAGCCGAGATCGCG&apos;</span>
+      <span class="str">&apos;CCACTGCACTCCAGCCTGGGCGAC&apos;</span>
+      <span class="str">&apos;AGAGCGAGACTCCGTCTCAAAAA&apos;</span><span class="opt">,</span>
+      n <span class="opt">*</span> <span class="num">2</span><span class="opt">));</span>
 
-  stdout.writeln(&apos;&gt;ONE Homo sapiens alu&apos;);
-  stdout.add(repeatedSequence(
-      &apos;GGCCGGGCGCGGTGGCTCACGCCT&apos;
-      &apos;GTAATCCCAGCACTTTGGGAGGCC&apos;
-      &apos;GAGGCGGGCGGATCACCTGAGGTC&apos;
-      &apos;AGGAGTTCGAGACCAGCCTGGCCA&apos;
-      &apos;ACATGGTGAAACCCCGTCTCTACT&apos;
-      &apos;AAAAATACAAAAATTAGCCGGGCG&apos;
-      &apos;TGGTGGCGCGCGCCTGTAATCCCA&apos;
-      &apos;GCTACTCGGGAGGCTGAGGCAGGA&apos;
-      &apos;GAATCGCTTGAACCCGGGAGGCGG&apos;
-      &apos;AGGTTGCAGTGAGCCGAGATCGCG&apos;
-      &apos;CCACTGCACTCCAGCCTGGGCGAC&apos;
-      &apos;AGAGCGAGACTCCGTCTCAAAAA&apos;,
-      n * 2));
+  stdout<span class="opt">.</span><span class="kwd">writeln</span><span class="opt">(</span><span class="str">&apos;&gt;TWO IUB ambiguity codes&apos;</span><span class="opt">);</span>
+  stdout<span class="opt">.</span><span class="kwd">add</span><span class="opt">(</span><span class="kwd">weightedLcgSequence</span><span class="opt">(</span>
+      <span class="str">&apos;acgtBDHKMNRSVWY&apos;</span><span class="opt">,</span>
+      <span class="opt">[</span><span class="num">0.27</span><span class="opt">,</span> <span class="num">0.12</span><span class="opt">,</span> <span class="num">0.12</span><span class="opt">,</span> <span class="num">0.27</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">] +</span>
+          <span class="opt">[</span><span class="num">0.02</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">] +</span>
+          <span class="opt">[</span><span class="num">0.02</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">],</span>
+      n <span class="opt">*</span> <span class="num">3</span><span class="opt">));</span>
 
-  stdout.writeln(&apos;&gt;TWO IUB ambiguity codes&apos;);
-  stdout.add(weightedLcgSequence(
-      &apos;acgtBDHKMNRSVWY&apos;,
-      [0.27, 0.12, 0.12, 0.27, 0.02] +
-          [0.02, 0.02, 0.02, 0.02, 0.02] +
-          [0.02, 0.02, 0.02, 0.02, 0.02],
-      n * 3));
-
-  stdout.writeln(&apos;&gt;THREE Homo sapiens frequency&apos;);
-  stdout.add(weightedLcgSequence(
-      &apos;acgt&apos;,
-      [0.3029549426680, 0.1979883004921, 0.1975473066391, 0.3015094502008],
-      n * 5));
-}
+  stdout<span class="opt">.</span><span class="kwd">writeln</span><span class="opt">(</span><span class="str">&apos;&gt;THREE Homo sapiens frequency&apos;</span><span class="opt">);</span>
+  stdout<span class="opt">.</span><span class="kwd">add</span><span class="opt">(</span><span class="kwd">weightedLcgSequence</span><span class="opt">(</span>
+      <span class="str">&apos;acgt&apos;</span><span class="opt">,</span>
+      <span class="opt">[</span><span class="num">0.3029549426680</span><span class="opt">,</span> <span class="num">0.1979883004921</span><span class="opt">,</span> <span class="num">0.1975473066391</span><span class="opt">,</span> <span class="num">0.3015094502008</span><span class="opt">],</span>
+      n <span class="opt">*</span> <span class="num">5</span><span class="opt">));</span>
+<span class="opt">}</span>
     </pre>
   </section>
   <section>
@@ -151,14 +151,14 @@ NOTES:
 Dart SDK version: 2.13.1 (stable) (Fri May 21 12:45:36 2021 +0200) on "linux_x64"
 
 
-Thu, 03 Jun 2021 23:47:28 GMT
+Fri, 04 Jun 2021 18:02:59 GMT
 
 MAKE:
 /opt/src/dart-sdk/bin/dart analyze 
 Analyzing tmp...
 No issues found!
 
-1.53s to complete and log all make actions
+1.59s to complete and log all make actions
 
 COMMAND LINE:
 /opt/src/dart-sdk/bin/dart run  fasta.dartjit-3.dartjit 25000000

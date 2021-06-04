@@ -22,107 +22,107 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
       <h2>source code</h2>
     </div>
     <pre>
-/* The Computer Language Benchmarks Game
-   https://salsa.debian.org/benchmarksgame-team/benchmarksgame/
+<span class="com">/* The Computer Language Benchmarks Game</span>
+<span class="com">   https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="com"></span>
+<span class="com">   contributed by Isaac Gouy based on Jeremy Zerfas&apos;s #6 C program </span>
+<span class="com">*/</span>
 
-   contributed by Isaac Gouy based on Jeremy Zerfas&apos;s #6 C program 
-*/
+<span class="kwa">import</span> <span class="str">&apos;dart:io&apos;</span><span class="opt">;</span>
+<span class="kwa">import</span> <span class="str">&apos;dart:isolate&apos;</span><span class="opt">;</span>
+<span class="kwa">import</span> <span class="str">&apos;dart:typed_data&apos;</span><span class="opt">;</span>
 
-import &apos;dart:io&apos;;
-import &apos;dart:isolate&apos;;
-import &apos;dart:typed_data&apos;;
+<span class="kwa">final</span> nl <span class="opt">=</span> <span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span><span class="opt">.</span><span class="kwd">codeUnitAt</span><span class="opt">(</span><span class="num">0</span><span class="opt">);</span>
+<span class="kwa">final</span> def <span class="opt">=</span> <span class="str">&apos;&gt;&apos;</span><span class="opt">.</span><span class="kwd">codeUnitAt</span><span class="opt">(</span><span class="num">0</span><span class="opt">);</span> <span class="slc">// Definition-line.</span>
+<span class="kwa">final</span> lut <span class="opt">=</span> <span class="kwd">codeComplementLookupTable</span><span class="opt">();</span>
 
-final nl = &apos;\n&apos;.codeUnitAt(0);
-final def = &apos;&gt;&apos;.codeUnitAt(0); // Definition-line.
-final lut = codeComplementLookupTable();
+<span class="slc">// READ_SIZE probably 64x1024 ?</span>
 
-// READ_SIZE probably 64x1024 ?
+<span class="kwa">void</span> <span class="kwd">main</span><span class="opt">()</span> <span class="kwa">async</span> <span class="opt">{</span>
+  <span class="kwa">final</span> mainIsolate <span class="opt">=</span> <span class="kwb">ReceivePort</span><span class="opt">();</span>
+  <span class="kwa">var</span> sequenceNumber <span class="opt">=</span> <span class="num">1</span><span class="opt">;</span>
+  <span class="kwa">var</span> sequence <span class="opt">=</span> <span class="kwb">BytesBuilder</span><span class="opt">(</span>copy<span class="opt">:</span> <span class="kwa">false</span><span class="opt">);</span>
+  <span class="kwa">await for</span> <span class="opt">(</span><span class="kwa">var</span> block <span class="kwa">in</span> stdin<span class="opt">) {</span>
+    <span class="kwa">var</span> sequenceStart <span class="opt">=</span> block<span class="opt">.</span><span class="kwd">indexOf</span><span class="opt">(</span>def<span class="opt">);</span>
+    <span class="kwa">if</span> <span class="opt">(</span>sequenceStart <span class="opt">&gt;=</span> <span class="num">0</span><span class="opt">) {</span>
+      <span class="kwa">if</span> <span class="opt">(</span>sequence<span class="opt">.</span>length <span class="opt">&gt;</span> <span class="num">0</span><span class="opt">) {</span>
+        sequence<span class="opt">.</span><span class="kwd">add</span><span class="opt">(</span>block<span class="opt">.</span><span class="kwd">sublist</span><span class="opt">(</span><span class="num">0</span><span class="opt">,</span> sequenceStart<span class="opt">));</span>
+        <span class="kwb">Isolate</span><span class="opt">.</span><span class="kwd">spawn</span><span class="opt">(</span>
+            other<span class="opt">,</span>
+            <span class="kwb">Request</span><span class="opt">(</span>
+                sequenceNumber<span class="opt">++,</span> sequence<span class="opt">.</span><span class="kwd">takeBytes</span><span class="opt">(),</span> mainIsolate<span class="opt">.</span>sendPort<span class="opt">));</span>
+        sequence<span class="opt">.</span><span class="kwd">add</span><span class="opt">(</span>block<span class="opt">.</span><span class="kwd">sublist</span><span class="opt">(</span>sequenceStart<span class="opt">,</span> block<span class="opt">.</span>length<span class="opt">));</span>
+        block <span class="opt">= &lt;</span><span class="kwb">int</span><span class="opt">&gt;[];</span>
+      <span class="opt">}</span>
+    <span class="opt">}</span>
+    sequence<span class="opt">.</span><span class="kwd">add</span><span class="opt">(</span>block<span class="opt">);</span>
+  <span class="opt">}</span>
+  <span class="kwb">Isolate</span><span class="opt">.</span><span class="kwd">spawn</span><span class="opt">(</span>other<span class="opt">,</span>
+      <span class="kwb">Request</span><span class="opt">(</span>sequenceNumber<span class="opt">,</span> sequence<span class="opt">.</span><span class="kwd">takeBytes</span><span class="opt">(),</span> mainIsolate<span class="opt">.</span>sendPort<span class="opt">));</span>
 
-void main() async {
-  final mainIsolate = ReceivePort();
-  var sequenceNumber = 1;
-  var sequence = BytesBuilder(copy: false);
-  await for (var block in stdin) {
-    var sequenceStart = block.indexOf(def);
-    if (sequenceStart &gt;= 0) {
-      if (sequence.length &gt; 0) {
-        sequence.add(block.sublist(0, sequenceStart));
-        Isolate.spawn(
-            other,
-            Request(
-                sequenceNumber++, sequence.takeBytes(), mainIsolate.sendPort));
-        sequence.add(block.sublist(sequenceStart, block.length));
-        block = &lt;int&gt;[];
-      }
-    }
-    sequence.add(block);
-  }
-  Isolate.spawn(other,
-      Request(sequenceNumber, sequence.takeBytes(), mainIsolate.sendPort));
+  <span class="kwa">final</span> waiting <span class="opt">= &lt;</span><span class="kwb">SendPort</span><span class="opt">&gt;[];</span>
+  <span class="kwa">var</span> nextSequenceNumberToWrite <span class="opt">=</span> <span class="num">1</span><span class="opt">;</span>
+  mainIsolate<span class="opt">.</span><span class="kwd">listen</span><span class="opt">((</span><span class="kwa">dynamic</span> p<span class="opt">) {</span>
+    <span class="kwa">if</span> <span class="opt">(</span>p <span class="kwa">is</span> <span class="kwb">SendPort</span><span class="opt">) {</span>
+      <span class="kwa">if</span> <span class="opt">(</span>waiting<span class="opt">.</span><span class="kwd">remove</span><span class="opt">(</span>p<span class="opt">)) {</span>
+        nextSequenceNumberToWrite<span class="opt">++;</span>
+        <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">var</span> w <span class="kwa">in</span> waiting<span class="opt">) {</span>
+          w<span class="opt">.</span><span class="kwd">send</span><span class="opt">(</span>nextSequenceNumberToWrite<span class="opt">);</span>
+        <span class="opt">}</span>
+      <span class="opt">}</span> <span class="kwa">else</span> <span class="opt">{</span>
+        waiting<span class="opt">.</span><span class="kwd">add</span><span class="opt">(</span>p<span class="opt">);</span>
+        p<span class="opt">.</span><span class="kwd">send</span><span class="opt">(</span>nextSequenceNumberToWrite<span class="opt">);</span>
+      <span class="opt">}</span>
+    <span class="opt">}</span>
+    <span class="kwa">if</span> <span class="opt">(</span>nextSequenceNumberToWrite <span class="opt">&gt;</span> sequenceNumber<span class="opt">) {</span> 
+      mainIsolate<span class="opt">.</span><span class="kwd">close</span><span class="opt">();</span>
+    <span class="opt">}</span>
+  <span class="opt">});</span>
+<span class="opt">}</span>
 
-  final waiting = &lt;SendPort&gt;[];
-  var nextSequenceNumberToWrite = 1;
-  mainIsolate.listen((dynamic p) {
-    if (p is SendPort) {
-      if (waiting.remove(p)) {
-        nextSequenceNumberToWrite++;
-        for (var w in waiting) {
-          w.send(nextSequenceNumberToWrite);
-        }
-      } else {
-        waiting.add(p);
-        p.send(nextSequenceNumberToWrite);
-      }
-    }
-    if (nextSequenceNumberToWrite &gt; sequenceNumber) { 
-      mainIsolate.close();
-    }
-  });
-}
+<span class="kwa">void</span> <span class="kwd">other</span><span class="opt">(</span><span class="kwb">Request</span> ini<span class="opt">) {</span>
+  <span class="kwa">final</span> otherIsolate <span class="opt">=</span> <span class="kwb">ReceivePort</span><span class="opt">();</span>
+  <span class="kwa">var</span> frontPos <span class="opt">=</span> ini<span class="opt">.</span>bytes<span class="opt">.</span><span class="kwd">indexOf</span><span class="opt">(</span>nl<span class="opt">) +</span> <span class="num">1</span><span class="opt">;</span>
+  <span class="kwa">var</span> backPos <span class="opt">=</span> ini<span class="opt">.</span>bytes<span class="opt">.</span>length <span class="opt">-</span> <span class="num">1</span><span class="opt">;</span>
+  <span class="kwa">while</span> <span class="opt">(</span>frontPos <span class="opt">&lt;=</span> backPos <span class="opt">&amp;&amp;</span> ini<span class="opt">.</span>bytes<span class="opt">[</span>frontPos<span class="opt">] ==</span> nl<span class="opt">)</span> frontPos<span class="opt">++;</span>
+  <span class="kwa">while</span> <span class="opt">(</span>frontPos <span class="opt">&lt;=</span> backPos <span class="opt">&amp;&amp;</span> ini<span class="opt">.</span>bytes<span class="opt">[</span>backPos<span class="opt">] ==</span> nl<span class="opt">)</span> backPos<span class="opt">--;</span>
 
-void other(Request ini) {
-  final otherIsolate = ReceivePort();
-  var frontPos = ini.bytes.indexOf(nl) + 1;
-  var backPos = ini.bytes.length - 1;
-  while (frontPos &lt;= backPos &amp;&amp; ini.bytes[frontPos] == nl) frontPos++;
-  while (frontPos &lt;= backPos &amp;&amp; ini.bytes[backPos] == nl) backPos--;
+  <span class="kwa">while</span> <span class="opt">(</span>frontPos <span class="opt">&lt;=</span> backPos<span class="opt">) {</span>
+    <span class="kwa">var</span> tmp <span class="opt">=</span> lut<span class="opt">[</span>ini<span class="opt">.</span>bytes<span class="opt">[</span>frontPos<span class="opt">]];</span>
+    ini<span class="opt">.</span>bytes<span class="opt">[</span>frontPos<span class="opt">] =</span> lut<span class="opt">[</span>ini<span class="opt">.</span>bytes<span class="opt">[</span>backPos<span class="opt">]];</span>
+    ini<span class="opt">.</span>bytes<span class="opt">[</span>backPos<span class="opt">] =</span> tmp<span class="opt">;</span>
+    <span class="kwa">while</span> <span class="opt">(</span>ini<span class="opt">.</span>bytes<span class="opt">[++</span>frontPos<span class="opt">] ==</span> nl<span class="opt">);</span>
+    <span class="kwa">while</span> <span class="opt">(</span>ini<span class="opt">.</span>bytes<span class="opt">[--</span>backPos<span class="opt">] ==</span> nl<span class="opt">);</span>
+  <span class="opt">}</span>
+  ini<span class="opt">.</span>p<span class="opt">.</span><span class="kwd">send</span><span class="opt">(</span>otherIsolate<span class="opt">.</span>sendPort<span class="opt">);</span>
 
-  while (frontPos &lt;= backPos) {
-    var tmp = lut[ini.bytes[frontPos]];
-    ini.bytes[frontPos] = lut[ini.bytes[backPos]];
-    ini.bytes[backPos] = tmp;
-    while (ini.bytes[++frontPos] == nl);
-    while (ini.bytes[--backPos] == nl);
-  }
-  ini.p.send(otherIsolate.sendPort);
+  otherIsolate<span class="opt">.</span><span class="kwd">listen</span><span class="opt">((</span><span class="kwa">dynamic</span> nextToWrite<span class="opt">) {</span>
+    <span class="kwa">if</span> <span class="opt">(</span>nextToWrite <span class="opt">==</span> ini<span class="opt">.</span>number<span class="opt">) {</span>
+      stdout<span class="opt">.</span><span class="kwd">add</span><span class="opt">(</span>ini<span class="opt">.</span>bytes<span class="opt">);</span>
+      ini<span class="opt">.</span>p<span class="opt">.</span><span class="kwd">send</span><span class="opt">(</span>otherIsolate<span class="opt">.</span>sendPort<span class="opt">);</span>
+      ini<span class="opt">.</span>bytes <span class="opt">=</span> <span class="kwb">Uint</span><span class="num">8L</span>ist<span class="opt">(</span><span class="num">0</span><span class="opt">);</span>
+    <span class="opt">}</span>
+  <span class="opt">});</span>
+<span class="opt">}</span>
 
-  otherIsolate.listen((dynamic nextToWrite) {
-    if (nextToWrite == ini.number) {
-      stdout.add(ini.bytes);
-      ini.p.send(otherIsolate.sendPort);
-      ini.bytes = Uint8List(0);
-    }
-  });
-}
+<span class="kwb">Uint</span><span class="num">8L</span>ist <span class="kwd">codeComplementLookupTable</span><span class="opt">() {</span>
+  <span class="kwa">final</span> code <span class="opt">=</span>       <span class="str">&apos;ABCDGHKMNRSTUVWY&apos;</span><span class="opt">.</span>codeUnits<span class="opt">;</span>
+  <span class="kwa">final</span> complement <span class="opt">=</span> <span class="str">&apos;TVGHCDMKNYSAABWR&apos;</span><span class="opt">.</span>codeUnits<span class="opt">;</span>
+  <span class="kwa">final</span> lowercaseOffset <span class="opt">=</span> <span class="str">&apos;a&apos;</span><span class="opt">.</span><span class="kwd">codeUnitAt</span><span class="opt">(</span><span class="num">0</span><span class="opt">) -</span> <span class="str">&apos;A&apos;</span><span class="opt">.</span><span class="kwd">codeUnitAt</span><span class="opt">(</span><span class="num">0</span><span class="opt">);</span>
+  <span class="kwa">final</span> t <span class="opt">=</span> <span class="kwb">Uint</span><span class="num">8L</span>ist<span class="opt">.</span><span class="kwd">fromList</span><span class="opt">(</span><span class="kwb">List</span><span class="opt">.</span><span class="kwd">generate</span><span class="opt">(</span><span class="num">128</span><span class="opt">, (</span><span class="kwb">int</span> i<span class="opt">) =&gt;</span> i<span class="opt">));</span>
+  <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">var</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> code<span class="opt">.</span>length<span class="opt">;</span> i<span class="opt">++) {</span>
+    t<span class="opt">[</span>code<span class="opt">[</span>i<span class="opt">]] =</span> complement<span class="opt">[</span>i<span class="opt">];</span>
+    t<span class="opt">[</span>code<span class="opt">[</span>i<span class="opt">] +</span> lowercaseOffset<span class="opt">] =</span> complement<span class="opt">[</span>i<span class="opt">];</span>
+  <span class="opt">}</span>
+  <span class="kwa">return</span> t<span class="opt">;</span>
+<span class="opt">}</span>
 
-Uint8List codeComplementLookupTable() {
-  final code =       &apos;ABCDGHKMNRSTUVWY&apos;.codeUnits;
-  final complement = &apos;TVGHCDMKNYSAABWR&apos;.codeUnits;
-  final lowercaseOffset = &apos;a&apos;.codeUnitAt(0) - &apos;A&apos;.codeUnitAt(0);
-  final t = Uint8List.fromList(List.generate(128, (int i) =&gt; i));
-  for (var i = 0; i &lt; code.length; i++) {
-    t[code[i]] = complement[i];
-    t[code[i] + lowercaseOffset] = complement[i];
-  }
-  return t;
-}
-
-class Request {
-  int number;
-  Uint8List bytes;
-  SendPort p;
-  Request(this.number, this.bytes, this.p);
-}
+<span class="kwa">class</span> <span class="kwb">Request</span> <span class="opt">{</span>
+  <span class="kwb">int</span> number<span class="opt">;</span>
+  <span class="kwb">Uint</span><span class="num">8L</span>ist bytes<span class="opt">;</span>
+  <span class="kwb">SendPort</span> p<span class="opt">;</span>
+  <span class="kwb">Request</span><span class="opt">(</span><span class="kwa">this</span><span class="opt">.</span>number<span class="opt">,</span> <span class="kwa">this</span><span class="opt">.</span>bytes<span class="opt">,</span> <span class="kwa">this</span><span class="opt">.</span>p<span class="opt">);</span>
+<span class="opt">}</span>
     </pre>
   </section>
   <section>
@@ -135,14 +135,14 @@ NOTES:
 Dart SDK version: 2.13.1 (stable) (Fri May 21 12:45:36 2021 +0200) on "linux_x64"
 
 
-Fri, 04 Jun 2021 03:14:20 GMT
+Fri, 04 Jun 2021 20:27:31 GMT
 
 MAKE:
 /opt/src/dart-sdk/bin/dart analyze 
 Analyzing tmp...
 No issues found!
 
-2.54s to complete and log all make actions
+2.58s to complete and log all make actions
 
 COMMAND LINE:
 /opt/src/dart-sdk/bin/dart run  revcomp.dartjit-5.dartjit 0 &lt; revcomp-input100000000.txt
