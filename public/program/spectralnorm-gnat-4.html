@@ -29,544 +29,544 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="slc">-- Modified by Jonathan Parker (Oct 2009)</span>
 <span class="slc">-- Updated by Jonathan Parker and Georg Bauhaus (May 2012)</span>
 
-<span class="kwa">with</span> Ada<span class="opt">.</span>Text_IO<span class="opt">;</span>
-<span class="kwa">with</span> Ada<span class="opt">.</span>Numerics<span class="opt">.</span>Generic_Elementary_Functions<span class="opt">;</span>
-<span class="kwa">with</span> Ada<span class="opt">.</span>Command_Line<span class="opt">;</span> <span class="kwa">use</span> Ada<span class="opt">.</span>Command_Line<span class="opt">;</span>
-<span class="kwa">with</span> Spectral_Utils<span class="opt">,</span> Spectral_Utils<span class="opt">.</span>Dist<span class="opt">;</span>
-<span class="kwa">with</span> Division<span class="opt">;</span>
+<span class="kwa">with</span> Ada.Text_IO;
+<span class="kwa">with</span> Ada.Numerics.Generic_Elementary_Functions;
+<span class="kwa">with</span> Ada.Command_Line; <span class="kwa">use</span> Ada.Command_Line;
+<span class="kwa">with</span> Spectral_Utils, Spectral_Utils.Dist;
+<span class="kwa">with</span> Division;
 
 <span class="kwa">procedure</span> SpectralNorm <span class="kwa">is</span>
 
-   No_of_Cores_to_Use <span class="opt">:</span> <span class="kwa">constant</span> <span class="opt">:=</span> <span class="num">4</span><span class="opt">;</span>
+   No_of_Cores_to_Use : <span class="kwa">constant</span> := <span class="num">4</span>;
 
-   <span class="kwa">subtype</span> Real <span class="kwa">is</span> Division<span class="opt">.</span>SSE_Real<span class="opt">;</span>
-   <span class="kwa">use type</span> Real<span class="opt">;</span>
+   <span class="kwa">subtype</span> Real <span class="kwa">is</span> Division.SSE_Real;
+   <span class="kwa">use type</span> Real;
 
-   <span class="kwa">package</span> Real_IO <span class="kwa">is new</span> Ada<span class="opt">.</span>Text_IO<span class="opt">.</span>Float_IO <span class="opt">(</span>Real<span class="opt">);</span>
-   <span class="kwa">package</span> Real_Funcs <span class="kwa">is new</span> Ada<span class="opt">.</span>Numerics<span class="opt">.</span>Generic_Elementary_Functions <span class="opt">(</span>Real<span class="opt">);</span>
-   <span class="kwa">use</span> Real_Funcs<span class="opt">;</span>
+   <span class="kwa">package</span> Real_IO <span class="kwa">is new</span> Ada.Text_IO.Float_IO (Real);
+   <span class="kwa">package</span> Real_Funcs <span class="kwa">is new</span> Ada.Numerics.Generic_Elementary_Functions (Real);
+   <span class="kwa">use</span> Real_Funcs;
 
-   N <span class="opt">:</span> <span class="kwb">Positive</span> <span class="opt">:=</span> <span class="num">100</span><span class="opt">;</span>
-   Vbv<span class="opt">,</span> Vv <span class="opt">:</span> Real <span class="opt">:=</span> <span class="num">0.0</span><span class="opt">;</span>
+   N : <span class="kwb">Positive</span> := <span class="num">100</span>;
+   Vbv, Vv : Real := <span class="num">0.0</span>;
 <span class="kwa">begin</span>
-   <span class="kwa">if</span> Argument_Count <span class="opt">=</span> <span class="num">1</span> <span class="kwa">then</span>
-      N <span class="opt">:=</span> <span class="kwb">Positive</span><span class="kwd">&apos;Value</span> <span class="opt">(</span>Argument<span class="opt">(</span><span class="num">1</span><span class="opt">));</span>
+   <span class="kwa">if</span> Argument_Count = <span class="num">1</span> <span class="kwa">then</span>
+      N := <span class="kwb">Positive</span><span class="kwd">&apos;Value</span> (Argument(<span class="num">1</span>));
    <span class="kwa">else</span>
-      <span class="kwa">raise</span> Program_Error<span class="opt">;</span>
-   <span class="kwa">end if</span><span class="opt">;</span>
+      <span class="kwa">raise</span> Program_Error;
+   <span class="kwa">end if</span>;
 
    <span class="kwa">declare</span>
       <span class="kwa">package</span> Spectrum <span class="kwa">is new</span> Spectral_Utils
-        <span class="opt">(</span>Matrix_Order <span class="opt">=&gt;</span> N<span class="opt">);</span>
-      <span class="kwa">package</span> Calc <span class="kwa">is new</span> Spectrum<span class="opt">.</span>Dist
-        <span class="opt">(</span>Number_Of_Tasks <span class="opt">=&gt;</span> No_of_Cores_to_Use<span class="opt">);</span>
-      <span class="kwa">use</span> Spectrum<span class="opt">,</span> Calc<span class="opt">;</span>
-      Calculator <span class="opt">:</span> <span class="kwa">constant</span> Matrix_Computation<span class="kwd">&apos;Class</span> <span class="opt">:=</span> Make_Calculator<span class="opt">;</span>
-      U <span class="opt">:</span> Matrix <span class="opt">:= (</span><span class="kwa">others</span> <span class="opt">=&gt;</span> <span class="num">1.0</span><span class="opt">);</span>
-      V <span class="opt">:</span> Matrix <span class="opt">:= (</span><span class="kwa">others</span> <span class="opt">=&gt;</span> <span class="num">0.0</span><span class="opt">);</span>
+        (Matrix_Order =&gt; N);
+      <span class="kwa">package</span> Calc <span class="kwa">is new</span> Spectrum.Dist
+        (Number_Of_Tasks =&gt; No_of_Cores_to_Use);
+      <span class="kwa">use</span> Spectrum, Calc;
+      Calculator : <span class="kwa">constant</span> Matrix_Computation<span class="kwd">&apos;Class</span> := Make_Calculator;
+      U : Matrix := (<span class="kwa">others</span> =&gt; <span class="num">1.0</span>);
+      V : Matrix := (<span class="kwa">others</span> =&gt; <span class="num">0.0</span>);
    <span class="kwa">begin</span>
-      <span class="kwa">for</span> I <span class="kwa">in</span> <span class="num">1</span> <span class="opt">..</span> <span class="num">10</span> <span class="kwa">loop</span>
-         Eval_Ata_Times_U <span class="opt">(</span>Calculator<span class="opt">,</span> U<span class="opt">,</span> V<span class="opt">);</span>
-         Eval_Ata_Times_U <span class="opt">(</span>Calculator<span class="opt">,</span> V<span class="opt">,</span> U<span class="opt">);</span>
-      <span class="kwa">end loop</span><span class="opt">;</span>
+      <span class="kwa">for</span> I <span class="kwa">in</span> <span class="num">1</span> .. <span class="num">10</span> <span class="kwa">loop</span>
+         Eval_Ata_Times_U (Calculator, U, V);
+         Eval_Ata_Times_U (Calculator, V, U);
+      <span class="kwa">end loop</span>;
       <span class="kwa">for</span> I <span class="kwa">in</span> V<span class="kwd">&apos;Range</span> <span class="kwa">loop</span>
-         Vbv <span class="opt">:=</span> Vbv <span class="opt">+</span> U<span class="opt">(</span>I<span class="opt">) *</span> V<span class="opt">(</span>I<span class="opt">);</span>
-         Vv  <span class="opt">:=</span> Vv  <span class="opt">+</span> V<span class="opt">(</span>I<span class="opt">) *</span> V<span class="opt">(</span>I<span class="opt">);</span>
-      <span class="kwa">end loop</span><span class="opt">;</span>
-   <span class="kwa">end</span><span class="opt">;</span>
-   Real_IO<span class="opt">.</span>Put<span class="opt">(</span>Item <span class="opt">=&gt;</span> Sqrt<span class="opt">(</span>Vbv<span class="opt">/</span>Vv<span class="opt">),</span> Fore <span class="opt">=&gt;</span> <span class="num">1</span><span class="opt">,</span> Aft <span class="opt">=&gt;</span> <span class="num">9</span><span class="opt">,</span> Exp <span class="opt">=&gt;</span> <span class="num">0</span><span class="opt">);</span>
-   Ada<span class="opt">.</span>Text_Io<span class="opt">.</span>New_Line<span class="opt">;</span>
-<span class="kwa">end</span> SpectralNorm<span class="opt">;</span>
+         Vbv := Vbv + U(I) * V(I);
+         Vv  := Vv  + V(I) * V(I);
+      <span class="kwa">end loop</span>;
+   <span class="kwa">end</span>;
+   Real_IO.Put(Item =&gt; Sqrt(Vbv/Vv), Fore =&gt; <span class="num">1</span>, Aft =&gt; <span class="num">9</span>, Exp =&gt; <span class="num">0</span>);
+   Ada.Text_Io.New_Line;
+<span class="kwa">end</span> SpectralNorm;
 
-<span class="kwa">with</span> System<span class="opt">;</span>
-<span class="kwa">with</span> Division<span class="opt">;</span>
+<span class="kwa">with</span> System;
+<span class="kwa">with</span> Division;
 
 <span class="kwa">generic</span>
-   Matrix_Order <span class="opt">:</span> <span class="kwb">Positive</span><span class="opt">;</span>
+   Matrix_Order : <span class="kwb">Positive</span>;
 <span class="kwa">package</span> Spectral_Utils <span class="kwa">is</span>
 
-   <span class="kwa">subtype</span> Real <span class="kwa">is</span> Division<span class="opt">.</span>SSE_Real<span class="opt">;</span>
+   <span class="kwa">subtype</span> Real <span class="kwa">is</span> Division.SSE_Real;
 
-   <span class="kwa">type</span> Matrix_Index <span class="kwa">is mod</span> <span class="num">2</span><span class="opt">**</span>System<span class="opt">.</span>Word_Size<span class="opt">;</span>
+   <span class="kwa">type</span> Matrix_Index <span class="kwa">is mod</span> <span class="num">2</span>**System.Word_Size;
 
-   Matrix_Size <span class="opt">:</span> <span class="kwa">constant</span> Matrix_Index <span class="opt">:=</span> Matrix_Index <span class="opt">(</span>Matrix_Order<span class="opt">);</span>
+   Matrix_Size : <span class="kwa">constant</span> Matrix_Index := Matrix_Index (Matrix_Order);
 
-   <span class="kwa">type</span> Matrix <span class="kwa">is array</span><span class="opt">(</span>Matrix_Index <span class="kwa">range</span> <span class="num">0</span> <span class="opt">..</span> Matrix_Size<span class="opt">-</span><span class="num">1</span><span class="opt">)</span> <span class="kwa">of</span> Real<span class="opt">;</span>
+   <span class="kwa">type</span> Matrix <span class="kwa">is array</span>(Matrix_Index <span class="kwa">range</span> <span class="num">0</span> .. Matrix_Size-<span class="num">1</span>) <span class="kwa">of</span> Real;
    <span class="slc">-- Matrix is m_ij = 1 / ((i+j+1)*(i+j))/2 + i + 1); indices start at 0.</span>
 
-   <span class="kwa">type</span> Matrix_Computation <span class="kwa">is abstract tagged limited null record</span><span class="opt">;</span>
+   <span class="kwa">type</span> Matrix_Computation <span class="kwa">is abstract tagged limited null record</span>;
 
-   <span class="kwa">function</span> Make_Calculator <span class="kwa">return</span> Matrix_Computation<span class="kwd">&apos;Class</span><span class="opt">;</span>
+   <span class="kwa">function</span> Make_Calculator <span class="kwa">return</span> Matrix_Computation<span class="kwd">&apos;Class</span>;
    <span class="slc">--  adaptive computations</span>
 
    <span class="slc">--  Get   AU = A * U.   Calculate only AU(Start .. Finish).</span>
 
    <span class="kwa">procedure</span> Eval_A_Times
-     <span class="opt">(</span>Iron          <span class="opt">:</span> <span class="kwa">in</span>     Matrix_Computation<span class="opt">;</span>
-      U             <span class="opt">:</span> <span class="kwa">in</span>     Matrix<span class="opt">;</span>
-      Start<span class="opt">,</span> Finish <span class="opt">:</span> <span class="kwa">in</span>     Matrix_Index<span class="opt">;</span>
-      AU            <span class="opt">:</span>    <span class="kwa">out</span> Matrix<span class="opt">)</span> <span class="kwa">is abstract</span><span class="opt">;</span>
+     (Iron          : <span class="kwa">in</span>     Matrix_Computation;
+      U             : <span class="kwa">in</span>     Matrix;
+      Start, Finish : <span class="kwa">in</span>     Matrix_Index;
+      AU            :    <span class="kwa">out</span> Matrix) <span class="kwa">is abstract</span>;
 
    <span class="slc">--  Get   AU = A_transpose * U.   Calculate only AU(Start .. Finish).</span>
 
    <span class="kwa">procedure</span> Eval_At_Times
-     <span class="opt">(</span>Iron          <span class="opt">:</span> <span class="kwa">in</span>     Matrix_Computation<span class="opt">;</span>
-      U             <span class="opt">:</span> <span class="kwa">in</span>     Matrix<span class="opt">;</span>
-      Start<span class="opt">,</span> Finish <span class="opt">:</span> <span class="kwa">in</span>     Matrix_Index<span class="opt">;</span>
-      AU            <span class="opt">:</span>    <span class="kwa">out</span> Matrix<span class="opt">)</span> <span class="kwa">is abstract</span><span class="opt">;</span>
+     (Iron          : <span class="kwa">in</span>     Matrix_Computation;
+      U             : <span class="kwa">in</span>     Matrix;
+      Start, Finish : <span class="kwa">in</span>     Matrix_Index;
+      AU            :    <span class="kwa">out</span> Matrix) <span class="kwa">is abstract</span>;
 
-<span class="kwa">end</span> Spectral_Utils<span class="opt">;</span>
+<span class="kwa">end</span> Spectral_Utils;
 
-<span class="kwa">with</span> Spectral_Utils<span class="opt">.</span>S<span class="opt">,</span> Spectral_Utils<span class="opt">.</span>D<span class="opt">;</span>
+<span class="kwa">with</span> Spectral_Utils.S, Spectral_Utils.D;
 
 <span class="kwa">package body</span> Spectral_Utils <span class="kwa">is</span>
 
-   <span class="kwa">package</span> Plain <span class="kwa">is new</span> Spectral_Utils<span class="opt">.</span>D<span class="opt">;</span>
-   <span class="kwa">package</span> Fancy <span class="kwa">is new</span> Spectral_Utils<span class="opt">.</span>S<span class="opt">;</span>
+   <span class="kwa">package</span> Plain <span class="kwa">is new</span> Spectral_Utils.D;
+   <span class="kwa">package</span> Fancy <span class="kwa">is new</span> Spectral_Utils.S;
 
    <span class="kwa">function</span> Make_Calculator <span class="kwa">return</span> Matrix_Computation<span class="kwd">&apos;Class</span> <span class="kwa">is</span>
    <span class="kwa">begin</span>
-      <span class="kwa">if</span> System<span class="opt">.</span>Word_Size <span class="opt">=</span> <span class="num">64</span> <span class="kwa">then</span>
-         <span class="kwa">return</span> Plain<span class="opt">.</span>Vanilla<span class="str">&apos;(Matrix_Computation with null record);</span>
+      <span class="kwa">if</span> System.Word_Size = <span class="num">64</span> <span class="kwa">then</span>
+         <span class="kwa">return</span> Plain.Vanilla<span class="str">&apos;(Matrix_Computation with null record);</span>
 <span class="str">      else</span>
-<span class="str">         return Fancy.Forced&apos;</span><span class="opt">(</span>Matrix_Computation <span class="kwa">with null record</span><span class="opt">);</span>
-      <span class="kwa">end if</span><span class="opt">;</span>
-   <span class="kwa">end</span> Make_Calculator<span class="opt">;</span>
+<span class="str">         return Fancy.Forced&apos;</span>(Matrix_Computation <span class="kwa">with null record</span>);
+      <span class="kwa">end if</span>;
+   <span class="kwa">end</span> Make_Calculator;
 
-<span class="kwa">end</span> Spectral_Utils<span class="opt">;</span>
+<span class="kwa">end</span> Spectral_Utils;
 
-<span class="kwa">generic package</span> Spectral_Utils<span class="opt">.</span>D <span class="kwa">is</span>
+<span class="kwa">generic package</span> Spectral_Utils.D <span class="kwa">is</span>
 
-   <span class="kwa">type</span> Vanilla <span class="kwa">is new</span> Matrix_Computation <span class="kwa">with null record</span><span class="opt">;</span>
+   <span class="kwa">type</span> Vanilla <span class="kwa">is new</span> Matrix_Computation <span class="kwa">with null record</span>;
    <span class="slc">-- computations use Division.D</span>
 
    overriding
    <span class="kwa">procedure</span> Eval_A_Times
-     <span class="opt">(</span>Iron          <span class="opt">:</span> <span class="kwa">in</span>     Vanilla<span class="opt">;</span>
-      U             <span class="opt">:</span> <span class="kwa">in</span>     Matrix<span class="opt">;</span>
-      Start<span class="opt">,</span> Finish <span class="opt">:</span> <span class="kwa">in</span>     Matrix_Index<span class="opt">;</span>
-      AU            <span class="opt">:</span>    <span class="kwa">out</span> Matrix<span class="opt">);</span>
+     (Iron          : <span class="kwa">in</span>     Vanilla;
+      U             : <span class="kwa">in</span>     Matrix;
+      Start, Finish : <span class="kwa">in</span>     Matrix_Index;
+      AU            :    <span class="kwa">out</span> Matrix);
 
    overriding
    <span class="kwa">procedure</span> Eval_At_Times
-     <span class="opt">(</span>Iron          <span class="opt">:</span> <span class="kwa">in</span>     Vanilla<span class="opt">;</span>
-      U             <span class="opt">:</span> <span class="kwa">in</span>     Matrix<span class="opt">;</span>
-      Start<span class="opt">,</span> Finish <span class="opt">:</span> <span class="kwa">in</span>     Matrix_Index<span class="opt">;</span>
-      AU            <span class="opt">:</span>    <span class="kwa">out</span> Matrix<span class="opt">);</span>
+     (Iron          : <span class="kwa">in</span>     Vanilla;
+      U             : <span class="kwa">in</span>     Matrix;
+      Start, Finish : <span class="kwa">in</span>     Matrix_Index;
+      AU            :    <span class="kwa">out</span> Matrix);
 
-<span class="kwa">end</span> Spectral_Utils<span class="opt">.</span>D<span class="opt">;</span>
+<span class="kwa">end</span> Spectral_Utils.D;
 
-<span class="kwa">with</span> Division<span class="opt">.</span>D<span class="opt">;</span>
+<span class="kwa">with</span> Division.D;
 
-<span class="kwa">package body</span> Spectral_Utils<span class="opt">.</span>D <span class="kwa">is</span>
+<span class="kwa">package body</span> Spectral_Utils.D <span class="kwa">is</span>
 
-   <span class="kwa">use type</span> Real<span class="opt">;</span>
-   <span class="kwa">use</span> Division<span class="opt">.</span>D<span class="opt">;</span>
+   <span class="kwa">use type</span> Real;
+   <span class="kwa">use</span> Division.D;
 
-   <span class="kwa">subtype</span> A_Element_Pair <span class="kwa">is</span> SSE_Vector<span class="opt">;</span>
+   <span class="kwa">subtype</span> A_Element_Pair <span class="kwa">is</span> SSE_Vector;
 
    <span class="slc">--  A is the matrix. Evaluate matrix A at (I,J):</span>
 
-   <span class="kwa">function</span> Eval_A <span class="opt">(</span>I<span class="opt">,</span> J <span class="opt">:</span> <span class="kwa">in</span> Matrix_Index<span class="opt">)</span> <span class="kwa">return</span> Real <span class="kwa">is</span>
-      Denom <span class="opt">:</span> <span class="kwa">constant</span> Real <span class="opt">:=</span> Real <span class="opt">(((</span>I <span class="opt">+</span> J<span class="opt">) * (</span>I <span class="opt">+</span> J <span class="opt">+</span> <span class="num">1</span><span class="opt">)) /</span> <span class="num">2</span> <span class="opt">+</span> I <span class="opt">+</span> <span class="num">1</span><span class="opt">);</span>
+   <span class="kwa">function</span> Eval_A (I, J : <span class="kwa">in</span> Matrix_Index) <span class="kwa">return</span> Real <span class="kwa">is</span>
+      Denom : <span class="kwa">constant</span> Real := Real (((I + J) * (I + J + <span class="num">1</span>)) / <span class="num">2</span> + I + <span class="num">1</span>);
    <span class="kwa">begin</span>
-      <span class="kwa">return</span> <span class="num">1.0</span> <span class="opt">/</span> Denom<span class="opt">;</span>
-   <span class="kwa">end</span> Eval_A<span class="opt">;</span>
+      <span class="kwa">return</span> <span class="num">1.0</span> / Denom;
+   <span class="kwa">end</span> Eval_A;
 
-   <span class="kwa">function</span> Eval_A_tr_Twice <span class="opt">(</span>I<span class="opt">,</span> J <span class="opt">:</span> <span class="kwa">in</span> Matrix_Index<span class="opt">)</span> <span class="kwa">return</span> A_Element_Pair <span class="kwa">is</span>
-      y0 <span class="opt">:</span> <span class="kwa">constant</span> Real <span class="opt">:=</span> Real <span class="opt">(((</span>I <span class="opt">+</span> J    <span class="opt">)*(</span>I <span class="opt">+</span> J <span class="opt">+</span> <span class="num">1</span><span class="opt">))/</span><span class="num">2</span> <span class="opt">+</span> J <span class="opt">+</span> <span class="num">1</span><span class="opt">);</span>
-      y1 <span class="opt">:</span> <span class="kwa">constant</span> Real <span class="opt">:=</span> Real <span class="opt">(((</span>I <span class="opt">+</span> J <span class="opt">+</span> <span class="num">1</span><span class="opt">)*(</span>I <span class="opt">+</span> J <span class="opt">+</span> <span class="num">2</span><span class="opt">))/</span><span class="num">2</span> <span class="opt">+</span> J <span class="opt">+</span> <span class="num">2</span><span class="opt">);</span>
+   <span class="kwa">function</span> Eval_A_tr_Twice (I, J : <span class="kwa">in</span> Matrix_Index) <span class="kwa">return</span> A_Element_Pair <span class="kwa">is</span>
+      y0 : <span class="kwa">constant</span> Real := Real (((I + J    )*(I + J + <span class="num">1</span>))/<span class="num">2</span> + J + <span class="num">1</span>);
+      y1 : <span class="kwa">constant</span> Real := Real (((I + J + <span class="num">1</span>)*(I + J + <span class="num">2</span>))/<span class="num">2</span> + J + <span class="num">2</span>);
    <span class="kwa">begin</span>
-      <span class="kwa">return</span> Division<span class="opt">.</span>D<span class="opt">.</span>Ratios <span class="opt">(</span><span class="num">1.0</span><span class="opt">,</span> <span class="num">1.0</span><span class="opt">,</span> y0<span class="opt">,</span> y1<span class="opt">);</span>
-   <span class="kwa">end</span> Eval_A_tr_Twice<span class="opt">;</span>
+      <span class="kwa">return</span> Division.D.Ratios (<span class="num">1.0</span>, <span class="num">1.0</span>, y0, y1);
+   <span class="kwa">end</span> Eval_A_tr_Twice;
 
-   <span class="kwa">function</span> Eval_A_Twice <span class="opt">(</span>I<span class="opt">,</span> J <span class="opt">:</span> <span class="kwa">in</span> Matrix_Index<span class="opt">)</span> <span class="kwa">return</span> A_Element_Pair <span class="kwa">is</span>
-      y0 <span class="opt">:</span> <span class="kwa">constant</span> Real <span class="opt">:=</span> Real <span class="opt">(((</span>I <span class="opt">+</span> J    <span class="opt">)*(</span>I <span class="opt">+</span> J <span class="opt">+</span> <span class="num">1</span><span class="opt">))/</span><span class="num">2</span> <span class="opt">+</span> I <span class="opt">+</span> <span class="num">1</span><span class="opt">);</span>
-      y1 <span class="opt">:</span> <span class="kwa">constant</span> Real <span class="opt">:=</span> Real <span class="opt">(((</span>I <span class="opt">+</span> J <span class="opt">+</span> <span class="num">1</span><span class="opt">)*(</span>I <span class="opt">+</span> J <span class="opt">+</span> <span class="num">2</span><span class="opt">))/</span><span class="num">2</span> <span class="opt">+</span> I <span class="opt">+</span> <span class="num">1</span><span class="opt">);</span>
+   <span class="kwa">function</span> Eval_A_Twice (I, J : <span class="kwa">in</span> Matrix_Index) <span class="kwa">return</span> A_Element_Pair <span class="kwa">is</span>
+      y0 : <span class="kwa">constant</span> Real := Real (((I + J    )*(I + J + <span class="num">1</span>))/<span class="num">2</span> + I + <span class="num">1</span>);
+      y1 : <span class="kwa">constant</span> Real := Real (((I + J + <span class="num">1</span>)*(I + J + <span class="num">2</span>))/<span class="num">2</span> + I + <span class="num">1</span>);
    <span class="kwa">begin</span>
-      <span class="kwa">return</span> Division<span class="opt">.</span>D<span class="opt">.</span>Ratios <span class="opt">(</span><span class="num">1.0</span><span class="opt">,</span> <span class="num">1.0</span><span class="opt">,</span> y0<span class="opt">,</span> y1<span class="opt">);</span>
-   <span class="kwa">end</span> Eval_A_Twice<span class="opt">;</span>
+      <span class="kwa">return</span> Division.D.Ratios (<span class="num">1.0</span>, <span class="num">1.0</span>, y0, y1);
+   <span class="kwa">end</span> Eval_A_Twice;
 
-   Half_Matrix_Size <span class="opt">:</span> <span class="kwa">constant</span> Matrix_Index <span class="opt">:=</span> Matrix_Size <span class="opt">/</span> <span class="num">2</span><span class="opt">;</span>
+   Half_Matrix_Size : <span class="kwa">constant</span> Matrix_Index := Matrix_Size / <span class="num">2</span>;
 
    overriding
    <span class="kwa">procedure</span> Eval_A_Times
-     <span class="opt">(</span>Iron          <span class="opt">:</span> <span class="kwa">in</span>     Vanilla<span class="opt">;</span>
-      U             <span class="opt">:</span> <span class="kwa">in</span>     Matrix<span class="opt">;</span>
-      Start<span class="opt">,</span> Finish <span class="opt">:</span> <span class="kwa">in</span>     Matrix_Index<span class="opt">;</span>
-      Au            <span class="opt">:</span>    <span class="kwa">out</span> Matrix<span class="opt">)</span>
+     (Iron          : <span class="kwa">in</span>     Vanilla;
+      U             : <span class="kwa">in</span>     Matrix;
+      Start, Finish : <span class="kwa">in</span>     Matrix_Index;
+      Au            :    <span class="kwa">out</span> Matrix)
    <span class="kwa">is</span>
-      J_Index <span class="opt">:</span> Matrix_Index<span class="opt">;</span>
-      A_Elements <span class="opt">:</span> A_Element_Pair<span class="opt">;</span>
-      Sum <span class="opt">:</span> Real<span class="opt">;</span>
+      J_Index : Matrix_Index;
+      A_Elements : A_Element_Pair;
+      Sum : Real;
    <span class="kwa">begin</span>
-      <span class="kwa">for</span> I <span class="kwa">in</span> Start <span class="opt">..</span> Finish <span class="kwa">loop</span>
-         Sum <span class="opt">:=</span> <span class="num">0.0</span><span class="opt">;</span>
-         <span class="kwa">for</span> J <span class="kwa">in</span> Matrix_Index <span class="kwa">range</span> <span class="num">0</span> <span class="opt">..</span> Half_Matrix_Size <span class="opt">-</span> <span class="num">1</span> <span class="kwa">loop</span>
-            J_Index    <span class="opt">:=</span> U<span class="kwd">&apos;First</span> <span class="opt">+</span> <span class="num">2</span><span class="opt">*</span>J<span class="opt">;</span>
-            A_Elements <span class="opt">:=</span> Eval_A_Twice <span class="opt">(</span>I<span class="opt">,</span> J_Index<span class="opt">);</span>
-            Sum <span class="opt">:=</span> Sum <span class="opt">+</span> A_Elements<span class="opt">(</span><span class="num">0</span><span class="opt">) *</span> U<span class="opt">(</span>J_Index<span class="opt">) +</span> A_Elements<span class="opt">(</span><span class="num">1</span><span class="opt">) *</span> U<span class="opt">(</span>J_Index<span class="opt">+</span><span class="num">1</span><span class="opt">);</span>
-         <span class="kwa">end loop</span><span class="opt">;</span>
-         <span class="kwa">if</span> Matrix_Size <span class="kwa">mod</span> <span class="num">2</span> <span class="opt">=</span> <span class="num">1</span> <span class="kwa">then</span>
-            Sum <span class="opt">:=</span> Sum <span class="opt">+</span> Eval_A <span class="opt">(</span>U<span class="kwd">&apos;Last</span><span class="opt">,</span> I<span class="opt">) *</span> U<span class="opt">(</span>U<span class="kwd">&apos;Last</span><span class="opt">);</span> <span class="slc">-- J_Index := U&apos;Last;</span>
-         <span class="kwa">end if</span><span class="opt">;</span>
-         Au<span class="opt">(</span>I<span class="opt">) :=</span> Sum<span class="opt">;</span>
-      <span class="kwa">end loop</span><span class="opt">;</span>
-   <span class="kwa">end</span> Eval_A_Times<span class="opt">;</span>
+      <span class="kwa">for</span> I <span class="kwa">in</span> Start .. Finish <span class="kwa">loop</span>
+         Sum := <span class="num">0.0</span>;
+         <span class="kwa">for</span> J <span class="kwa">in</span> Matrix_Index <span class="kwa">range</span> <span class="num">0</span> .. Half_Matrix_Size - <span class="num">1</span> <span class="kwa">loop</span>
+            J_Index    := U<span class="kwd">&apos;First</span> + <span class="num">2</span>*J;
+            A_Elements := Eval_A_Twice (I, J_Index);
+            Sum := Sum + A_Elements(<span class="num">0</span>) * U(J_Index) + A_Elements(<span class="num">1</span>) * U(J_Index+<span class="num">1</span>);
+         <span class="kwa">end loop</span>;
+         <span class="kwa">if</span> Matrix_Size <span class="kwa">mod</span> <span class="num">2</span> = <span class="num">1</span> <span class="kwa">then</span>
+            Sum := Sum + Eval_A (U<span class="kwd">&apos;Last</span>, I) * U(U<span class="kwd">&apos;Last</span>); <span class="slc">-- J_Index := U&apos;Last;</span>
+         <span class="kwa">end if</span>;
+         Au(I) := Sum;
+      <span class="kwa">end loop</span>;
+   <span class="kwa">end</span> Eval_A_Times;
 
    overriding
    <span class="kwa">procedure</span> Eval_At_Times
-     <span class="opt">(</span>Iron          <span class="opt">:</span> <span class="kwa">in</span>     Vanilla<span class="opt">;</span>
-      U             <span class="opt">:</span> <span class="kwa">in</span>     Matrix<span class="opt">;</span>
-      Start<span class="opt">,</span> Finish <span class="opt">:</span> <span class="kwa">in</span>     Matrix_Index<span class="opt">;</span>
-      Au            <span class="opt">:</span>    <span class="kwa">out</span> Matrix<span class="opt">)</span>
+     (Iron          : <span class="kwa">in</span>     Vanilla;
+      U             : <span class="kwa">in</span>     Matrix;
+      Start, Finish : <span class="kwa">in</span>     Matrix_Index;
+      Au            :    <span class="kwa">out</span> Matrix)
    <span class="kwa">is</span>
-      J_Index <span class="opt">:</span> Matrix_Index<span class="opt">;</span>
-      A_Elements <span class="opt">:</span> A_Element_Pair<span class="opt">;</span>
-      Sum <span class="opt">:</span> Real<span class="opt">;</span>
+      J_Index : Matrix_Index;
+      A_Elements : A_Element_Pair;
+      Sum : Real;
    <span class="kwa">begin</span>
-      <span class="kwa">for</span> I <span class="kwa">in</span> Start <span class="opt">..</span> Finish <span class="kwa">loop</span>
-         Sum <span class="opt">:=</span> <span class="num">0.0</span><span class="opt">;</span>
-         <span class="kwa">for</span> J <span class="kwa">in</span> Matrix_Index <span class="kwa">range</span> <span class="num">0</span> <span class="opt">..</span> Half_Matrix_Size <span class="opt">-</span> <span class="num">1</span> <span class="kwa">loop</span>
-            J_Index    <span class="opt">:=</span> U<span class="kwd">&apos;First</span> <span class="opt">+</span> <span class="num">2</span><span class="opt">*</span>J<span class="opt">;</span>
-            A_Elements <span class="opt">:=</span> Eval_A_tr_Twice <span class="opt">(</span>I<span class="opt">,</span> J_Index<span class="opt">);</span>
-            Sum <span class="opt">:=</span> Sum <span class="opt">+</span> A_Elements<span class="opt">(</span><span class="num">0</span><span class="opt">) *</span> U<span class="opt">(</span>J_Index<span class="opt">) +</span> A_Elements<span class="opt">(</span><span class="num">1</span><span class="opt">) *</span> U<span class="opt">(</span>J_Index<span class="opt">+</span><span class="num">1</span><span class="opt">);</span>
-         <span class="kwa">end loop</span><span class="opt">;</span>
-         <span class="kwa">if</span> Matrix_Size <span class="kwa">mod</span> <span class="num">2</span> <span class="opt">=</span> <span class="num">1</span> <span class="kwa">then</span>
-            Sum <span class="opt">:=</span> Sum <span class="opt">+</span> Eval_A <span class="opt">(</span>U<span class="kwd">&apos;Last</span><span class="opt">,</span> I<span class="opt">) *</span> U<span class="opt">(</span>U<span class="kwd">&apos;Last</span><span class="opt">);</span> <span class="slc">-- J_Index := U&apos;Last;</span>
-         <span class="kwa">end if</span><span class="opt">;</span>
-         Au<span class="opt">(</span>I<span class="opt">) :=</span> Sum<span class="opt">;</span>
-      <span class="kwa">end loop</span><span class="opt">;</span>
-   <span class="kwa">end</span> Eval_At_Times<span class="opt">;</span>
+      <span class="kwa">for</span> I <span class="kwa">in</span> Start .. Finish <span class="kwa">loop</span>
+         Sum := <span class="num">0.0</span>;
+         <span class="kwa">for</span> J <span class="kwa">in</span> Matrix_Index <span class="kwa">range</span> <span class="num">0</span> .. Half_Matrix_Size - <span class="num">1</span> <span class="kwa">loop</span>
+            J_Index    := U<span class="kwd">&apos;First</span> + <span class="num">2</span>*J;
+            A_Elements := Eval_A_tr_Twice (I, J_Index);
+            Sum := Sum + A_Elements(<span class="num">0</span>) * U(J_Index) + A_Elements(<span class="num">1</span>) * U(J_Index+<span class="num">1</span>);
+         <span class="kwa">end loop</span>;
+         <span class="kwa">if</span> Matrix_Size <span class="kwa">mod</span> <span class="num">2</span> = <span class="num">1</span> <span class="kwa">then</span>
+            Sum := Sum + Eval_A (U<span class="kwd">&apos;Last</span>, I) * U(U<span class="kwd">&apos;Last</span>); <span class="slc">-- J_Index := U&apos;Last;</span>
+         <span class="kwa">end if</span>;
+         Au(I) := Sum;
+      <span class="kwa">end loop</span>;
+   <span class="kwa">end</span> Eval_At_Times;
 
-<span class="kwa">end</span> Spectral_Utils<span class="opt">.</span>D<span class="opt">;</span>
+<span class="kwa">end</span> Spectral_Utils.D;
 
-<span class="kwa">generic package</span> Spectral_Utils<span class="opt">.</span>S <span class="kwa">is</span>
+<span class="kwa">generic package</span> Spectral_Utils.S <span class="kwa">is</span>
 
-   <span class="kwa">type</span> Forced <span class="kwa">is new</span> Matrix_Computation <span class="kwa">with null record</span><span class="opt">;</span>
+   <span class="kwa">type</span> Forced <span class="kwa">is new</span> Matrix_Computation <span class="kwa">with null record</span>;
    <span class="slc">-- computations use Division.S</span>
 
    overriding
    <span class="kwa">procedure</span> Eval_A_Times
-     <span class="opt">(</span>Iron          <span class="opt">:</span> <span class="kwa">in</span>     Forced<span class="opt">;</span>
-      U             <span class="opt">:</span> <span class="kwa">in</span>     Matrix<span class="opt">;</span>
-      Start<span class="opt">,</span> Finish <span class="opt">:</span> <span class="kwa">in</span>     Matrix_Index<span class="opt">;</span>
-      AU            <span class="opt">:</span>    <span class="kwa">out</span> Matrix<span class="opt">);</span>
+     (Iron          : <span class="kwa">in</span>     Forced;
+      U             : <span class="kwa">in</span>     Matrix;
+      Start, Finish : <span class="kwa">in</span>     Matrix_Index;
+      AU            :    <span class="kwa">out</span> Matrix);
 
    overriding
    <span class="kwa">procedure</span> Eval_At_Times
-     <span class="opt">(</span>Iron          <span class="opt">:</span> <span class="kwa">in</span>     Forced<span class="opt">;</span>
-      U             <span class="opt">:</span> <span class="kwa">in</span>     Matrix<span class="opt">;</span>
-      Start<span class="opt">,</span> Finish <span class="opt">:</span> <span class="kwa">in</span>     Matrix_Index<span class="opt">;</span>
-      AU            <span class="opt">:</span>    <span class="kwa">out</span> Matrix<span class="opt">);</span>
+     (Iron          : <span class="kwa">in</span>     Forced;
+      U             : <span class="kwa">in</span>     Matrix;
+      Start, Finish : <span class="kwa">in</span>     Matrix_Index;
+      AU            :    <span class="kwa">out</span> Matrix);
 
-<span class="kwa">end</span> Spectral_Utils<span class="opt">.</span>S<span class="opt">;</span>
+<span class="kwa">end</span> Spectral_Utils.S;
 
-<span class="kwa">with</span> Division<span class="opt">.</span>S<span class="opt">;</span>
-<span class="kwa">package body</span> Spectral_Utils<span class="opt">.</span>S <span class="kwa">is</span>
+<span class="kwa">with</span> Division.S;
+<span class="kwa">package body</span> Spectral_Utils.S <span class="kwa">is</span>
 
-   <span class="kwa">use type</span> Real<span class="opt">;</span>
-   <span class="kwa">use</span> Division<span class="opt">.</span>S<span class="opt">;</span>
+   <span class="kwa">use type</span> Real;
+   <span class="kwa">use</span> Division.S;
 
-   <span class="kwa">subtype</span> A_Element_Pair <span class="kwa">is</span> SSE_Vector<span class="opt">;</span>
+   <span class="kwa">subtype</span> A_Element_Pair <span class="kwa">is</span> SSE_Vector;
 
    <span class="slc">--  A is the matrix. Evaluate matrix A at (I,J):</span>
 
-   <span class="kwa">function</span> Eval_A <span class="opt">(</span>I<span class="opt">,</span> J <span class="opt">:</span> <span class="kwa">in</span> Matrix_Index<span class="opt">)</span> <span class="kwa">return</span> Real <span class="kwa">is</span>
-      Denom <span class="opt">:</span> <span class="kwa">constant</span> Real <span class="opt">:=</span> Real <span class="opt">(((</span>I <span class="opt">+</span> J<span class="opt">) * (</span>I <span class="opt">+</span> J <span class="opt">+</span> <span class="num">1</span><span class="opt">)) /</span> <span class="num">2</span> <span class="opt">+</span> I <span class="opt">+</span> <span class="num">1</span><span class="opt">);</span>
+   <span class="kwa">function</span> Eval_A (I, J : <span class="kwa">in</span> Matrix_Index) <span class="kwa">return</span> Real <span class="kwa">is</span>
+      Denom : <span class="kwa">constant</span> Real := Real (((I + J) * (I + J + <span class="num">1</span>)) / <span class="num">2</span> + I + <span class="num">1</span>);
    <span class="kwa">begin</span>
-      <span class="kwa">return</span> <span class="num">1.0</span> <span class="opt">/</span> Denom<span class="opt">;</span>
-   <span class="kwa">end</span> Eval_A<span class="opt">;</span>
+      <span class="kwa">return</span> <span class="num">1.0</span> / Denom;
+   <span class="kwa">end</span> Eval_A;
 
-   <span class="kwa">function</span> Eval_A_tr_Twice <span class="opt">(</span>I<span class="opt">,</span> J <span class="opt">:</span> <span class="kwa">in</span> Matrix_Index<span class="opt">)</span> <span class="kwa">return</span> A_Element_Pair <span class="kwa">is</span>
-      Denoms <span class="opt">:</span> <span class="kwa">constant</span> A_Element_Pair<span class="opt">:=</span>
-        <span class="opt">(</span>Real <span class="opt">(((</span>I <span class="opt">+</span> J    <span class="opt">)*(</span>I <span class="opt">+</span> J <span class="opt">+</span> <span class="num">1</span><span class="opt">))/</span><span class="num">2</span> <span class="opt">+</span> J <span class="opt">+</span> <span class="num">1</span><span class="opt">),</span>
-         Real <span class="opt">(((</span>I <span class="opt">+</span> J <span class="opt">+</span> <span class="num">1</span><span class="opt">)*(</span>I <span class="opt">+</span> J <span class="opt">+</span> <span class="num">2</span><span class="opt">))/</span><span class="num">2</span> <span class="opt">+</span> J <span class="opt">+</span> <span class="num">2</span><span class="opt">));</span>
+   <span class="kwa">function</span> Eval_A_tr_Twice (I, J : <span class="kwa">in</span> Matrix_Index) <span class="kwa">return</span> A_Element_Pair <span class="kwa">is</span>
+      Denoms : <span class="kwa">constant</span> A_Element_Pair:=
+        (Real (((I + J    )*(I + J + <span class="num">1</span>))/<span class="num">2</span> + J + <span class="num">1</span>),
+         Real (((I + J + <span class="num">1</span>)*(I + J + <span class="num">2</span>))/<span class="num">2</span> + J + <span class="num">2</span>));
    <span class="kwa">begin</span>
-      <span class="kwa">return</span> <span class="opt">(</span><span class="num">1.0</span><span class="opt">,</span> <span class="num">1.0</span><span class="opt">) /</span> Denoms<span class="opt">;</span>
-   <span class="kwa">end</span> Eval_A_tr_Twice<span class="opt">;</span>
+      <span class="kwa">return</span> (<span class="num">1.0</span>, <span class="num">1.0</span>) / Denoms;
+   <span class="kwa">end</span> Eval_A_tr_Twice;
 
-   <span class="kwa">function</span> Eval_A_Twice <span class="opt">(</span>I<span class="opt">,</span> J <span class="opt">:</span> <span class="kwa">in</span> Matrix_Index<span class="opt">)</span> <span class="kwa">return</span> A_Element_Pair <span class="kwa">is</span>
-      Denoms <span class="opt">:</span> <span class="kwa">constant</span> A_Element_Pair <span class="opt">:=</span>
-        <span class="opt">(</span>Real <span class="opt">(((</span>I <span class="opt">+</span> J    <span class="opt">)*(</span>I <span class="opt">+</span> J <span class="opt">+</span> <span class="num">1</span><span class="opt">))/</span><span class="num">2</span> <span class="opt">+</span> I <span class="opt">+</span> <span class="num">1</span><span class="opt">),</span>
-         Real <span class="opt">(((</span>I <span class="opt">+</span> J <span class="opt">+</span> <span class="num">1</span><span class="opt">)*(</span>I <span class="opt">+</span> J <span class="opt">+</span> <span class="num">2</span><span class="opt">))/</span><span class="num">2</span> <span class="opt">+</span> I <span class="opt">+</span> <span class="num">1</span><span class="opt">));</span>
+   <span class="kwa">function</span> Eval_A_Twice (I, J : <span class="kwa">in</span> Matrix_Index) <span class="kwa">return</span> A_Element_Pair <span class="kwa">is</span>
+      Denoms : <span class="kwa">constant</span> A_Element_Pair :=
+        (Real (((I + J    )*(I + J + <span class="num">1</span>))/<span class="num">2</span> + I + <span class="num">1</span>),
+         Real (((I + J + <span class="num">1</span>)*(I + J + <span class="num">2</span>))/<span class="num">2</span> + I + <span class="num">1</span>));
    <span class="kwa">begin</span>
-      <span class="kwa">return</span> <span class="opt">(</span><span class="num">1.0</span><span class="opt">,</span> <span class="num">1.0</span><span class="opt">) /</span> Denoms<span class="opt">;</span>
-   <span class="kwa">end</span> Eval_A_Twice<span class="opt">;</span>
+      <span class="kwa">return</span> (<span class="num">1.0</span>, <span class="num">1.0</span>) / Denoms;
+   <span class="kwa">end</span> Eval_A_Twice;
 
-   Half_Matrix_Size <span class="opt">:</span> <span class="kwa">constant</span> Matrix_Index <span class="opt">:=</span> Matrix_Size <span class="opt">/</span> <span class="num">2</span><span class="opt">;</span>
+   Half_Matrix_Size : <span class="kwa">constant</span> Matrix_Index := Matrix_Size / <span class="num">2</span>;
 
    overriding
    <span class="kwa">procedure</span> Eval_A_Times
-     <span class="opt">(</span>Iron          <span class="opt">:</span> <span class="kwa">in</span>     Forced<span class="opt">;</span>
-      U             <span class="opt">:</span> <span class="kwa">in</span>     Matrix<span class="opt">;</span>
-      Start<span class="opt">,</span> Finish <span class="opt">:</span> <span class="kwa">in</span>     Matrix_Index<span class="opt">;</span>
-      Au            <span class="opt">:</span>    <span class="kwa">out</span> Matrix<span class="opt">)</span>
+     (Iron          : <span class="kwa">in</span>     Forced;
+      U             : <span class="kwa">in</span>     Matrix;
+      Start, Finish : <span class="kwa">in</span>     Matrix_Index;
+      Au            :    <span class="kwa">out</span> Matrix)
    <span class="kwa">is</span>
-      J_Index <span class="opt">:</span> Matrix_Index<span class="opt">;</span>
-      Elements <span class="opt">:</span> <span class="kwa">array</span> <span class="opt">(</span>Matrix_Index <span class="kwa">range</span> <span class="num">0</span> <span class="opt">..</span> Matrix_Size <span class="opt">/</span> <span class="num">2</span><span class="opt">)</span> <span class="kwa">of</span> SSE_Vector<span class="opt">;</span>
-      Sums <span class="opt">:</span> SSE_Vector<span class="opt">;</span>
+      J_Index : Matrix_Index;
+      Elements : <span class="kwa">array</span> (Matrix_Index <span class="kwa">range</span> <span class="num">0</span> .. Matrix_Size / <span class="num">2</span>) <span class="kwa">of</span> SSE_Vector;
+      Sums : SSE_Vector;
    <span class="kwa">begin</span>
-      <span class="kwa">for</span> I <span class="kwa">in</span> Start <span class="opt">..</span> Finish <span class="kwa">loop</span>
-         Sums <span class="opt">:= (</span><span class="num">0.0</span><span class="opt">,</span> <span class="num">0.0</span><span class="opt">);</span>
-         <span class="kwa">for</span> J <span class="kwa">in</span> Matrix_Index <span class="kwa">range</span> <span class="num">0</span> <span class="opt">..</span> Half_Matrix_Size <span class="opt">-</span> <span class="num">1</span> <span class="kwa">loop</span>
-            J_Index      <span class="opt">:=</span> U<span class="kwd">&apos;First</span> <span class="opt">+</span> <span class="num">2</span><span class="opt">*</span>J<span class="opt">;</span>
-            Elements <span class="opt">(</span>J<span class="opt">) :=</span> Eval_A_Twice <span class="opt">(</span>I<span class="opt">,</span> J_Index<span class="opt">);</span>
-         <span class="kwa">end loop</span><span class="opt">;</span>
-         <span class="kwa">for</span> J <span class="kwa">in</span> Matrix_Index <span class="kwa">range</span> <span class="num">0</span> <span class="opt">..</span> Half_Matrix_Size <span class="opt">-</span> <span class="num">1</span> <span class="kwa">loop</span>
-            J_Index      <span class="opt">:=</span> U<span class="kwd">&apos;First</span> <span class="opt">+</span> <span class="num">2</span><span class="opt">*</span>J<span class="opt">;</span>
-            Sums <span class="opt">:=</span> Sums <span class="opt">+</span> Elements<span class="opt">(</span>J<span class="opt">) * (</span>U<span class="opt">(</span>J_Index<span class="opt">),</span> U<span class="opt">(</span>J_Index<span class="opt">+</span><span class="num">1</span><span class="opt">));</span>
-         <span class="kwa">end loop</span><span class="opt">;</span>
-         <span class="kwa">if</span> Matrix_Size <span class="kwa">mod</span> <span class="num">2</span> <span class="opt">=</span> <span class="num">1</span> <span class="kwa">then</span>
-            Sums<span class="opt">(</span><span class="num">0</span><span class="opt">) :=</span> Sums<span class="opt">(</span><span class="num">0</span><span class="opt">) +</span> Eval_A<span class="opt">(</span>I<span class="opt">,</span> U<span class="kwd">&apos;Last</span><span class="opt">) *</span> U<span class="opt">(</span>U<span class="kwd">&apos;Last</span><span class="opt">);</span> <span class="slc">-- J_Index := U&apos;Last;</span>
-         <span class="kwa">end if</span><span class="opt">;</span>
-         Au<span class="opt">(</span>I<span class="opt">) :=</span> Sums<span class="opt">(</span><span class="num">0</span><span class="opt">) +</span> Sums<span class="opt">(</span><span class="num">1</span><span class="opt">);</span>
-      <span class="kwa">end loop</span><span class="opt">;</span>
-   <span class="kwa">end</span> Eval_A_Times<span class="opt">;</span>
+      <span class="kwa">for</span> I <span class="kwa">in</span> Start .. Finish <span class="kwa">loop</span>
+         Sums := (<span class="num">0.0</span>, <span class="num">0.0</span>);
+         <span class="kwa">for</span> J <span class="kwa">in</span> Matrix_Index <span class="kwa">range</span> <span class="num">0</span> .. Half_Matrix_Size - <span class="num">1</span> <span class="kwa">loop</span>
+            J_Index      := U<span class="kwd">&apos;First</span> + <span class="num">2</span>*J;
+            Elements (J) := Eval_A_Twice (I, J_Index);
+         <span class="kwa">end loop</span>;
+         <span class="kwa">for</span> J <span class="kwa">in</span> Matrix_Index <span class="kwa">range</span> <span class="num">0</span> .. Half_Matrix_Size - <span class="num">1</span> <span class="kwa">loop</span>
+            J_Index      := U<span class="kwd">&apos;First</span> + <span class="num">2</span>*J;
+            Sums := Sums + Elements(J) * (U(J_Index), U(J_Index+<span class="num">1</span>));
+         <span class="kwa">end loop</span>;
+         <span class="kwa">if</span> Matrix_Size <span class="kwa">mod</span> <span class="num">2</span> = <span class="num">1</span> <span class="kwa">then</span>
+            Sums(<span class="num">0</span>) := Sums(<span class="num">0</span>) + Eval_A(I, U<span class="kwd">&apos;Last</span>) * U(U<span class="kwd">&apos;Last</span>); <span class="slc">-- J_Index := U&apos;Last;</span>
+         <span class="kwa">end if</span>;
+         Au(I) := Sums(<span class="num">0</span>) + Sums(<span class="num">1</span>);
+      <span class="kwa">end loop</span>;
+   <span class="kwa">end</span> Eval_A_Times;
 
    overriding
    <span class="kwa">procedure</span> Eval_At_Times
-     <span class="opt">(</span>Iron          <span class="opt">:</span> <span class="kwa">in</span>     Forced<span class="opt">;</span>
-      U             <span class="opt">:</span> <span class="kwa">in</span>     Matrix<span class="opt">;</span>
-      Start<span class="opt">,</span> Finish <span class="opt">:</span> <span class="kwa">in</span>     Matrix_Index<span class="opt">;</span>
-      Au            <span class="opt">:</span>    <span class="kwa">out</span> Matrix<span class="opt">)</span>
+     (Iron          : <span class="kwa">in</span>     Forced;
+      U             : <span class="kwa">in</span>     Matrix;
+      Start, Finish : <span class="kwa">in</span>     Matrix_Index;
+      Au            :    <span class="kwa">out</span> Matrix)
    <span class="kwa">is</span>
-      J_Index <span class="opt">:</span> Matrix_Index<span class="opt">;</span>
-      Elements <span class="opt">:</span> <span class="kwa">array</span> <span class="opt">(</span>Matrix_Index <span class="kwa">range</span> <span class="num">0</span> <span class="opt">..</span> Matrix_Size <span class="opt">/</span> <span class="num">2</span><span class="opt">)</span> <span class="kwa">of</span> SSE_Vector<span class="opt">;</span>
-      Sums <span class="opt">:</span> SSE_Vector<span class="opt">;</span>
+      J_Index : Matrix_Index;
+      Elements : <span class="kwa">array</span> (Matrix_Index <span class="kwa">range</span> <span class="num">0</span> .. Matrix_Size / <span class="num">2</span>) <span class="kwa">of</span> SSE_Vector;
+      Sums : SSE_Vector;
    <span class="kwa">begin</span>
-      <span class="kwa">for</span> I <span class="kwa">in</span> Start <span class="opt">..</span> Finish <span class="kwa">loop</span>
-         Sums <span class="opt">:= (</span><span class="num">0.0</span><span class="opt">,</span> <span class="num">0.0</span><span class="opt">);</span>
-         <span class="kwa">for</span> J <span class="kwa">in</span> Matrix_Index <span class="kwa">range</span> <span class="num">0</span> <span class="opt">..</span> Half_Matrix_Size <span class="opt">-</span> <span class="num">1</span> <span class="kwa">loop</span>
-            J_Index     <span class="opt">:=</span> U<span class="kwd">&apos;First</span> <span class="opt">+</span> <span class="num">2</span><span class="opt">*</span>J<span class="opt">;</span>
-            Elements<span class="opt">(</span>J<span class="opt">) :=</span> Eval_A_tr_Twice <span class="opt">(</span>I<span class="opt">,</span> J_Index<span class="opt">);</span>
-         <span class="kwa">end loop</span><span class="opt">;</span>
-         <span class="kwa">for</span> J <span class="kwa">in</span> Matrix_Index <span class="kwa">range</span> <span class="num">0</span> <span class="opt">..</span> Half_Matrix_Size <span class="opt">-</span> <span class="num">1</span> <span class="kwa">loop</span>
-            J_Index     <span class="opt">:=</span> U<span class="kwd">&apos;First</span> <span class="opt">+</span> <span class="num">2</span><span class="opt">*</span>J<span class="opt">;</span>
-            Sums <span class="opt">:=</span> Sums <span class="opt">+</span> Elements<span class="opt">(</span>J<span class="opt">) * (</span>U<span class="opt">(</span>J_Index<span class="opt">),</span> U<span class="opt">(</span>J_Index<span class="opt">+</span><span class="num">1</span><span class="opt">));</span>
-         <span class="kwa">end loop</span><span class="opt">;</span>
-         <span class="kwa">if</span> Matrix_Size <span class="kwa">mod</span> <span class="num">2</span> <span class="opt">=</span> <span class="num">1</span> <span class="kwa">then</span>
-            Sums<span class="opt">(</span><span class="num">0</span><span class="opt">) :=</span> Sums<span class="opt">(</span><span class="num">0</span><span class="opt">) +</span> Eval_A <span class="opt">(</span>U<span class="kwd">&apos;Last</span><span class="opt">,</span> I<span class="opt">) *</span> U<span class="opt">(</span>U<span class="kwd">&apos;Last</span><span class="opt">);</span> <span class="slc">-- J_Index := U&apos;Last;</span>
-         <span class="kwa">end if</span><span class="opt">;</span>
-         Au<span class="opt">(</span>I<span class="opt">) :=</span> Sums<span class="opt">(</span><span class="num">0</span><span class="opt">) +</span> Sums<span class="opt">(</span><span class="num">1</span><span class="opt">);</span>
-      <span class="kwa">end loop</span><span class="opt">;</span>
-   <span class="kwa">end</span> Eval_At_Times<span class="opt">;</span>
+      <span class="kwa">for</span> I <span class="kwa">in</span> Start .. Finish <span class="kwa">loop</span>
+         Sums := (<span class="num">0.0</span>, <span class="num">0.0</span>);
+         <span class="kwa">for</span> J <span class="kwa">in</span> Matrix_Index <span class="kwa">range</span> <span class="num">0</span> .. Half_Matrix_Size - <span class="num">1</span> <span class="kwa">loop</span>
+            J_Index     := U<span class="kwd">&apos;First</span> + <span class="num">2</span>*J;
+            Elements(J) := Eval_A_tr_Twice (I, J_Index);
+         <span class="kwa">end loop</span>;
+         <span class="kwa">for</span> J <span class="kwa">in</span> Matrix_Index <span class="kwa">range</span> <span class="num">0</span> .. Half_Matrix_Size - <span class="num">1</span> <span class="kwa">loop</span>
+            J_Index     := U<span class="kwd">&apos;First</span> + <span class="num">2</span>*J;
+            Sums := Sums + Elements(J) * (U(J_Index), U(J_Index+<span class="num">1</span>));
+         <span class="kwa">end loop</span>;
+         <span class="kwa">if</span> Matrix_Size <span class="kwa">mod</span> <span class="num">2</span> = <span class="num">1</span> <span class="kwa">then</span>
+            Sums(<span class="num">0</span>) := Sums(<span class="num">0</span>) + Eval_A (U<span class="kwd">&apos;Last</span>, I) * U(U<span class="kwd">&apos;Last</span>); <span class="slc">-- J_Index := U&apos;Last;</span>
+         <span class="kwa">end if</span>;
+         Au(I) := Sums(<span class="num">0</span>) + Sums(<span class="num">1</span>);
+      <span class="kwa">end loop</span>;
+   <span class="kwa">end</span> Eval_At_Times;
 
-<span class="kwa">end</span> Spectral_Utils<span class="opt">.</span>S<span class="opt">;</span>
+<span class="kwa">end</span> Spectral_Utils.S;
 
 <span class="kwa">generic</span>
-   Number_Of_Tasks <span class="opt">:</span> <span class="kwb">Positive</span><span class="opt">;</span>
-<span class="kwa">package</span> Spectral_Utils<span class="opt">.</span>Dist <span class="kwa">is</span>
+   Number_Of_Tasks : <span class="kwb">Positive</span>;
+<span class="kwa">package</span> Spectral_Utils.Dist <span class="kwa">is</span>
 
    <span class="slc">--  distribute the computation</span>
 
-   <span class="kwa">pragma</span> Elaborate_Body <span class="opt">(</span>Dist<span class="opt">);</span>
+   <span class="kwa">pragma</span> Elaborate_Body (Dist);
 
    <span class="slc">--  Get   A_transpose_A_times_U = A_transpose * A * U.</span>
 
    <span class="kwa">procedure</span> Eval_Ata_Times_U
-     <span class="opt">(</span>Iron                  <span class="opt">:</span> <span class="kwa">in</span>     Matrix_Computation<span class="kwd">&apos;Class</span><span class="opt">;</span>
-      U                     <span class="opt">:</span> <span class="kwa">in</span>     Matrix<span class="opt">;</span>
-      A_transpose_A_times_U <span class="opt">:</span>    <span class="kwa">out</span> Matrix<span class="opt">);</span>
+     (Iron                  : <span class="kwa">in</span>     Matrix_Computation<span class="kwd">&apos;Class</span>;
+      U                     : <span class="kwa">in</span>     Matrix;
+      A_transpose_A_times_U :    <span class="kwa">out</span> Matrix);
 
 <span class="kwa">private</span>
-   No_of_Tasks <span class="opt">:</span> <span class="kwa">constant</span> Matrix_Index <span class="opt">:=</span> Matrix_Index <span class="opt">(</span>Number_Of_Tasks<span class="opt">);</span>
+   No_of_Tasks : <span class="kwa">constant</span> Matrix_Index := Matrix_Index (Number_Of_Tasks);
 
    <span class="slc">-- Calculate A * U</span>
 
    <span class="kwa">task type</span> Matrix_A_times_U <span class="kwa">is</span>
-      <span class="kwa">pragma</span> Storage_Size <span class="opt">(</span><span class="num">2</span><span class="opt">**</span><span class="num">18</span><span class="opt">);</span>
-      <span class="kwa">entry</span> Multiply <span class="opt">(</span>U <span class="opt">:</span> <span class="kwa">in</span> Matrix<span class="opt">;</span> Start<span class="opt">,</span> Finish <span class="opt">:</span> <span class="kwa">in</span> Matrix_Index<span class="opt">);</span>
-      <span class="kwa">entry</span> Result <span class="opt">(</span>Start<span class="opt">,</span> Finish <span class="opt">:</span> <span class="kwa">out</span> Matrix_Index<span class="opt">;</span> R <span class="opt">:</span> <span class="kwa">out</span> Matrix<span class="opt">);</span>
-   <span class="kwa">end</span> Matrix_A_times_U<span class="opt">;</span>
+      <span class="kwa">pragma</span> Storage_Size (<span class="num">2</span>**<span class="num">18</span>);
+      <span class="kwa">entry</span> Multiply (U : <span class="kwa">in</span> Matrix; Start, Finish : <span class="kwa">in</span> Matrix_Index);
+      <span class="kwa">entry</span> Result (Start, Finish : <span class="kwa">out</span> Matrix_Index; R : <span class="kwa">out</span> Matrix);
+   <span class="kwa">end</span> Matrix_A_times_U;
 
    <span class="slc">-- Calculate A_transpose * V</span>
 
    <span class="kwa">task type</span> Matrix_A_tr_times_V <span class="kwa">is</span>
-      <span class="kwa">pragma</span> Storage_Size <span class="opt">(</span><span class="num">2</span><span class="opt">**</span><span class="num">18</span><span class="opt">);</span>
-      <span class="kwa">entry</span> Multiply <span class="opt">(</span>V <span class="opt">:</span> <span class="kwa">in</span> Matrix<span class="opt">;</span> Start<span class="opt">,</span> Finish <span class="opt">:</span> <span class="kwa">in</span> Matrix_Index<span class="opt">);</span>
-      <span class="kwa">entry</span> Result <span class="opt">(</span>Start<span class="opt">,</span> Finish <span class="opt">:</span> <span class="kwa">out</span> Matrix_Index<span class="opt">;</span> R <span class="opt">:</span> <span class="kwa">out</span> Matrix<span class="opt">);</span>
-   <span class="kwa">end</span> Matrix_A_tr_times_V<span class="opt">;</span>
+      <span class="kwa">pragma</span> Storage_Size (<span class="num">2</span>**<span class="num">18</span>);
+      <span class="kwa">entry</span> Multiply (V : <span class="kwa">in</span> Matrix; Start, Finish : <span class="kwa">in</span> Matrix_Index);
+      <span class="kwa">entry</span> Result (Start, Finish : <span class="kwa">out</span> Matrix_Index; R : <span class="kwa">out</span> Matrix);
+   <span class="kwa">end</span> Matrix_A_tr_times_V;
 
-<span class="kwa">end</span> Spectral_Utils<span class="opt">.</span>Dist<span class="opt">;</span>
+<span class="kwa">end</span> Spectral_Utils.Dist;
 
-<span class="kwa">package body</span> Spectral_Utils<span class="opt">.</span>Dist <span class="kwa">is</span>
+<span class="kwa">package body</span> Spectral_Utils.Dist <span class="kwa">is</span>
 
    <span class="slc">-- Create (No_Of_Tasks-1) tasks. The final task is the environmental task,</span>
    <span class="slc">-- which does its fair share of the work in procedure Eval_Ata_Times_U.</span>
 
-   <span class="kwa">subtype</span> Task_Range <span class="kwa">is</span> Matrix_Index <span class="kwa">range</span> <span class="num">1</span> <span class="opt">..</span> No_Of_Tasks<span class="opt">-</span><span class="num">1</span><span class="opt">;</span>
+   <span class="kwa">subtype</span> Task_Range <span class="kwa">is</span> Matrix_Index <span class="kwa">range</span> <span class="num">1</span> .. No_Of_Tasks-<span class="num">1</span>;
 
-   Partial_Matrix_A_times_U    <span class="opt">:</span> <span class="kwa">array</span> <span class="opt">(</span>Task_Range<span class="opt">)</span> <span class="kwa">of</span> Matrix_A_times_U<span class="opt">;</span>
-   Partial_Matrix_A_tr_times_V <span class="opt">:</span> <span class="kwa">array</span> <span class="opt">(</span>Task_Range<span class="opt">)</span> <span class="kwa">of</span> Matrix_A_tr_times_V<span class="opt">;</span>
+   Partial_Matrix_A_times_U    : <span class="kwa">array</span> (Task_Range) <span class="kwa">of</span> Matrix_A_times_U;
+   Partial_Matrix_A_tr_times_V : <span class="kwa">array</span> (Task_Range) <span class="kwa">of</span> Matrix_A_tr_times_V;
 
    <span class="kwa">procedure</span> Eval_Ata_Times_U
-      <span class="opt">(</span>Iron                  <span class="opt">:</span> <span class="kwa">in</span>     Matrix_Computation<span class="kwd">&apos;Class</span><span class="opt">;</span>
-       U                     <span class="opt">:</span> <span class="kwa">in</span>     Matrix<span class="opt">;</span>
-       A_transpose_A_times_U <span class="opt">:</span>    <span class="kwa">out</span> Matrix<span class="opt">)</span>
+      (Iron                  : <span class="kwa">in</span>     Matrix_Computation<span class="kwd">&apos;Class</span>;
+       U                     : <span class="kwa">in</span>     Matrix;
+       A_transpose_A_times_U :    <span class="kwa">out</span> Matrix)
    <span class="kwa">is</span>
-      V<span class="opt">,</span> Partial_Product <span class="opt">:</span> Matrix<span class="opt">;</span>
+      V, Partial_Product : Matrix;
 
-      Segment_Length <span class="opt">:</span> <span class="kwa">constant</span> Matrix_Index <span class="opt">:=</span> Matrix_Size <span class="opt">/</span> No_Of_Tasks<span class="opt">;</span>
+      Segment_Length : <span class="kwa">constant</span> Matrix_Index := Matrix_Size / No_Of_Tasks;
 
-      I1<span class="opt">,</span> I2<span class="opt">,</span> J1<span class="opt">,</span> J2 <span class="opt">:</span> Matrix_Index<span class="opt">;</span>
+      I1, I2, J1, J2 : Matrix_Index;
    <span class="kwa">begin</span>
-      I1 <span class="opt">:=</span> V<span class="kwd">&apos;First</span><span class="opt">;</span>
-      I2 <span class="opt">:=</span> V<span class="kwd">&apos;First</span> <span class="opt">+</span> Segment_Length <span class="opt">-</span> <span class="num">1</span><span class="opt">;</span>
-      I2 <span class="opt">:=</span> Matrix_Index<span class="kwd">&apos;Min</span> <span class="opt">(</span>I2<span class="opt">,</span> V<span class="kwd">&apos;Last</span><span class="opt">);</span>
+      I1 := V<span class="kwd">&apos;First</span>;
+      I2 := V<span class="kwd">&apos;First</span> + Segment_Length - <span class="num">1</span>;
+      I2 := Matrix_Index<span class="kwd">&apos;Min</span> (I2, V<span class="kwd">&apos;Last</span>);
 
       <span class="slc">-- Start running the tasks in Task_Range:</span>
 
       <span class="kwa">for</span> k <span class="kwa">in</span> Task_Range <span class="kwa">loop</span>
-         Partial_Matrix_A_times_U<span class="opt">(</span>k<span class="opt">).</span>Multiply <span class="opt">(</span>U<span class="opt">,</span> I1<span class="opt">,</span> I2<span class="opt">);</span>
-         I1 <span class="opt">:=</span> I2 <span class="opt">+</span> <span class="num">1</span><span class="opt">;</span>
-         I2 <span class="opt">:=</span> I2 <span class="opt">+</span> Segment_Length<span class="opt">;</span>
-         I2 <span class="opt">:=</span> Matrix_Index<span class="kwd">&apos;Min</span> <span class="opt">(</span>I2<span class="opt">,</span> V<span class="kwd">&apos;Last</span><span class="opt">);</span>
-      <span class="kwa">end loop</span><span class="opt">;</span>
+         Partial_Matrix_A_times_U(k).Multiply (U, I1, I2);
+         I1 := I2 + <span class="num">1</span>;
+         I2 := I2 + Segment_Length;
+         I2 := Matrix_Index<span class="kwd">&apos;Min</span> (I2, V<span class="kwd">&apos;Last</span>);
+      <span class="kwa">end loop</span>;
 
-      Iron<span class="opt">.</span>Eval_A_Times <span class="opt">(</span>U<span class="opt">,</span> I1<span class="opt">,</span> V<span class="kwd">&apos;Last</span><span class="opt">,</span> V<span class="opt">);</span> <span class="slc">-- Env task updates V(I1 .. V&apos;Last).</span>
+      Iron.Eval_A_Times (U, I1, V<span class="kwd">&apos;Last</span>, V); <span class="slc">-- Env task updates V(I1 .. V&apos;Last).</span>
 
       <span class="slc">-- Rendezvous with tasks to get partial results. Write results to V:</span>
 
       <span class="kwa">for</span> k <span class="kwa">in</span> Task_Range <span class="kwa">loop</span>
-         Partial_Matrix_A_times_U<span class="opt">(</span>k<span class="opt">).</span>Result <span class="opt">(</span>J1<span class="opt">,</span> J2<span class="opt">,</span> Partial_Product<span class="opt">);</span>
-         V<span class="opt">(</span>J1 <span class="opt">..</span> J2<span class="opt">) :=</span> Partial_Product<span class="opt">(</span>J1 <span class="opt">..</span> J2<span class="opt">);</span>
-      <span class="kwa">end loop</span><span class="opt">;</span>
+         Partial_Matrix_A_times_U(k).Result (J1, J2, Partial_Product);
+         V(J1 .. J2) := Partial_Product(J1 .. J2);
+      <span class="kwa">end loop</span>;
 
       <span class="slc">-- The result, stored in V, is A*U. Next get A_transpose * (A*U).</span>
 
-      I1 <span class="opt">:=</span> V<span class="kwd">&apos;First</span><span class="opt">;</span>
-      I2 <span class="opt">:=</span> V<span class="kwd">&apos;First</span> <span class="opt">+</span> Segment_Length <span class="opt">-</span> <span class="num">1</span><span class="opt">;</span>
-      I2 <span class="opt">:=</span> Matrix_Index<span class="kwd">&apos;Min</span> <span class="opt">(</span>I2<span class="opt">,</span> V<span class="kwd">&apos;Last</span><span class="opt">);</span>
+      I1 := V<span class="kwd">&apos;First</span>;
+      I2 := V<span class="kwd">&apos;First</span> + Segment_Length - <span class="num">1</span>;
+      I2 := Matrix_Index<span class="kwd">&apos;Min</span> (I2, V<span class="kwd">&apos;Last</span>);
 
       <span class="kwa">for</span> k <span class="kwa">in</span> Task_Range <span class="kwa">loop</span>
-         Partial_Matrix_A_tr_times_V<span class="opt">(</span>k<span class="opt">).</span>Multiply <span class="opt">(</span>V<span class="opt">,</span> I1<span class="opt">,</span> I2<span class="opt">);</span>
-         I1 <span class="opt">:=</span> I2 <span class="opt">+</span> <span class="num">1</span><span class="opt">;</span>
-         I2 <span class="opt">:=</span> I2 <span class="opt">+</span> Segment_Length<span class="opt">;</span>
-         I2 <span class="opt">:=</span> Matrix_Index<span class="kwd">&apos;Min</span> <span class="opt">(</span>I2<span class="opt">,</span> V<span class="kwd">&apos;Last</span><span class="opt">);</span>
-      <span class="kwa">end loop</span><span class="opt">;</span>
+         Partial_Matrix_A_tr_times_V(k).Multiply (V, I1, I2);
+         I1 := I2 + <span class="num">1</span>;
+         I2 := I2 + Segment_Length;
+         I2 := Matrix_Index<span class="kwd">&apos;Min</span> (I2, V<span class="kwd">&apos;Last</span>);
+      <span class="kwa">end loop</span>;
 
-      Iron<span class="opt">.</span>Eval_At_Times <span class="opt">(</span>V<span class="opt">,</span> I1<span class="opt">,</span> V<span class="kwd">&apos;Last</span><span class="opt">,</span> A_transpose_A_times_U<span class="opt">);</span>
+      Iron.Eval_At_Times (V, I1, V<span class="kwd">&apos;Last</span>, A_transpose_A_times_U);
       <span class="slc">-- Env. task updates A_transpose_A_times_U (I1 .. V&apos;Last).</span>
 
       <span class="kwa">for</span> k <span class="kwa">in</span> Task_Range <span class="kwa">loop</span>
-         Partial_Matrix_A_tr_times_V<span class="opt">(</span>k<span class="opt">).</span>Result <span class="opt">(</span>J1<span class="opt">,</span> J2<span class="opt">,</span> Partial_Product<span class="opt">);</span>
-         A_transpose_A_times_U<span class="opt">(</span>J1 <span class="opt">..</span> J2<span class="opt">) :=</span> Partial_Product<span class="opt">(</span>J1 <span class="opt">..</span> J2<span class="opt">);</span>
-      <span class="kwa">end loop</span><span class="opt">;</span>
+         Partial_Matrix_A_tr_times_V(k).Result (J1, J2, Partial_Product);
+         A_transpose_A_times_U(J1 .. J2) := Partial_Product(J1 .. J2);
+      <span class="kwa">end loop</span>;
 
-   <span class="kwa">end</span> Eval_Ata_Times_U<span class="opt">;</span>
+   <span class="kwa">end</span> Eval_Ata_Times_U;
 
    <span class="kwa">task body</span> Matrix_A_times_U <span class="kwa">is</span>
-      I1<span class="opt">,</span> I2 <span class="opt">:</span> Matrix_Index<span class="opt">;</span>
-      AU<span class="opt">,</span> U_local <span class="opt">:</span> Matrix<span class="opt">;</span>
-      Calculator <span class="opt">:</span> <span class="kwa">constant</span> Matrix_Computation<span class="kwd">&apos;Class</span> <span class="opt">:=</span> Make_Calculator<span class="opt">;</span>
+      I1, I2 : Matrix_Index;
+      AU, U_local : Matrix;
+      Calculator : <span class="kwa">constant</span> Matrix_Computation<span class="kwd">&apos;Class</span> := Make_Calculator;
    <span class="kwa">begin</span>
      <span class="kwa">loop</span>
      <span class="kwa">select</span>
-        <span class="kwa">accept</span> Multiply <span class="opt">(</span>U <span class="opt">:</span> <span class="kwa">in</span> Matrix<span class="opt">;</span> Start<span class="opt">,</span> Finish <span class="opt">:</span> <span class="kwa">in</span> Matrix_Index<span class="opt">)</span> <span class="kwa">do</span>
-           I1 <span class="opt">:=</span> Start<span class="opt">;</span>
-           I2 <span class="opt">:=</span> Finish<span class="opt">;</span>
-           U_local <span class="opt">:=</span> U<span class="opt">;</span>
-        <span class="kwa">end</span> Multiply<span class="opt">;</span>
+        <span class="kwa">accept</span> Multiply (U : <span class="kwa">in</span> Matrix; Start, Finish : <span class="kwa">in</span> Matrix_Index) <span class="kwa">do</span>
+           I1 := Start;
+           I2 := Finish;
+           U_local := U;
+        <span class="kwa">end</span> Multiply;
 
-        Calculator<span class="opt">.</span>Eval_A_Times <span class="opt">(</span>U_Local<span class="opt">,</span> I1<span class="opt">,</span> I2<span class="opt">,</span> AU<span class="opt">);</span> <span class="slc">-- updates AU(I1..I2)</span>
+        Calculator.Eval_A_Times (U_Local, I1, I2, AU); <span class="slc">-- updates AU(I1..I2)</span>
 
-        <span class="kwa">accept</span> Result <span class="opt">(</span>Start<span class="opt">,</span> Finish <span class="opt">:</span> <span class="kwa">out</span> Matrix_Index<span class="opt">;</span> R <span class="opt">:</span> <span class="kwa">out</span> Matrix<span class="opt">)</span> <span class="kwa">do</span>
-           Start  <span class="opt">:=</span> I1<span class="opt">;</span>
-           Finish <span class="opt">:=</span> I2<span class="opt">;</span>
-           R<span class="opt">(</span>Start <span class="opt">..</span> Finish<span class="opt">) :=</span> AU<span class="opt">(</span>Start <span class="opt">..</span> Finish<span class="opt">);</span>
-        <span class="kwa">end</span> Result<span class="opt">;</span>
+        <span class="kwa">accept</span> Result (Start, Finish : <span class="kwa">out</span> Matrix_Index; R : <span class="kwa">out</span> Matrix) <span class="kwa">do</span>
+           Start  := I1;
+           Finish := I2;
+           R(Start .. Finish) := AU(Start .. Finish);
+        <span class="kwa">end</span> Result;
      <span class="kwa">or</span>
-        <span class="kwa">terminate</span><span class="opt">;</span>
-     <span class="kwa">end select</span><span class="opt">;</span>
-     <span class="kwa">end loop</span><span class="opt">;</span>
-   <span class="kwa">end</span> Matrix_A_times_U<span class="opt">;</span>
+        <span class="kwa">terminate</span>;
+     <span class="kwa">end select</span>;
+     <span class="kwa">end loop</span>;
+   <span class="kwa">end</span> Matrix_A_times_U;
 
    <span class="kwa">task body</span> Matrix_A_tr_times_V <span class="kwa">is</span>
-      I1<span class="opt">,</span> I2 <span class="opt">:</span> Matrix_Index<span class="opt">;</span>
-      AV<span class="opt">,</span> V_local <span class="opt">:</span> Matrix<span class="opt">;</span>
-      Calculator <span class="opt">:</span> <span class="kwa">constant</span> Matrix_Computation<span class="kwd">&apos;Class</span> <span class="opt">:=</span> Make_Calculator<span class="opt">;</span>
+      I1, I2 : Matrix_Index;
+      AV, V_local : Matrix;
+      Calculator : <span class="kwa">constant</span> Matrix_Computation<span class="kwd">&apos;Class</span> := Make_Calculator;
    <span class="kwa">begin</span>
      <span class="kwa">loop</span>
      <span class="kwa">select</span>
-        <span class="kwa">accept</span> Multiply <span class="opt">(</span>V <span class="opt">:</span> <span class="kwa">in</span> Matrix<span class="opt">;</span> Start<span class="opt">,</span> Finish <span class="opt">:</span> <span class="kwa">in</span> Matrix_Index<span class="opt">)</span> <span class="kwa">do</span>
-           I1 <span class="opt">:=</span> Start<span class="opt">;</span>
-           I2 <span class="opt">:=</span> Finish<span class="opt">;</span>
-           V_local <span class="opt">:=</span> V<span class="opt">;</span>
-        <span class="kwa">end</span> Multiply<span class="opt">;</span>
+        <span class="kwa">accept</span> Multiply (V : <span class="kwa">in</span> Matrix; Start, Finish : <span class="kwa">in</span> Matrix_Index) <span class="kwa">do</span>
+           I1 := Start;
+           I2 := Finish;
+           V_local := V;
+        <span class="kwa">end</span> Multiply;
 
-        Calculator<span class="opt">.</span>Eval_At_Times <span class="opt">(</span>V_Local<span class="opt">,</span> I1<span class="opt">,</span> I2<span class="opt">,</span> AV<span class="opt">);</span>
+        Calculator.Eval_At_Times (V_Local, I1, I2, AV);
         <span class="slc">-- AV = A_transpose * V_local</span>
 
-        <span class="kwa">accept</span> Result <span class="opt">(</span>Start<span class="opt">,</span> Finish <span class="opt">:</span> <span class="kwa">out</span> Matrix_Index<span class="opt">;</span> R <span class="opt">:</span> <span class="kwa">out</span> Matrix<span class="opt">)</span> <span class="kwa">do</span>
-           Start  <span class="opt">:=</span> I1<span class="opt">;</span>
-           Finish <span class="opt">:=</span> I2<span class="opt">;</span>
-           R<span class="opt">(</span>Start <span class="opt">..</span> Finish<span class="opt">) :=</span> AV<span class="opt">(</span>Start <span class="opt">..</span> Finish<span class="opt">);</span>
-        <span class="kwa">end</span> Result<span class="opt">;</span>
+        <span class="kwa">accept</span> Result (Start, Finish : <span class="kwa">out</span> Matrix_Index; R : <span class="kwa">out</span> Matrix) <span class="kwa">do</span>
+           Start  := I1;
+           Finish := I2;
+           R(Start .. Finish) := AV(Start .. Finish);
+        <span class="kwa">end</span> Result;
      <span class="kwa">or</span>
-        <span class="kwa">terminate</span><span class="opt">;</span>
-     <span class="kwa">end select</span><span class="opt">;</span>
-     <span class="kwa">end loop</span><span class="opt">;</span>
-   <span class="kwa">end</span> Matrix_A_tr_times_V<span class="opt">;</span>
+        <span class="kwa">terminate</span>;
+     <span class="kwa">end select</span>;
+     <span class="kwa">end loop</span>;
+   <span class="kwa">end</span> Matrix_A_tr_times_V;
 
-<span class="kwa">end</span> Spectral_Utils<span class="opt">.</span>Dist<span class="opt">;</span>
+<span class="kwa">end</span> Spectral_Utils.Dist;
 
 <span class="kwa">package</span> Division <span class="kwa">is</span>
 
-   <span class="kwa">pragma</span> Pure <span class="opt">(</span>Division<span class="opt">);</span>
+   <span class="kwa">pragma</span> Pure (Division);
 
-   <span class="kwa">type</span> SSE_Real <span class="kwa">is new</span> <span class="kwb">Long_Float</span><span class="opt">;</span>
+   <span class="kwa">type</span> SSE_Real <span class="kwa">is new</span> <span class="kwb">Long_Float</span>;
 
 <span class="kwa">private</span>
-   <span class="kwa">pragma</span> Assert <span class="opt">(</span>SSE_Real<span class="kwd">&apos;Size</span> <span class="opt">=</span> <span class="num">64</span> <span class="kwa">and</span> SSE_Real<span class="kwd">&apos;digits</span> <span class="opt">&gt;</span> <span class="num">13</span><span class="opt">);</span>
-<span class="kwa">end</span> Division<span class="opt">;</span>
+   <span class="kwa">pragma</span> Assert (SSE_Real<span class="kwd">&apos;Size</span> = <span class="num">64</span> <span class="kwa">and</span> SSE_Real<span class="kwd">&apos;digits</span> &gt; <span class="num">13</span>);
+<span class="kwa">end</span> Division;
 
 
-<span class="kwa">package</span> Division<span class="opt">.</span>S <span class="kwa">is</span>
+<span class="kwa">package</span> Division.S <span class="kwa">is</span>
 
    <span class="slc">--  force SSE operations</span>
 
-   <span class="kwa">type</span> SSE_Vector <span class="kwa">is array</span> <span class="opt">(</span><span class="num">0</span> <span class="opt">..</span> <span class="num">1</span><span class="opt">)</span> <span class="kwa">of</span> SSE_Real<span class="opt">;</span>
-   <span class="kwa">for</span> SSE_Vector<span class="kwd">&apos;Alignment</span> <span class="kwa">use</span> <span class="num">16</span><span class="opt">;</span>
-   <span class="kwa">pragma</span> Machine_Attribute <span class="opt">(</span>SSE_Vector<span class="opt">,</span> <span class="str">&quot;vector_type&quot;</span><span class="opt">);</span>
-   <span class="kwa">pragma</span> Machine_Attribute <span class="opt">(</span>SSE_Vector<span class="opt">,</span> <span class="str">&quot;may_alias&quot;</span><span class="opt">);</span>
+   <span class="kwa">type</span> SSE_Vector <span class="kwa">is array</span> (<span class="num">0</span> .. <span class="num">1</span>) <span class="kwa">of</span> SSE_Real;
+   <span class="kwa">for</span> SSE_Vector<span class="kwd">&apos;Alignment</span> <span class="kwa">use</span> <span class="num">16</span>;
+   <span class="kwa">pragma</span> Machine_Attribute (SSE_Vector, <span class="str">&quot;vector_type&quot;</span>);
+   <span class="kwa">pragma</span> Machine_Attribute (SSE_Vector, <span class="str">&quot;may_alias&quot;</span>);
 
-   <span class="kwa">function</span> <span class="str">&quot;+&quot;</span> <span class="opt">(</span>X<span class="opt">,</span> Y <span class="opt">:</span> SSE_Vector<span class="opt">)</span> <span class="kwa">return</span> SSE_Vector<span class="opt">;</span>
-   <span class="kwa">function</span> <span class="str">&quot;*&quot;</span> <span class="opt">(</span>X<span class="opt">,</span> Y <span class="opt">:</span> SSE_Vector<span class="opt">)</span> <span class="kwa">return</span> SSE_Vector<span class="opt">;</span>
-   <span class="kwa">function</span> <span class="str">&quot;/&quot;</span> <span class="opt">(</span>X<span class="opt">,</span> Y <span class="opt">:</span> SSE_Vector<span class="opt">)</span> <span class="kwa">return</span> SSE_Vector<span class="opt">;</span>
+   <span class="kwa">function</span> <span class="str">&quot;+&quot;</span> (X, Y : SSE_Vector) <span class="kwa">return</span> SSE_Vector;
+   <span class="kwa">function</span> <span class="str">&quot;*&quot;</span> (X, Y : SSE_Vector) <span class="kwa">return</span> SSE_Vector;
+   <span class="kwa">function</span> <span class="str">&quot;/&quot;</span> (X, Y : SSE_Vector) <span class="kwa">return</span> SSE_Vector;
 
 <span class="kwa">private</span>
-   <span class="kwa">pragma</span> Import <span class="opt">(</span>Intrinsic<span class="opt">,</span> <span class="str">&quot;+&quot;</span><span class="opt">,</span> <span class="str">&quot;__builtin_ia32_addpd&quot;</span><span class="opt">);</span>
-   <span class="kwa">pragma</span> Import <span class="opt">(</span>Intrinsic<span class="opt">,</span> <span class="str">&quot;*&quot;</span><span class="opt">,</span> <span class="str">&quot;__builtin_ia32_mulpd&quot;</span><span class="opt">);</span>
-   <span class="kwa">pragma</span> Import <span class="opt">(</span>Intrinsic<span class="opt">,</span> <span class="str">&quot;/&quot;</span><span class="opt">,</span> <span class="str">&quot;__builtin_ia32_divpd&quot;</span><span class="opt">);</span>
-<span class="kwa">end</span> Division<span class="opt">.</span>S<span class="opt">;</span>
+   <span class="kwa">pragma</span> Import (Intrinsic, <span class="str">&quot;+&quot;</span>, <span class="str">&quot;__builtin_ia32_addpd&quot;</span>);
+   <span class="kwa">pragma</span> Import (Intrinsic, <span class="str">&quot;*&quot;</span>, <span class="str">&quot;__builtin_ia32_mulpd&quot;</span>);
+   <span class="kwa">pragma</span> Import (Intrinsic, <span class="str">&quot;/&quot;</span>, <span class="str">&quot;__builtin_ia32_divpd&quot;</span>);
+<span class="kwa">end</span> Division.S;
 
 
-<span class="kwa">package</span> Division<span class="opt">.</span>D <span class="kwa">is</span>
+<span class="kwa">package</span> Division.D <span class="kwa">is</span>
 
-   <span class="kwa">type</span> SSE_Vector <span class="kwa">is array</span><span class="opt">(</span><span class="num">0</span> <span class="opt">..</span> <span class="num">1</span><span class="opt">)</span> <span class="kwa">of</span> SSE_Real<span class="opt">;</span>
+   <span class="kwa">type</span> SSE_Vector <span class="kwa">is array</span>(<span class="num">0</span> .. <span class="num">1</span>) <span class="kwa">of</span> SSE_Real;
 
-   <span class="kwa">function</span> Ratios <span class="opt">(</span>x0<span class="opt">,</span> x1<span class="opt">,</span> y0<span class="opt">,</span> y1 <span class="opt">:</span> <span class="kwa">in</span> SSE_Real<span class="opt">)</span> <span class="kwa">return</span> SSE_Vector<span class="opt">;</span>
+   <span class="kwa">function</span> Ratios (x0, x1, y0, y1 : <span class="kwa">in</span> SSE_Real) <span class="kwa">return</span> SSE_Vector;
 
-<span class="kwa">end</span> Division<span class="opt">.</span>D<span class="opt">;</span>
+<span class="kwa">end</span> Division.D;
 
-<span class="kwa">package body</span> Division<span class="opt">.</span>D <span class="kwa">is</span>
+<span class="kwa">package body</span> Division.D <span class="kwa">is</span>
 
-   <span class="kwa">type</span> m128d <span class="kwa">is array</span> <span class="opt">(</span><span class="num">0</span> <span class="opt">..</span> <span class="num">1</span><span class="opt">)</span> <span class="kwa">of</span> SSE_Real<span class="opt">;</span>
-   <span class="kwa">for</span> m128d<span class="kwd">&apos;Alignment</span> <span class="kwa">use</span> <span class="num">16</span><span class="opt">;</span>
-   <span class="kwa">pragma</span> Machine_Attribute <span class="opt">(</span>m128d<span class="opt">,</span> <span class="str">&quot;vector_type&quot;</span><span class="opt">);</span>
-   <span class="kwa">pragma</span> Machine_Attribute <span class="opt">(</span>m128d<span class="opt">,</span> <span class="str">&quot;may_alias&quot;</span><span class="opt">);</span>
+   <span class="kwa">type</span> m128d <span class="kwa">is array</span> (<span class="num">0</span> .. <span class="num">1</span>) <span class="kwa">of</span> SSE_Real;
+   <span class="kwa">for</span> m128d<span class="kwd">&apos;Alignment</span> <span class="kwa">use</span> <span class="num">16</span>;
+   <span class="kwa">pragma</span> Machine_Attribute (m128d, <span class="str">&quot;vector_type&quot;</span>);
+   <span class="kwa">pragma</span> Machine_Attribute (m128d, <span class="str">&quot;may_alias&quot;</span>);
 
-   <span class="kwa">function</span> Div <span class="opt">(</span>X<span class="opt">,</span> Y <span class="opt">:</span> m128d<span class="opt">)</span> <span class="kwa">return</span> m128d<span class="opt">;</span>
-   <span class="kwa">pragma</span> Import <span class="opt">(</span>Intrinsic<span class="opt">,</span> Div<span class="opt">,</span> <span class="str">&quot;__builtin_ia32_divpd&quot;</span><span class="opt">);</span>
+   <span class="kwa">function</span> Div (X, Y : m128d) <span class="kwa">return</span> m128d;
+   <span class="kwa">pragma</span> Import (Intrinsic, Div, <span class="str">&quot;__builtin_ia32_divpd&quot;</span>);
 
-   <span class="kwa">function</span> Ratios <span class="opt">(</span>x0<span class="opt">,</span> x1<span class="opt">,</span> y0<span class="opt">,</span> y1 <span class="opt">:</span> <span class="kwa">in</span> SSE_Real<span class="opt">)</span> <span class="kwa">return</span> SSE_Vector <span class="kwa">is</span>
-      z <span class="opt">:</span> <span class="kwa">constant</span> m128d <span class="opt">:=</span> Div <span class="opt">((</span>x0<span class="opt">,</span> x1<span class="opt">), (</span>y0<span class="opt">,</span> y1<span class="opt">));</span>
+   <span class="kwa">function</span> Ratios (x0, x1, y0, y1 : <span class="kwa">in</span> SSE_Real) <span class="kwa">return</span> SSE_Vector <span class="kwa">is</span>
+      z : <span class="kwa">constant</span> m128d := Div ((x0, x1), (y0, y1));
    <span class="kwa">begin</span>
-      <span class="kwa">return</span> <span class="opt">(</span>z<span class="opt">(</span><span class="num">0</span><span class="opt">),</span> z<span class="opt">(</span><span class="num">1</span><span class="opt">));</span>
-   <span class="kwa">end</span> Ratios<span class="opt">;</span>
+      <span class="kwa">return</span> (z(<span class="num">0</span>), z(<span class="num">1</span>));
+   <span class="kwa">end</span> Ratios;
 
-<span class="kwa">end</span> Division<span class="opt">.</span>D<span class="opt">;</span>
+<span class="kwa">end</span> Division.D;
     </pre>
   </section>
   <section>
@@ -576,12 +576,12 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
     <pre>
 NOTES:
 64-bit Ubuntu quad core
-GNATMAKE 9.3.0
-gcc (Ubuntu 10.2.0-13ubuntu1) 10.2.0
+GNATMAKE 10.3.0
+gcc (Ubuntu 10.3.0-1ubuntu1) 10.3.0
 
 
 
-Fri, 23 Oct 2020 19:38:57 GMT
+Sat, 05 Jun 2021 02:41:22 GMT
 
 MAKE:
 gnatchop -r -w spectralnorm.gnat-4.gnat
@@ -600,18 +600,18 @@ splitting spectralnorm.gnat-4.gnat into:
    division-d.ads
    division-d.adb
 gnatmake -O3 -fomit-frame-pointer -march=ivybridge -gnatNp -f spectralnorm.adb -o spectralnorm.gnat-4.gnat_run 
-x86_64-linux-gnu-gcc-9 -c -O3 -fomit-frame-pointer -march=ivybridge -gnatNp spectralnorm.adb
-x86_64-linux-gnu-gcc-9 -c -O3 -fomit-frame-pointer -march=ivybridge -gnatNp division.ads
-x86_64-linux-gnu-gcc-9 -c -O3 -fomit-frame-pointer -march=ivybridge -gnatNp division-d.adb
-x86_64-linux-gnu-gcc-9 -c -O3 -fomit-frame-pointer -march=ivybridge -gnatNp division-s.ads
-x86_64-linux-gnu-gcc-9 -c -O3 -fomit-frame-pointer -march=ivybridge -gnatNp spectral_utils.adb
-x86_64-linux-gnu-gcc-9 -c -O3 -fomit-frame-pointer -march=ivybridge -gnatNp spectral_utils-d.adb
-x86_64-linux-gnu-gcc-9 -c -O3 -fomit-frame-pointer -march=ivybridge -gnatNp spectral_utils-dist.adb
-x86_64-linux-gnu-gcc-9 -c -O3 -fomit-frame-pointer -march=ivybridge -gnatNp spectral_utils-s.adb
-x86_64-linux-gnu-gnatbind-9 -x spectralnorm.ali
-x86_64-linux-gnu-gnatlink-9 spectralnorm.ali -O3 -fomit-frame-pointer -march=ivybridge -o spectralnorm.gnat-4.gnat_run
+x86_64-linux-gnu-gcc-10 -c -O3 -fomit-frame-pointer -march=ivybridge -gnatNp spectralnorm.adb
+x86_64-linux-gnu-gcc-10 -c -O3 -fomit-frame-pointer -march=ivybridge -gnatNp division.ads
+x86_64-linux-gnu-gcc-10 -c -O3 -fomit-frame-pointer -march=ivybridge -gnatNp division-d.adb
+x86_64-linux-gnu-gcc-10 -c -O3 -fomit-frame-pointer -march=ivybridge -gnatNp division-s.ads
+x86_64-linux-gnu-gcc-10 -c -O3 -fomit-frame-pointer -march=ivybridge -gnatNp spectral_utils.adb
+x86_64-linux-gnu-gcc-10 -c -O3 -fomit-frame-pointer -march=ivybridge -gnatNp spectral_utils-d.adb
+x86_64-linux-gnu-gcc-10 -c -O3 -fomit-frame-pointer -march=ivybridge -gnatNp spectral_utils-dist.adb
+x86_64-linux-gnu-gcc-10 -c -O3 -fomit-frame-pointer -march=ivybridge -gnatNp spectral_utils-s.adb
+x86_64-linux-gnu-gnatbind-10 -x spectralnorm.ali
+x86_64-linux-gnu-gnatlink-10 spectralnorm.ali -O3 -fomit-frame-pointer -march=ivybridge -o spectralnorm.gnat-4.gnat_run
 
-3.04s to complete and log all make actions
+3.14s to complete and log all make actions
 
 COMMAND LINE:
 ./spectralnorm.gnat-4.gnat_run 5500

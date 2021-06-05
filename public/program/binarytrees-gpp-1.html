@@ -39,83 +39,83 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 
 <span class="ppc">#include &lt;boost/pool/object_pool.hpp&gt;</span>
 
-<span class="kwc">constexpr</span> <span class="kwb">int</span> threads<span class="opt">{</span><span class="num">16</span><span class="opt">};</span>
+<span class="kwc">constexpr</span> <span class="kwb">int</span> threads{<span class="num">16</span>};
 
-<span class="kwb">struct</span> Node <span class="opt">{</span>
-   Node <span class="opt">*</span>l<span class="opt">,*</span>r<span class="opt">;</span>
-   <span class="kwd">Node</span><span class="opt">() :</span> <span class="kwd">l</span><span class="opt">(</span><span class="num">0</span><span class="opt">),</span><span class="kwd">r</span><span class="opt">(</span><span class="num">0</span><span class="opt">) {}</span>
-   <span class="kwd">Node</span><span class="opt">(</span>Node <span class="opt">*</span>l<span class="opt">,</span>Node <span class="opt">*</span>r<span class="opt">) :</span> <span class="kwd">l</span><span class="opt">(</span>l<span class="opt">),</span><span class="kwd">r</span><span class="opt">(</span>r<span class="opt">) {}</span>
-   <span class="kwb">int</span> <span class="kwd">check</span><span class="opt">()</span> <span class="kwb">const</span>
-   <span class="opt">{</span>
-      <span class="kwa">if</span> <span class="opt">(</span>l<span class="opt">)</span>
-         <span class="kwa">return</span> l<span class="opt">-&gt;</span><span class="kwd">check</span><span class="opt">() +</span> <span class="num">1</span> <span class="opt">+</span> r<span class="opt">-&gt;</span><span class="kwd">check</span><span class="opt">();</span>
-      <span class="kwa">else return</span> <span class="num">1</span><span class="opt">;</span>
-   <span class="opt">}</span>
-<span class="opt">};</span>
+<span class="kwb">struct</span> Node {
+   Node *l,*r;
+   <span class="kwd">Node</span>() : <span class="kwd">l</span>(<span class="num">0</span>),<span class="kwd">r</span>(<span class="num">0</span>) {}
+   <span class="kwd">Node</span>(Node *l,Node *r) : <span class="kwd">l</span>(l),<span class="kwd">r</span>(r) {}
+   <span class="kwb">int</span> <span class="kwd">check</span>() <span class="kwb">const</span>
+   {
+      <span class="kwa">if</span> (l)
+         <span class="kwa">return</span> l-&gt;<span class="kwd">check</span>() + <span class="num">1</span> + r-&gt;<span class="kwd">check</span>();
+      <span class="kwa">else return</span> <span class="num">1</span>;
+   }
+};
 
-<span class="kwa">using</span> Node_pool <span class="opt">=</span> <span class="kwc">boost</span><span class="opt">::</span>object_pool<span class="opt">&lt;</span>Node<span class="opt">&gt;;</span>
+<span class="kwa">using</span> Node_pool = boost::object_pool&lt;Node&gt;;
 
-Node <span class="opt">*</span><span class="kwd">make</span><span class="opt">(</span><span class="kwb">int</span> d<span class="opt">,</span>Node_pool<span class="opt">&amp;</span> pool<span class="opt">)</span>
-<span class="opt">{</span>
-   <span class="kwa">if</span> <span class="opt">(</span>d<span class="opt">==</span><span class="num">0</span><span class="opt">)</span>
-      <span class="kwa">return</span> pool<span class="opt">.</span><span class="kwd">construct</span><span class="opt">();</span>
-   <span class="kwa">return</span> pool<span class="opt">.</span><span class="kwd">construct</span><span class="opt">(</span><span class="kwd">make</span><span class="opt">(</span>d<span class="opt">-</span><span class="num">1</span><span class="opt">,</span>pool<span class="opt">),</span><span class="kwd">make</span><span class="opt">(</span>d<span class="opt">-</span><span class="num">1</span><span class="opt">,</span>pool<span class="opt">));</span>
-<span class="opt">}</span>
+Node *<span class="kwd">make</span>(<span class="kwb">int</span> d,Node_pool&amp; pool)
+{
+   <span class="kwa">if</span> (d==<span class="num">0</span>)
+      <span class="kwa">return</span> pool.<span class="kwd">construct</span>();
+   <span class="kwa">return</span> pool.<span class="kwd">construct</span>(<span class="kwd">make</span>(d-<span class="num">1</span>,pool),<span class="kwd">make</span>(d-<span class="num">1</span>,pool));
+}
 
-<span class="kwb">int</span> <span class="kwd">make_iteration</span><span class="opt">(</span><span class="kwb">int</span> from<span class="opt">,</span><span class="kwb">int</span> to<span class="opt">,</span><span class="kwb">int</span> d<span class="opt">,</span><span class="kwb">bool</span> thread<span class="opt">)</span>
-<span class="opt">{</span>
-   <span class="kwb">int</span> c<span class="opt">{</span><span class="num">0</span><span class="opt">};</span>
-   <span class="kwa">if</span> <span class="opt">(</span>thread<span class="opt">) {</span>
-      <span class="kwc">std</span><span class="opt">::</span>vector<span class="opt">&lt;</span><span class="kwc">std</span><span class="opt">::</span>future<span class="opt">&lt;</span><span class="kwb">int</span><span class="opt">&gt;&gt;</span>futures<span class="opt">{};</span>
-      <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> j<span class="opt">=</span><span class="num">0</span><span class="opt">;</span> j<span class="opt">&lt;</span>threads<span class="opt">; ++</span>j<span class="opt">) {</span>
-         <span class="kwb">int</span> span<span class="opt">{(</span>to<span class="opt">-</span>from<span class="opt">+</span><span class="num">1</span><span class="opt">)/</span>threads<span class="opt">};</span>
-         futures<span class="opt">.</span><span class="kwd">emplace_back</span><span class="opt">(</span><span class="kwc">std</span><span class="opt">::</span><span class="kwd">async</span><span class="opt">(</span><span class="kwc">std</span><span class="opt">::</span><span class="kwc">launch</span><span class="opt">::</span>async<span class="opt">,</span>
-            make_iteration<span class="opt">,</span>from<span class="opt">+</span>span<span class="opt">*</span>j<span class="opt">,</span>span<span class="opt">+</span>span<span class="opt">*</span>j<span class="opt">,</span>d<span class="opt">,</span><span class="kwa">false</span><span class="opt">));</span>
-      <span class="opt">}</span>
-      <span class="kwa">for</span> <span class="opt">(</span><span class="kwc">auto</span><span class="opt">&amp;</span> fti <span class="opt">:</span> futures<span class="opt">) {</span>
-         c <span class="opt">+=</span> fti<span class="opt">.</span><span class="kwd">get</span><span class="opt">();</span>
-      <span class="opt">}</span>
-   <span class="opt">}</span>
-   <span class="kwa">else</span> <span class="opt">{</span>
-      Node_pool pool<span class="opt">;</span>
-      <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> i<span class="opt">=</span>from<span class="opt">;</span> i<span class="opt">&lt;=</span>to<span class="opt">; ++</span>i<span class="opt">) {</span>
-         Node <span class="opt">*</span>a <span class="opt">=</span> <span class="kwd">make</span><span class="opt">(</span>d<span class="opt">,</span>pool<span class="opt">);</span>
-         c <span class="opt">+=</span> a<span class="opt">-&gt;</span><span class="kwd">check</span><span class="opt">();</span>
-      <span class="opt">}</span>
-   <span class="opt">}</span>
-   <span class="kwa">return</span> c<span class="opt">;</span>
-<span class="opt">}</span>
+<span class="kwb">int</span> <span class="kwd">make_iteration</span>(<span class="kwb">int</span> from,<span class="kwb">int</span> to,<span class="kwb">int</span> d,<span class="kwb">bool</span> thread)
+{
+   <span class="kwb">int</span> c{<span class="num">0</span>};
+   <span class="kwa">if</span> (thread) {
+      std::vector&lt;std::future&lt;<span class="kwb">int</span>&gt;&gt;futures{};
+      <span class="kwa">for</span> (<span class="kwb">int</span> j=<span class="num">0</span>; j&lt;threads; ++j) {
+         <span class="kwb">int</span> span{(to-from+<span class="num">1</span>)/threads};
+         futures.<span class="kwd">emplace_back</span>(std::<span class="kwd">async</span>(std::launch::async,
+            make_iteration,from+span*j,span+span*j,d,<span class="kwa">false</span>));
+      }
+      <span class="kwa">for</span> (<span class="kwc">auto</span>&amp; fti : futures) {
+         c += fti.<span class="kwd">get</span>();
+      }
+   }
+   <span class="kwa">else</span> {
+      Node_pool pool;
+      <span class="kwa">for</span> (<span class="kwb">int</span> i=from; i&lt;=to; ++i) {
+         Node *a = <span class="kwd">make</span>(d,pool);
+         c += a-&gt;<span class="kwd">check</span>();
+      }
+   }
+   <span class="kwa">return</span> c;
+}
 
-<span class="kwb">int</span> <span class="kwd">main</span><span class="opt">(</span><span class="kwb">int</span> argc<span class="opt">,</span><span class="kwb">char</span> <span class="opt">*</span>argv<span class="opt">[])</span>
-<span class="opt">{</span>
-   <span class="kwb">int</span> min_depth <span class="opt">=</span> <span class="num">4</span><span class="opt">,</span>
-      max_depth <span class="opt">=</span> <span class="kwc">std</span><span class="opt">::</span><span class="kwd">max</span><span class="opt">(</span>min_depth<span class="opt">+</span><span class="num">2</span><span class="opt">,</span>
-         <span class="opt">(</span>argc <span class="opt">==</span> <span class="num">2</span> <span class="opt">?</span> <span class="kwd">atoi</span><span class="opt">(</span>argv<span class="opt">[</span><span class="num">1</span><span class="opt">]) :</span> <span class="num">10</span><span class="opt">)),</span>
-      stretch_depth <span class="opt">=</span> max_depth<span class="opt">+</span><span class="num">1</span><span class="opt">;</span>
+<span class="kwb">int</span> <span class="kwd">main</span>(<span class="kwb">int</span> argc,<span class="kwb">char</span> *argv[])
+{
+   <span class="kwb">int</span> min_depth = <span class="num">4</span>,
+      max_depth = std::<span class="kwd">max</span>(min_depth+<span class="num">2</span>,
+         (argc == <span class="num">2</span> ? <span class="kwd">atoi</span>(argv[<span class="num">1</span>]) : <span class="num">10</span>)),
+      stretch_depth = max_depth+<span class="num">1</span>;
 
-   <span class="opt">{</span>
-      Node_pool pool<span class="opt">;</span>
-      Node <span class="opt">*</span>c <span class="opt">=</span> <span class="kwd">make</span><span class="opt">(</span>stretch_depth<span class="opt">,</span>pool<span class="opt">);</span>
-      <span class="kwc">std</span><span class="opt">::</span>cout <span class="opt">&lt;&lt;</span> <span class="str">&quot;stretch tree of depth &quot;</span> <span class="opt">&lt;&lt;</span> stretch_depth <span class="opt">&lt;&lt;</span> <span class="str">&quot;</span><span class="esc">\t</span> <span class="str">&quot;</span>
-         <span class="opt">&lt;&lt;</span> <span class="str">&quot;check: &quot;</span> <span class="opt">&lt;&lt;</span> c<span class="opt">-&gt;</span><span class="kwd">check</span><span class="opt">() &lt;&lt;</span> <span class="kwc">std</span><span class="opt">::</span>endl<span class="opt">;</span>
-   <span class="opt">}</span>
+   {
+      Node_pool pool;
+      Node *c = <span class="kwd">make</span>(stretch_depth,pool);
+      std::cout &lt;&lt; <span class="str">&quot;stretch tree of depth &quot;</span> &lt;&lt; stretch_depth &lt;&lt; <span class="str">&quot;</span><span class="esc">\t</span> <span class="str">&quot;</span>
+         &lt;&lt; <span class="str">&quot;check: &quot;</span> &lt;&lt; c-&gt;<span class="kwd">check</span>() &lt;&lt; std::endl;
+   }
 
-   Node_pool long_lived_pool<span class="opt">;</span>
-   Node <span class="opt">*</span>long_lived_tree<span class="opt">=</span><span class="kwd">make</span><span class="opt">(</span>max_depth<span class="opt">,</span>long_lived_pool<span class="opt">);</span>
+   Node_pool long_lived_pool;
+   Node *long_lived_tree=<span class="kwd">make</span>(max_depth,long_lived_pool);
 
-   <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> d<span class="opt">=</span>min_depth<span class="opt">;</span> d<span class="opt">&lt;=</span>max_depth<span class="opt">;</span> d<span class="opt">+=</span><span class="num">2</span><span class="opt">) {</span>
-      <span class="kwb">int</span> iterations <span class="opt">=</span> <span class="num">1</span> <span class="opt">&lt;&lt; (</span>max_depth <span class="opt">-</span> d <span class="opt">+</span> min_depth<span class="opt">);</span>
-      <span class="kwb">int</span>   c<span class="opt">=</span><span class="num">0</span><span class="opt">;</span>
-      c <span class="opt">=</span> <span class="kwd">make_iteration</span><span class="opt">(</span><span class="num">1</span><span class="opt">,</span>iterations<span class="opt">,</span>d<span class="opt">,</span><span class="kwa">true</span><span class="opt">);</span>
-      <span class="kwc">std</span><span class="opt">::</span>cout <span class="opt">&lt;&lt;</span> iterations <span class="opt">&lt;&lt;</span> <span class="str">&quot;</span><span class="esc">\t</span> <span class="str">trees of depth &quot;</span> <span class="opt">&lt;&lt;</span> d <span class="opt">&lt;&lt;</span> <span class="str">&quot;</span><span class="esc">\t</span> <span class="str">&quot;</span>
-         <span class="opt">&lt;&lt;</span> <span class="str">&quot;check: &quot;</span> <span class="opt">&lt;&lt;</span> c <span class="opt">&lt;&lt;</span> <span class="kwc">std</span><span class="opt">::</span>endl<span class="opt">;</span>
-   <span class="opt">}</span>
+   <span class="kwa">for</span> (<span class="kwb">int</span> d=min_depth; d&lt;=max_depth; d+=<span class="num">2</span>) {
+      <span class="kwb">int</span> iterations = <span class="num">1</span> &lt;&lt; (max_depth - d + min_depth);
+      <span class="kwb">int</span>   c=<span class="num">0</span>;
+      c = <span class="kwd">make_iteration</span>(<span class="num">1</span>,iterations,d,<span class="kwa">true</span>);
+      std::cout &lt;&lt; iterations &lt;&lt; <span class="str">&quot;</span><span class="esc">\t</span> <span class="str">trees of depth &quot;</span> &lt;&lt; d &lt;&lt; <span class="str">&quot;</span><span class="esc">\t</span> <span class="str">&quot;</span>
+         &lt;&lt; <span class="str">&quot;check: &quot;</span> &lt;&lt; c &lt;&lt; std::endl;
+   }
 
-   <span class="kwc">std</span><span class="opt">::</span>cout <span class="opt">&lt;&lt;</span> <span class="str">&quot;long lived tree of depth &quot;</span> <span class="opt">&lt;&lt;</span> max_depth <span class="opt">&lt;&lt;</span> <span class="str">&quot;</span><span class="esc">\t</span> <span class="str">&quot;</span>
-      <span class="opt">&lt;&lt;</span> <span class="str">&quot;check: &quot;</span> <span class="opt">&lt;&lt; (</span>long_lived_tree<span class="opt">-&gt;</span><span class="kwd">check</span><span class="opt">()) &lt;&lt;</span> <span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">;</span>
+   std::cout &lt;&lt; <span class="str">&quot;long lived tree of depth &quot;</span> &lt;&lt; max_depth &lt;&lt; <span class="str">&quot;</span><span class="esc">\t</span> <span class="str">&quot;</span>
+      &lt;&lt; <span class="str">&quot;check: &quot;</span> &lt;&lt; (long_lived_tree-&gt;<span class="kwd">check</span>()) &lt;&lt; <span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span>;
 
-   <span class="kwa">return</span> <span class="num">0</span><span class="opt">;</span>
-<span class="opt">}</span>
+   <span class="kwa">return</span> <span class="num">0</span>;
+}
     </pre>
   </section>
   <section>
@@ -125,17 +125,17 @@ Node <span class="opt">*</span><span class="kwd">make</span><span class="opt">(<
     <pre>
 NOTES:
 64-bit Ubuntu quad core
-g++ (Ubuntu 10.2.0-13ubuntu1) 10.2.0
+g++ (Ubuntu 10.3.0-1ubuntu1) 10.3.0
 
 
-Mon, 02 Nov 2020 17:46:25 GMT
+Fri, 04 Jun 2021 23:24:54 GMT
 
 MAKE:
 /usr/bin/g++ -c -pipe -O3 -fomit-frame-pointer -march=ivybridge   binarytrees.c++ -o binarytrees.c++.o &amp;&amp;  \
         /usr/bin/g++ binarytrees.c++.o -o binarytrees.gpp_run -lpthread 
 rm binarytrees.c++
 
-3.97s to complete and log all make actions
+3.93s to complete and log all make actions
 
 COMMAND LINE:
 ./binarytrees.gpp_run 21

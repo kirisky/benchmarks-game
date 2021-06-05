@@ -38,128 +38,128 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 
 <span class="ppc">#define waitAsLongAs(x) while (x) this_thread::yield()</span>
 
-<span class="kwa">using namespace</span> std<span class="opt">;</span>
+<span class="kwa">using namespace</span> std;
 
-mpz_class q<span class="opt">{</span><span class="num">1</span><span class="opt">};</span>
-mpz_class r<span class="opt">{</span><span class="num">0</span><span class="opt">};</span>
-mpz_class t<span class="opt">{</span><span class="num">1</span><span class="opt">};</span>
-mpz_class doubleQ<span class="opt">{</span><span class="num">0</span><span class="opt">};</span>
-mpz_class tDig<span class="opt">,</span> rSubTDig<span class="opt">,</span> doubleKTimesDoubleQ<span class="opt">,</span> doubleQAndR<span class="opt">;</span>
-mpz_class q4<span class="opt">,</span> q4AndR<span class="opt">,</span> q4AndRDivT<span class="opt">;</span>
+mpz_class q{<span class="num">1</span>};
+mpz_class r{<span class="num">0</span>};
+mpz_class t{<span class="num">1</span>};
+mpz_class doubleQ{<span class="num">0</span>};
+mpz_class tDig, rSubTDig, doubleKTimesDoubleQ, doubleQAndR;
+mpz_class q4, q4AndR, q4AndRDivT;
 
-<span class="kwb">unsigned</span> k<span class="opt">;</span>
-<span class="kwb">unsigned</span> doubleK<span class="opt">;</span>
-<span class="kwb">unsigned</span> qMultiplicator<span class="opt">;</span>
-<span class="kwb">unsigned</span> digit<span class="opt">;</span>
+<span class="kwb">unsigned</span> k;
+<span class="kwb">unsigned</span> doubleK;
+<span class="kwb">unsigned</span> qMultiplicator;
+<span class="kwb">unsigned</span> digit;
 
-atomic<span class="opt">&lt;</span><span class="kwb">bool</span><span class="opt">&gt;</span> finish<span class="opt">{</span><span class="kwa">false</span><span class="opt">};</span>
-atomic<span class="opt">&lt;</span><span class="kwb">bool</span><span class="opt">&gt;</span> tCalculating<span class="opt">{</span><span class="kwa">false</span><span class="opt">};</span>
-atomic<span class="opt">&lt;</span><span class="kwb">bool</span><span class="opt">&gt;</span> qCalculating<span class="opt">{</span><span class="kwa">false</span><span class="opt">};</span>
-atomic<span class="opt">&lt;</span><span class="kwb">bool</span><span class="opt">&gt;</span> extractCalculating<span class="opt">{</span><span class="kwa">false</span><span class="opt">};</span>
-<span class="kwb">bool</span> tPrecalculation<span class="opt">{</span><span class="kwa">false</span><span class="opt">};</span>
+atomic&lt;<span class="kwb">bool</span>&gt; finish{<span class="kwa">false</span>};
+atomic&lt;<span class="kwb">bool</span>&gt; tCalculating{<span class="kwa">false</span>};
+atomic&lt;<span class="kwb">bool</span>&gt; qCalculating{<span class="kwa">false</span>};
+atomic&lt;<span class="kwb">bool</span>&gt; extractCalculating{<span class="kwa">false</span>};
+<span class="kwb">bool</span> tPrecalculation{<span class="kwa">false</span>};
 
-<span class="kwb">void</span> <span class="kwd">extractThreadFunc</span><span class="opt">();</span>
-<span class="kwb">void</span> <span class="kwd">multiplierThreadFunc</span><span class="opt">(</span>atomic<span class="opt">&lt;</span><span class="kwb">bool</span><span class="opt">&gt;&amp;</span> waitCond<span class="opt">,</span> mpz_class<span class="opt">&amp;</span> result<span class="opt">,</span> <span class="kwb">const unsigned</span><span class="opt">&amp;</span> multiplicator<span class="opt">);</span>
+<span class="kwb">void</span> <span class="kwd">extractThreadFunc</span>();
+<span class="kwb">void</span> <span class="kwd">multiplierThreadFunc</span>(atomic&lt;<span class="kwb">bool</span>&gt;&amp; waitCond, mpz_class&amp; result, <span class="kwb">const unsigned</span>&amp; multiplicator);
 
-thread <span class="kwd">tMultThread</span><span class="opt">(</span>multiplierThreadFunc<span class="opt">,</span> <span class="kwd">ref</span><span class="opt">(</span>tCalculating<span class="opt">),</span> <span class="kwd">ref</span><span class="opt">(</span>t<span class="opt">),</span> <span class="kwd">ref</span><span class="opt">(</span>doubleK<span class="opt">));</span>
-thread <span class="kwd">qMultThread</span><span class="opt">(</span>multiplierThreadFunc<span class="opt">,</span> <span class="kwd">ref</span><span class="opt">(</span>qCalculating<span class="opt">),</span> <span class="kwd">ref</span><span class="opt">(</span>q<span class="opt">),</span> <span class="kwd">ref</span><span class="opt">(</span>qMultiplicator<span class="opt">));</span>
-thread <span class="kwd">extractThread</span><span class="opt">(</span>extractThreadFunc<span class="opt">);</span>
+thread <span class="kwd">tMultThread</span>(multiplierThreadFunc, <span class="kwd">ref</span>(tCalculating), <span class="kwd">ref</span>(t), <span class="kwd">ref</span>(doubleK));
+thread <span class="kwd">qMultThread</span>(multiplierThreadFunc, <span class="kwd">ref</span>(qCalculating), <span class="kwd">ref</span>(q), <span class="kwd">ref</span>(qMultiplicator));
+thread <span class="kwd">extractThread</span>(extractThreadFunc);
 
-<span class="kwb">void</span> <span class="kwd">extractThreadFunc</span><span class="opt">() {</span>
-    mpz_class q3<span class="opt">,</span> q3AndR<span class="opt">,</span> q3AndRDivT<span class="opt">;</span>
+<span class="kwb">void</span> <span class="kwd">extractThreadFunc</span>() {
+    mpz_class q3, q3AndR, q3AndRDivT;
 
-    <span class="kwa">while</span> <span class="opt">(!</span>finish<span class="opt">) {</span>
-        <span class="kwd">waitAsLongAs</span><span class="opt">(!</span>extractCalculating<span class="opt">);</span>
-        <span class="kwa">if</span> <span class="opt">(</span>finish<span class="opt">)</span>
-            <span class="kwa">return</span><span class="opt">;</span>
-        q3 <span class="opt">=</span> q <span class="opt">*</span> <span class="num">3</span><span class="opt">;</span>
-        q3AndR <span class="opt">=</span> q3 <span class="opt">+</span> r<span class="opt">;</span>
-        q3AndRDivT <span class="opt">=</span> q3AndR <span class="opt">/</span> t<span class="opt">;</span>
-        digit <span class="opt">=</span> q3AndRDivT<span class="opt">.</span><span class="kwd">get_ui</span><span class="opt">();</span>
-        extractCalculating <span class="opt">=</span> <span class="kwa">false</span><span class="opt">;</span>
-    <span class="opt">}</span>
-<span class="opt">}</span>
+    <span class="kwa">while</span> (!finish) {
+        <span class="kwd">waitAsLongAs</span>(!extractCalculating);
+        <span class="kwa">if</span> (finish)
+            <span class="kwa">return</span>;
+        q3 = q * <span class="num">3</span>;
+        q3AndR = q3 + r;
+        q3AndRDivT = q3AndR / t;
+        digit = q3AndRDivT.<span class="kwd">get_ui</span>();
+        extractCalculating = <span class="kwa">false</span>;
+    }
+}
 
-<span class="kwb">void</span> <span class="kwd">multiplierThreadFunc</span><span class="opt">(</span>atomic<span class="opt">&lt;</span><span class="kwb">bool</span><span class="opt">&gt;&amp;</span> waitCond<span class="opt">,</span> mpz_class<span class="opt">&amp;</span> result<span class="opt">,</span> <span class="kwb">const unsigned</span><span class="opt">&amp;</span> multiplicator<span class="opt">) {</span>
-    <span class="kwa">while</span> <span class="opt">(!</span>finish<span class="opt">) {</span>
-        <span class="kwd">waitAsLongAs</span><span class="opt">(!</span>waitCond<span class="opt">);</span>
-        <span class="kwa">if</span> <span class="opt">(</span>finish<span class="opt">)</span>
-            <span class="kwa">return</span><span class="opt">;</span>
-        result <span class="opt">*=</span> multiplicator<span class="opt">;</span>
-        waitCond <span class="opt">=</span> <span class="kwa">false</span><span class="opt">;</span>
-    <span class="opt">}</span>
-<span class="opt">}</span>
+<span class="kwb">void</span> <span class="kwd">multiplierThreadFunc</span>(atomic&lt;<span class="kwb">bool</span>&gt;&amp; waitCond, mpz_class&amp; result, <span class="kwb">const unsigned</span>&amp; multiplicator) {
+    <span class="kwa">while</span> (!finish) {
+        <span class="kwd">waitAsLongAs</span>(!waitCond);
+        <span class="kwa">if</span> (finish)
+            <span class="kwa">return</span>;
+        result *= multiplicator;
+        waitCond = <span class="kwa">false</span>;
+    }
+}
 
-<span class="kwb">void</span> <span class="kwd">stopThreads</span><span class="opt">() {</span>
-    finish <span class="opt">=</span> <span class="kwa">true</span><span class="opt">;</span>
-    extractCalculating <span class="opt">=</span> tCalculating <span class="opt">=</span> qCalculating <span class="opt">=</span> <span class="kwa">true</span><span class="opt">;</span>
-    tMultThread<span class="opt">.</span><span class="kwd">join</span><span class="opt">();</span>
-    qMultThread<span class="opt">.</span><span class="kwd">join</span><span class="opt">();</span>
-    extractThread<span class="opt">.</span><span class="kwd">join</span><span class="opt">();</span>
-<span class="opt">}</span>
+<span class="kwb">void</span> <span class="kwd">stopThreads</span>() {
+    finish = <span class="kwa">true</span>;
+    extractCalculating = tCalculating = qCalculating = <span class="kwa">true</span>;
+    tMultThread.<span class="kwd">join</span>();
+    qMultThread.<span class="kwd">join</span>();
+    extractThread.<span class="kwd">join</span>();
+}
 
-<span class="kwb">int</span> <span class="kwd">main</span><span class="opt">(</span><span class="kwb">int</span> argc<span class="opt">,</span> <span class="kwb">char</span><span class="opt">*</span> argv<span class="opt">[]) {</span>
-    <span class="kwa">if</span> <span class="opt">(</span>argc <span class="opt">&lt;</span> <span class="num">2</span><span class="opt">) {</span>
-        cout <span class="opt">&lt;&lt;</span> <span class="str">&quot;I need the amount of pi digits as a parameter.&quot;</span> <span class="opt">&lt;&lt;</span> endl<span class="opt">;</span>
-        <span class="kwd">stopThreads</span><span class="opt">();</span>
-        <span class="kwa">return</span> <span class="num">0</span><span class="opt">;</span>
-    <span class="opt">}</span>
+<span class="kwb">int</span> <span class="kwd">main</span>(<span class="kwb">int</span> argc, <span class="kwb">char</span>* argv[]) {
+    <span class="kwa">if</span> (argc &lt; <span class="num">2</span>) {
+        cout &lt;&lt; <span class="str">&quot;I need the amount of pi digits as a parameter.&quot;</span> &lt;&lt; endl;
+        <span class="kwd">stopThreads</span>();
+        <span class="kwa">return</span> <span class="num">0</span>;
+    }
 
-    <span class="kwc">ios_base</span><span class="opt">::</span><span class="kwd">sync_with_stdio</span><span class="opt">(</span><span class="kwa">false</span><span class="opt">);</span>
-    <span class="kwb">const size_t</span> TOTAL_DIGITS <span class="opt">=</span> <span class="kwd">atol</span><span class="opt">(</span>argv<span class="opt">[</span><span class="num">1</span><span class="opt">]);</span>
+    ios_base::<span class="kwd">sync_with_stdio</span>(<span class="kwa">false</span>);
+    <span class="kwb">const size_t</span> TOTAL_DIGITS = <span class="kwd">atol</span>(argv[<span class="num">1</span>]);
 
-    <span class="kwb">size_t</span> n_digits<span class="opt">{</span><span class="num">0</span><span class="opt">};</span>
-    <span class="kwa">while</span> <span class="opt">(</span>n_digits <span class="opt">&lt;</span> TOTAL_DIGITS<span class="opt">) {</span>
-        <span class="kwb">size_t</span> i<span class="opt">{</span><span class="num">0</span><span class="opt">};</span>
-        <span class="kwa">while</span> <span class="opt">(</span>i <span class="opt">&lt;</span> <span class="num">10</span> <span class="kwa">and</span> n_digits <span class="opt">&lt;</span> TOTAL_DIGITS<span class="opt">) {</span>
-            <span class="kwa">if</span> <span class="opt">(!</span>tPrecalculation<span class="opt">) {</span>
-                doubleK <span class="opt">=</span> <span class="num">2</span> <span class="opt">* ++</span>k <span class="opt">+</span> <span class="num">1</span><span class="opt">;</span>
-                tCalculating <span class="opt">=</span> <span class="kwa">true</span><span class="opt">;</span> <span class="slc">// Start thread calculation for &apos;t *= doubleK&apos;.</span>
-            <span class="opt">}</span> <span class="kwa">else</span>
-                tPrecalculation <span class="opt">=</span> <span class="kwa">false</span><span class="opt">;</span>
+    <span class="kwb">size_t</span> n_digits{<span class="num">0</span>};
+    <span class="kwa">while</span> (n_digits &lt; TOTAL_DIGITS) {
+        <span class="kwb">size_t</span> i{<span class="num">0</span>};
+        <span class="kwa">while</span> (i &lt; <span class="num">10</span> <span class="kwa">and</span> n_digits &lt; TOTAL_DIGITS) {
+            <span class="kwa">if</span> (!tPrecalculation) {
+                doubleK = <span class="num">2</span> * ++k + <span class="num">1</span>;
+                tCalculating = <span class="kwa">true</span>; <span class="slc">// Start thread calculation for &apos;t *= doubleK&apos;.</span>
+            } <span class="kwa">else</span>
+                tPrecalculation = <span class="kwa">false</span>;
 
-            <span class="kwd">waitAsLongAs</span><span class="opt">(</span>qCalculating<span class="opt">);</span> <span class="slc">// Wait for &apos;q *= 10&apos; to finish (if it runs).</span>
-            doubleQ <span class="opt">=</span> <span class="num">2</span> <span class="opt">*</span> q<span class="opt">;</span>
-            qMultiplicator <span class="opt">=</span> k<span class="opt">;</span>
-            qCalculating <span class="opt">=</span> <span class="kwa">true</span><span class="opt">;</span>  <span class="slc">// Start thread calculation for &apos;q *= k&apos;.</span>
+            <span class="kwd">waitAsLongAs</span>(qCalculating); <span class="slc">// Wait for &apos;q *= 10&apos; to finish (if it runs).</span>
+            doubleQ = <span class="num">2</span> * q;
+            qMultiplicator = k;
+            qCalculating = <span class="kwa">true</span>;  <span class="slc">// Start thread calculation for &apos;q *= k&apos;.</span>
 
-            doubleQAndR <span class="opt">=</span> doubleQ <span class="opt">+</span> r<span class="opt">;</span>
-            r <span class="opt">=</span> doubleK <span class="opt">*</span> doubleQAndR<span class="opt">;</span>
+            doubleQAndR = doubleQ + r;
+            r = doubleK * doubleQAndR;
 
-            <span class="kwd">waitAsLongAs</span><span class="opt">(</span>qCalculating<span class="opt">);</span> <span class="slc">// Wait for &apos;q *= qMultiplicator&apos; to finish.</span>
-            <span class="kwd">waitAsLongAs</span><span class="opt">(</span>tCalculating<span class="opt">);</span> <span class="slc">// Wait for &apos;t *= doubleK&apos; to finish (if it runs).</span>
+            <span class="kwd">waitAsLongAs</span>(qCalculating); <span class="slc">// Wait for &apos;q *= qMultiplicator&apos; to finish.</span>
+            <span class="kwd">waitAsLongAs</span>(tCalculating); <span class="slc">// Wait for &apos;t *= doubleK&apos; to finish (if it runs).</span>
 
-            <span class="kwa">if</span> <span class="opt">(</span>q <span class="opt">&lt;=</span> r<span class="opt">) {</span>
-                extractCalculating <span class="opt">=</span> <span class="kwa">true</span><span class="opt">;</span> <span class="slc">// Start thread calculation for &apos;digit = (q * 3 + r) / t&apos;.</span>
-                q4 <span class="opt">=</span> q <span class="opt">*</span> <span class="num">4</span><span class="opt">;</span>
-                q4AndR <span class="opt">=</span> q4 <span class="opt">+</span> r<span class="opt">;</span>
-                q4AndRDivT <span class="opt">=</span> q4AndR <span class="opt">/</span> t<span class="opt">;</span>
-                <span class="kwb">const unsigned</span> digit2 <span class="opt">=</span> q4AndRDivT<span class="opt">.</span><span class="kwd">get_ui</span><span class="opt">();</span>
-                <span class="kwd">waitAsLongAs</span><span class="opt">(</span>extractCalculating<span class="opt">);</span> <span class="slc">// Wait for &apos;digit = (q * 3 + r) / t&apos; to finish.</span>
+            <span class="kwa">if</span> (q &lt;= r) {
+                extractCalculating = <span class="kwa">true</span>; <span class="slc">// Start thread calculation for &apos;digit = (q * 3 + r) / t&apos;.</span>
+                q4 = q * <span class="num">4</span>;
+                q4AndR = q4 + r;
+                q4AndRDivT = q4AndR / t;
+                <span class="kwb">const unsigned</span> digit2 = q4AndRDivT.<span class="kwd">get_ui</span>();
+                <span class="kwd">waitAsLongAs</span>(extractCalculating); <span class="slc">// Wait for &apos;digit = (q * 3 + r) / t&apos; to finish.</span>
 
-                <span class="kwa">if</span> <span class="opt">(</span>digit <span class="opt">==</span> digit2<span class="opt">) {</span>
-                    qMultiplicator <span class="opt">=</span> <span class="num">10</span><span class="opt">;</span>
-                    qCalculating <span class="opt">=</span> <span class="kwa">true</span><span class="opt">;</span> <span class="slc">// Start thread calculation for &apos;q *= 10&apos;.</span>
-                    cout <span class="opt">&lt;&lt;</span> digit<span class="opt">;</span>
-                    tDig <span class="opt">=</span> digit <span class="opt">*</span> t<span class="opt">;</span>
+                <span class="kwa">if</span> (digit == digit2) {
+                    qMultiplicator = <span class="num">10</span>;
+                    qCalculating = <span class="kwa">true</span>; <span class="slc">// Start thread calculation for &apos;q *= 10&apos;.</span>
+                    cout &lt;&lt; digit;
+                    tDig = digit * t;
 
-                    doubleK <span class="opt">=</span> <span class="num">2</span> <span class="opt">* ++</span>k <span class="opt">+</span> <span class="num">1</span><span class="opt">;</span>
-                    tCalculating <span class="opt">=</span> <span class="kwa">true</span><span class="opt">;</span> <span class="slc">// Start thread calculation for &apos;t *= doubleK&apos;.</span>
-                    tPrecalculation <span class="opt">=</span> <span class="kwa">true</span><span class="opt">;</span>
+                    doubleK = <span class="num">2</span> * ++k + <span class="num">1</span>;
+                    tCalculating = <span class="kwa">true</span>; <span class="slc">// Start thread calculation for &apos;t *= doubleK&apos;.</span>
+                    tPrecalculation = <span class="kwa">true</span>;
 
-                    rSubTDig <span class="opt">=</span> r <span class="opt">-</span> tDig<span class="opt">;</span>
-                    r <span class="opt">=</span> <span class="num">10</span> <span class="opt">*</span> rSubTDig<span class="opt">;</span>
-                    <span class="opt">++</span>i<span class="opt">;</span>
-                    <span class="opt">++</span>n_digits<span class="opt">;</span>
-                <span class="opt">}</span>
-            <span class="opt">}</span>
-        <span class="opt">}</span>
+                    rSubTDig = r - tDig;
+                    r = <span class="num">10</span> * rSubTDig;
+                    ++i;
+                    ++n_digits;
+                }
+            }
+        }
 
-        cout <span class="opt">&lt;&lt;</span> <span class="str">&quot;</span><span class="esc">\t</span><span class="str">:&quot;</span> <span class="opt">&lt;&lt;</span> n_digits <span class="opt">&lt;&lt;</span> <span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span><span class="opt">;</span>
-    <span class="opt">}</span>
+        cout &lt;&lt; <span class="str">&quot;</span><span class="esc">\t</span><span class="str">:&quot;</span> &lt;&lt; n_digits &lt;&lt; <span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span>;
+    }
 
-    <span class="kwd">stopThreads</span><span class="opt">();</span>
-<span class="opt">}</span>
+    <span class="kwd">stopThreads</span>();
+}
     </pre>
   </section>
   <section>
@@ -169,17 +169,17 @@ thread <span class="kwd">extractThread</span><span class="opt">(</span>extractTh
     <pre>
 NOTES:
 64-bit Ubuntu quad core
-g++ (Ubuntu 10.2.0-13ubuntu1) 10.2.0
+g++ (Ubuntu 10.3.0-1ubuntu1) 10.3.0
 
 
-Mon, 30 Nov 2020 22:36:29 GMT
+Sat, 05 Jun 2021 00:20:36 GMT
 
 MAKE:
-/usr/bin/g++ -c -pipe -O3 -fomit-frame-pointer -march=ivybridge   pidigits.gpp-6.c++ -o pidigits.gpp-6.c++.o &amp;&amp;  \
+/usr/bin/g++ -c -pipe -O3 -fomit-frame-pointer -march=ivybridge  -std=c++14 pidigits.gpp-6.c++ -o pidigits.gpp-6.c++.o &amp;&amp;  \
         /usr/bin/g++ pidigits.gpp-6.c++.o -o pidigits.gpp-6.gpp_run -lgmp -lgmpxx -lpthread 
 rm pidigits.gpp-6.c++
 
-3.15s to complete and log all make actions
+3.21s to complete and log all make actions
 
 COMMAND LINE:
 ./pidigits.gpp-6.gpp_run 10000

@@ -41,49 +41,49 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 
 
 <span class="slc">// define SIMD data type. 2 doubles are packed in 1 XMM register</span>
-<span class="kwc">typedef</span> <span class="kwb">double</span> v2dt <span class="kwd">__attribute__</span><span class="opt">((</span><span class="kwd">vector_size</span><span class="opt">(</span><span class="num">16</span><span class="opt">)));</span>
-v2dt <span class="kwb">const</span> v1 <span class="opt">= {</span><span class="num">1.0</span><span class="opt">,</span> <span class="num">1.0</span><span class="opt">};</span>
+<span class="kwc">typedef</span> <span class="kwb">double</span> v2dt <span class="kwd">__attribute__</span>((<span class="kwd">vector_size</span>(<span class="num">16</span>)));
+v2dt <span class="kwb">const</span> v1 = {<span class="num">1.0</span>, <span class="num">1.0</span>};
 
 
 <span class="kwb">struct</span> Param
-<span class="opt">{</span>
+{
    <span class="kwb">union</span>
-   <span class="opt">{</span>
-      <span class="kwb">double</span><span class="opt">*</span> u<span class="opt">;</span>      <span class="slc">// source</span>
-      v2dt<span class="opt">*</span>   xmm_u<span class="opt">;</span>
-   <span class="opt">};</span>
-
-   <span class="kwb">union</span>
-   <span class="opt">{</span>
-      <span class="kwb">double</span><span class="opt">*</span> tmp<span class="opt">;</span>   <span class="slc">// temporary</span>
-      v2dt<span class="opt">*</span>   xmm_tmp<span class="opt">;</span>
-   <span class="opt">};</span>
+   {
+      <span class="kwb">double</span>* u;      <span class="slc">// source</span>
+      v2dt*   xmm_u;
+   };
 
    <span class="kwb">union</span>
-   <span class="opt">{</span>
-      <span class="kwb">double</span><span class="opt">*</span> v<span class="opt">;</span>         <span class="slc">// destination</span>
-      v2dt<span class="opt">*</span>   xmm_v<span class="opt">;</span>
-   <span class="opt">};</span>
+   {
+      <span class="kwb">double</span>* tmp;   <span class="slc">// temporary</span>
+      v2dt*   xmm_tmp;
+   };
 
-   <span class="kwb">int</span>    length<span class="opt">;</span>         <span class="slc">// source/desti vec&apos;s length</span>
-   <span class="kwb">int</span>    half_length<span class="opt">;</span>
+   <span class="kwb">union</span>
+   {
+      <span class="kwb">double</span>* v;         <span class="slc">// destination</span>
+      v2dt*   xmm_v;
+   };
 
-   <span class="kwb">int</span>    r_begin<span class="opt">;</span>      <span class="slc">// working range of each thread</span>
-   <span class="kwb">int</span>    r_end<span class="opt">;</span>
+   <span class="kwb">int</span>    length;         <span class="slc">// source/desti vec&apos;s length</span>
+   <span class="kwb">int</span>    half_length;
 
-   <span class="kwb">double</span>   vBv<span class="opt">;</span>
-   <span class="kwb">double</span>   vv<span class="opt">;</span>
-<span class="opt">};</span>
+   <span class="kwb">int</span>    r_begin;      <span class="slc">// working range of each thread</span>
+   <span class="kwb">int</span>    r_end;
+
+   <span class="kwb">double</span>   vBv;
+   <span class="kwb">double</span>   vv;
+};
 
 
 <span class="slc">// Return:   1.0 / (i + j) * (i + j +1) / 2 + i + 1;</span>
 <span class="kwb">double</span>
-<span class="kwd">eval_A</span><span class="opt">(</span><span class="kwb">int</span> i<span class="opt">,</span> <span class="kwb">int</span> j<span class="opt">)</span>
-<span class="opt">{</span>
-   <span class="kwb">int</span> d <span class="opt">= (((</span>i<span class="opt">+</span>j<span class="opt">) * (</span>i<span class="opt">+</span>j<span class="opt">+</span><span class="num">1</span><span class="opt">)) &gt;&gt;</span> <span class="num">1</span><span class="opt">) +</span> i<span class="opt">+</span><span class="num">1</span><span class="opt">;</span>
+<span class="kwd">eval_A</span>(<span class="kwb">int</span> i, <span class="kwb">int</span> j)
+{
+   <span class="kwb">int</span> d = (((i+j) * (i+j+<span class="num">1</span>)) &gt;&gt; <span class="num">1</span>) + i+<span class="num">1</span>;
 
-   <span class="kwa">return</span> <span class="num">1.0</span> <span class="opt">/</span> d<span class="opt">;</span>
-<span class="opt">}</span>
+   <span class="kwa">return</span> <span class="num">1.0</span> / d;
+}
 
 
 <span class="slc">// Return: 2 doubles in xmm register [double1, double2]</span>
@@ -91,212 +91,212 @@ v2dt <span class="kwb">const</span> v1 <span class="opt">= {</span><span class="
 <span class="slc">//      double2 = 1.0 / (i+1 + j) * (i+1 + j +1) / 2 + i+1 + 1;</span>
 <span class="slc">//   Or:</span>
 <span class="slc">//      double2 = 1.0 / (i + j+1) * (i + j+1 +1) / 2 + i + 1;</span>
-<span class="kwc">template</span><span class="opt">&lt;</span><span class="kwb">bool</span> inc_i<span class="opt">&gt;</span>
+<span class="kwc">template</span>&lt;<span class="kwb">bool</span> inc_i&gt;
 v2dt
-<span class="kwd">eval_A_xmm</span><span class="opt">(</span><span class="kwb">int</span> i<span class="opt">,</span> <span class="kwb">int</span> j<span class="opt">)</span>
-<span class="opt">{</span>
-   <span class="kwa">if</span> <span class="opt">(</span>inc_i<span class="opt">)</span>
-      i <span class="opt">&lt;&lt;=</span> <span class="num">1</span><span class="opt">;</span>
+<span class="kwd">eval_A_xmm</span>(<span class="kwb">int</span> i, <span class="kwb">int</span> j)
+{
+   <span class="kwa">if</span> (inc_i)
+      i &lt;&lt;= <span class="num">1</span>;
    <span class="kwa">else</span>
-      j <span class="opt">&lt;&lt;=</span> <span class="num">1</span><span class="opt">;</span>
+      j &lt;&lt;= <span class="num">1</span>;
 
-   <span class="kwb">int</span> d1 <span class="opt">= (((</span>i<span class="opt">+</span>j<span class="opt">) * (</span>i<span class="opt">+</span>j<span class="opt">+</span><span class="num">1</span><span class="opt">)) &gt;&gt;</span> <span class="num">1</span><span class="opt">) +</span> i<span class="opt">+</span><span class="num">1</span><span class="opt">;</span>
-   <span class="kwb">int</span> d2 <span class="opt">= (((</span>i<span class="opt">+</span><span class="num">1</span> <span class="opt">+</span>j<span class="opt">) * (</span>i<span class="opt">+</span><span class="num">1</span> <span class="opt">+</span>j<span class="opt">+</span><span class="num">1</span><span class="opt">)) &gt;&gt;</span> <span class="num">1</span><span class="opt">) +</span> i <span class="opt">+</span><span class="num">1</span><span class="opt">;</span>
+   <span class="kwb">int</span> d1 = (((i+j) * (i+j+<span class="num">1</span>)) &gt;&gt; <span class="num">1</span>) + i+<span class="num">1</span>;
+   <span class="kwb">int</span> d2 = (((i+<span class="num">1</span> +j) * (i+<span class="num">1</span> +j+<span class="num">1</span>)) &gt;&gt; <span class="num">1</span>) + i +<span class="num">1</span>;
 
-   <span class="kwa">if</span> <span class="opt">(</span>inc_i<span class="opt">)</span>
-      d2 <span class="opt">+=</span> <span class="num">1</span><span class="opt">;</span>
+   <span class="kwa">if</span> (inc_i)
+      d2 += <span class="num">1</span>;
 
-   v2dt r <span class="opt">= {</span>d1<span class="opt">,</span> d2<span class="opt">};</span>
-   <span class="kwa">return</span> v1 <span class="opt">/</span> r<span class="opt">;</span>
-<span class="opt">}</span>
+   v2dt r = {d1, d2};
+   <span class="kwa">return</span> v1 / r;
+}
 
 
 <span class="kwb">double</span>
-<span class="kwd">hz_add</span><span class="opt">(</span>v2dt x<span class="opt">)</span>
-<span class="opt">{</span>
-   <span class="kwb">double const</span><span class="opt">*</span> val <span class="opt">=</span> <span class="kwa">reinterpret_cast</span><span class="opt">&lt;</span><span class="kwb">double const</span><span class="opt">*&gt;(&amp;</span>x<span class="opt">);</span>
-   <span class="kwa">return</span> val<span class="opt">[</span><span class="num">0</span><span class="opt">] +</span> val<span class="opt">[</span><span class="num">1</span><span class="opt">];</span>
-<span class="opt">}</span>
+<span class="kwd">hz_add</span>(v2dt x)
+{
+   <span class="kwb">double const</span>* val = <span class="kwa">reinterpret_cast</span>&lt;<span class="kwb">double const</span>*&gt;(&amp;x);
+   <span class="kwa">return</span> val[<span class="num">0</span>] + val[<span class="num">1</span>];
+}
 
 
 <span class="kwb">void</span>
-<span class="kwd">eval_A_times_u</span> <span class="opt">(</span>Param <span class="kwb">const</span> <span class="opt">&amp;</span>p<span class="opt">)</span>
-<span class="opt">{</span>
-   <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> i <span class="opt">=</span> p<span class="opt">.</span>r_begin<span class="opt">,</span> ie <span class="opt">=</span> p<span class="opt">.</span>r_end<span class="opt">;</span> i <span class="opt">&lt;</span> ie<span class="opt">; ++</span>i<span class="opt">)</span>
-   <span class="opt">{</span>
-      v2dt sum <span class="opt">= {</span><span class="num">0</span><span class="opt">,</span> <span class="num">0</span><span class="opt">};</span>
+<span class="kwd">eval_A_times_u</span> (Param <span class="kwb">const</span> &amp;p)
+{
+   <span class="kwa">for</span> (<span class="kwb">int</span> i = p.r_begin, ie = p.r_end; i &lt; ie; ++i)
+   {
+      v2dt sum = {<span class="num">0</span>, <span class="num">0</span>};
 
       <span class="slc">// xmm = 2 doubles =&gt; index [0..length/2)</span>
-      <span class="kwb">int</span> j <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
-      <span class="kwa">for</span> <span class="opt">(;</span> j <span class="opt">&lt;</span> p<span class="opt">.</span>half_length<span class="opt">; ++</span>j<span class="opt">)</span>
-         sum <span class="opt">+=</span> eval_A_xmm<span class="opt">&lt;</span><span class="kwa">false</span><span class="opt">&gt;(</span>i<span class="opt">,</span> j<span class="opt">) *</span> p<span class="opt">.</span>xmm_u<span class="opt">[</span>j<span class="opt">];</span>
+      <span class="kwb">int</span> j = <span class="num">0</span>;
+      <span class="kwa">for</span> (; j &lt; p.half_length; ++j)
+         sum += eval_A_xmm&lt;<span class="kwa">false</span>&gt;(i, j) * p.xmm_u[j];
 
-      p<span class="opt">.</span>tmp<span class="opt">[</span>i<span class="opt">] =</span> <span class="kwd">hz_add</span><span class="opt">(</span>sum<span class="opt">);</span>
+      p.tmp[i] = <span class="kwd">hz_add</span>(sum);
 
       <span class="slc">// If source vector is odd size. This should be called &lt;= 1 time</span>
-      <span class="kwa">for</span> <span class="opt">(</span>j <span class="opt">=</span> j<span class="opt">*</span><span class="num">2</span><span class="opt">;</span> j <span class="opt">&lt;</span> p<span class="opt">.</span>length<span class="opt">; ++</span>j<span class="opt">)</span>
-         p<span class="opt">.</span>tmp<span class="opt">[</span>i<span class="opt">] +=</span> <span class="kwd">eval_A</span><span class="opt">(</span>i<span class="opt">,</span> j<span class="opt">) *</span> p<span class="opt">.</span>u<span class="opt">[</span>j<span class="opt">];</span>
-   <span class="opt">}</span>
-<span class="opt">}</span>
+      <span class="kwa">for</span> (j = j*<span class="num">2</span>; j &lt; p.length; ++j)
+         p.tmp[i] += <span class="kwd">eval_A</span>(i, j) * p.u[j];
+   }
+}
 
 <span class="kwb">void</span>
-<span class="kwd">eval_At_times_u</span><span class="opt">(</span>Param <span class="kwb">const</span> <span class="opt">&amp;</span>p<span class="opt">)</span>
-<span class="opt">{</span>
-   <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> i <span class="opt">=</span> p<span class="opt">.</span>r_begin<span class="opt">,</span> ie <span class="opt">=</span> p<span class="opt">.</span>r_end<span class="opt">;</span> i <span class="opt">&lt;</span> ie<span class="opt">; ++</span>i<span class="opt">)</span>
-   <span class="opt">{</span>
-      v2dt sum <span class="opt">= {</span><span class="num">0</span><span class="opt">,</span> <span class="num">0</span><span class="opt">};</span>
+<span class="kwd">eval_At_times_u</span>(Param <span class="kwb">const</span> &amp;p)
+{
+   <span class="kwa">for</span> (<span class="kwb">int</span> i = p.r_begin, ie = p.r_end; i &lt; ie; ++i)
+   {
+      v2dt sum = {<span class="num">0</span>, <span class="num">0</span>};
 
-      <span class="kwb">int</span> j <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
-      <span class="kwa">for</span> <span class="opt">(;</span> j <span class="opt">&lt;</span> p<span class="opt">.</span>half_length<span class="opt">; ++</span>j<span class="opt">)</span>
-         sum <span class="opt">+=</span> eval_A_xmm<span class="opt">&lt;</span><span class="kwa">true</span><span class="opt">&gt;(</span>j<span class="opt">,</span> i<span class="opt">) *</span> p<span class="opt">.</span>xmm_tmp<span class="opt">[</span>j<span class="opt">];</span>
+      <span class="kwb">int</span> j = <span class="num">0</span>;
+      <span class="kwa">for</span> (; j &lt; p.half_length; ++j)
+         sum += eval_A_xmm&lt;<span class="kwa">true</span>&gt;(j, i) * p.xmm_tmp[j];
 
-      p<span class="opt">.</span>v<span class="opt">[</span>i<span class="opt">] =</span> <span class="kwd">hz_add</span><span class="opt">(</span>sum<span class="opt">);</span>
+      p.v[i] = <span class="kwd">hz_add</span>(sum);
 
-      <span class="kwa">for</span> <span class="opt">(</span>j <span class="opt">=</span> j<span class="opt">*</span><span class="num">2</span><span class="opt">;</span> j <span class="opt">&lt;</span> p<span class="opt">.</span>length<span class="opt">; ++</span>j<span class="opt">)</span>
-         p<span class="opt">.</span>v<span class="opt">[</span>i<span class="opt">] +=</span> <span class="kwd">eval_A</span><span class="opt">(</span>j<span class="opt">,</span> i<span class="opt">) *</span> p<span class="opt">.</span>tmp<span class="opt">[</span>j<span class="opt">];</span>
-   <span class="opt">}</span>
-<span class="opt">}</span>
+      <span class="kwa">for</span> (j = j*<span class="num">2</span>; j &lt; p.length; ++j)
+         p.v[i] += <span class="kwd">eval_A</span>(j, i) * p.tmp[j];
+   }
+}
 
 <span class="slc">// Each thread modifies its portion in destination vector</span>
 <span class="slc">// -&gt; barrier needed to sync access</span>
 <span class="kwb">void</span>
-<span class="kwd">eval_AtA_times_u</span><span class="opt">(</span>Param <span class="kwb">const</span> <span class="opt">&amp;</span>p<span class="opt">)</span>
-<span class="opt">{</span>
-   <span class="kwd">eval_A_times_u</span><span class="opt">(</span> p <span class="opt">);</span>
+<span class="kwd">eval_AtA_times_u</span>(Param <span class="kwb">const</span> &amp;p)
+{
+   <span class="kwd">eval_A_times_u</span>( p );
    <span class="ppc">#pragma omp barrier</span>
 
-   <span class="kwd">eval_At_times_u</span><span class="opt">(</span> p <span class="opt">);</span>
+   <span class="kwd">eval_At_times_u</span>( p );
    <span class="ppc">#pragma omp barrier</span>
-<span class="opt">}</span>
+}
 
 <span class="kwb">void</span>
-<span class="kwd">final_sum</span><span class="opt">(</span>Param<span class="opt">&amp;</span> p<span class="opt">)</span>
-<span class="opt">{</span>
-   v2dt sum_vBv   <span class="opt">= {</span><span class="num">0</span><span class="opt">,</span><span class="num">0</span><span class="opt">};</span>
-   v2dt sum_vv      <span class="opt">= {</span><span class="num">0</span><span class="opt">,</span><span class="num">0</span><span class="opt">};</span>
+<span class="kwd">final_sum</span>(Param&amp; p)
+{
+   v2dt sum_vBv   = {<span class="num">0</span>,<span class="num">0</span>};
+   v2dt sum_vv      = {<span class="num">0</span>,<span class="num">0</span>};
 
-   <span class="kwb">int</span> i <span class="opt">=</span> p<span class="opt">.</span>r_begin <span class="opt">/</span><span class="num">2</span><span class="opt">;</span>
-   <span class="kwb">int</span> ie <span class="opt">=</span> p<span class="opt">.</span>r_end <span class="opt">/</span><span class="num">2</span><span class="opt">;</span>
+   <span class="kwb">int</span> i = p.r_begin /<span class="num">2</span>;
+   <span class="kwb">int</span> ie = p.r_end /<span class="num">2</span>;
 
-   <span class="kwa">for</span> <span class="opt">(;</span> i <span class="opt">&lt;</span> ie<span class="opt">; ++</span>i<span class="opt">)</span>
-   <span class="opt">{</span>
-      sum_vv   <span class="opt">+=</span> p<span class="opt">.</span>xmm_v<span class="opt">[</span>i<span class="opt">] *</span> p<span class="opt">.</span>xmm_v<span class="opt">[</span>i<span class="opt">];</span>
-      sum_vBv   <span class="opt">+=</span> p<span class="opt">.</span>xmm_u<span class="opt">[</span>i<span class="opt">] *</span> p<span class="opt">.</span>xmm_v<span class="opt">[</span>i<span class="opt">];</span>
-   <span class="opt">}</span>
+   <span class="kwa">for</span> (; i &lt; ie; ++i)
+   {
+      sum_vv   += p.xmm_v[i] * p.xmm_v[i];
+      sum_vBv   += p.xmm_u[i] * p.xmm_v[i];
+   }
 
-   p<span class="opt">.</span>vBv   <span class="opt">=</span> <span class="kwd">hz_add</span><span class="opt">(</span>sum_vBv<span class="opt">);</span>
-   p<span class="opt">.</span>vv   <span class="opt">=</span> <span class="kwd">hz_add</span><span class="opt">(</span>sum_vv<span class="opt">);</span>
+   p.vBv   = <span class="kwd">hz_add</span>(sum_vBv);
+   p.vv   = <span class="kwd">hz_add</span>(sum_vv);
 
-   <span class="kwa">for</span> <span class="opt">(</span>i <span class="opt">=</span> i<span class="opt">*</span><span class="num">2</span><span class="opt">;</span> i <span class="opt">&lt;</span> p<span class="opt">.</span>r_end<span class="opt">; ++</span>i<span class="opt">)</span>
-   <span class="opt">{</span>
-      p<span class="opt">.</span>vBv   <span class="opt">+=</span> p<span class="opt">.</span>u<span class="opt">[</span>i<span class="opt">] *</span> p<span class="opt">.</span>v<span class="opt">[</span>i<span class="opt">];</span>
-      p<span class="opt">.</span>vv   <span class="opt">+=</span> p<span class="opt">.</span>v<span class="opt">[</span>i<span class="opt">] *</span> p<span class="opt">.</span>v<span class="opt">[</span>i<span class="opt">];</span>
-   <span class="opt">}</span>
-<span class="opt">}</span>
+   <span class="kwa">for</span> (i = i*<span class="num">2</span>; i &lt; p.r_end; ++i)
+   {
+      p.vBv   += p.u[i] * p.v[i];
+      p.vv   += p.v[i] * p.v[i];
+   }
+}
 
 
 <span class="kwb">void</span>
-<span class="kwd">fill_10</span><span class="opt">(</span>Param <span class="kwb">const</span><span class="opt">&amp;</span> p<span class="opt">)</span>
-<span class="opt">{</span>
-   <span class="kwb">int</span> i <span class="opt">=</span> p<span class="opt">.</span>r_begin <span class="opt">/</span><span class="num">2</span><span class="opt">;</span>
-   <span class="kwb">int</span> ie <span class="opt">=</span> p<span class="opt">.</span>r_end <span class="opt">/</span><span class="num">2</span><span class="opt">;</span>
+<span class="kwd">fill_10</span>(Param <span class="kwb">const</span>&amp; p)
+{
+   <span class="kwb">int</span> i = p.r_begin /<span class="num">2</span>;
+   <span class="kwb">int</span> ie = p.r_end /<span class="num">2</span>;
 
-   <span class="kwa">for</span> <span class="opt">(;</span> i <span class="opt">&lt;</span> ie<span class="opt">; ++</span>i<span class="opt">)</span>
-      p<span class="opt">.</span>xmm_u<span class="opt">[</span>i<span class="opt">] =</span> v1<span class="opt">;</span>
+   <span class="kwa">for</span> (; i &lt; ie; ++i)
+      p.xmm_u[i] = v1;
 
-   <span class="kwa">for</span> <span class="opt">(</span>i <span class="opt">=</span> i<span class="opt">*</span><span class="num">2</span><span class="opt">;</span> i <span class="opt">&lt;</span> p<span class="opt">.</span>r_end<span class="opt">; ++</span>i<span class="opt">)</span>
-      p<span class="opt">.</span>u<span class="opt">[</span>i<span class="opt">] =</span> <span class="num">1.0</span><span class="opt">;</span>
-<span class="opt">}</span>
+   <span class="kwa">for</span> (i = i*<span class="num">2</span>; i &lt; p.r_end; ++i)
+      p.u[i] = <span class="num">1.0</span>;
+}
 
 
 <span class="slc">// Search for appropriate number of threads to spawn</span>
 <span class="kwb">int</span>
-<span class="kwd">GetThreadCount</span><span class="opt">()</span>
-<span class="opt">{</span>
-   cpu_set_t cs<span class="opt">;</span>
-   <span class="kwd">CPU_ZERO</span><span class="opt">(&amp;</span>cs<span class="opt">);</span>
-   <span class="kwd">sched_getaffinity</span><span class="opt">(</span><span class="num">0</span><span class="opt">,</span> <span class="kwa">sizeof</span><span class="opt">(</span>cs<span class="opt">), &amp;</span>cs<span class="opt">);</span>
+<span class="kwd">GetThreadCount</span>()
+{
+   cpu_set_t cs;
+   <span class="kwd">CPU_ZERO</span>(&amp;cs);
+   <span class="kwd">sched_getaffinity</span>(<span class="num">0</span>, <span class="kwa">sizeof</span>(cs), &amp;cs);
 
-   <span class="kwb">int</span> count <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
-   <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> CPU_SETSIZE<span class="opt">; ++</span>i<span class="opt">)</span>
-   <span class="opt">{</span>
-      <span class="kwa">if</span> <span class="opt">(</span><span class="kwd">CPU_ISSET</span><span class="opt">(</span>i<span class="opt">, &amp;</span>cs<span class="opt">))</span>
-         <span class="opt">++</span>count<span class="opt">;</span>
-   <span class="opt">}</span>
-   <span class="kwa">return</span> count<span class="opt">;</span>
-<span class="opt">}</span>
+   <span class="kwb">int</span> count = <span class="num">0</span>;
+   <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">0</span>; i &lt; CPU_SETSIZE; ++i)
+   {
+      <span class="kwa">if</span> (<span class="kwd">CPU_ISSET</span>(i, &amp;cs))
+         ++count;
+   }
+   <span class="kwa">return</span> count;
+}
 
 <span class="kwb">double</span>
-<span class="kwd">spectral_game</span><span class="opt">(</span><span class="kwb">int</span> N<span class="opt">)</span>
-<span class="opt">{</span>
+<span class="kwd">spectral_game</span>(<span class="kwb">int</span> N)
+{
    <span class="slc">// Align L2 cache line</span>
-   <span class="kwd">__attribute__</span><span class="opt">((</span><span class="kwd">aligned</span><span class="opt">(</span><span class="num">64</span><span class="opt">)))</span> <span class="kwb">double</span> u<span class="opt">[</span>N<span class="opt">];</span>
-   <span class="kwd">__attribute__</span><span class="opt">((</span><span class="kwd">aligned</span><span class="opt">(</span><span class="num">64</span><span class="opt">)))</span> <span class="kwb">double</span> tmp<span class="opt">[</span>N<span class="opt">];</span>
-   <span class="kwd">__attribute__</span><span class="opt">((</span><span class="kwd">aligned</span><span class="opt">(</span><span class="num">64</span><span class="opt">)))</span> <span class="kwb">double</span> v<span class="opt">[</span>N<span class="opt">];</span>
+   <span class="kwd">__attribute__</span>((<span class="kwd">aligned</span>(<span class="num">64</span>))) <span class="kwb">double</span> u[N];
+   <span class="kwd">__attribute__</span>((<span class="kwd">aligned</span>(<span class="num">64</span>))) <span class="kwb">double</span> tmp[N];
+   <span class="kwd">__attribute__</span>((<span class="kwd">aligned</span>(<span class="num">64</span>))) <span class="kwb">double</span> v[N];
 
-   <span class="kwb">double</span> vBv   <span class="opt">=</span> <span class="num">0.0</span><span class="opt">;</span>
-   <span class="kwb">double</span> vv   <span class="opt">=</span> <span class="num">0.0</span><span class="opt">;</span>
+   <span class="kwb">double</span> vBv   = <span class="num">0.0</span>;
+   <span class="kwb">double</span> vv   = <span class="num">0.0</span>;
 
    <span class="ppc">#pragma omp parallel default(shared) num_threads(GetThreadCount())</span>
-   <span class="opt">{</span>
+   {
       <span class="slc">// this block will be executed by NUM_THREADS</span>
       <span class="slc">// variable declared in this block is private for each thread</span>
-      <span class="kwb">int</span> threadid   <span class="opt">=</span> <span class="kwd">omp_get_thread_num</span><span class="opt">();</span>
-      <span class="kwb">int</span> threadcount   <span class="opt">=</span> <span class="kwd">omp_get_num_threads</span><span class="opt">();</span>
-      <span class="kwb">int</span> chunk      <span class="opt">=</span> N <span class="opt">/</span> threadcount<span class="opt">;</span>
+      <span class="kwb">int</span> threadid   = <span class="kwd">omp_get_thread_num</span>();
+      <span class="kwb">int</span> threadcount   = <span class="kwd">omp_get_num_threads</span>();
+      <span class="kwb">int</span> chunk      = N / threadcount;
 
-      Param my_param<span class="opt">;</span>
+      Param my_param;
 
-      my_param<span class="opt">.</span>u             <span class="opt">=</span> u<span class="opt">;</span>
-      my_param<span class="opt">.</span>tmp         <span class="opt">=</span> tmp<span class="opt">;</span>
-      my_param<span class="opt">.</span>v             <span class="opt">=</span> v<span class="opt">;</span>
+      my_param.u             = u;
+      my_param.tmp         = tmp;
+      my_param.v             = v;
 
-      my_param<span class="opt">.</span>length         <span class="opt">=</span> N<span class="opt">;</span>
-      my_param<span class="opt">.</span>half_length   <span class="opt">=</span> N <span class="opt">/</span><span class="num">2</span><span class="opt">;</span>
+      my_param.length         = N;
+      my_param.half_length   = N /<span class="num">2</span>;
 
       <span class="slc">// calculate each thread&apos;s working range [r1 .. r2) =&gt; static schedule</span>
-      my_param<span class="opt">.</span>r_begin   <span class="opt">=</span> threadid <span class="opt">*</span> chunk<span class="opt">;</span>
-      my_param<span class="opt">.</span>r_end      <span class="opt">= (</span>threadid <span class="opt">&lt; (</span>threadcount <span class="opt">-</span><span class="num">1</span><span class="opt">)) ? (</span>my_param<span class="opt">.</span>r_begin <span class="opt">+</span> chunk<span class="opt">) :</span> N<span class="opt">;</span>
+      my_param.r_begin   = threadid * chunk;
+      my_param.r_end      = (threadid &lt; (threadcount -<span class="num">1</span>)) ? (my_param.r_begin + chunk) : N;
 
 
-      <span class="kwd">fill_10</span><span class="opt">(</span>my_param<span class="opt">);</span>
+      <span class="kwd">fill_10</span>(my_param);
       <span class="ppc">#pragma omp barrier</span>
 
       <span class="slc">// Evaluating</span>
-      <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> ite <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> ite <span class="opt">&lt;</span> <span class="num">10</span><span class="opt">; ++</span>ite<span class="opt">)</span>
-      <span class="opt">{</span>
-         my_param<span class="opt">.</span>u <span class="opt">=</span> u<span class="opt">;</span>   <span class="slc">// source is u</span>
-         my_param<span class="opt">.</span>v <span class="opt">=</span> v<span class="opt">;</span>   <span class="slc">// desti is v</span>
-         <span class="kwd">eval_AtA_times_u</span><span class="opt">(</span>my_param<span class="opt">);</span>
+      <span class="kwa">for</span> (<span class="kwb">int</span> ite = <span class="num">0</span>; ite &lt; <span class="num">10</span>; ++ite)
+      {
+         my_param.u = u;   <span class="slc">// source is u</span>
+         my_param.v = v;   <span class="slc">// desti is v</span>
+         <span class="kwd">eval_AtA_times_u</span>(my_param);
 
-         my_param<span class="opt">.</span>u <span class="opt">=</span> v<span class="opt">;</span> <span class="slc">// source is v</span>
-         my_param<span class="opt">.</span>v <span class="opt">=</span> u<span class="opt">;</span> <span class="slc">// desti is u</span>
-         <span class="kwd">eval_AtA_times_u</span><span class="opt">(</span>my_param<span class="opt">);</span>
-      <span class="opt">}</span>
+         my_param.u = v; <span class="slc">// source is v</span>
+         my_param.v = u; <span class="slc">// desti is u</span>
+         <span class="kwd">eval_AtA_times_u</span>(my_param);
+      }
 
-      my_param<span class="opt">.</span>u <span class="opt">=</span> u<span class="opt">;</span>
-      my_param<span class="opt">.</span>v <span class="opt">=</span> v<span class="opt">;</span>
-      <span class="kwd">final_sum</span><span class="opt">(</span>my_param<span class="opt">);</span>
+      my_param.u = u;
+      my_param.v = v;
+      <span class="kwd">final_sum</span>(my_param);
 
       <span class="ppc">#pragma omp critical</span>
-      <span class="opt">{</span>
-         vBv   <span class="opt">+=</span> my_param<span class="opt">.</span>vBv<span class="opt">;</span>
-         vv   <span class="opt">+=</span> my_param<span class="opt">.</span>vv<span class="opt">;</span>
-      <span class="opt">}</span>
-   <span class="opt">}</span> <span class="slc">// parallel region</span>
+      {
+         vBv   += my_param.vBv;
+         vv   += my_param.vv;
+      }
+   } <span class="slc">// parallel region</span>
 
-   <span class="kwa">return</span> <span class="kwd">sqrt</span><span class="opt">(</span> vBv<span class="opt">/</span>vv <span class="opt">);</span>
-<span class="opt">}</span>
+   <span class="kwa">return</span> <span class="kwd">sqrt</span>( vBv/vv );
+}
 
 
 <span class="kwb">int</span>
-<span class="kwd">main</span><span class="opt">(</span><span class="kwb">int</span> argc<span class="opt">,</span> <span class="kwb">char</span> <span class="opt">*</span>argv<span class="opt">[])</span>
-<span class="opt">{</span>
-   <span class="kwb">int</span> N <span class="opt">= ((</span>argc <span class="opt">&gt;=</span> <span class="num">2</span><span class="opt">) ?</span> <span class="kwd">atoi</span><span class="opt">(</span>argv<span class="opt">[</span><span class="num">1</span><span class="opt">]) :</span> <span class="num">2000</span><span class="opt">);</span>
+<span class="kwd">main</span>(<span class="kwb">int</span> argc, <span class="kwb">char</span> *argv[])
+{
+   <span class="kwb">int</span> N = ((argc &gt;= <span class="num">2</span>) ? <span class="kwd">atoi</span>(argv[<span class="num">1</span>]) : <span class="num">2000</span>);
 
-   <span class="kwd">printf</span><span class="opt">(</span><span class="str">&quot;%.9f</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span> <span class="kwd">spectral_game</span><span class="opt">(</span>N<span class="opt">));</span>
-   <span class="kwa">return</span> <span class="num">0</span><span class="opt">;</span>
-<span class="opt">}</span>
+   <span class="kwd">printf</span>(<span class="str">&quot;%.9f</span><span class="esc">\n</span><span class="str">&quot;</span>, <span class="kwd">spectral_game</span>(N));
+   <span class="kwa">return</span> <span class="num">0</span>;
+}
 
     </pre>
   </section>
@@ -307,10 +307,10 @@ v2dt
     <pre>
 NOTES:
 64-bit Ubuntu quad core
-g++ (Ubuntu 10.2.0-13ubuntu1) 10.2.0
+g++ (Ubuntu 10.3.0-1ubuntu1) 10.3.0
 
 
-Mon, 02 Nov 2020 19:57:45 GMT
+Sat, 05 Jun 2021 00:36:03 GMT
 
 MAKE:
 /usr/bin/g++ -c -pipe -O3 -fomit-frame-pointer -march=ivybridge  -fopenmp -O0 spectralnorm.gpp-8.c++ -o spectralnorm.gpp-8.c++.o &amp;&amp;  \
@@ -333,7 +333,7 @@ spectralnorm.gpp-8.c++:85:18: warning: narrowing conversion of ‘d2’ from ‘
       |                  ^~
 rm spectralnorm.gpp-8.c++
 
-1.93s to complete and log all make actions
+1.99s to complete and log all make actions
 
 COMMAND LINE:
 ./spectralnorm.gpp-8.gpp_run 5500

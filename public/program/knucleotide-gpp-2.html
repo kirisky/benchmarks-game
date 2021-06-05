@@ -65,183 +65,183 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="ppc">#include &lt;cassert&gt;</span>
 <span class="ppc">#include &lt;ext/pb_ds/assoc_container.hpp&gt;</span>
 
-<span class="kwb">struct</span> Cfg <span class="opt">{</span>
-    <span class="kwb">static</span> <span class="kwc">constexpr</span> <span class="kwb">size_t</span> thread_count <span class="opt">=</span> <span class="num">4</span><span class="opt">;</span>
-    <span class="kwb">static</span> <span class="kwc">constexpr</span> <span class="kwb">unsigned</span> to_char<span class="opt">[</span><span class="num">4</span><span class="opt">] = {</span><span class="str">&apos;A&apos;</span><span class="opt">,</span> <span class="str">&apos;C&apos;</span><span class="opt">,</span> <span class="str">&apos;T&apos;</span><span class="opt">,</span> <span class="str">&apos;G&apos;</span><span class="opt">};</span>
-    <span class="kwb">static</span> <span class="kwc">inline</span> <span class="kwb">unsigned char</span> to_num<span class="opt">[</span><span class="num">128</span><span class="opt">];</span>
-    <span class="kwa">using</span> Data <span class="opt">=</span> <span class="kwc">std</span><span class="opt">::</span>vector<span class="opt">&lt;</span><span class="kwb">unsigned char</span><span class="opt">&gt;;</span>
+<span class="kwb">struct</span> Cfg {
+    <span class="kwb">static</span> <span class="kwc">constexpr</span> <span class="kwb">size_t</span> thread_count = <span class="num">4</span>;
+    <span class="kwb">static</span> <span class="kwc">constexpr</span> <span class="kwb">unsigned</span> to_char[<span class="num">4</span>] = {<span class="str">&apos;A&apos;</span>, <span class="str">&apos;C&apos;</span>, <span class="str">&apos;T&apos;</span>, <span class="str">&apos;G&apos;</span>};
+    <span class="kwb">static</span> <span class="kwc">inline</span> <span class="kwb">unsigned char</span> to_num[<span class="num">128</span>];
+    <span class="kwa">using</span> Data = std::vector&lt;<span class="kwb">unsigned char</span>&gt;;
 
-    <span class="kwd">Cfg</span><span class="opt">() {</span>
-        to_num<span class="opt">[</span><span class="str">&apos;A&apos;</span><span class="opt">] =</span> to_num<span class="opt">[</span><span class="str">&apos;a&apos;</span><span class="opt">] =</span> <span class="num">0</span><span class="opt">;</span>
-        to_num<span class="opt">[</span><span class="str">&apos;C&apos;</span><span class="opt">] =</span> to_num<span class="opt">[</span><span class="str">&apos;c&apos;</span><span class="opt">] =</span> <span class="num">1</span><span class="opt">;</span>
-        to_num<span class="opt">[</span><span class="str">&apos;T&apos;</span><span class="opt">] =</span> to_num<span class="opt">[</span><span class="str">&apos;t&apos;</span><span class="opt">] =</span> <span class="num">2</span><span class="opt">;</span>
-        to_num<span class="opt">[</span><span class="str">&apos;G&apos;</span><span class="opt">] =</span> to_num<span class="opt">[</span><span class="str">&apos;g&apos;</span><span class="opt">] =</span> <span class="num">3</span><span class="opt">;</span>
-    <span class="opt">}</span>
-<span class="opt">}</span> <span class="kwb">const</span> cfg<span class="opt">;</span>
+    <span class="kwd">Cfg</span>() {
+        to_num[<span class="str">&apos;A&apos;</span>] = to_num[<span class="str">&apos;a&apos;</span>] = <span class="num">0</span>;
+        to_num[<span class="str">&apos;C&apos;</span>] = to_num[<span class="str">&apos;c&apos;</span>] = <span class="num">1</span>;
+        to_num[<span class="str">&apos;T&apos;</span>] = to_num[<span class="str">&apos;t&apos;</span>] = <span class="num">2</span>;
+        to_num[<span class="str">&apos;G&apos;</span>] = to_num[<span class="str">&apos;g&apos;</span>] = <span class="num">3</span>;
+    }
+} <span class="kwb">const</span> cfg;
 
-<span class="kwc">template</span> <span class="opt">&lt;</span><span class="kwb">size_t</span> size<span class="opt">&gt;</span>
+<span class="kwc">template</span> &lt;<span class="kwb">size_t</span> size&gt;
 <span class="kwb">struct</span> Key
-<span class="opt">{</span>
+{
     <span class="slc">// select type to use for &apos;data&apos;, if hash key can fit on 32-bit integer</span>
     <span class="slc">// then use uint32_t else use uint64_t.</span>
-    <span class="kwa">using</span> Data <span class="opt">=</span> typename <span class="kwc">std</span><span class="opt">::</span>conditional<span class="opt">&lt;</span>size<span class="opt">&lt;=</span><span class="num">16</span><span class="opt">,</span> <span class="kwb">uint32_t</span><span class="opt">,</span> <span class="kwb">uint64_t</span><span class="opt">&gt;::</span>type<span class="opt">;</span>
+    <span class="kwa">using</span> Data = typename std::conditional&lt;size&lt;=<span class="num">16</span>, <span class="kwb">uint32_t</span>, <span class="kwb">uint64_t</span>&gt;::type;
 
-    <span class="kwb">struct</span> Hash <span class="opt">{</span>
-        Data <span class="kwc">operator</span><span class="opt">()(</span><span class="kwb">const</span> Key<span class="opt">&amp;</span> t<span class="opt">)</span><span class="kwb">const</span><span class="opt">{</span> <span class="kwa">return</span> t<span class="opt">.</span>_data<span class="opt">; }</span>
-    <span class="opt">};</span>
+    <span class="kwb">struct</span> Hash {
+        Data <span class="kwc">operator</span>()(<span class="kwb">const</span> Key&amp; t)<span class="kwb">const</span>{ <span class="kwa">return</span> t._data; }
+    };
 
-    <span class="kwd">Key</span><span class="opt">(</span>Data data<span class="opt">) :</span> <span class="kwd">_data</span><span class="opt">(</span>data<span class="opt">) {</span>
-    <span class="opt">}</span>
+    <span class="kwd">Key</span>(Data data) : <span class="kwd">_data</span>(data) {
+    }
 
     <span class="slc">// uses std::string_view instead of std::string because std::string always</span>
     <span class="slc">// allocates a copy from the heap. while std::string_view is only a wrapper</span>
     <span class="slc">// of a pointer and a size</span>
-    <span class="kwd">Key</span><span class="opt">(</span><span class="kwb">const</span> <span class="kwc">std</span><span class="opt">::</span>string_view<span class="opt">&amp;</span> str<span class="opt">) {</span>
-        _data <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
-        <span class="kwa">for</span><span class="opt">(</span><span class="kwb">unsigned</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> size<span class="opt">; ++</span>i<span class="opt">){</span>
-            _data <span class="opt">&lt;&lt;=</span> <span class="num">2</span><span class="opt">;</span>
-            _data <span class="opt">|=</span> cfg<span class="opt">.</span>to_num<span class="opt">[</span><span class="kwb">unsigned</span><span class="opt">(</span>str<span class="opt">[</span>i<span class="opt">])];</span>
-        <span class="opt">}</span>
-    <span class="opt">}</span>
+    <span class="kwd">Key</span>(<span class="kwb">const</span> std::string_view&amp; str) {
+        _data = <span class="num">0</span>;
+        <span class="kwa">for</span>(<span class="kwb">unsigned</span> i = <span class="num">0</span>; i &lt; size; ++i){
+            _data &lt;&lt;= <span class="num">2</span>;
+            _data |= cfg.to_num[<span class="kwb">unsigned</span>(str[i])];
+        }
+    }
 
     <span class="slc">// initialize hash from input data</span>
-    <span class="kwb">void</span> <span class="kwd">InitKey</span><span class="opt">(</span><span class="kwb">const unsigned char</span> <span class="opt">*</span> data<span class="opt">){</span>
-        <span class="kwa">for</span><span class="opt">(</span><span class="kwb">unsigned</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> size<span class="opt">; ++</span>i<span class="opt">){</span>
-            _data <span class="opt">&lt;&lt;=</span> <span class="num">2</span><span class="opt">;</span>
-            _data <span class="opt">|=</span> data<span class="opt">[</span>i<span class="opt">];</span>
-        <span class="opt">}</span>
-    <span class="opt">}</span>
+    <span class="kwb">void</span> <span class="kwd">InitKey</span>(<span class="kwb">const unsigned char</span> * data){
+        <span class="kwa">for</span>(<span class="kwb">unsigned</span> i = <span class="num">0</span>; i &lt; size; ++i){
+            _data &lt;&lt;= <span class="num">2</span>;
+            _data |= data[i];
+        }
+    }
 
     <span class="slc">// updates the key with 1 byte</span>
-    <span class="kwb">void</span> <span class="kwd">UpdateKey</span><span class="opt">(</span><span class="kwb">const unsigned char</span> data<span class="opt">){</span>
-        _data <span class="opt">&lt;&lt;=</span> <span class="num">2</span><span class="opt">;</span>
-        _data <span class="opt">|=</span> data<span class="opt">;</span>
-    <span class="opt">}</span>
+    <span class="kwb">void</span> <span class="kwd">UpdateKey</span>(<span class="kwb">const unsigned char</span> data){
+        _data &lt;&lt;= <span class="num">2</span>;
+        _data |= data;
+    }
 
     <span class="slc">// masks out excess information</span>
-    <span class="kwb">void</span> <span class="kwd">MaskKey</span><span class="opt">(){</span>
-        _data <span class="opt">&amp;=</span> _mask<span class="opt">;</span>
-    <span class="opt">}</span>
+    <span class="kwb">void</span> <span class="kwd">MaskKey</span>(){
+        _data &amp;= _mask;
+    }
 
     <span class="slc">// implicit casting operator to string</span>
-    <span class="kwc">operator std</span><span class="opt">::</span><span class="kwd">string</span><span class="opt">()</span> <span class="kwb">const</span> <span class="opt">{</span>
-        <span class="kwc">std</span><span class="opt">::</span>string tmp<span class="opt">;</span>
-        Data data <span class="opt">=</span> _data<span class="opt">;</span>
-        <span class="kwa">for</span><span class="opt">(</span><span class="kwb">size_t</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">!=</span> size<span class="opt">; ++</span>i<span class="opt">,</span> data <span class="opt">&gt;&gt;=</span> <span class="num">2</span><span class="opt">)</span>
-            tmp <span class="opt">+=</span> cfg<span class="opt">.</span>to_char<span class="opt">[</span>data <span class="opt">&amp;</span> <span class="num">3ull</span><span class="opt">];</span>
-        <span class="kwc">std</span><span class="opt">::</span><span class="kwd">reverse</span><span class="opt">(</span>tmp<span class="opt">.</span><span class="kwd">begin</span><span class="opt">(),</span> tmp<span class="opt">.</span><span class="kwd">end</span><span class="opt">());</span>
-        <span class="kwa">return</span> <span class="kwc">std</span><span class="opt">::</span><span class="kwd">move</span><span class="opt">(</span>tmp<span class="opt">);</span>
-    <span class="opt">}</span>
+    <span class="kwc">operator</span> std::<span class="kwd">string</span>() <span class="kwb">const</span> {
+        std::string tmp;
+        Data data = _data;
+        <span class="kwa">for</span>(<span class="kwb">size_t</span> i = <span class="num">0</span>; i != size; ++i, data &gt;&gt;= <span class="num">2</span>)
+            tmp += cfg.to_char[data &amp; <span class="num">3ull</span>];
+        std::<span class="kwd">reverse</span>(tmp.<span class="kwd">begin</span>(), tmp.<span class="kwd">end</span>());
+        <span class="kwa">return</span> std::<span class="kwd">move</span>(tmp);
+    }
 
-    <span class="kwb">bool</span> <span class="kwc">operator</span><span class="opt">== (</span><span class="kwb">const</span> Key<span class="opt">&amp;</span> in<span class="opt">)</span> <span class="kwb">const</span> <span class="opt">{</span>
-        <span class="kwa">return</span> _data <span class="opt">==</span> in<span class="opt">.</span>_data<span class="opt">;</span>
-    <span class="opt">}</span>
-<span class="kwc">private</span><span class="opt">:</span>
-    <span class="kwb">static</span> <span class="kwc">constexpr</span> Data _mask <span class="opt">= ~(</span><span class="kwd">Data</span><span class="opt">(-</span><span class="num">1</span><span class="opt">) &lt;&lt; (</span><span class="num">2</span> <span class="opt">*</span> size<span class="opt">));</span>
-    Data _data<span class="opt">;</span>
-<span class="opt">};</span>
+    <span class="kwb">bool</span> <span class="kwc">operator</span>== (<span class="kwb">const</span> Key&amp; in) <span class="kwb">const</span> {
+        <span class="kwa">return</span> _data == in._data;
+    }
+<span class="kwc">private</span>:
+    <span class="kwb">static</span> <span class="kwc">constexpr</span> Data _mask = ~(<span class="kwd">Data</span>(-<span class="num">1</span>) &lt;&lt; (<span class="num">2</span> * size));
+    Data _data;
+};
 
-<span class="kwc">template</span> <span class="opt">&lt;</span><span class="kwb">size_t</span> size<span class="opt">,</span> typename K <span class="opt">=</span> Key<span class="opt">&lt;</span>size<span class="opt">&gt; &gt;</span>
-<span class="kwa">using</span> HashTable <span class="opt">=</span> <span class="kwc">__gnu_pbds</span><span class="opt">::</span>cc_hash_table<span class="opt">&lt;</span>K<span class="opt">,</span> <span class="kwb">unsigned</span><span class="opt">,</span> typename <span class="kwc">K</span><span class="opt">::</span>Hash<span class="opt">&gt;;</span>
+<span class="kwc">template</span> &lt;<span class="kwb">size_t</span> size, typename K = Key&lt;size&gt; &gt;
+<span class="kwa">using</span> HashTable = __gnu_pbds::cc_hash_table&lt;K, <span class="kwb">unsigned</span>, typename K::Hash&gt;;
 
-<span class="kwc">template</span> <span class="opt">&lt;</span><span class="kwb">size_t</span> size<span class="opt">&gt;</span>
-<span class="kwb">void</span> <span class="kwd">Calculate</span><span class="opt">(</span><span class="kwb">const</span> <span class="kwc">Cfg</span><span class="opt">::</span>Data<span class="opt">&amp;</span> input<span class="opt">,</span> <span class="kwb">size_t</span> begin<span class="opt">,</span> HashTable<span class="opt">&lt;</span>size<span class="opt">&gt;&amp;</span> table<span class="opt">)</span>
-<span class="opt">{</span>
+<span class="kwc">template</span> &lt;<span class="kwb">size_t</span> size&gt;
+<span class="kwb">void</span> <span class="kwd">Calculate</span>(<span class="kwb">const</span> Cfg::Data&amp; input, <span class="kwb">size_t</span> begin, HashTable&lt;size&gt;&amp; table)
+{
     <span class="slc">// original implementation fully recomputes the hash key for each</span>
     <span class="slc">// insert to the hash table. This implementation only partially</span>
     <span class="slc">// updates the hash, this is the same with C GCC, Rust #6 and Rust #4</span>
-    Key<span class="opt">&lt;</span>size<span class="opt">&gt;</span> <span class="kwd">key</span><span class="opt">(</span><span class="num">0</span><span class="opt">);</span>
+    Key&lt;size&gt; <span class="kwd">key</span>(<span class="num">0</span>);
     <span class="slc">// initialize key</span>
-    key<span class="opt">.</span><span class="kwd">InitKey</span><span class="opt">(</span>input<span class="opt">.</span><span class="kwd">data</span><span class="opt">() +</span> begin<span class="opt">);</span>
+    key.<span class="kwd">InitKey</span>(input.<span class="kwd">data</span>() + begin);
     <span class="slc">// use key to increment value</span>
-    <span class="opt">++</span>table<span class="opt">[</span>key<span class="opt">];</span>
+    ++table[key];
 
-    <span class="kwc">auto</span> itr_begin <span class="opt">=</span> input<span class="opt">.</span><span class="kwd">data</span><span class="opt">() +</span> begin <span class="opt">+</span> cfg<span class="opt">.</span>thread_count<span class="opt">;</span>
-    <span class="kwc">auto</span> itr_end <span class="opt">= (</span>input<span class="opt">.</span><span class="kwd">data</span><span class="opt">() +</span> input<span class="opt">.</span><span class="kwd">size</span><span class="opt">() +</span> <span class="num">1</span><span class="opt">) -</span> size<span class="opt">;</span>
-    <span class="kwa">for</span><span class="opt">(;</span>itr_begin <span class="opt">&lt;</span> itr_end<span class="opt">;</span> itr_begin <span class="opt">+=</span> cfg<span class="opt">.</span>thread_count<span class="opt">) {</span>
+    <span class="kwc">auto</span> itr_begin = input.<span class="kwd">data</span>() + begin + cfg.thread_count;
+    <span class="kwc">auto</span> itr_end = (input.<span class="kwd">data</span>() + input.<span class="kwd">size</span>() + <span class="num">1</span>) - size;
+    <span class="kwa">for</span>(;itr_begin &lt; itr_end; itr_begin += cfg.thread_count) {
         <span class="slc">// update the key 1 byte at a time</span>
-        <span class="kwc">constexpr</span> <span class="kwb">size_t</span> nsize <span class="opt">=</span> <span class="kwc">std</span><span class="opt">::</span><span class="kwd">min</span><span class="opt">(</span>size<span class="opt">,</span> cfg<span class="opt">.</span>thread_count<span class="opt">);</span>
-        <span class="kwa">for</span><span class="opt">(</span><span class="kwb">unsigned</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> nsize<span class="opt">; ++</span>i<span class="opt">)</span>
-            key<span class="opt">.</span><span class="kwd">UpdateKey</span><span class="opt">(</span> itr_begin<span class="opt">[</span>i<span class="opt">] );</span>
+        <span class="kwc">constexpr</span> <span class="kwb">size_t</span> nsize = std::<span class="kwd">min</span>(size, cfg.thread_count);
+        <span class="kwa">for</span>(<span class="kwb">unsigned</span> i = <span class="num">0</span>; i &lt; nsize; ++i)
+            key.<span class="kwd">UpdateKey</span>( itr_begin[i] );
         <span class="slc">// then finally mask out excess information</span>
-        key<span class="opt">.</span><span class="kwd">MaskKey</span><span class="opt">();</span>
+        key.<span class="kwd">MaskKey</span>();
         <span class="slc">// then use key to increment value</span>
-        <span class="opt">++</span>table<span class="opt">[</span>key<span class="opt">];</span>
-    <span class="opt">}</span>
-<span class="opt">}</span>
+        ++table[key];
+    }
+}
 
-<span class="kwc">template</span> <span class="opt">&lt;</span><span class="kwb">size_t</span> size<span class="opt">&gt;</span>
-<span class="kwc">auto</span> <span class="kwd">CalculateInThreads</span><span class="opt">(</span><span class="kwb">const</span> <span class="kwc">Cfg</span><span class="opt">::</span>Data<span class="opt">&amp;</span> input<span class="opt">)</span>
-<span class="opt">{</span>
-    HashTable<span class="opt">&lt;</span>size<span class="opt">&gt;</span> hash_tables<span class="opt">[</span>cfg<span class="opt">.</span>thread_count<span class="opt">];</span>
-    <span class="kwc">std</span><span class="opt">::</span>thread threads<span class="opt">[</span>cfg<span class="opt">.</span>thread_count<span class="opt">];</span>
+<span class="kwc">template</span> &lt;<span class="kwb">size_t</span> size&gt;
+<span class="kwc">auto</span> <span class="kwd">CalculateInThreads</span>(<span class="kwb">const</span> Cfg::Data&amp; input)
+{
+    HashTable&lt;size&gt; hash_tables[cfg.thread_count];
+    std::thread threads[cfg.thread_count];
 
-    <span class="kwc">auto</span> invoke <span class="opt">= [&amp;](</span><span class="kwb">unsigned</span> begin<span class="opt">) {</span>
-        Calculate<span class="opt">&lt;</span>size<span class="opt">&gt;(</span>input<span class="opt">,</span> begin<span class="opt">,</span> hash_tables<span class="opt">[</span>begin<span class="opt">]);</span>
-    <span class="opt">};</span>
+    <span class="kwc">auto</span> invoke = [&amp;](<span class="kwb">unsigned</span> begin) {
+        Calculate&lt;size&gt;(input, begin, hash_tables[begin]);
+    };
 
-    <span class="kwa">for</span><span class="opt">(</span><span class="kwb">unsigned</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> cfg<span class="opt">.</span>thread_count<span class="opt">; ++</span>i<span class="opt">)</span>
-        threads<span class="opt">[</span>i<span class="opt">] =</span> <span class="kwc">std</span><span class="opt">::</span><span class="kwd">thread</span><span class="opt">(</span>invoke<span class="opt">,</span> i<span class="opt">);</span>
+    <span class="kwa">for</span>(<span class="kwb">unsigned</span> i = <span class="num">0</span>; i &lt; cfg.thread_count; ++i)
+        threads[i] = std::<span class="kwd">thread</span>(invoke, i);
 
-    <span class="kwa">for</span><span class="opt">(</span><span class="kwc">auto</span><span class="opt">&amp;</span> i <span class="opt">:</span> threads<span class="opt">)</span>
-        i<span class="opt">.</span><span class="kwd">join</span><span class="opt">();</span>
+    <span class="kwa">for</span>(<span class="kwc">auto</span>&amp; i : threads)
+        i.<span class="kwd">join</span>();
 
-    <span class="kwc">auto</span><span class="opt">&amp;</span> frequencies <span class="opt">=</span> hash_tables<span class="opt">[</span><span class="num">0</span><span class="opt">];</span>
-    <span class="kwa">for</span><span class="opt">(</span><span class="kwb">unsigned</span> i <span class="opt">=</span> <span class="num">1</span> <span class="opt">;</span> i <span class="opt">&lt;</span> cfg<span class="opt">.</span>thread_count<span class="opt">; ++</span>i<span class="opt">)</span>
-        <span class="kwa">for</span><span class="opt">(</span><span class="kwc">auto</span><span class="opt">&amp;</span> j <span class="opt">:</span> hash_tables<span class="opt">[</span>i<span class="opt">])</span>
-            frequencies<span class="opt">[</span>j<span class="opt">.</span>first<span class="opt">] +=</span> j<span class="opt">.</span>second<span class="opt">;</span>
+    <span class="kwc">auto</span>&amp; frequencies = hash_tables[<span class="num">0</span>];
+    <span class="kwa">for</span>(<span class="kwb">unsigned</span> i = <span class="num">1</span> ; i &lt; cfg.thread_count; ++i)
+        <span class="kwa">for</span>(<span class="kwc">auto</span>&amp; j : hash_tables[i])
+            frequencies[j.first] += j.second;
     <span class="slc">// return the &apos;frequency&apos; by move instead of copy.</span>
-    <span class="kwa">return</span> <span class="kwc">std</span><span class="opt">::</span><span class="kwd">move</span><span class="opt">(</span>frequencies<span class="opt">);</span>
-<span class="opt">}</span>
+    <span class="kwa">return</span> std::<span class="kwd">move</span>(frequencies);
+}
 
-<span class="kwc">template</span> <span class="opt">&lt;</span><span class="kwb">unsigned</span> size<span class="opt">&gt;</span>
-<span class="kwb">void</span> <span class="kwd">WriteFrequencies</span><span class="opt">(</span><span class="kwb">const</span> <span class="kwc">Cfg</span><span class="opt">::</span>Data<span class="opt">&amp;</span> input<span class="opt">)</span>
-<span class="opt">{</span>
+<span class="kwc">template</span> &lt;<span class="kwb">unsigned</span> size&gt;
+<span class="kwb">void</span> <span class="kwd">WriteFrequencies</span>(<span class="kwb">const</span> Cfg::Data&amp; input)
+{
     <span class="slc">// we &quot;receive&quot; the returned object by move instead of copy.</span>
-    <span class="kwc">auto</span><span class="opt">&amp;&amp;</span> frequencies <span class="opt">=</span> CalculateInThreads<span class="opt">&lt;</span>size<span class="opt">&gt;(</span>input<span class="opt">);</span>
-    <span class="kwc">std</span><span class="opt">::</span>map<span class="opt">&lt;</span><span class="kwb">unsigned</span><span class="opt">,</span> <span class="kwc">std</span><span class="opt">::</span>string<span class="opt">,</span> <span class="kwc">std</span><span class="opt">::</span>greater<span class="opt">&lt;</span><span class="kwb">unsigned</span><span class="opt">&gt;&gt;</span> freq<span class="opt">;</span>
-    <span class="kwa">for</span><span class="opt">(</span><span class="kwb">const</span> <span class="kwc">auto</span><span class="opt">&amp;</span> i<span class="opt">:</span> frequencies<span class="opt">)</span>
-        freq<span class="opt">.</span><span class="kwd">insert</span><span class="opt">({</span>i<span class="opt">.</span>second<span class="opt">,</span> i<span class="opt">.</span>first<span class="opt">});</span>
+    <span class="kwc">auto</span>&amp;&amp; frequencies = CalculateInThreads&lt;size&gt;(input);
+    std::map&lt;<span class="kwb">unsigned</span>, std::string, std::greater&lt;<span class="kwb">unsigned</span>&gt;&gt; freq;
+    <span class="kwa">for</span>(<span class="kwb">const</span> <span class="kwc">auto</span>&amp; i: frequencies)
+        freq.<span class="kwd">insert</span>({i.second, i.first});
 
-    <span class="kwb">const unsigned</span> sum <span class="opt">=</span> input<span class="opt">.</span><span class="kwd">size</span><span class="opt">() +</span> <span class="num">1</span> <span class="opt">-</span> size<span class="opt">;</span>
-    <span class="kwa">for</span><span class="opt">(</span><span class="kwb">const</span> <span class="kwc">auto</span><span class="opt">&amp;</span> i <span class="opt">:</span> freq<span class="opt">)</span>
-        <span class="kwc">std</span><span class="opt">::</span>cout <span class="opt">&lt;&lt;</span> i<span class="opt">.</span>second <span class="opt">&lt;&lt;</span> <span class="str">&apos; &apos;</span> <span class="opt">&lt;&lt; (</span>sum <span class="opt">?</span> <span class="kwb">double</span><span class="opt">(</span><span class="num">100</span> <span class="opt">*</span> i<span class="opt">.</span>first<span class="opt">) /</span> sum <span class="opt">:</span> <span class="num">0.0</span><span class="opt">) &lt;&lt;</span> <span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span><span class="opt">;</span>
-    <span class="kwc">std</span><span class="opt">::</span>cout <span class="opt">&lt;&lt;</span> <span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span><span class="opt">;</span>
-<span class="opt">}</span>
+    <span class="kwb">const unsigned</span> sum = input.<span class="kwd">size</span>() + <span class="num">1</span> - size;
+    <span class="kwa">for</span>(<span class="kwb">const</span> <span class="kwc">auto</span>&amp; i : freq)
+        std::cout &lt;&lt; i.second &lt;&lt; <span class="str">&apos; &apos;</span> &lt;&lt; (sum ? <span class="kwb">double</span>(<span class="num">100</span> * i.first) / sum : <span class="num">0.0</span>) &lt;&lt; <span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span>;
+    std::cout &lt;&lt; <span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span>;
+}
 
-<span class="kwc">template</span> <span class="opt">&lt;</span><span class="kwb">unsigned</span> size<span class="opt">&gt;</span>
-<span class="kwb">void</span> <span class="kwd">WriteCount</span><span class="opt">(</span> <span class="kwb">const</span> <span class="kwc">Cfg</span><span class="opt">::</span>Data<span class="opt">&amp;</span> input<span class="opt">,</span> <span class="kwb">const</span> <span class="kwc">std</span><span class="opt">::</span>string<span class="opt">&amp;</span> text <span class="opt">) {</span>
+<span class="kwc">template</span> &lt;<span class="kwb">unsigned</span> size&gt;
+<span class="kwb">void</span> <span class="kwd">WriteCount</span>( <span class="kwb">const</span> Cfg::Data&amp; input, <span class="kwb">const</span> std::string&amp; text ) {
     <span class="slc">// we &quot;receive&quot; the returned object by move instead of copy.</span>
-    <span class="kwc">auto</span><span class="opt">&amp;&amp;</span> frequencies <span class="opt">=</span> CalculateInThreads<span class="opt">&lt;</span>size<span class="opt">&gt;(</span>input<span class="opt">);</span>
-    <span class="kwc">std</span><span class="opt">::</span>cout <span class="opt">&lt;&lt;</span> frequencies<span class="opt">[</span>Key<span class="opt">&lt;</span>size<span class="opt">&gt;(</span>text<span class="opt">)] &lt;&lt;</span> <span class="str">&apos;</span><span class="esc">\t</span><span class="str">&apos;</span> <span class="opt">&lt;&lt;</span> text <span class="opt">&lt;&lt;</span> <span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span><span class="opt">;</span>
-<span class="opt">}</span>
+    <span class="kwc">auto</span>&amp;&amp; frequencies = CalculateInThreads&lt;size&gt;(input);
+    std::cout &lt;&lt; frequencies[Key&lt;size&gt;(text)] &lt;&lt; <span class="str">&apos;</span><span class="esc">\t</span><span class="str">&apos;</span> &lt;&lt; text &lt;&lt; <span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span>;
+}
 
-<span class="kwb">int</span> <span class="kwd">main</span><span class="opt">()</span>
-<span class="opt">{</span>
-    <span class="kwc">Cfg</span><span class="opt">::</span>Data data<span class="opt">;</span>
-    <span class="kwc">std</span><span class="opt">::</span>array<span class="opt">&lt;</span><span class="kwb">char</span><span class="opt">,</span> <span class="num">256</span><span class="opt">&gt;</span> buf<span class="opt">;</span>
+<span class="kwb">int</span> <span class="kwd">main</span>()
+{
+    Cfg::Data data;
+    std::array&lt;<span class="kwb">char</span>, <span class="num">256</span>&gt; buf;
 
-    <span class="kwa">while</span><span class="opt">(</span><span class="kwd">fgets</span><span class="opt">(</span>buf<span class="opt">.</span><span class="kwd">data</span><span class="opt">(),</span> buf<span class="opt">.</span><span class="kwd">size</span><span class="opt">(),</span> stdin<span class="opt">) &amp;&amp;</span> <span class="kwd">memcmp</span><span class="opt">(</span><span class="str">&quot;&gt;THREE&quot;</span><span class="opt">,</span> buf<span class="opt">.</span><span class="kwd">data</span><span class="opt">(),</span> <span class="num">6</span><span class="opt">));</span>
-    <span class="kwa">while</span><span class="opt">(</span><span class="kwd">fgets</span><span class="opt">(</span>buf<span class="opt">.</span><span class="kwd">data</span><span class="opt">(),</span> buf<span class="opt">.</span><span class="kwd">size</span><span class="opt">(),</span> stdin<span class="opt">) &amp;&amp;</span> buf<span class="opt">.</span><span class="kwd">front</span><span class="opt">() !=</span> <span class="str">&apos;&gt;&apos;</span><span class="opt">) {</span>
-        <span class="kwa">if</span><span class="opt">(</span>buf<span class="opt">.</span><span class="kwd">front</span><span class="opt">() !=</span> <span class="str">&apos;;&apos;</span><span class="opt">){</span>
-            <span class="kwc">auto</span> i <span class="opt">=</span> <span class="kwc">std</span><span class="opt">::</span><span class="kwd">find</span><span class="opt">(</span>buf<span class="opt">.</span><span class="kwd">begin</span><span class="opt">(),</span> buf<span class="opt">.</span><span class="kwd">end</span><span class="opt">(),</span> <span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span><span class="opt">);</span>
-            data<span class="opt">.</span><span class="kwd">insert</span><span class="opt">(</span>data<span class="opt">.</span><span class="kwd">end</span><span class="opt">(),</span> buf<span class="opt">.</span><span class="kwd">begin</span><span class="opt">(),</span> i<span class="opt">);</span>
-        <span class="opt">}</span>
-    <span class="opt">}</span>
-    <span class="kwc">std</span><span class="opt">::</span><span class="kwd">transform</span><span class="opt">(</span>data<span class="opt">.</span><span class="kwd">begin</span><span class="opt">(),</span> data<span class="opt">.</span><span class="kwd">end</span><span class="opt">(),</span> data<span class="opt">.</span><span class="kwd">begin</span><span class="opt">(), [](</span><span class="kwc">auto</span> c<span class="opt">){</span>
-        <span class="kwa">return</span> cfg<span class="opt">.</span>to_num<span class="opt">[</span>c<span class="opt">];</span>
-    <span class="opt">});</span>
-    <span class="kwc">std</span><span class="opt">::</span>cout <span class="opt">&lt;&lt;</span> <span class="kwc">std</span><span class="opt">::</span><span class="kwd">setprecision</span><span class="opt">(</span><span class="num">3</span><span class="opt">) &lt;&lt;</span> <span class="kwc">std</span><span class="opt">::</span><span class="kwd">setiosflags</span><span class="opt">(</span><span class="kwc">std</span><span class="opt">::</span><span class="kwc">ios</span><span class="opt">::</span>fixed<span class="opt">);</span>
+    <span class="kwa">while</span>(<span class="kwd">fgets</span>(buf.<span class="kwd">data</span>(), buf.<span class="kwd">size</span>(), stdin) &amp;&amp; <span class="kwd">memcmp</span>(<span class="str">&quot;&gt;THREE&quot;</span>, buf.<span class="kwd">data</span>(), <span class="num">6</span>));
+    <span class="kwa">while</span>(<span class="kwd">fgets</span>(buf.<span class="kwd">data</span>(), buf.<span class="kwd">size</span>(), stdin) &amp;&amp; buf.<span class="kwd">front</span>() != <span class="str">&apos;&gt;&apos;</span>) {
+        <span class="kwa">if</span>(buf.<span class="kwd">front</span>() != <span class="str">&apos;;&apos;</span>){
+            <span class="kwc">auto</span> i = std::<span class="kwd">find</span>(buf.<span class="kwd">begin</span>(), buf.<span class="kwd">end</span>(), <span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span>);
+            data.<span class="kwd">insert</span>(data.<span class="kwd">end</span>(), buf.<span class="kwd">begin</span>(), i);
+        }
+    }
+    std::<span class="kwd">transform</span>(data.<span class="kwd">begin</span>(), data.<span class="kwd">end</span>(), data.<span class="kwd">begin</span>(), [](<span class="kwc">auto</span> c){
+        <span class="kwa">return</span> cfg.to_num[c];
+    });
+    std::cout &lt;&lt; std::<span class="kwd">setprecision</span>(<span class="num">3</span>) &lt;&lt; std::<span class="kwd">setiosflags</span>(std::ios::fixed);
 
-    WriteFrequencies<span class="opt">&lt;</span><span class="num">1</span><span class="opt">&gt;(</span>data<span class="opt">);</span>
-    WriteFrequencies<span class="opt">&lt;</span><span class="num">2</span><span class="opt">&gt;(</span>data<span class="opt">);</span>
+    WriteFrequencies&lt;<span class="num">1</span>&gt;(data);
+    WriteFrequencies&lt;<span class="num">2</span>&gt;(data);
     <span class="slc">// value at left is the length of the passed string.</span>
-    WriteCount<span class="opt">&lt;</span><span class="num">3</span><span class="opt">&gt;(</span>data<span class="opt">,</span> <span class="str">&quot;GGT&quot;</span><span class="opt">);</span>
-    WriteCount<span class="opt">&lt;</span><span class="num">4</span><span class="opt">&gt;(</span>data<span class="opt">,</span> <span class="str">&quot;GGTA&quot;</span><span class="opt">);</span>
-    WriteCount<span class="opt">&lt;</span><span class="num">6</span><span class="opt">&gt;(</span>data<span class="opt">,</span> <span class="str">&quot;GGTATT&quot;</span><span class="opt">);</span>
-    WriteCount<span class="opt">&lt;</span><span class="num">12</span><span class="opt">&gt;(</span>data<span class="opt">,</span> <span class="str">&quot;GGTATTTTAATT&quot;</span><span class="opt">);</span>
-    WriteCount<span class="opt">&lt;</span><span class="num">18</span><span class="opt">&gt;(</span>data<span class="opt">,</span> <span class="str">&quot;GGTATTTTAATTTATAGT&quot;</span><span class="opt">);</span>
-<span class="opt">}</span>
+    WriteCount&lt;<span class="num">3</span>&gt;(data, <span class="str">&quot;GGT&quot;</span>);
+    WriteCount&lt;<span class="num">4</span>&gt;(data, <span class="str">&quot;GGTA&quot;</span>);
+    WriteCount&lt;<span class="num">6</span>&gt;(data, <span class="str">&quot;GGTATT&quot;</span>);
+    WriteCount&lt;<span class="num">12</span>&gt;(data, <span class="str">&quot;GGTATTTTAATT&quot;</span>);
+    WriteCount&lt;<span class="num">18</span>&gt;(data, <span class="str">&quot;GGTATTTTAATTTATAGT&quot;</span>);
+}
     </pre>
   </section>
   <section>
@@ -251,17 +251,17 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
     <pre>
 NOTES:
 64-bit Ubuntu quad core
-g++ (Ubuntu 10.2.0-13ubuntu1) 10.2.0
+g++ (Ubuntu 10.3.0-1ubuntu1) 10.3.0
 
 
-Mon, 02 Nov 2020 18:49:41 GMT
+Fri, 04 Jun 2021 23:54:00 GMT
 
 MAKE:
 /usr/bin/g++ -c -pipe -O3 -fomit-frame-pointer -march=ivybridge  -std=c++17 knucleotide.gpp-2.c++ -o knucleotide.gpp-2.c++.o &amp;&amp;  \
         /usr/bin/g++ knucleotide.gpp-2.c++.o -o knucleotide.gpp-2.gpp_run -lpthread 
 rm knucleotide.gpp-2.c++
 
-6.30s to complete and log all make actions
+5.97s to complete and log all make actions
 
 COMMAND LINE:
 ./knucleotide.gpp-2.gpp_run 0 &lt; knucleotide-input25000000.txt

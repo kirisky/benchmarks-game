@@ -28,213 +28,213 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="slc">--  Contributed by Jim Rogers</span>
 <span class="slc">--  Modified by Pascal Obry, Gautier de Montmollin, Georg Bauhaus, Jonathan Parker</span>
 
-<span class="kwa">pragma</span> Restrictions <span class="opt">(</span>No_Abort_Statements<span class="opt">);</span>
-<span class="kwa">pragma</span> Restrictions <span class="opt">(</span>Max_Asynchronous_Select_Nesting <span class="opt">=&gt;</span> <span class="num">0</span><span class="opt">);</span>
+<span class="kwa">pragma</span> Restrictions (No_Abort_Statements);
+<span class="kwa">pragma</span> Restrictions (Max_Asynchronous_Select_Nesting =&gt; <span class="num">0</span>);
 
-<span class="kwa">with</span> Ada<span class="opt">.</span>Command_Line<span class="opt">;</span>      <span class="kwa">use</span> Ada<span class="opt">.</span>Command_Line<span class="opt">;</span>
+<span class="kwa">with</span> Ada.Command_Line;      <span class="kwa">use</span> Ada.Command_Line;
 
-<span class="kwa">with</span> Interfaces<span class="opt">;</span>            <span class="kwa">use</span> Interfaces<span class="opt">;</span>
-<span class="kwa">with</span> Ada<span class="opt">.</span>Streams<span class="opt">.</span>Stream_IO<span class="opt">;</span> <span class="kwa">use</span> Ada<span class="opt">.</span>Streams<span class="opt">;</span>
+<span class="kwa">with</span> Interfaces;            <span class="kwa">use</span> Interfaces;
+<span class="kwa">with</span> Ada.Streams.Stream_IO; <span class="kwa">use</span> Ada.Streams;
 
 <span class="kwa">procedure</span> Mandelbrot <span class="kwa">is</span>
 
-   <span class="kwa">type</span> Real <span class="kwa">is digits</span> <span class="num">15</span><span class="opt">;</span>
-   <span class="kwa">type</span> M8 <span class="kwa">is mod</span> <span class="num">8</span><span class="opt">;</span>
-   <span class="kwa">type</span> PCount <span class="kwa">is range</span> <span class="num">0</span> <span class="opt">..</span> <span class="num">2</span><span class="opt">**</span><span class="num">20</span> <span class="opt">-</span> <span class="num">1</span><span class="opt">;</span>
+   <span class="kwa">type</span> Real <span class="kwa">is digits</span> <span class="num">15</span>;
+   <span class="kwa">type</span> M8 <span class="kwa">is mod</span> <span class="num">8</span>;
+   <span class="kwa">type</span> PCount <span class="kwa">is range</span> <span class="num">0</span> .. <span class="num">2</span>**<span class="num">20</span> - <span class="num">1</span>;
 
-   Iter        <span class="opt">:</span> <span class="kwa">constant</span> <span class="opt">:=</span> <span class="num">50</span><span class="opt">;</span>
-   Limit       <span class="opt">:</span> <span class="kwa">constant</span> <span class="opt">:=</span> <span class="num">4.0</span><span class="opt">;</span>
-   Size        <span class="opt">:</span> <span class="kwa">constant</span> <span class="kwb">Positive</span> <span class="opt">:=</span> <span class="kwb">Positive</span><span class="kwd">&apos;Value</span> <span class="opt">(</span>Argument <span class="opt">(</span><span class="num">1</span><span class="opt">));</span>
-   Two_on_Size <span class="opt">:</span> <span class="kwa">constant</span> Real <span class="opt">:=</span> <span class="num">2.0</span> <span class="opt">/</span> Real <span class="opt">(</span>Size<span class="opt">);</span>
+   Iter        : <span class="kwa">constant</span> := <span class="num">50</span>;
+   Limit       : <span class="kwa">constant</span> := <span class="num">4.0</span>;
+   Size        : <span class="kwa">constant</span> <span class="kwb">Positive</span> := <span class="kwb">Positive</span><span class="kwd">&apos;Value</span> (Argument (<span class="num">1</span>));
+   Two_on_Size : <span class="kwa">constant</span> Real := <span class="num">2.0</span> / Real (Size);
 
-   <span class="kwa">subtype</span> Output_Index <span class="kwa">is</span> Stream_Element_Offset <span class="kwa">range</span> <span class="num">1</span> <span class="opt">..</span> Stream_Element_Offset<span class="kwd">&apos;Last</span><span class="opt">;</span>
-   <span class="kwa">subtype</span> Output_Queue <span class="kwa">is</span> Stream_Element_Array<span class="opt">;</span>
-   <span class="kwa">type</span> Output <span class="kwa">is access</span> Output_Queue<span class="opt">;</span>
+   <span class="kwa">subtype</span> Output_Index <span class="kwa">is</span> Stream_Element_Offset <span class="kwa">range</span> <span class="num">1</span> .. Stream_Element_Offset<span class="kwd">&apos;Last</span>;
+   <span class="kwa">subtype</span> Output_Queue <span class="kwa">is</span> Stream_Element_Array;
+   <span class="kwa">type</span> Output <span class="kwa">is access</span> Output_Queue;
 
    <span class="kwa">task type</span> X_Step <span class="kwa">is</span>
-      <span class="kwa">entry</span> Compute_Z <span class="opt">(</span>Y1<span class="opt">,</span> Y2 <span class="opt">:</span> PCount<span class="opt">);</span>
-      <span class="kwa">entry</span> Get_Output <span class="opt">(</span>Result <span class="opt">:</span> <span class="kwa">out</span> Output<span class="opt">);</span>
-   <span class="kwa">end</span> X_Step<span class="opt">;</span>
+      <span class="kwa">entry</span> Compute_Z (Y1, Y2 : PCount);
+      <span class="kwa">entry</span> Get_Output (Result : <span class="kwa">out</span> Output);
+   <span class="kwa">end</span> X_Step;
 
-   <span class="kwa">procedure</span> Allocate_Output_Queue <span class="opt">(</span>Y1<span class="opt">,</span> Y2 <span class="opt">:</span> PCount<span class="opt">;</span> Result <span class="opt">:</span> <span class="kwa">out</span> Output<span class="opt">);</span>
+   <span class="kwa">procedure</span> Allocate_Output_Queue (Y1, Y2 : PCount; Result : <span class="kwa">out</span> Output);
    <span class="kwa">pragma</span> Precondition
-     <span class="opt">(</span>Output_Index<span class="kwd">&apos;First</span> <span class="opt">=</span> <span class="num">1</span><span class="opt">);</span>
+     (Output_Index<span class="kwd">&apos;First</span> = <span class="num">1</span>);
    <span class="kwa">pragma</span> Postcondition
-     <span class="opt">(</span>Result<span class="kwd">&apos;First</span> <span class="opt">=</span> Output_Index<span class="kwd">&apos;First</span> <span class="kwa">and</span>
-      Result<span class="kwd">&apos;Last</span> <span class="opt">=</span> Output_Index<span class="kwd">&apos;Max</span>
-        <span class="opt">(</span><span class="num">0</span><span class="opt">,</span> Stream_Element_Offset <span class="opt">(</span><span class="kwb">Integer</span> <span class="opt">(</span>Y2 <span class="opt">-</span> Y1<span class="opt">) * (</span>Size <span class="opt">/</span> <span class="num">8</span> <span class="opt">+</span> <span class="kwb">Boolean</span><span class="kwd">&apos;Pos</span> <span class="opt">(</span>Size <span class="kwa">mod</span> <span class="num">8</span> <span class="opt">&gt;</span> <span class="num">0</span><span class="opt">)))));</span>
+     (Result<span class="kwd">&apos;First</span> = Output_Index<span class="kwd">&apos;First</span> <span class="kwa">and</span>
+      Result<span class="kwd">&apos;Last</span> = Output_Index<span class="kwd">&apos;Max</span>
+        (<span class="num">0</span>, Stream_Element_Offset (<span class="kwb">Integer</span> (Y2 - Y1) * (Size / <span class="num">8</span> + <span class="kwb">Boolean</span><span class="kwd">&apos;Pos</span> (Size <span class="kwa">mod</span> <span class="num">8</span> &gt; <span class="num">0</span>)))));
 
-   <span class="kwa">procedure</span> Compute <span class="opt">(</span>Y1<span class="opt">,</span> Y2 <span class="opt">:</span> PCount<span class="opt">;</span> Result <span class="opt">:</span> Output<span class="opt">)</span>
+   <span class="kwa">procedure</span> Compute (Y1, Y2 : PCount; Result : Output)
    <span class="kwa">is</span>
-      <span class="kwa">subtype</span> Instruction_Stream_Index <span class="kwa">is</span> <span class="kwb">Integer</span> <span class="kwa">range</span> <span class="num">1</span> <span class="opt">..</span> <span class="num">2</span><span class="opt">;</span>
-      <span class="kwa">pragma</span> Assert <span class="opt">(</span>Instruction_Stream_Index<span class="kwd">&apos;First</span> <span class="opt">=</span> <span class="num">1</span><span class="opt">);</span>
+      <span class="kwa">subtype</span> Instruction_Stream_Index <span class="kwa">is</span> <span class="kwb">Integer</span> <span class="kwa">range</span> <span class="num">1</span> .. <span class="num">2</span>;
+      <span class="kwa">pragma</span> Assert (Instruction_Stream_Index<span class="kwd">&apos;First</span> = <span class="num">1</span>);
 
-      Bit_Num  <span class="opt">:</span> M8         <span class="opt">:=</span> <span class="num">0</span><span class="opt">;</span>
-      Byte_Acc <span class="opt">:</span> Unsigned_8 <span class="opt">:=</span> <span class="num">0</span><span class="opt">;</span>
-      Byte_Acc_Storage <span class="opt">:</span> <span class="kwa">array</span> <span class="opt">(</span>Instruction_Stream_Index<span class="opt">)</span> <span class="kwa">of</span> Unsigned_8<span class="opt">;</span>
-      Last     <span class="opt">:</span> Stream_Element_Offset <span class="opt">:=</span> Result<span class="kwd">&apos;First</span> <span class="opt">-</span> <span class="num">1</span><span class="opt">;</span>
+      Bit_Num  : M8         := <span class="num">0</span>;
+      Byte_Acc : Unsigned_8 := <span class="num">0</span>;
+      Byte_Acc_Storage : <span class="kwa">array</span> (Instruction_Stream_Index) <span class="kwa">of</span> Unsigned_8;
+      Last     : Stream_Element_Offset := Result<span class="kwd">&apos;First</span> - <span class="num">1</span>;
    <span class="kwa">begin</span>
-      <span class="kwa">for</span> Y <span class="kwa">in</span> Y1 <span class="opt">..</span> Y2 <span class="opt">-</span> <span class="num">1</span> <span class="kwa">loop</span>
-         <span class="kwa">for</span> X <span class="kwa">in</span> <span class="num">0</span> <span class="opt">..</span> Size <span class="opt">/</span> Instruction_Stream_Index<span class="kwd">&apos;Last</span> <span class="opt">-</span> <span class="num">1</span> <span class="kwa">loop</span>
+      <span class="kwa">for</span> Y <span class="kwa">in</span> Y1 .. Y2 - <span class="num">1</span> <span class="kwa">loop</span>
+         <span class="kwa">for</span> X <span class="kwa">in</span> <span class="num">0</span> .. Size / Instruction_Stream_Index<span class="kwd">&apos;Last</span> - <span class="num">1</span> <span class="kwa">loop</span>
             <span class="kwa">declare</span>
-               Cr_1 <span class="opt">:</span> <span class="kwa">constant</span> Real <span class="opt">:=</span> Two_on_Size <span class="opt">* (</span>Real <span class="opt">(</span><span class="num">2</span><span class="opt">*</span>X<span class="opt">)) -</span> <span class="num">1.5</span><span class="opt">;</span>
-               Ci_1 <span class="opt">:</span> <span class="kwa">constant</span> Real <span class="opt">:=</span> Two_on_Size <span class="opt">* (</span>Real <span class="opt">(</span>Y<span class="opt">)) -</span> <span class="num">1.0</span><span class="opt">;</span>
-               Zr_1 <span class="opt">:</span> Real <span class="opt">:=</span> Cr_1<span class="opt">;</span>
-               Zi_1 <span class="opt">:</span> Real <span class="opt">:=</span> Ci_1<span class="opt">;</span>
-               ZZi_1 <span class="opt">:</span> Real <span class="opt">:=</span> Zi_1 <span class="opt">*</span> Zi_1<span class="opt">;</span>
-               ZZr_1 <span class="opt">:</span> Real <span class="opt">:=</span> Zr_1 <span class="opt">*</span> Zr_1<span class="opt">;</span>
-               Z_1_Exceeded_Limit <span class="opt">:</span> <span class="kwb">Boolean</span> <span class="opt">:=</span> <span class="kwd">False</span><span class="opt">;</span>
-               Tmp_1 <span class="opt">:</span> Real<span class="opt">;</span>
+               Cr_1 : <span class="kwa">constant</span> Real := Two_on_Size * (Real (<span class="num">2</span>*X)) - <span class="num">1.5</span>;
+               Ci_1 : <span class="kwa">constant</span> Real := Two_on_Size * (Real (Y)) - <span class="num">1.0</span>;
+               Zr_1 : Real := Cr_1;
+               Zi_1 : Real := Ci_1;
+               ZZi_1 : Real := Zi_1 * Zi_1;
+               ZZr_1 : Real := Zr_1 * Zr_1;
+               Z_1_Exceeded_Limit : <span class="kwb">Boolean</span> := <span class="kwd">False</span>;
+               Tmp_1 : Real;
 
-               Cr_2 <span class="opt">:</span> <span class="kwa">constant</span> Real <span class="opt">:=</span> Two_on_Size <span class="opt">* (</span>Real <span class="opt">(</span><span class="num">2</span><span class="opt">*</span>X <span class="opt">+</span> <span class="num">1</span><span class="opt">)) -</span> <span class="num">1.5</span><span class="opt">;</span>
-               Ci_2 <span class="opt">:</span> <span class="kwa">constant</span> Real <span class="opt">:=</span> Two_on_Size <span class="opt">* (</span>Real <span class="opt">(</span>Y<span class="opt">)) -</span> <span class="num">1.0</span><span class="opt">;</span>
-               Zr_2 <span class="opt">:</span> Real <span class="opt">:=</span> Cr_2<span class="opt">;</span>
-               Zi_2 <span class="opt">:</span> Real <span class="opt">:=</span> Ci_2<span class="opt">;</span>
-               ZZi_2 <span class="opt">:</span> Real <span class="opt">:=</span> Zi_2 <span class="opt">*</span> Zi_2<span class="opt">;</span>
-               ZZr_2 <span class="opt">:</span> Real <span class="opt">:=</span> Zr_2 <span class="opt">*</span> Zr_2<span class="opt">;</span>
-               Z_2_Exceeded_Limit <span class="opt">:</span> <span class="kwb">Boolean</span> <span class="opt">:=</span> <span class="kwd">False</span><span class="opt">;</span>
-               Tmp_2 <span class="opt">:</span> Real<span class="opt">;</span>
+               Cr_2 : <span class="kwa">constant</span> Real := Two_on_Size * (Real (<span class="num">2</span>*X + <span class="num">1</span>)) - <span class="num">1.5</span>;
+               Ci_2 : <span class="kwa">constant</span> Real := Two_on_Size * (Real (Y)) - <span class="num">1.0</span>;
+               Zr_2 : Real := Cr_2;
+               Zi_2 : Real := Ci_2;
+               ZZi_2 : Real := Zi_2 * Zi_2;
+               ZZr_2 : Real := Zr_2 * Zr_2;
+               Z_2_Exceeded_Limit : <span class="kwb">Boolean</span> := <span class="kwd">False</span>;
+               Tmp_2 : Real;
             <span class="kwa">begin</span>
-               <span class="kwa">for</span> I <span class="kwa">in</span> <span class="num">1</span> <span class="opt">..</span> Iter <span class="kwa">loop</span>
+               <span class="kwa">for</span> I <span class="kwa">in</span> <span class="num">1</span> .. Iter <span class="kwa">loop</span>
 
-                  Tmp_1 <span class="opt">:=</span> Zr_1 <span class="opt">*</span> Zi_1<span class="opt">;</span>
-                  Tmp_2 <span class="opt">:=</span> Zr_2 <span class="opt">*</span> Zi_2<span class="opt">;</span>
-                  Zr_1 <span class="opt">:=</span> Cr_1 <span class="opt">-</span> ZZi_1<span class="opt">;</span>
-                  Zr_2 <span class="opt">:=</span> Cr_2 <span class="opt">-</span> ZZi_2<span class="opt">;</span>
-                  Zi_1 <span class="opt">:=</span> Ci_1 <span class="opt">+</span> Tmp_1 <span class="opt">+</span> Tmp_1<span class="opt">;</span>
-                  Zi_2 <span class="opt">:=</span> Ci_2 <span class="opt">+</span> Tmp_2 <span class="opt">+</span> Tmp_2<span class="opt">;</span>
-                  Zr_1 <span class="opt">:=</span> Zr_1 <span class="opt">+</span> ZZr_1<span class="opt">;</span>
-                  Zr_2 <span class="opt">:=</span> Zr_2 <span class="opt">+</span> ZZr_2<span class="opt">;</span>
+                  Tmp_1 := Zr_1 * Zi_1;
+                  Tmp_2 := Zr_2 * Zi_2;
+                  Zr_1 := Cr_1 - ZZi_1;
+                  Zr_2 := Cr_2 - ZZi_2;
+                  Zi_1 := Ci_1 + Tmp_1 + Tmp_1;
+                  Zi_2 := Ci_2 + Tmp_2 + Tmp_2;
+                  Zr_1 := Zr_1 + ZZr_1;
+                  Zr_2 := Zr_2 + ZZr_2;
 
                   <span class="kwa">if not</span> Z_1_Exceeded_Limit <span class="kwa">then</span>
-                     <span class="kwa">if</span> ZZi_1 <span class="opt">+</span> ZZr_1 <span class="opt">&gt;</span> Limit <span class="kwa">then</span>
-                        Z_1_Exceeded_Limit <span class="opt">:=</span> <span class="kwd">True</span><span class="opt">;</span>
-                     <span class="kwa">end if</span><span class="opt">;</span>
-                  <span class="kwa">end if</span><span class="opt">;</span>
+                     <span class="kwa">if</span> ZZi_1 + ZZr_1 &gt; Limit <span class="kwa">then</span>
+                        Z_1_Exceeded_Limit := <span class="kwd">True</span>;
+                     <span class="kwa">end if</span>;
+                  <span class="kwa">end if</span>;
                   <span class="kwa">if not</span> Z_1_Exceeded_Limit <span class="kwa">then</span>
-                     ZZr_1 <span class="opt">:=</span> Zr_1 <span class="opt">*</span> Zr_1<span class="opt">;</span>
-                     ZZi_1 <span class="opt">:=</span> Zi_1 <span class="opt">*</span> Zi_1<span class="opt">;</span>
-                  <span class="kwa">end if</span><span class="opt">;</span>
+                     ZZr_1 := Zr_1 * Zr_1;
+                     ZZi_1 := Zi_1 * Zi_1;
+                  <span class="kwa">end if</span>;
 
                   <span class="kwa">if not</span> Z_2_Exceeded_Limit <span class="kwa">then</span>
-                     <span class="kwa">if</span> ZZi_2 <span class="opt">+</span> ZZr_2 <span class="opt">&gt;</span> Limit <span class="kwa">then</span>
-                        Z_2_Exceeded_Limit <span class="opt">:=</span> <span class="kwd">True</span><span class="opt">;</span>
-                     <span class="kwa">end if</span><span class="opt">;</span>
-                  <span class="kwa">end if</span><span class="opt">;</span>
+                     <span class="kwa">if</span> ZZi_2 + ZZr_2 &gt; Limit <span class="kwa">then</span>
+                        Z_2_Exceeded_Limit := <span class="kwd">True</span>;
+                     <span class="kwa">end if</span>;
+                  <span class="kwa">end if</span>;
                   <span class="kwa">if not</span> Z_2_Exceeded_Limit <span class="kwa">then</span>
-                     ZZr_2 <span class="opt">:=</span> Zr_2 <span class="opt">*</span> Zr_2<span class="opt">;</span>
-                     ZZi_2 <span class="opt">:=</span> Zi_2 <span class="opt">*</span> Zi_2<span class="opt">;</span>
-                  <span class="kwa">end if</span><span class="opt">;</span>
+                     ZZr_2 := Zr_2 * Zr_2;
+                     ZZi_2 := Zi_2 * Zi_2;
+                  <span class="kwa">end if</span>;
 
-                  <span class="kwa">exit when</span> Z_2_Exceeded_Limit <span class="kwa">and</span> Z_1_Exceeded_Limit<span class="opt">;</span>
-               <span class="kwa">end loop</span><span class="opt">;</span>
+                  <span class="kwa">exit when</span> Z_2_Exceeded_Limit <span class="kwa">and</span> Z_1_Exceeded_Limit;
+               <span class="kwa">end loop</span>;
 
                <span class="kwa">if</span> Z_1_Exceeded_Limit <span class="kwa">then</span>
-                  Byte_Acc <span class="opt">:=</span> Shift_Left <span class="opt">(</span>Byte_Acc<span class="opt">,</span> <span class="num">1</span><span class="opt">)</span> <span class="kwa">or</span> <span class="num">16</span>#<span class="num">00</span>#<span class="opt">;</span>
+                  Byte_Acc := Shift_Left (Byte_Acc, <span class="num">1</span>) <span class="kwa">or</span> <span class="num">16</span>#<span class="num">00</span>#;
                <span class="kwa">else</span>
-                  Byte_Acc <span class="opt">:=</span> Shift_Left <span class="opt">(</span>Byte_Acc<span class="opt">,</span> <span class="num">1</span><span class="opt">)</span> <span class="kwa">or</span> <span class="num">16</span>#<span class="num">01</span>#<span class="opt">;</span>
-               <span class="kwa">end if</span><span class="opt">;</span>
-               Byte_Acc_Storage <span class="opt">(</span><span class="num">1</span><span class="opt">) :=</span> Byte_Acc<span class="opt">;</span>
+                  Byte_Acc := Shift_Left (Byte_Acc, <span class="num">1</span>) <span class="kwa">or</span> <span class="num">16</span>#<span class="num">01</span>#;
+               <span class="kwa">end if</span>;
+               Byte_Acc_Storage (<span class="num">1</span>) := Byte_Acc;
 
                <span class="kwa">if</span> Z_2_Exceeded_Limit <span class="kwa">then</span>
-                  Byte_Acc <span class="opt">:=</span> Shift_Left <span class="opt">(</span>Byte_Acc<span class="opt">,</span> <span class="num">1</span><span class="opt">)</span> <span class="kwa">or</span> <span class="num">16</span>#<span class="num">00</span>#<span class="opt">;</span>
+                  Byte_Acc := Shift_Left (Byte_Acc, <span class="num">1</span>) <span class="kwa">or</span> <span class="num">16</span>#<span class="num">00</span>#;
                <span class="kwa">else</span>
-                  Byte_Acc <span class="opt">:=</span> Shift_Left <span class="opt">(</span>Byte_Acc<span class="opt">,</span> <span class="num">1</span><span class="opt">)</span> <span class="kwa">or</span> <span class="num">16</span>#<span class="num">01</span>#<span class="opt">;</span>
-               <span class="kwa">end if</span><span class="opt">;</span>
-               Byte_Acc_Storage <span class="opt">(</span><span class="num">2</span><span class="opt">) :=</span> Byte_Acc<span class="opt">;</span>
-            <span class="kwa">end</span><span class="opt">;</span>
+                  Byte_Acc := Shift_Left (Byte_Acc, <span class="num">1</span>) <span class="kwa">or</span> <span class="num">16</span>#<span class="num">01</span>#;
+               <span class="kwa">end if</span>;
+               Byte_Acc_Storage (<span class="num">2</span>) := Byte_Acc;
+            <span class="kwa">end</span>;
 
             <span class="kwa">for</span> j <span class="kwa">in</span> Byte_Acc_Storage<span class="kwd">&apos;Range</span> <span class="kwa">loop</span>
 
-               Bit_Num <span class="opt">:=</span> Bit_Num <span class="opt">+</span> <span class="num">1</span><span class="opt">;</span>
+               Bit_Num := Bit_Num + <span class="num">1</span>;
 
-               <span class="kwa">if</span> Bit_Num <span class="opt">=</span> <span class="num">0</span> <span class="kwa">then</span>
-                  Last <span class="opt">:=</span> Last <span class="opt">+</span> <span class="num">1</span><span class="opt">;</span>
-                  Result <span class="opt">(</span>Last<span class="opt">) :=</span> Stream_Element <span class="opt">(</span>Byte_Acc_Storage <span class="opt">(</span>j<span class="opt">));</span>
-                  Byte_Acc <span class="opt">:=</span> <span class="num">0</span><span class="opt">;</span>
-               <span class="kwa">end if</span><span class="opt">;</span>
+               <span class="kwa">if</span> Bit_Num = <span class="num">0</span> <span class="kwa">then</span>
+                  Last := Last + <span class="num">1</span>;
+                  Result (Last) := Stream_Element (Byte_Acc_Storage (j));
+                  Byte_Acc := <span class="num">0</span>;
+               <span class="kwa">end if</span>;
 
-            <span class="kwa">end loop</span><span class="opt">;</span>
-         <span class="kwa">end loop</span><span class="opt">;</span>
+            <span class="kwa">end loop</span>;
+         <span class="kwa">end loop</span>;
 
-         <span class="kwa">case</span> M8 <span class="opt">(</span>Size <span class="kwa">mod</span> <span class="num">8</span><span class="opt">)</span> <span class="kwa">is</span>
-            <span class="kwa">when</span> <span class="num">0</span> <span class="opt">=&gt;</span>
-               <span class="kwa">null</span><span class="opt">;</span>
-            <span class="kwa">when</span> <span class="num">1</span> | <span class="num">3</span> | <span class="num">5</span> | <span class="num">7</span> <span class="opt">=&gt;</span>
-               <span class="kwa">pragma</span> Assert <span class="opt">(</span><span class="kwd">False</span><span class="opt">);</span>  <span class="slc">-- odd Size not covered</span>
-               <span class="kwa">null</span><span class="opt">;</span>
-            <span class="kwa">when</span> <span class="num">2</span> | <span class="num">4</span> | <span class="num">6</span> <span class="opt">=&gt;</span>
-               Byte_Acc_Storage <span class="opt">(</span><span class="num">2</span><span class="opt">) :=</span> Shift_Left <span class="opt">(</span>Byte_Acc<span class="opt">,</span> <span class="num">8</span> <span class="opt">- (</span>Size <span class="kwa">mod</span> <span class="num">8</span><span class="opt">));</span>
-               Last <span class="opt">:=</span> Last <span class="opt">+</span> <span class="num">1</span><span class="opt">;</span>
-               Result <span class="opt">(</span>Last<span class="opt">) :=</span> Stream_Element <span class="opt">(</span>Byte_Acc_Storage <span class="opt">(</span><span class="num">2</span><span class="opt">));</span>
-               Byte_Acc <span class="opt">:=</span> <span class="num">0</span><span class="opt">;</span>
-               Bit_Num  <span class="opt">:=</span> <span class="num">0</span><span class="opt">;</span>
-         <span class="kwa">end case</span><span class="opt">;</span>
-      <span class="kwa">end loop</span><span class="opt">;</span>
-   <span class="kwa">end</span> Compute<span class="opt">;</span>
+         <span class="kwa">case</span> M8 (Size <span class="kwa">mod</span> <span class="num">8</span>) <span class="kwa">is</span>
+            <span class="kwa">when</span> <span class="num">0</span> =&gt;
+               <span class="kwa">null</span>;
+            <span class="kwa">when</span> <span class="num">1</span> | <span class="num">3</span> | <span class="num">5</span> | <span class="num">7</span> =&gt;
+               <span class="kwa">pragma</span> Assert (<span class="kwd">False</span>);  <span class="slc">-- odd Size not covered</span>
+               <span class="kwa">null</span>;
+            <span class="kwa">when</span> <span class="num">2</span> | <span class="num">4</span> | <span class="num">6</span> =&gt;
+               Byte_Acc_Storage (<span class="num">2</span>) := Shift_Left (Byte_Acc, <span class="num">8</span> - (Size <span class="kwa">mod</span> <span class="num">8</span>));
+               Last := Last + <span class="num">1</span>;
+               Result (Last) := Stream_Element (Byte_Acc_Storage (<span class="num">2</span>));
+               Byte_Acc := <span class="num">0</span>;
+               Bit_Num  := <span class="num">0</span>;
+         <span class="kwa">end case</span>;
+      <span class="kwa">end loop</span>;
+   <span class="kwa">end</span> Compute;
 
    <span class="kwa">task body</span> X_Step <span class="kwa">is</span>
-      Y1<span class="opt">,</span> Y2 <span class="opt">:</span> PCount<span class="opt">;</span>
-      Data   <span class="opt">:</span> Output<span class="opt">;</span>
+      Y1, Y2 : PCount;
+      Data   : Output;
    <span class="kwa">begin</span>
-      <span class="kwa">accept</span> Compute_Z <span class="opt">(</span>Y1<span class="opt">,</span> Y2 <span class="opt">:</span> PCount<span class="opt">)</span> <span class="kwa">do</span>
-         X_Step<span class="opt">.</span>Y1 <span class="opt">:=</span> Y1<span class="opt">;</span>
-         X_Step<span class="opt">.</span>Y2 <span class="opt">:=</span> Y2<span class="opt">;</span>
-      <span class="kwa">end</span> Compute_Z<span class="opt">;</span>
+      <span class="kwa">accept</span> Compute_Z (Y1, Y2 : PCount) <span class="kwa">do</span>
+         X_Step.Y1 := Y1;
+         X_Step.Y2 := Y2;
+      <span class="kwa">end</span> Compute_Z;
 
-      Allocate_Output_Queue <span class="opt">(</span>Y1<span class="opt">,</span> Y2<span class="opt">,</span> Result <span class="opt">=&gt;</span> Data<span class="opt">);</span>
-      Compute <span class="opt">(</span>Y1<span class="opt">,</span> Y2<span class="opt">,</span> Result <span class="opt">=&gt;</span> Data<span class="opt">);</span>
+      Allocate_Output_Queue (Y1, Y2, Result =&gt; Data);
+      Compute (Y1, Y2, Result =&gt; Data);
 
-      <span class="kwa">accept</span> Get_Output <span class="opt">(</span>Result <span class="opt">:</span> <span class="kwa">out</span> Output<span class="opt">)</span> <span class="kwa">do</span>
-         Result <span class="opt">:=</span> Data<span class="opt">;</span>
-      <span class="kwa">end</span> Get_Output<span class="opt">;</span>
-   <span class="kwa">end</span> X_Step<span class="opt">;</span>
+      <span class="kwa">accept</span> Get_Output (Result : <span class="kwa">out</span> Output) <span class="kwa">do</span>
+         Result := Data;
+      <span class="kwa">end</span> Get_Output;
+   <span class="kwa">end</span> X_Step;
 
-   <span class="kwa">procedure</span> Allocate_Output_Queue <span class="opt">(</span>Y1<span class="opt">,</span> Y2 <span class="opt">:</span> PCount<span class="opt">;</span> Result <span class="opt">:</span> <span class="kwa">out</span> Output<span class="opt">)</span> <span class="kwa">is</span>
-      Limit <span class="opt">:</span> <span class="kwa">constant</span> <span class="kwb">Natural</span> <span class="opt">:=</span> <span class="kwb">Natural</span><span class="kwd">&apos;Max</span>
-        <span class="opt">(</span><span class="num">0</span><span class="opt">,</span>
-         <span class="kwb">Integer</span> <span class="opt">(</span>Y2 <span class="opt">-</span> Y1<span class="opt">) * (</span>Size <span class="opt">/</span> <span class="num">8</span> <span class="opt">+</span> <span class="kwb">Boolean</span><span class="kwd">&apos;Pos</span> <span class="opt">(</span>Size <span class="kwa">mod</span> <span class="num">8</span> <span class="opt">&gt;</span> <span class="num">0</span><span class="opt">)));</span>
+   <span class="kwa">procedure</span> Allocate_Output_Queue (Y1, Y2 : PCount; Result : <span class="kwa">out</span> Output) <span class="kwa">is</span>
+      Limit : <span class="kwa">constant</span> <span class="kwb">Natural</span> := <span class="kwb">Natural</span><span class="kwd">&apos;Max</span>
+        (<span class="num">0</span>,
+         <span class="kwb">Integer</span> (Y2 - Y1) * (Size / <span class="num">8</span> + <span class="kwb">Boolean</span><span class="kwd">&apos;Pos</span> (Size <span class="kwa">mod</span> <span class="num">8</span> &gt; <span class="num">0</span>)));
    <span class="kwa">begin</span>
-      Result <span class="opt">:=</span> <span class="kwa">new</span> Output_Queue <span class="opt">(</span><span class="num">1</span> <span class="opt">..</span> Output_Index<span class="kwd">&apos;Base</span> <span class="opt">(</span>Limit<span class="opt">));</span>
-   <span class="kwa">end</span> Allocate_Output_Queue<span class="opt">;</span>
+      Result := <span class="kwa">new</span> Output_Queue (<span class="num">1</span> .. Output_Index<span class="kwd">&apos;Base</span> (Limit));
+   <span class="kwa">end</span> Allocate_Output_Queue;
 
 <span class="kwa">begin</span>
-   <span class="kwa">pragma</span> Assert <span class="opt">(</span>Size <span class="kwa">mod</span> <span class="num">2</span> <span class="opt">=</span> <span class="num">0</span><span class="opt">,</span> <span class="str">&quot;Size must be even at present&quot;</span><span class="opt">);</span>
+   <span class="kwa">pragma</span> Assert (Size <span class="kwa">mod</span> <span class="num">2</span> = <span class="num">0</span>, <span class="str">&quot;Size must be even at present&quot;</span>);
 
    <span class="kwa">declare</span>
-      <span class="kwa">subtype</span> Worker_Index <span class="kwa">is</span> <span class="kwb">Natural</span> <span class="kwa">range</span> <span class="num">0</span> <span class="opt">..</span> <span class="num">32</span><span class="opt">;</span>
-      Chunk_Size <span class="opt">:</span> <span class="kwa">constant</span> <span class="kwb">Positive</span> <span class="opt">:=</span>
-        <span class="opt">(</span>Size <span class="opt">+</span> Worker_Index<span class="kwd">&apos;Last</span><span class="opt">) /</span> Worker_Index<span class="kwd">&apos;Last</span><span class="opt">;</span>
-      Worker     <span class="opt">:</span> <span class="kwa">array</span> <span class="opt">(</span>Worker_Index<span class="opt">)</span> <span class="kwa">of</span> X_Step<span class="opt">;</span>
-      <span class="kwa">pragma</span>       Assert <span class="opt">(</span>Worker<span class="kwd">&apos;Length</span> <span class="opt">*</span> Chunk_Size <span class="opt">&gt;=</span> Size<span class="opt">);</span>
-      <span class="kwa">pragma</span>       Assert <span class="opt">(</span>Worker<span class="kwd">&apos;First</span> <span class="opt">=</span> <span class="num">0</span><span class="opt">);</span>
+      <span class="kwa">subtype</span> Worker_Index <span class="kwa">is</span> <span class="kwb">Natural</span> <span class="kwa">range</span> <span class="num">0</span> .. <span class="num">32</span>;
+      Chunk_Size : <span class="kwa">constant</span> <span class="kwb">Positive</span> :=
+        (Size + Worker_Index<span class="kwd">&apos;Last</span>) / Worker_Index<span class="kwd">&apos;Last</span>;
+      Worker     : <span class="kwa">array</span> (Worker_Index) <span class="kwa">of</span> X_Step;
+      <span class="kwa">pragma</span>       Assert (Worker<span class="kwd">&apos;Length</span> * Chunk_Size &gt;= Size);
+      <span class="kwa">pragma</span>       Assert (Worker<span class="kwd">&apos;First</span> = <span class="num">0</span>);
    <span class="kwa">begin</span>
       <span class="kwa">for</span> P <span class="kwa">in</span> Worker<span class="kwd">&apos;Range</span> <span class="kwa">loop</span>
-         Worker <span class="opt">(</span>P<span class="opt">).</span>Compute_Z
-           <span class="opt">(</span>Y1 <span class="opt">=&gt;</span> PCount <span class="opt">(</span>P <span class="opt">*</span> Chunk_Size<span class="opt">),</span>
-            Y2 <span class="opt">=&gt;</span> PCount <span class="opt">(</span><span class="kwb">Positive</span><span class="kwd">&apos;Min</span> <span class="opt">((</span>P <span class="opt">+</span> <span class="num">1</span><span class="opt">) *</span> Chunk_Size<span class="opt">,</span> Size<span class="opt">)));</span>
-      <span class="kwa">end loop</span><span class="opt">;</span>
+         Worker (P).Compute_Z
+           (Y1 =&gt; PCount (P * Chunk_Size),
+            Y2 =&gt; PCount (<span class="kwb">Positive</span><span class="kwd">&apos;Min</span> ((P + <span class="num">1</span>) * Chunk_Size, Size)));
+      <span class="kwa">end loop</span>;
 
       <span class="kwa">declare</span>
-         Stdout <span class="opt">:</span> Stream_IO<span class="opt">.</span>File_Type<span class="opt">;</span>
-         Header <span class="opt">:</span> <span class="kwa">constant</span> <span class="kwb">String</span> <span class="opt">:=</span> <span class="str">&quot;P4&quot;</span> <span class="opt">&amp;</span> ASCII<span class="opt">.</span>LF <span class="opt">&amp;</span>
-           Argument <span class="opt">(</span><span class="num">1</span><span class="opt">) &amp;</span> <span class="str">&quot; &quot;</span> <span class="opt">&amp;</span> Argument <span class="opt">(</span><span class="num">1</span><span class="opt">) &amp;</span> ASCII<span class="opt">.</span>LF<span class="opt">;</span>
-         Buffer <span class="opt">:</span> Output<span class="opt">;</span>
+         Stdout : Stream_IO.File_Type;
+         Header : <span class="kwa">constant</span> <span class="kwb">String</span> := <span class="str">&quot;P4&quot;</span> &amp; ASCII.LF &amp;
+           Argument (<span class="num">1</span>) &amp; <span class="str">&quot; &quot;</span> &amp; Argument (<span class="num">1</span>) &amp; ASCII.LF;
+         Buffer : Output;
 
-         Header_Bytes <span class="opt">:</span> Stream_Element_Array <span class="opt">(</span><span class="num">1</span> <span class="opt">..</span> Header<span class="kwd">&apos;Length</span><span class="opt">);</span>
-         <span class="kwa">pragma</span> Import <span class="opt">(</span>Ada<span class="opt">,</span> Header_Bytes<span class="opt">);</span>
-         <span class="kwa">for</span> Header_Bytes<span class="kwd">&apos;Address</span> <span class="kwa">use</span> Header<span class="kwd">&apos;Address</span><span class="opt">;</span>
+         Header_Bytes : Stream_Element_Array (<span class="num">1</span> .. Header<span class="kwd">&apos;Length</span>);
+         <span class="kwa">pragma</span> Import (Ada, Header_Bytes);
+         <span class="kwa">for</span> Header_Bytes<span class="kwd">&apos;Address</span> <span class="kwa">use</span> Header<span class="kwd">&apos;Address</span>;
       <span class="kwa">begin</span>
-         Stream_IO<span class="opt">.</span>Open <span class="opt">(</span>Stdout<span class="opt">,</span> Stream_IO<span class="opt">.</span>Out_File<span class="opt">,</span> <span class="str">&quot;/dev/stdout&quot;</span><span class="opt">);</span>
-         Stream_IO<span class="opt">.</span>Write <span class="opt">(</span>Stdout<span class="opt">,</span> Header_Bytes<span class="opt">);</span>
+         Stream_IO.Open (Stdout, Stream_IO.Out_File, <span class="str">&quot;/dev/stdout&quot;</span>);
+         Stream_IO.Write (Stdout, Header_Bytes);
          <span class="kwa">for</span> P <span class="kwa">in</span> Worker<span class="kwd">&apos;Range</span> <span class="kwa">loop</span>
-            Worker <span class="opt">(</span>P<span class="opt">).</span>Get_Output <span class="opt">(</span>Result <span class="opt">=&gt;</span> Buffer<span class="opt">);</span>
-            Stream_IO<span class="opt">.</span>Write <span class="opt">(</span>Stdout<span class="opt">,</span> Buffer<span class="opt">.</span><span class="kwa">all</span><span class="opt">);</span>
-         <span class="kwa">end loop</span><span class="opt">;</span>
-      <span class="kwa">end</span><span class="opt">;</span>
-   <span class="kwa">end</span><span class="opt">;</span>
+            Worker (P).Get_Output (Result =&gt; Buffer);
+            Stream_IO.Write (Stdout, Buffer.<span class="kwa">all</span>);
+         <span class="kwa">end loop</span>;
+      <span class="kwa">end</span>;
+   <span class="kwa">end</span>;
 
-<span class="kwa">end</span> Mandelbrot<span class="opt">;</span>
+<span class="kwa">end</span> Mandelbrot;
 
     </pre>
   </section>
@@ -245,23 +245,23 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
     <pre>
 NOTES:
 64-bit Ubuntu quad core
-GNATMAKE 9.3.0
-gcc (Ubuntu 10.2.0-13ubuntu1) 10.2.0
+GNATMAKE 10.3.0
+gcc (Ubuntu 10.3.0-1ubuntu1) 10.3.0
 
 
 
-Fri, 23 Oct 2020 19:01:04 GMT
+Sat, 05 Jun 2021 02:32:34 GMT
 
 MAKE:
 gnatchop -r -w mandelbrot.gnat-3.gnat
 splitting mandelbrot.gnat-3.gnat into:
    mandelbrot.adb
 gnatmake -O3 -fomit-frame-pointer -march=ivybridge -gnatNp -f mandelbrot.adb -o mandelbrot.gnat-3.gnat_run 
-x86_64-linux-gnu-gcc-9 -c -O3 -fomit-frame-pointer -march=ivybridge -gnatNp mandelbrot.adb
-x86_64-linux-gnu-gnatbind-9 -x mandelbrot.ali
-x86_64-linux-gnu-gnatlink-9 mandelbrot.ali -O3 -fomit-frame-pointer -march=ivybridge -o mandelbrot.gnat-3.gnat_run
+x86_64-linux-gnu-gcc-10 -c -O3 -fomit-frame-pointer -march=ivybridge -gnatNp mandelbrot.adb
+x86_64-linux-gnu-gnatbind-10 -x mandelbrot.ali
+x86_64-linux-gnu-gnatlink-10 mandelbrot.ali -O3 -fomit-frame-pointer -march=ivybridge -o mandelbrot.gnat-3.gnat_run
 
-2.66s to complete and log all make actions
+2.41s to complete and log all make actions
 
 COMMAND LINE:
 ./mandelbrot.gnat-3.gnat_run 16000

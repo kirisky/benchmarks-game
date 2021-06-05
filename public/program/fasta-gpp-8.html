@@ -49,242 +49,242 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="ppc">#include &lt;boost/range/adaptor/strided.hpp&gt;</span>
 <span class="ppc">#include &lt;boost/range/irange.hpp&gt;</span>
 
-<span class="kwc">constexpr</span> <span class="kwb">int</span> LINE_LENGTH <span class="opt">=</span> <span class="num">60</span><span class="opt">;</span>
-<span class="kwc">constexpr</span> <span class="kwb">uint32_t</span> IM <span class="opt">=</span> <span class="num">139968</span><span class="opt">;</span>
-<span class="kwc">constexpr</span> <span class="kwb">int</span> LINES <span class="opt">=</span> <span class="num">1024</span><span class="opt">;</span>
-<span class="kwc">constexpr</span> <span class="kwb">int</span> BLKLEN <span class="opt">=</span> LINE_LENGTH <span class="opt">*</span> LINES<span class="opt">;</span>
+<span class="kwc">constexpr</span> <span class="kwb">int</span> LINE_LENGTH = <span class="num">60</span>;
+<span class="kwc">constexpr</span> <span class="kwb">uint32_t</span> IM = <span class="num">139968</span>;
+<span class="kwc">constexpr</span> <span class="kwb">int</span> LINES = <span class="num">1024</span>;
+<span class="kwc">constexpr</span> <span class="kwb">int</span> BLKLEN = LINE_LENGTH * LINES;
 
-<span class="kwc">constexpr</span> <span class="kwb">int</span> NUM_THREADS <span class="opt">=</span> <span class="num">2</span><span class="opt">;</span>
+<span class="kwc">constexpr</span> <span class="kwb">int</span> NUM_THREADS = <span class="num">2</span>;
 
-<span class="kwb">struct</span> SpinLock <span class="opt">{</span>
-  <span class="kwc">std</span><span class="opt">::</span>atomic_bool lock_ <span class="opt">=</span> <span class="kwa">false</span><span class="opt">;</span>
+<span class="kwb">struct</span> SpinLock {
+  std::atomic_bool lock_ = <span class="kwa">false</span>;
 
-  <span class="kwb">void</span> <span class="kwd">lock</span><span class="opt">()</span> noexcept <span class="opt">{</span>
-    <span class="kwa">for</span> <span class="opt">(;;) {</span>
-      <span class="kwa">if</span> <span class="opt">(!</span>lock_<span class="opt">.</span><span class="kwd">exchange</span><span class="opt">(</span><span class="kwa">true</span><span class="opt">,</span> <span class="kwc">std</span><span class="opt">::</span>memory_order_acquire<span class="opt">))</span>
-        <span class="kwa">return</span><span class="opt">;</span>
-      <span class="kwa">while</span> <span class="opt">(</span>lock_<span class="opt">.</span><span class="kwd">load</span><span class="opt">(</span><span class="kwc">std</span><span class="opt">::</span>memory_order_relaxed<span class="opt">)) {</span>
+  <span class="kwb">void</span> <span class="kwd">lock</span>() noexcept {
+    <span class="kwa">for</span> (;;) {
+      <span class="kwa">if</span> (!lock_.<span class="kwd">exchange</span>(<span class="kwa">true</span>, std::memory_order_acquire))
+        <span class="kwa">return</span>;
+      <span class="kwa">while</span> (lock_.<span class="kwd">load</span>(std::memory_order_relaxed)) {
 <span class="ppc">#ifdef __SSE2__</span>
-        <span class="kwd">_mm_pause</span><span class="opt">();</span>
+        <span class="kwd">_mm_pause</span>();
 <span class="ppc">#endif</span>
-      <span class="opt">}</span>
-    <span class="opt">}</span>
-  <span class="opt">}</span>
+      }
+    }
+  }
 
-  <span class="kwb">void</span> <span class="kwd">unlock</span><span class="opt">()</span> noexcept <span class="opt">{</span> lock_<span class="opt">.</span><span class="kwd">store</span><span class="opt">(</span><span class="kwa">false</span><span class="opt">,</span> <span class="kwc">std</span><span class="opt">::</span>memory_order_release<span class="opt">); }</span>
-<span class="opt">};</span>
+  <span class="kwb">void</span> <span class="kwd">unlock</span>() noexcept { lock_.<span class="kwd">store</span>(<span class="kwa">false</span>, std::memory_order_release); }
+};
 
-<span class="kwa">using</span> mutex_t <span class="opt">=</span> SpinLock<span class="opt">;</span>
+<span class="kwa">using</span> mutex_t = SpinLock;
 
-<span class="kwb">struct</span> Nucleotide <span class="opt">{</span>
-  <span class="kwb">char</span> letter<span class="opt">;</span>
-  <span class="kwb">float</span> prob<span class="opt">;</span>
-<span class="opt">};</span>
+<span class="kwb">struct</span> Nucleotide {
+  <span class="kwb">char</span> letter;
+  <span class="kwb">float</span> prob;
+};
 
 <span class="ppc">#ifdef __SSE2__</span>
-<span class="kwc">inline</span> <span class="kwb">int</span> <span class="kwd">horizontal_sum</span><span class="opt">(</span>__m128i v<span class="opt">) {</span>
-  __m128i hi64 <span class="opt">=</span> <span class="kwd">_mm_unpackhi_epi64</span><span class="opt">(</span>v<span class="opt">,</span> v<span class="opt">);</span>
-  __m128i sum64 <span class="opt">=</span> <span class="kwd">_mm_add_epi32</span><span class="opt">(</span>hi64<span class="opt">,</span> v<span class="opt">);</span>
-  __m128i hi32 <span class="opt">=</span> <span class="kwd">_mm_shufflelo_epi16</span><span class="opt">(</span>sum64<span class="opt">,</span> <span class="kwd">_MM_SHUFFLE</span><span class="opt">(</span><span class="num">1</span><span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> <span class="num">3</span><span class="opt">,</span> <span class="num">2</span><span class="opt">));</span>
-  __m128i sum32 <span class="opt">=</span> <span class="kwd">_mm_add_epi32</span><span class="opt">(</span>sum64<span class="opt">,</span> hi32<span class="opt">);</span>
-  <span class="kwa">return</span> <span class="kwd">_mm_cvtsi128_si32</span><span class="opt">(</span>sum32<span class="opt">);</span>
-<span class="opt">}</span>
+<span class="kwc">inline</span> <span class="kwb">int</span> <span class="kwd">horizontal_sum</span>(__m128i v) {
+  __m128i hi64 = <span class="kwd">_mm_unpackhi_epi64</span>(v, v);
+  __m128i sum64 = <span class="kwd">_mm_add_epi32</span>(hi64, v);
+  __m128i hi32 = <span class="kwd">_mm_shufflelo_epi16</span>(sum64, <span class="kwd">_MM_SHUFFLE</span>(<span class="num">1</span>, <span class="num">0</span>, <span class="num">3</span>, <span class="num">2</span>));
+  __m128i sum32 = <span class="kwd">_mm_add_epi32</span>(sum64, hi32);
+  <span class="kwa">return</span> <span class="kwd">_mm_cvtsi128_si32</span>(sum32);
+}
 <span class="ppc">#endif</span>
 
-<span class="kwc">template</span> <span class="opt">&lt;</span><span class="kwb">size_t</span> N<span class="opt">&gt;</span>
-<span class="kwb">struct</span> WeightedRandom <span class="opt">{</span>
+<span class="kwc">template</span> &lt;<span class="kwb">size_t</span> N&gt;
+<span class="kwb">struct</span> WeightedRandom {
   <span class="slc">// Pad size to a multiple of 4</span>
-  <span class="kwb">static</span> <span class="kwc">constexpr</span> <span class="kwb">size_t</span> padded_size <span class="opt">= ((</span>N <span class="opt">+</span> <span class="num">4</span> <span class="opt">-</span> <span class="num">1</span><span class="opt">) /</span> <span class="num">4</span><span class="opt">) *</span> <span class="num">4</span><span class="opt">;</span>
+  <span class="kwb">static</span> <span class="kwc">constexpr</span> <span class="kwb">size_t</span> padded_size = ((N + <span class="num">4</span> - <span class="num">1</span>) / <span class="num">4</span>) * <span class="num">4</span>;
 
-  <span class="kwc">constexpr</span> <span class="kwd">WeightedRandom</span><span class="opt">(</span><span class="kwb">const</span> <span class="kwc">std</span><span class="opt">::</span>array<span class="opt">&lt;</span>Nucleotide<span class="opt">,</span> N<span class="opt">&gt;&amp;</span> c<span class="opt">)</span> noexcept <span class="opt">{</span>
-    <span class="kwb">size_t</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
-    <span class="kwb">float</span> acc <span class="opt">=</span> <span class="num">0</span><span class="opt">.</span>f<span class="opt">;</span>
-    <span class="kwa">for</span> <span class="opt">(</span><span class="kwc">auto</span><span class="opt">&amp;&amp; [</span>l<span class="opt">,</span> p<span class="opt">] :</span> c<span class="opt">) {</span>
-      acc <span class="opt">+=</span> p<span class="opt">;</span>
-      cumprob<span class="opt">[</span>i<span class="opt">] =</span> <span class="kwc">std</span><span class="opt">::</span><span class="kwd">floor</span><span class="opt">(</span>acc <span class="opt">*</span> IM<span class="opt">);</span>
-      letters<span class="opt">[</span>i<span class="opt">] =</span> l<span class="opt">;</span>
-      i<span class="opt">++;</span>
-    <span class="opt">}</span>
-    <span class="kwc">std</span><span class="opt">::</span><span class="kwd">fill_n</span><span class="opt">(</span>cumprob <span class="opt">+</span> i<span class="opt">,</span> padded_size <span class="opt">-</span> i<span class="opt">,</span>
-                <span class="kwc">std</span><span class="opt">::</span>numeric_limits<span class="opt">&lt;</span><span class="kwb">int32_t</span><span class="opt">&gt;::</span><span class="kwd">max</span><span class="opt">());</span>
-  <span class="opt">}</span>
+  <span class="kwc">constexpr</span> <span class="kwd">WeightedRandom</span>(<span class="kwb">const</span> std::array&lt;Nucleotide, N&gt;&amp; c) noexcept {
+    <span class="kwb">size_t</span> i = <span class="num">0</span>;
+    <span class="kwb">float</span> acc = <span class="num">0</span>.f;
+    <span class="kwa">for</span> (<span class="kwc">auto</span>&amp;&amp; [l, p] : c) {
+      acc += p;
+      cumprob[i] = std::<span class="kwd">floor</span>(acc * IM);
+      letters[i] = l;
+      i++;
+    }
+    std::<span class="kwd">fill_n</span>(cumprob + i, padded_size - i,
+                std::numeric_limits&lt;<span class="kwb">int32_t</span>&gt;::<span class="kwd">max</span>());
+  }
 
 <span class="ppc">#ifdef __SSE2__</span>
-  <span class="kwc">constexpr</span> <span class="kwb">char</span> <span class="kwd">gen_from_u32</span><span class="opt">(</span><span class="kwb">uint32_t</span> prob<span class="opt">)</span> <span class="kwb">const</span> noexcept <span class="opt">{</span>
-    <span class="kwb">const</span> <span class="kwc">auto</span> needle <span class="opt">=</span> <span class="kwd">_mm_set1_epi32</span><span class="opt">(</span>prob<span class="opt">);</span>
-    <span class="kwc">auto</span> count <span class="opt">=</span> <span class="kwd">_mm_setzero_si128</span><span class="opt">();</span>
+  <span class="kwc">constexpr</span> <span class="kwb">char</span> <span class="kwd">gen_from_u32</span>(<span class="kwb">uint32_t</span> prob) <span class="kwb">const</span> noexcept {
+    <span class="kwb">const</span> <span class="kwc">auto</span> needle = <span class="kwd">_mm_set1_epi32</span>(prob);
+    <span class="kwc">auto</span> count = <span class="kwd">_mm_setzero_si128</span>();
 
-    <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">size_t</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> padded_size<span class="opt">;</span> i <span class="opt">+=</span> <span class="num">4</span><span class="opt">) {</span>
-      <span class="kwc">auto</span> vp <span class="opt">=</span> <span class="kwd">_mm_load_si128</span><span class="opt">((</span>__m128i<span class="opt">*)(</span>cumprob <span class="opt">+</span> i<span class="opt">));</span>
-      count <span class="opt">=</span> <span class="kwd">_mm_sub_epi32</span><span class="opt">(</span>count<span class="opt">,</span> <span class="kwd">_mm_cmplt_epi32</span><span class="opt">(</span>vp<span class="opt">,</span> needle<span class="opt">));</span>
-    <span class="opt">}</span>
-    <span class="kwa">return</span> letters<span class="opt">[</span><span class="kwd">horizontal_sum</span><span class="opt">(</span>count<span class="opt">)];</span>
-  <span class="opt">}</span>
+    <span class="kwa">for</span> (<span class="kwb">size_t</span> i = <span class="num">0</span>; i &lt; padded_size; i += <span class="num">4</span>) {
+      <span class="kwc">auto</span> vp = <span class="kwd">_mm_load_si128</span>((__m128i*)(cumprob + i));
+      count = <span class="kwd">_mm_sub_epi32</span>(count, <span class="kwd">_mm_cmplt_epi32</span>(vp, needle));
+    }
+    <span class="kwa">return</span> letters[<span class="kwd">horizontal_sum</span>(count)];
+  }
 <span class="ppc">#else</span>
-  <span class="kwc">constexpr</span> <span class="kwb">char</span> <span class="kwd">gen_from_u32</span><span class="opt">(</span><span class="kwb">uint32_t</span> prob<span class="opt">)</span> <span class="kwb">const</span> noexcept <span class="opt">{</span>
-    <span class="kwc">auto</span> res <span class="opt">=</span> <span class="kwc">std</span><span class="opt">::</span><span class="kwd">find_if</span><span class="opt">(</span><span class="kwd">begin</span><span class="opt">(</span>cumprob<span class="opt">),</span> <span class="kwd">begin</span><span class="opt">(</span>cumprob<span class="opt">) +</span> N<span class="opt">,</span>
-                            <span class="opt">[</span>prob<span class="opt">](</span><span class="kwc">auto</span> p<span class="opt">) {</span> <span class="kwa">return</span> prob <span class="opt">&lt;=</span> p<span class="opt">; });</span>
-    <span class="kwc">auto</span> idx <span class="opt">=</span> <span class="kwc">std</span><span class="opt">::</span><span class="kwd">distance</span><span class="opt">(</span><span class="kwd">begin</span><span class="opt">(</span>cumprob<span class="opt">),</span> res<span class="opt">);</span>
-    <span class="kwa">return</span> letters<span class="opt">[</span>idx<span class="opt">];</span>
-  <span class="opt">}</span>
+  <span class="kwc">constexpr</span> <span class="kwb">char</span> <span class="kwd">gen_from_u32</span>(<span class="kwb">uint32_t</span> prob) <span class="kwb">const</span> noexcept {
+    <span class="kwc">auto</span> res = std::<span class="kwd">find_if</span>(<span class="kwd">begin</span>(cumprob), <span class="kwd">begin</span>(cumprob) + N,
+                            [prob](<span class="kwc">auto</span> p) { <span class="kwa">return</span> prob &lt;= p; });
+    <span class="kwc">auto</span> idx = std::<span class="kwd">distance</span>(<span class="kwd">begin</span>(cumprob), res);
+    <span class="kwa">return</span> letters[idx];
+  }
 <span class="ppc">#endif</span>
 
-  <span class="kwd">alignas</span><span class="opt">(</span><span class="num">32</span><span class="opt">)</span> <span class="kwb">uint32_t</span> cumprob<span class="opt">[</span>padded_size<span class="opt">];</span>
-  <span class="kwb">char</span> letters<span class="opt">[</span>padded_size<span class="opt">];</span>
-<span class="opt">};</span>
+  <span class="kwd">alignas</span>(<span class="num">32</span>) <span class="kwb">uint32_t</span> cumprob[padded_size];
+  <span class="kwb">char</span> letters[padded_size];
+};
 
-<span class="kwc">class</span> RandomLCG <span class="opt">{</span>
- <span class="kwc">public</span><span class="opt">:</span>
-  <span class="kwd">RandomLCG</span><span class="opt">(</span><span class="kwb">size_t</span> count<span class="opt">,</span> <span class="kwb">int</span> thread_count<span class="opt">)</span>
-      <span class="opt">:</span> <span class="kwd">count_</span><span class="opt">(</span>count<span class="opt">),</span> <span class="kwd">thread_count_</span><span class="opt">(</span>thread_count<span class="opt">) {}</span>
+<span class="kwc">class</span> RandomLCG {
+ <span class="kwc">public</span>:
+  <span class="kwd">RandomLCG</span>(<span class="kwb">size_t</span> count, <span class="kwb">int</span> thread_count)
+      : <span class="kwd">count_</span>(count), <span class="kwd">thread_count_</span>(thread_count) {}
 
-  <span class="kwb">void</span> <span class="kwd">reset</span><span class="opt">(</span><span class="kwb">size_t</span> count<span class="opt">) {</span>
-    next_thread_id_ <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
-    count_ <span class="opt">=</span> count<span class="opt">;</span>
-  <span class="opt">}</span>
+  <span class="kwb">void</span> <span class="kwd">reset</span>(<span class="kwb">size_t</span> count) {
+    next_thread_id_ = <span class="num">0</span>;
+    count_ = count;
+  }
 
-  <span class="kwc">template</span> <span class="opt">&lt;</span>typename Itr<span class="opt">&gt;</span>
-  <span class="kwc">std</span><span class="opt">::</span>optional<span class="opt">&lt;</span><span class="kwb">size_t</span><span class="opt">&gt;</span> <span class="kwd">gen</span><span class="opt">(</span>Itr begin<span class="opt">,</span> <span class="kwb">size_t</span> n<span class="opt">,</span> <span class="kwb">int</span> tid<span class="opt">)</span> noexcept <span class="opt">{</span>
-    <span class="kwc">std</span><span class="opt">::</span>lock_guard<span class="opt">&lt;</span>mutex_t<span class="opt">&gt;</span> <span class="kwd">lock</span><span class="opt">(</span>mtx_<span class="opt">);</span>
-    <span class="kwa">if</span> <span class="opt">(</span>next_thread_id_ <span class="opt">!=</span> tid<span class="opt">) {</span>
-      <span class="kwa">return</span> <span class="kwc">std</span><span class="opt">::</span>nullopt<span class="opt">;</span>
-    <span class="opt">}</span>
-    next_thread_id_ <span class="opt">= (</span>next_thread_id_ <span class="opt">+</span> <span class="num">1</span><span class="opt">) %</span> thread_count_<span class="opt">;</span>
+  <span class="kwc">template</span> &lt;typename Itr&gt;
+  std::optional&lt;<span class="kwb">size_t</span>&gt; <span class="kwd">gen</span>(Itr begin, <span class="kwb">size_t</span> n, <span class="kwb">int</span> tid) noexcept {
+    std::lock_guard&lt;mutex_t&gt; <span class="kwd">lock</span>(mtx_);
+    <span class="kwa">if</span> (next_thread_id_ != tid) {
+      <span class="kwa">return</span> std::nullopt;
+    }
+    next_thread_id_ = (next_thread_id_ + <span class="num">1</span>) % thread_count_;
 
-    <span class="kwc">auto</span> to_gen <span class="opt">=</span> <span class="kwc">std</span><span class="opt">::</span><span class="kwd">min</span><span class="opt">(</span>n<span class="opt">,</span> count_<span class="opt">);</span>
-    <span class="kwc">std</span><span class="opt">::</span><span class="kwd">generate_n</span><span class="opt">(</span>begin<span class="opt">,</span> to_gen<span class="opt">,</span>
-                    <span class="opt">[</span><span class="kwa">this</span><span class="opt">] {</span> <span class="kwa">return</span> <span class="opt">(</span>seed_ <span class="opt">= (</span>seed_ <span class="opt">*</span> <span class="num">3877</span> <span class="opt">+</span> <span class="num">29573</span><span class="opt">) %</span> IM<span class="opt">); });</span>
-    count_ <span class="opt">-=</span> to_gen<span class="opt">;</span>
-    <span class="kwa">return</span> to_gen<span class="opt">;</span>
-  <span class="opt">}</span>
+    <span class="kwc">auto</span> to_gen = std::<span class="kwd">min</span>(n, count_);
+    std::<span class="kwd">generate_n</span>(begin, to_gen,
+                    [<span class="kwa">this</span>] { <span class="kwa">return</span> (seed_ = (seed_ * <span class="num">3877</span> + <span class="num">29573</span>) % IM); });
+    count_ -= to_gen;
+    <span class="kwa">return</span> to_gen;
+  }
 
- <span class="kwc">private</span><span class="opt">:</span>
-  mutex_t mtx_<span class="opt">;</span>
-  <span class="kwb">uint32_t</span> seed_ <span class="opt">=</span> <span class="num">42</span><span class="opt">;</span>
-  <span class="kwb">size_t</span> count_<span class="opt">;</span>
-  <span class="kwb">int</span> thread_count_<span class="opt">;</span>
-  <span class="kwb">int</span> next_thread_id_ <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
-<span class="opt">};</span>
+ <span class="kwc">private</span>:
+  mutex_t mtx_;
+  <span class="kwb">uint32_t</span> seed_ = <span class="num">42</span>;
+  <span class="kwb">size_t</span> count_;
+  <span class="kwb">int</span> thread_count_;
+  <span class="kwb">int</span> next_thread_id_ = <span class="num">0</span>;
+};
 
-<span class="kwc">class</span> Writer <span class="opt">{</span>
- <span class="kwc">public</span><span class="opt">:</span>
-  <span class="kwd">Writer</span><span class="opt">(</span><span class="kwb">int</span> thread_count<span class="opt">) :</span> <span class="kwd">thread_count_</span><span class="opt">(</span>thread_count<span class="opt">) {}</span>
+<span class="kwc">class</span> Writer {
+ <span class="kwc">public</span>:
+  <span class="kwd">Writer</span>(<span class="kwb">int</span> thread_count) : <span class="kwd">thread_count_</span>(thread_count) {}
 
-  <span class="kwb">bool</span> <span class="kwd">write</span><span class="opt">(</span><span class="kwb">const char</span><span class="opt">*</span> data<span class="opt">,</span> <span class="kwb">size_t</span> n<span class="opt">,</span> <span class="kwb">int</span> tid<span class="opt">)</span> noexcept <span class="opt">{</span>
-    <span class="kwc">std</span><span class="opt">::</span>lock_guard<span class="opt">&lt;</span>mutex_t<span class="opt">&gt;</span> <span class="kwd">lock</span><span class="opt">(</span>mtx_<span class="opt">);</span>
-    <span class="kwa">if</span> <span class="opt">(</span>next_thread_id_ <span class="opt">!=</span> tid<span class="opt">)</span>
-      <span class="kwa">return false</span><span class="opt">;</span>
-    next_thread_id_ <span class="opt">= (</span>next_thread_id_ <span class="opt">+</span> <span class="num">1</span><span class="opt">) %</span> thread_count_<span class="opt">;</span>
+  <span class="kwb">bool</span> <span class="kwd">write</span>(<span class="kwb">const char</span>* data, <span class="kwb">size_t</span> n, <span class="kwb">int</span> tid) noexcept {
+    std::lock_guard&lt;mutex_t&gt; <span class="kwd">lock</span>(mtx_);
+    <span class="kwa">if</span> (next_thread_id_ != tid)
+      <span class="kwa">return false</span>;
+    next_thread_id_ = (next_thread_id_ + <span class="num">1</span>) % thread_count_;
 
-    <span class="kwc">std</span><span class="opt">::</span><span class="kwd">fwrite</span><span class="opt">(</span>data<span class="opt">,</span> <span class="num">1</span><span class="opt">,</span> n<span class="opt">,</span> stdout<span class="opt">);</span>
+    std::<span class="kwd">fwrite</span>(data, <span class="num">1</span>, n, stdout);
 
-    <span class="kwa">return true</span><span class="opt">;</span>
-  <span class="opt">}</span>
+    <span class="kwa">return true</span>;
+  }
 
- <span class="kwc">private</span><span class="opt">:</span>
-  mutex_t mtx_<span class="opt">;</span>
-  <span class="kwb">int</span> thread_count_<span class="opt">;</span>
-  <span class="kwb">int</span> next_thread_id_ <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
-<span class="opt">};</span>
+ <span class="kwc">private</span>:
+  mutex_t mtx_;
+  <span class="kwb">int</span> thread_count_;
+  <span class="kwb">int</span> next_thread_id_ = <span class="num">0</span>;
+};
 
 <span class="slc">// Based off make_Sequence_Buffer() from C gcc #2.</span>
-<span class="kwc">inline std</span><span class="opt">::</span>vector<span class="opt">&lt;</span><span class="kwb">char</span><span class="opt">&gt;</span> <span class="kwd">gen_repeat_buffer</span><span class="opt">(</span><span class="kwc">std</span><span class="opt">::</span>string_view seq<span class="opt">) {</span>
-  <span class="kwb">size_t</span> n_chars <span class="opt">=</span> seq<span class="opt">.</span><span class="kwd">length</span><span class="opt">() *</span> LINE_LENGTH<span class="opt">;</span>
-  <span class="kwc">std</span><span class="opt">::</span>vector<span class="opt">&lt;</span><span class="kwb">char</span><span class="opt">&gt;</span> <span class="kwd">buffer</span><span class="opt">(</span>n_chars <span class="opt">+</span> n_chars <span class="opt">/</span> LINE_LENGTH<span class="opt">);</span>
-  <span class="kwb">char</span><span class="opt">*</span> bufferOffset <span class="opt">=</span> buffer<span class="opt">.</span><span class="kwd">data</span><span class="opt">();</span>
+<span class="kwc">inline</span> std::vector&lt;<span class="kwb">char</span>&gt; <span class="kwd">gen_repeat_buffer</span>(std::string_view seq) {
+  <span class="kwb">size_t</span> n_chars = seq.<span class="kwd">length</span>() * LINE_LENGTH;
+  std::vector&lt;<span class="kwb">char</span>&gt; <span class="kwd">buffer</span>(n_chars + n_chars / LINE_LENGTH);
+  <span class="kwb">char</span>* bufferOffset = buffer.<span class="kwd">data</span>();
 
-  <span class="kwc">std</span><span class="opt">::</span>vector<span class="opt">&lt;</span><span class="kwb">char</span><span class="opt">&gt;</span> <span class="kwd">extended</span><span class="opt">(</span>seq<span class="opt">.</span><span class="kwd">length</span><span class="opt">() +</span> LINE_LENGTH<span class="opt">);</span>
-  <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">size_t</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> extended<span class="opt">.</span><span class="kwd">size</span><span class="opt">(); ++</span>i<span class="opt">) {</span>
-    extended<span class="opt">[</span>i<span class="opt">] =</span> seq<span class="opt">[</span>i <span class="opt">%</span> seq<span class="opt">.</span><span class="kwd">length</span><span class="opt">()];</span>
-  <span class="opt">}</span>
+  std::vector&lt;<span class="kwb">char</span>&gt; <span class="kwd">extended</span>(seq.<span class="kwd">length</span>() + LINE_LENGTH);
+  <span class="kwa">for</span> (<span class="kwb">size_t</span> i = <span class="num">0</span>; i &lt; extended.<span class="kwd">size</span>(); ++i) {
+    extended[i] = seq[i % seq.<span class="kwd">length</span>()];
+  }
 
-  <span class="kwb">char</span> line<span class="opt">[</span>LINE_LENGTH <span class="opt">+</span> <span class="num">1</span><span class="opt">];</span>
-  <span class="kwb">size_t</span> offset <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
-  <span class="kwa">while</span> <span class="opt">(</span>n_chars <span class="opt">&gt;</span> <span class="num">0</span><span class="opt">) {</span>
-    <span class="kwb">size_t</span> line_Length <span class="opt">=</span> <span class="kwc">std</span><span class="opt">::</span>min<span class="opt">&lt;</span><span class="kwb">size_t</span><span class="opt">&gt;(</span>n_chars<span class="opt">,</span> LINE_LENGTH<span class="opt">);</span>
-    line<span class="opt">[</span>line_Length<span class="opt">] =</span> <span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span><span class="opt">;</span>
+  <span class="kwb">char</span> line[LINE_LENGTH + <span class="num">1</span>];
+  <span class="kwb">size_t</span> offset = <span class="num">0</span>;
+  <span class="kwa">while</span> (n_chars &gt; <span class="num">0</span>) {
+    <span class="kwb">size_t</span> line_Length = std::min&lt;<span class="kwb">size_t</span>&gt;(n_chars, LINE_LENGTH);
+    line[line_Length] = <span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span>;
 
-    <span class="kwc">std</span><span class="opt">::</span><span class="kwd">copy_n</span><span class="opt">(</span><span class="kwd">begin</span><span class="opt">(</span>extended<span class="opt">) +</span> offset<span class="opt">,</span> line_Length<span class="opt">,</span> line<span class="opt">);</span>
+    std::<span class="kwd">copy_n</span>(<span class="kwd">begin</span>(extended) + offset, line_Length, line);
 
-    offset <span class="opt">+=</span> line_Length<span class="opt">;</span>
-    offset <span class="opt">-= (</span>offset <span class="opt">&gt;</span> seq<span class="opt">.</span><span class="kwd">length</span><span class="opt">()) *</span> seq<span class="opt">.</span><span class="kwd">length</span><span class="opt">();</span>
+    offset += line_Length;
+    offset -= (offset &gt; seq.<span class="kwd">length</span>()) * seq.<span class="kwd">length</span>();
 
-    <span class="kwc">std</span><span class="opt">::</span><span class="kwd">copy_n</span><span class="opt">(</span>line<span class="opt">,</span> line_Length <span class="opt">+</span> <span class="num">1</span><span class="opt">,</span> bufferOffset<span class="opt">);</span>
-    bufferOffset <span class="opt">+=</span> line_Length <span class="opt">+</span> <span class="num">1</span><span class="opt">;</span>
-    n_chars <span class="opt">-=</span> line_Length<span class="opt">;</span>
-  <span class="opt">}</span>
-  <span class="kwa">return</span> buffer<span class="opt">;</span>
-<span class="opt">}</span>
+    std::<span class="kwd">copy_n</span>(line, line_Length + <span class="num">1</span>, bufferOffset);
+    bufferOffset += line_Length + <span class="num">1</span>;
+    n_chars -= line_Length;
+  }
+  <span class="kwa">return</span> buffer;
+}
 
 <span class="slc">// Based off repeat_And_Wrap_String() from C gcc #2.</span>
-<span class="kwc">inline</span> <span class="kwb">void</span> <span class="kwd">fasta_repeat</span><span class="opt">(</span><span class="kwc">std</span><span class="opt">::</span>string_view seq<span class="opt">,</span> <span class="kwb">size_t</span> n_chars<span class="opt">) {</span>
-  <span class="kwc">auto</span> sequence <span class="opt">=</span> <span class="kwd">gen_repeat_buffer</span><span class="opt">(</span>seq<span class="opt">);</span>
-  <span class="kwb">size_t</span> outputBytes <span class="opt">=</span> n_chars <span class="opt">+</span> n_chars <span class="opt">/</span> LINE_LENGTH<span class="opt">;</span>
-  <span class="kwa">while</span> <span class="opt">(</span>outputBytes <span class="opt">&gt;=</span> sequence<span class="opt">.</span><span class="kwd">size</span><span class="opt">()) {</span>
-    <span class="kwc">std</span><span class="opt">::</span><span class="kwd">fwrite</span><span class="opt">(</span>sequence<span class="opt">.</span><span class="kwd">data</span><span class="opt">(),</span> sequence<span class="opt">.</span><span class="kwd">size</span><span class="opt">(),</span> <span class="num">1</span><span class="opt">,</span> stdout<span class="opt">);</span>
-    outputBytes <span class="opt">-=</span> sequence<span class="opt">.</span><span class="kwd">size</span><span class="opt">();</span>
-  <span class="opt">}</span>
-  <span class="kwc">std</span><span class="opt">::</span><span class="kwd">fwrite</span><span class="opt">(</span>sequence<span class="opt">.</span><span class="kwd">data</span><span class="opt">(),</span> outputBytes<span class="opt">,</span> <span class="num">1</span><span class="opt">,</span> stdout<span class="opt">);</span>
-  <span class="kwc">std</span><span class="opt">::</span><span class="kwd">fputc</span><span class="opt">(</span><span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span><span class="opt">,</span> stdout<span class="opt">);</span>
-<span class="opt">}</span>
+<span class="kwc">inline</span> <span class="kwb">void</span> <span class="kwd">fasta_repeat</span>(std::string_view seq, <span class="kwb">size_t</span> n_chars) {
+  <span class="kwc">auto</span> sequence = <span class="kwd">gen_repeat_buffer</span>(seq);
+  <span class="kwb">size_t</span> outputBytes = n_chars + n_chars / LINE_LENGTH;
+  <span class="kwa">while</span> (outputBytes &gt;= sequence.<span class="kwd">size</span>()) {
+    std::<span class="kwd">fwrite</span>(sequence.<span class="kwd">data</span>(), sequence.<span class="kwd">size</span>(), <span class="num">1</span>, stdout);
+    outputBytes -= sequence.<span class="kwd">size</span>();
+  }
+  std::<span class="kwd">fwrite</span>(sequence.<span class="kwd">data</span>(), outputBytes, <span class="num">1</span>, stdout);
+  std::<span class="kwd">fputc</span>(<span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span>, stdout);
+}
 
-<span class="kwc">template</span> <span class="opt">&lt;</span><span class="kwb">size_t</span> N<span class="opt">&gt;</span>
-<span class="kwc">inline</span> <span class="kwb">void</span> <span class="kwd">fasta_random</span><span class="opt">(</span><span class="kwb">int</span> thread_id<span class="opt">,</span>
-                         RandomLCG<span class="opt">&amp;</span> rng<span class="opt">,</span>
-                         Writer<span class="opt">&amp;</span> writer<span class="opt">,</span>
-                         <span class="kwb">const</span> WeightedRandom<span class="opt">&lt;</span>N<span class="opt">&gt;&amp;</span> wr<span class="opt">) {</span>
-  <span class="kwd">alignas</span><span class="opt">(</span><span class="num">32</span><span class="opt">)</span> <span class="kwc">std</span><span class="opt">::</span>array<span class="opt">&lt;</span><span class="kwb">uint32_t</span><span class="opt">,</span> BLKLEN<span class="opt">&gt;</span> rng_buf<span class="opt">;</span>
-  <span class="kwd">alignas</span><span class="opt">(</span><span class="num">32</span><span class="opt">)</span> <span class="kwc">std</span><span class="opt">::</span>array<span class="opt">&lt;</span><span class="kwb">char</span><span class="opt">,</span> BLKLEN <span class="opt">+</span> LINES<span class="opt">&gt;</span> out_buf<span class="opt">;</span>
-  <span class="kwa">while</span> <span class="opt">(</span><span class="num">1</span><span class="opt">) {</span>
-    <span class="kwc">std</span><span class="opt">::</span>optional<span class="opt">&lt;</span><span class="kwb">size_t</span><span class="opt">&gt;</span> count<span class="opt">;</span>
-    <span class="kwa">do</span> <span class="opt">{</span>
-      count <span class="opt">=</span> rng<span class="opt">.</span><span class="kwd">gen</span><span class="opt">(</span><span class="kwd">begin</span><span class="opt">(</span>rng_buf<span class="opt">),</span> <span class="kwc">std</span><span class="opt">::</span><span class="kwd">size</span><span class="opt">(</span>rng_buf<span class="opt">),</span> thread_id<span class="opt">);</span>
-    <span class="opt">}</span> <span class="kwa">while</span> <span class="opt">(!</span>count<span class="opt">);</span>
+<span class="kwc">template</span> &lt;<span class="kwb">size_t</span> N&gt;
+<span class="kwc">inline</span> <span class="kwb">void</span> <span class="kwd">fasta_random</span>(<span class="kwb">int</span> thread_id,
+                         RandomLCG&amp; rng,
+                         Writer&amp; writer,
+                         <span class="kwb">const</span> WeightedRandom&lt;N&gt;&amp; wr) {
+  <span class="kwd">alignas</span>(<span class="num">32</span>) std::array&lt;<span class="kwb">uint32_t</span>, BLKLEN&gt; rng_buf;
+  <span class="kwd">alignas</span>(<span class="num">32</span>) std::array&lt;<span class="kwb">char</span>, BLKLEN + LINES&gt; out_buf;
+  <span class="kwa">while</span> (<span class="num">1</span>) {
+    std::optional&lt;<span class="kwb">size_t</span>&gt; count;
+    <span class="kwa">do</span> {
+      count = rng.<span class="kwd">gen</span>(<span class="kwd">begin</span>(rng_buf), std::<span class="kwd">size</span>(rng_buf), thread_id);
+    } <span class="kwa">while</span> (!count);
 
-    <span class="kwa">if</span> <span class="opt">(*</span>count <span class="opt">==</span> <span class="num">0</span><span class="opt">)</span>
-      <span class="kwa">break</span><span class="opt">;</span>
+    <span class="kwa">if</span> (*count == <span class="num">0</span>)
+      <span class="kwa">break</span>;
 
-    <span class="kwc">auto</span> rng_sub <span class="opt">=</span> <span class="kwc">boost</span><span class="opt">::</span><span class="kwd">make_iterator_range_n</span><span class="opt">(</span><span class="kwd">begin</span><span class="opt">(</span>rng_buf<span class="opt">), *</span>count<span class="opt">);</span>
+    <span class="kwc">auto</span> rng_sub = boost::<span class="kwd">make_iterator_range_n</span>(<span class="kwd">begin</span>(rng_buf), *count);
 
-    <span class="kwb">size_t</span> line_count <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
-    <span class="kwa">for</span> <span class="opt">(</span><span class="kwc">auto</span> begin <span class="opt">:</span> <span class="kwc">boost</span><span class="opt">::</span><span class="kwd">irange</span><span class="opt">(</span><span class="kwb">size_t</span><span class="opt">(</span><span class="num">0</span><span class="opt">),</span> rng_sub<span class="opt">.</span><span class="kwd">size</span><span class="opt">()) |</span>
-                          <span class="kwc">boost</span><span class="opt">::</span><span class="kwc">adaptors</span><span class="opt">::</span><span class="kwd">strided</span><span class="opt">(</span>LINE_LENGTH<span class="opt">)) {</span>
-      <span class="kwc">auto</span> end <span class="opt">=</span> <span class="kwc">std</span><span class="opt">::</span><span class="kwd">min</span><span class="opt">(</span>begin <span class="opt">+</span> LINE_LENGTH<span class="opt">,</span> rng_sub<span class="opt">.</span><span class="kwd">size</span><span class="opt">());</span>
+    <span class="kwb">size_t</span> line_count = <span class="num">0</span>;
+    <span class="kwa">for</span> (<span class="kwc">auto</span> begin : boost::<span class="kwd">irange</span>(<span class="kwb">size_t</span>(<span class="num">0</span>), rng_sub.<span class="kwd">size</span>()) |
+                          boost::adaptors::<span class="kwd">strided</span>(LINE_LENGTH)) {
+      <span class="kwc">auto</span> end = std::<span class="kwd">min</span>(begin + LINE_LENGTH, rng_sub.<span class="kwd">size</span>());
 
-      <span class="kwa">for</span> <span class="opt">(</span><span class="kwc">auto</span> j <span class="opt">=</span> begin<span class="opt">;</span> j <span class="opt">&lt;</span> end<span class="opt">; ++</span>j<span class="opt">) {</span>
-        out_buf<span class="opt">[</span>j <span class="opt">+</span> line_count<span class="opt">] =</span> wr<span class="opt">.</span><span class="kwd">gen_from_u32</span><span class="opt">(</span>rng_sub<span class="opt">[</span>j<span class="opt">]);</span>
-      <span class="opt">}</span>
+      <span class="kwa">for</span> (<span class="kwc">auto</span> j = begin; j &lt; end; ++j) {
+        out_buf[j + line_count] = wr.<span class="kwd">gen_from_u32</span>(rng_sub[j]);
+      }
 
-      out_buf<span class="opt">[</span>end <span class="opt">+</span> line_count<span class="opt">] =</span> <span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span><span class="opt">;</span>
-      line_count<span class="opt">++;</span>
-    <span class="opt">}</span>
-    <span class="kwa">while</span> <span class="opt">(</span>
-        <span class="opt">!</span>writer<span class="opt">.</span><span class="kwd">write</span><span class="opt">(</span>out_buf<span class="opt">.</span><span class="kwd">data</span><span class="opt">(),</span> rng_sub<span class="opt">.</span><span class="kwd">size</span><span class="opt">() +</span> line_count<span class="opt">,</span> thread_id<span class="opt">))</span>
-      <span class="opt">;</span>
-  <span class="opt">}</span>
-<span class="opt">}</span>
+      out_buf[end + line_count] = <span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span>;
+      line_count++;
+    }
+    <span class="kwa">while</span> (
+        !writer.<span class="kwd">write</span>(out_buf.<span class="kwd">data</span>(), rng_sub.<span class="kwd">size</span>() + line_count, thread_id))
+      ;
+  }
+}
 
-<span class="kwc">template</span> <span class="opt">&lt;</span><span class="kwb">size_t</span> N<span class="opt">&gt;</span>
-<span class="kwb">void</span> <span class="kwd">fasta_random_par</span><span class="opt">(</span>RandomLCG<span class="opt">&amp;</span> rng<span class="opt">,</span> WeightedRandom<span class="opt">&lt;</span>N<span class="opt">&gt;</span> wr<span class="opt">,</span> <span class="kwb">int</span> num_threads<span class="opt">) {</span>
-  Writer <span class="kwd">writer</span><span class="opt">(</span>num_threads<span class="opt">);</span>
+<span class="kwc">template</span> &lt;<span class="kwb">size_t</span> N&gt;
+<span class="kwb">void</span> <span class="kwd">fasta_random_par</span>(RandomLCG&amp; rng, WeightedRandom&lt;N&gt; wr, <span class="kwb">int</span> num_threads) {
+  Writer <span class="kwd">writer</span>(num_threads);
 
-  <span class="kwc">std</span><span class="opt">::</span>vector<span class="opt">&lt;</span><span class="kwc">std</span><span class="opt">::</span>thread<span class="opt">&gt;</span> <span class="kwd">threads</span><span class="opt">(</span>num_threads<span class="opt">);</span>
+  std::vector&lt;std::thread&gt; <span class="kwd">threads</span>(num_threads);
 
-  <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> num_threads<span class="opt">; ++</span>i<span class="opt">) {</span>
-    threads<span class="opt">[</span>i<span class="opt">] =</span> <span class="kwc">std</span><span class="opt">::</span><span class="kwd">thread</span><span class="opt">(</span>fasta_random<span class="opt">&lt;</span>N<span class="opt">&gt;,</span> i<span class="opt">,</span> <span class="kwc">std</span><span class="opt">::</span><span class="kwd">ref</span><span class="opt">(</span>rng<span class="opt">),</span>
-                             <span class="kwc">std</span><span class="opt">::</span><span class="kwd">ref</span><span class="opt">(</span>writer<span class="opt">),</span> <span class="kwc">std</span><span class="opt">::</span><span class="kwd">ref</span><span class="opt">(</span>wr<span class="opt">));</span>
-  <span class="opt">}</span>
+  <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">0</span>; i &lt; num_threads; ++i) {
+    threads[i] = std::<span class="kwd">thread</span>(fasta_random&lt;N&gt;, i, std::<span class="kwd">ref</span>(rng),
+                             std::<span class="kwd">ref</span>(writer), std::<span class="kwd">ref</span>(wr));
+  }
 
-  <span class="kwa">for</span> <span class="opt">(</span><span class="kwc">auto</span><span class="opt">&amp;</span> t <span class="opt">:</span> threads<span class="opt">)</span>
-    t<span class="opt">.</span><span class="kwd">join</span><span class="opt">();</span>
-<span class="opt">}</span>
+  <span class="kwa">for</span> (<span class="kwc">auto</span>&amp; t : threads)
+    t.<span class="kwd">join</span>();
+}
 
-<span class="kwb">int</span> <span class="kwd">main</span><span class="opt">(</span><span class="kwb">int</span> argc<span class="opt">,</span> <span class="kwb">char</span><span class="opt">*</span> argv<span class="opt">[]) {</span>
-  <span class="kwb">const int</span> n <span class="opt">= (</span>argc <span class="opt">&gt;</span> <span class="num">1</span><span class="opt">) ?</span> <span class="kwd">atoi</span><span class="opt">(</span>argv<span class="opt">[</span><span class="num">1</span><span class="opt">]) :</span> <span class="num">1000</span><span class="opt">;</span>
-  <span class="kwb">const int</span> num_threads <span class="opt">=</span>
-      <span class="kwc">std</span><span class="opt">::</span>min<span class="opt">&lt;</span><span class="kwb">int</span><span class="opt">&gt;(</span>NUM_THREADS<span class="opt">,</span> <span class="kwc">std</span><span class="opt">::</span><span class="kwc">thread</span><span class="opt">::</span><span class="kwd">hardware_concurrency</span><span class="opt">());</span>
+<span class="kwb">int</span> <span class="kwd">main</span>(<span class="kwb">int</span> argc, <span class="kwb">char</span>* argv[]) {
+  <span class="kwb">const int</span> n = (argc &gt; <span class="num">1</span>) ? <span class="kwd">atoi</span>(argv[<span class="num">1</span>]) : <span class="num">1000</span>;
+  <span class="kwb">const int</span> num_threads =
+      std::min&lt;<span class="kwb">int</span>&gt;(NUM_THREADS, std::thread::<span class="kwd">hardware_concurrency</span>());
 
-  <span class="kwc">constexpr std</span><span class="opt">::</span>string_view alu <span class="opt">=</span>
+  <span class="kwc">constexpr</span> std::string_view alu =
       <span class="str">&quot;GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTT&quot;</span>
       <span class="str">&quot;GGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTC&quot;</span>
       <span class="str">&quot;GAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACT&quot;</span>
@@ -292,37 +292,37 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
       <span class="str">&quot;TAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCT&quot;</span>
       <span class="str">&quot;TGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCG&quot;</span>
       <span class="str">&quot;CCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTC&quot;</span>
-      <span class="str">&quot;TCAAAAA&quot;</span><span class="opt">;</span>
-  <span class="kwc">std</span><span class="opt">::</span><span class="kwd">fputs</span><span class="opt">(</span><span class="str">&quot;&gt;ONE Homo sapiens alu</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span> stdout<span class="opt">);</span>
-  <span class="kwd">fasta_repeat</span><span class="opt">(</span>alu<span class="opt">,</span> n <span class="opt">*</span> <span class="num">2</span><span class="opt">);</span>
+      <span class="str">&quot;TCAAAAA&quot;</span>;
+  std::<span class="kwd">fputs</span>(<span class="str">&quot;&gt;ONE Homo sapiens alu</span><span class="esc">\n</span><span class="str">&quot;</span>, stdout);
+  <span class="kwd">fasta_repeat</span>(alu, n * <span class="num">2</span>);
 
-  <span class="kwc">constexpr std</span><span class="opt">::</span>array<span class="opt">&lt;</span>Nucleotide<span class="opt">,</span> <span class="num">15</span><span class="opt">&gt;</span> iub<span class="opt">{{</span>
-        <span class="opt">{</span><span class="str">&apos;a&apos;</span><span class="opt">,</span> <span class="num">0.27</span>f<span class="opt">}, {</span><span class="str">&apos;c&apos;</span><span class="opt">,</span> <span class="num">0.12</span>f<span class="opt">}, {</span><span class="str">&apos;g&apos;</span><span class="opt">,</span> <span class="num">0.12</span>f<span class="opt">},</span>
-        <span class="opt">{</span><span class="str">&apos;t&apos;</span><span class="opt">,</span> <span class="num">0.27</span>f<span class="opt">}, {</span><span class="str">&apos;B&apos;</span><span class="opt">,</span> <span class="num">0.02</span>f<span class="opt">}, {</span><span class="str">&apos;D&apos;</span><span class="opt">,</span> <span class="num">0.02</span>f<span class="opt">},</span>
-        <span class="opt">{</span><span class="str">&apos;H&apos;</span><span class="opt">,</span> <span class="num">0.02</span>f<span class="opt">}, {</span><span class="str">&apos;K&apos;</span><span class="opt">,</span> <span class="num">0.02</span>f<span class="opt">}, {</span><span class="str">&apos;M&apos;</span><span class="opt">,</span> <span class="num">0.02</span>f<span class="opt">},</span>
-        <span class="opt">{</span><span class="str">&apos;N&apos;</span><span class="opt">,</span> <span class="num">0.02</span>f<span class="opt">}, {</span><span class="str">&apos;R&apos;</span><span class="opt">,</span> <span class="num">0.02</span>f<span class="opt">}, {</span><span class="str">&apos;S&apos;</span><span class="opt">,</span> <span class="num">0.02</span>f<span class="opt">},</span>
-        <span class="opt">{</span><span class="str">&apos;V&apos;</span><span class="opt">,</span> <span class="num">0.02</span>f<span class="opt">}, {</span><span class="str">&apos;W&apos;</span><span class="opt">,</span> <span class="num">0.02</span>f<span class="opt">}, {</span><span class="str">&apos;Y&apos;</span><span class="opt">,</span> <span class="num">0.02</span>f<span class="opt">}</span>
-  <span class="opt">}};</span>
+  <span class="kwc">constexpr</span> std::array&lt;Nucleotide, <span class="num">15</span>&gt; iub{{
+        {<span class="str">&apos;a&apos;</span>, <span class="num">0.27</span>f}, {<span class="str">&apos;c&apos;</span>, <span class="num">0.12</span>f}, {<span class="str">&apos;g&apos;</span>, <span class="num">0.12</span>f},
+        {<span class="str">&apos;t&apos;</span>, <span class="num">0.27</span>f}, {<span class="str">&apos;B&apos;</span>, <span class="num">0.02</span>f}, {<span class="str">&apos;D&apos;</span>, <span class="num">0.02</span>f},
+        {<span class="str">&apos;H&apos;</span>, <span class="num">0.02</span>f}, {<span class="str">&apos;K&apos;</span>, <span class="num">0.02</span>f}, {<span class="str">&apos;M&apos;</span>, <span class="num">0.02</span>f},
+        {<span class="str">&apos;N&apos;</span>, <span class="num">0.02</span>f}, {<span class="str">&apos;R&apos;</span>, <span class="num">0.02</span>f}, {<span class="str">&apos;S&apos;</span>, <span class="num">0.02</span>f},
+        {<span class="str">&apos;V&apos;</span>, <span class="num">0.02</span>f}, {<span class="str">&apos;W&apos;</span>, <span class="num">0.02</span>f}, {<span class="str">&apos;Y&apos;</span>, <span class="num">0.02</span>f}
+  }};
 
-  RandomLCG <span class="kwd">rng</span><span class="opt">(</span>n <span class="opt">*</span> <span class="num">3</span><span class="opt">,</span> num_threads<span class="opt">);</span>
+  RandomLCG <span class="kwd">rng</span>(n * <span class="num">3</span>, num_threads);
 
-  <span class="kwc">std</span><span class="opt">::</span><span class="kwd">fputs</span><span class="opt">(</span><span class="str">&quot;&gt;TWO IUB ambiguity codes</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span> stdout<span class="opt">);</span>
-  <span class="kwd">fasta_random_par</span><span class="opt">(</span>rng<span class="opt">,</span> <span class="kwd">WeightedRandom</span><span class="opt">(</span>iub<span class="opt">),</span> num_threads<span class="opt">);</span>
+  std::<span class="kwd">fputs</span>(<span class="str">&quot;&gt;TWO IUB ambiguity codes</span><span class="esc">\n</span><span class="str">&quot;</span>, stdout);
+  <span class="kwd">fasta_random_par</span>(rng, <span class="kwd">WeightedRandom</span>(iub), num_threads);
 
-  rng<span class="opt">.</span><span class="kwd">reset</span><span class="opt">(</span>n <span class="opt">*</span> <span class="num">5</span><span class="opt">);</span>
+  rng.<span class="kwd">reset</span>(n * <span class="num">5</span>);
 
-  <span class="kwc">constexpr std</span><span class="opt">::</span>array<span class="opt">&lt;</span>Nucleotide<span class="opt">,</span> <span class="num">4</span><span class="opt">&gt;</span> homosapiens<span class="opt">{{</span>
-      <span class="opt">{</span><span class="str">&apos;a&apos;</span><span class="opt">,</span> <span class="num">0.3029549426680</span>f<span class="opt">},</span>
-      <span class="opt">{</span><span class="str">&apos;c&apos;</span><span class="opt">,</span> <span class="num">0.1979883004921</span>f<span class="opt">},</span>
-      <span class="opt">{</span><span class="str">&apos;g&apos;</span><span class="opt">,</span> <span class="num">0.1975473066391</span>f<span class="opt">},</span>
-      <span class="opt">{</span><span class="str">&apos;t&apos;</span><span class="opt">,</span> <span class="num">0.3015094502008</span>f<span class="opt">},</span>
-  <span class="opt">}};</span>
+  <span class="kwc">constexpr</span> std::array&lt;Nucleotide, <span class="num">4</span>&gt; homosapiens{{
+      {<span class="str">&apos;a&apos;</span>, <span class="num">0.3029549426680</span>f},
+      {<span class="str">&apos;c&apos;</span>, <span class="num">0.1979883004921</span>f},
+      {<span class="str">&apos;g&apos;</span>, <span class="num">0.1975473066391</span>f},
+      {<span class="str">&apos;t&apos;</span>, <span class="num">0.3015094502008</span>f},
+  }};
 
-  <span class="kwc">std</span><span class="opt">::</span><span class="kwd">fputs</span><span class="opt">(</span><span class="str">&quot;&gt;THREE Homo sapiens frequency</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span> stdout<span class="opt">);</span>
-  <span class="kwd">fasta_random_par</span><span class="opt">(</span>rng<span class="opt">,</span> <span class="kwd">WeightedRandom</span><span class="opt">(</span>homosapiens<span class="opt">),</span> num_threads<span class="opt">);</span>
+  std::<span class="kwd">fputs</span>(<span class="str">&quot;&gt;THREE Homo sapiens frequency</span><span class="esc">\n</span><span class="str">&quot;</span>, stdout);
+  <span class="kwd">fasta_random_par</span>(rng, <span class="kwd">WeightedRandom</span>(homosapiens), num_threads);
 
-  <span class="kwa">return</span> <span class="num">0</span><span class="opt">;</span>
-<span class="opt">}</span>
+  <span class="kwa">return</span> <span class="num">0</span>;
+}
 
     </pre>
   </section>
@@ -333,17 +333,17 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
     <pre>
 NOTES:
 64-bit Ubuntu quad core
-g++ (Ubuntu 10.2.0-13ubuntu1) 10.2.0
+g++ (Ubuntu 10.3.0-1ubuntu1) 10.3.0
 
 
-Mon, 30 Nov 2020 03:52:55 GMT
+Fri, 04 Jun 2021 23:47:14 GMT
 
 MAKE:
 /usr/bin/g++ -c -pipe -O3 -fomit-frame-pointer -march=ivybridge  -std=c++17 fasta.gpp-8.c++ -o fasta.gpp-8.c++.o &amp;&amp;  \
         /usr/bin/g++ fasta.gpp-8.c++.o -o fasta.gpp-8.gpp_run -lpthread 
 rm fasta.gpp-8.c++
 
-4.92s to complete and log all make actions
+4.80s to complete and log all make actions
 
 COMMAND LINE:
 ./fasta.gpp-8.gpp_run 25000000

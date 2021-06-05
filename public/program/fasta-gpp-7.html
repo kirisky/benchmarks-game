@@ -46,273 +46,273 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="ppc">#include &lt;atomic&gt;</span>
 
 <span class="kwb">struct</span> Config
-<span class="opt">{</span>
-    <span class="kwb">static</span> <span class="kwc">constexpr</span> <span class="kwb">unsigned</span> max_threads <span class="opt">=</span> <span class="num">8</span><span class="opt">;</span>
-    <span class="kwb">static</span> <span class="kwc">constexpr</span> <span class="kwb">unsigned</span> min_threads <span class="opt">=</span> <span class="num">1</span><span class="opt">;</span>
-    <span class="kwb">static</span> <span class="kwc">constexpr</span> <span class="kwb">unsigned</span> chars_per_line <span class="opt">=</span> <span class="num">60</span><span class="opt">;</span>
-    <span class="kwb">static</span> <span class="kwc">constexpr</span> <span class="kwb">unsigned</span> max_proc <span class="opt">=</span> <span class="num">4</span><span class="opt">;</span>
-    <span class="kwb">static</span> <span class="kwc">constexpr</span> <span class="kwb">unsigned</span> min_thread_work <span class="opt">= (</span>chars_per_line <span class="opt">+</span> <span class="num">1</span><span class="opt">) *</span> <span class="num">84</span><span class="opt">;</span>
-    <span class="kwb">static</span> <span class="kwc">constexpr</span> <span class="kwb">unsigned</span> max_thread_buff <span class="opt">= (</span>chars_per_line <span class="opt">+</span> <span class="num">1</span><span class="opt">) *</span> <span class="num">1024</span><span class="opt">;</span>
+{
+    <span class="kwb">static</span> <span class="kwc">constexpr</span> <span class="kwb">unsigned</span> max_threads = <span class="num">8</span>;
+    <span class="kwb">static</span> <span class="kwc">constexpr</span> <span class="kwb">unsigned</span> min_threads = <span class="num">1</span>;
+    <span class="kwb">static</span> <span class="kwc">constexpr</span> <span class="kwb">unsigned</span> chars_per_line = <span class="num">60</span>;
+    <span class="kwb">static</span> <span class="kwc">constexpr</span> <span class="kwb">unsigned</span> max_proc = <span class="num">4</span>;
+    <span class="kwb">static</span> <span class="kwc">constexpr</span> <span class="kwb">unsigned</span> min_thread_work = (chars_per_line + <span class="num">1</span>) * <span class="num">84</span>;
+    <span class="kwb">static</span> <span class="kwc">constexpr</span> <span class="kwb">unsigned</span> max_thread_buff = (chars_per_line + <span class="num">1</span>) * <span class="num">1024</span>;
 
-    <span class="kwb">static</span> <span class="kwc">constexpr</span> <span class="kwb">unsigned</span> im <span class="opt">=</span> <span class="num">139968</span><span class="opt">,</span> ia <span class="opt">=</span> <span class="num">3877</span><span class="opt">,</span> ic <span class="opt">=</span> <span class="num">29573</span><span class="opt">;</span>
-    <span class="kwb">static</span> <span class="kwc">constexpr</span> <span class="kwb">float</span> reciprocal <span class="opt">=</span> <span class="num">1.0</span>f <span class="opt">/</span> im<span class="opt">;</span>
-    <span class="kwb">static</span> <span class="kwc">inline</span> <span class="kwb">FILE</span><span class="opt">*</span> output <span class="opt">=</span> stdout<span class="opt">;</span>
-<span class="opt">};</span>
+    <span class="kwb">static</span> <span class="kwc">constexpr</span> <span class="kwb">unsigned</span> im = <span class="num">139968</span>, ia = <span class="num">3877</span>, ic = <span class="num">29573</span>;
+    <span class="kwb">static</span> <span class="kwc">constexpr</span> <span class="kwb">float</span> reciprocal = <span class="num">1.0</span>f / im;
+    <span class="kwb">static</span> <span class="kwc">inline</span> <span class="kwb">FILE</span>* output = stdout;
+};
 
 <span class="kwc">class</span> ThreadMgr
-<span class="opt">{</span>
-    <span class="kwb">struct</span> Proc <span class="opt">{</span>
-        <span class="kwc">std</span><span class="opt">::</span>atomic<span class="opt">&lt;</span><span class="kwb">bool</span><span class="opt">&gt;</span>   once<span class="opt">;</span>
-        <span class="kwc">std</span><span class="opt">::</span>mutex          mtx<span class="opt">;</span>
-        <span class="kwb">unsigned</span>            index<span class="opt">,</span> index_reset<span class="opt">;</span>
-    <span class="opt">};</span>
-    <span class="kwc">std</span><span class="opt">::</span>atomic<span class="opt">&lt;</span><span class="kwb">unsigned</span><span class="opt">&gt;</span>       _out_sequence <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
-    <span class="kwc">std</span><span class="opt">::</span>mutex                  _gen_mutex<span class="opt">,</span> _out_mutex<span class="opt">;</span>
-    <span class="kwc">std</span><span class="opt">::</span>condition_variable     _cv<span class="opt">;</span>
-    Proc                        _proc<span class="opt">[</span> <span class="kwc">Config</span><span class="opt">::</span>max_proc <span class="opt">];</span>
-    <span class="kwb">unsigned</span>                    _id_ctr <span class="opt">=</span> <span class="num">0</span><span class="opt">,</span> _threads <span class="opt">=</span> <span class="num">1</span><span class="opt">,</span> _proc_ctr <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
-<span class="kwc">public</span><span class="opt">:</span>
-    <span class="kwb">struct</span> Context <span class="opt">{</span>
-        <span class="kwb">unsigned</span>        index<span class="opt">;</span>
-        <span class="kwb">union</span> <span class="opt">{</span>
-            <span class="kwd">alignas</span><span class="opt">(</span><span class="num">16</span><span class="opt">)</span> <span class="kwc">std</span><span class="opt">::</span>array<span class="opt">&lt;</span> <span class="kwb">int</span><span class="opt">,</span> <span class="kwc">Config</span><span class="opt">::</span>max_thread_buff <span class="opt">&gt;</span> ibuff<span class="opt">;</span>
-            <span class="kwd">alignas</span><span class="opt">(</span><span class="num">16</span><span class="opt">)</span> <span class="kwc">std</span><span class="opt">::</span>array<span class="opt">&lt;</span> <span class="kwb">char</span><span class="opt">,</span> <span class="kwc">Config</span><span class="opt">::</span>max_thread_buff <span class="opt">&gt;</span> cbuff<span class="opt">;</span>
-        <span class="opt">};</span>
-    <span class="opt">};</span>
+{
+    <span class="kwb">struct</span> Proc {
+        std::atomic&lt;<span class="kwb">bool</span>&gt;   once;
+        std::mutex          mtx;
+        <span class="kwb">unsigned</span>            index, index_reset;
+    };
+    std::atomic&lt;<span class="kwb">unsigned</span>&gt;       _out_sequence = <span class="num">0</span>;
+    std::mutex                  _gen_mutex, _out_mutex;
+    std::condition_variable     _cv;
+    Proc                        _proc[ Config::max_proc ];
+    <span class="kwb">unsigned</span>                    _id_ctr = <span class="num">0</span>, _threads = <span class="num">1</span>, _proc_ctr = <span class="num">0</span>;
+<span class="kwc">public</span>:
+    <span class="kwb">struct</span> Context {
+        <span class="kwb">unsigned</span>        index;
+        <span class="kwb">union</span> {
+            <span class="kwd">alignas</span>(<span class="num">16</span>) std::array&lt; <span class="kwb">int</span>, Config::max_thread_buff &gt; ibuff;
+            <span class="kwd">alignas</span>(<span class="num">16</span>) std::array&lt; <span class="kwb">char</span>, Config::max_thread_buff &gt; cbuff;
+        };
+    };
 
-    <span class="kwb">void</span> <span class="kwd">SetThreadCount</span><span class="opt">(</span> <span class="kwb">unsigned</span> count <span class="opt">) {</span>
-        _threads <span class="opt">=</span> <span class="kwc">std</span><span class="opt">::</span><span class="kwd">clamp</span><span class="opt">(</span> count<span class="opt">,</span> <span class="kwc">Config</span><span class="opt">::</span>min_threads<span class="opt">,</span>
-                               <span class="kwc">Config</span><span class="opt">::</span>max_threads <span class="opt">);</span>
-    <span class="opt">}</span>
+    <span class="kwb">void</span> <span class="kwd">SetThreadCount</span>( <span class="kwb">unsigned</span> count ) {
+        _threads = std::<span class="kwd">clamp</span>( count, Config::min_threads,
+                               Config::max_threads );
+    }
 
-    <span class="kwc">inline</span> <span class="kwb">void</span> <span class="kwd">SyncOutput</span><span class="opt">(</span> <span class="kwb">unsigned</span> index<span class="opt">,</span> <span class="kwb">const</span> <span class="kwc">auto</span><span class="opt">&amp;</span> function <span class="opt">) {</span>
-        <span class="kwc">std</span><span class="opt">::</span>unique_lock <span class="kwd">lock</span><span class="opt">(</span>_out_mutex<span class="opt">);</span>
-        _cv<span class="opt">.</span><span class="kwd">wait</span><span class="opt">(</span> lock<span class="opt">, [=]{</span> <span class="kwa">return</span> index <span class="opt">==</span> _out_sequence<span class="opt">; });</span>
-        <span class="kwd">function</span><span class="opt">();</span>
-        <span class="opt">++</span>_out_sequence<span class="opt">;</span>
-        _cv<span class="opt">.</span><span class="kwd">notify_all</span><span class="opt">();</span>
-    <span class="opt">}</span>
+    <span class="kwc">inline</span> <span class="kwb">void</span> <span class="kwd">SyncOutput</span>( <span class="kwb">unsigned</span> index, <span class="kwb">const</span> <span class="kwc">auto</span>&amp; function ) {
+        std::unique_lock <span class="kwd">lock</span>(_out_mutex);
+        _cv.<span class="kwd">wait</span>( lock, [=]{ <span class="kwa">return</span> index == _out_sequence; });
+        <span class="kwd">function</span>();
+        ++_out_sequence;
+        _cv.<span class="kwd">notify_all</span>();
+    }
 
-    <span class="kwc">auto</span> <span class="kwd">Make</span><span class="opt">(</span> <span class="kwb">const</span> <span class="kwc">std</span><span class="opt">::</span>string_view<span class="opt">&amp;</span> text<span class="opt">,</span> <span class="kwb">unsigned</span> size<span class="opt">,</span> <span class="kwc">auto</span> output <span class="opt">) {</span>
-        <span class="kwb">unsigned</span> id <span class="opt">=</span> _id_ctr<span class="opt">++;</span>
-        <span class="kwc">auto</span><span class="opt">&amp;</span> proc <span class="opt">=</span> _proc<span class="opt">[</span> _proc_ctr<span class="opt">++ ];</span>
-        <span class="kwa">return</span> <span class="opt">[=, &amp;</span>proc<span class="opt">](</span> <span class="kwc">ThreadMgr</span><span class="opt">::</span>Context<span class="opt">&amp;</span> tdata <span class="opt">) {</span>
-            <span class="kwa">if</span><span class="opt">(</span> proc<span class="opt">.</span>once<span class="opt">.</span><span class="kwd">exchange</span><span class="opt">(</span><span class="kwa">false</span><span class="opt">) )</span>
-                <span class="kwa">this</span><span class="opt">-&gt;</span><span class="kwd">SyncOutput</span><span class="opt">(</span> id<span class="opt">, [&amp;]{</span>
-                <span class="kwc">std</span><span class="opt">::</span><span class="kwd">fwrite</span><span class="opt">(</span> text<span class="opt">.</span><span class="kwd">data</span><span class="opt">(),</span> <span class="num">1</span><span class="opt">,</span> text<span class="opt">.</span><span class="kwd">size</span><span class="opt">(),</span> <span class="kwc">Config</span><span class="opt">::</span>output <span class="opt">);</span>
-                <span class="kwd">output</span><span class="opt">(</span> size<span class="opt">,</span> tdata <span class="opt">);</span>
-            <span class="opt">});</span>
-        <span class="opt">};</span>
-    <span class="opt">}</span>
+    <span class="kwc">auto</span> <span class="kwd">Make</span>( <span class="kwb">const</span> std::string_view&amp; text, <span class="kwb">unsigned</span> size, <span class="kwc">auto</span> output ) {
+        <span class="kwb">unsigned</span> id = _id_ctr++;
+        <span class="kwc">auto</span>&amp; proc = _proc[ _proc_ctr++ ];
+        <span class="kwa">return</span> [=, &amp;proc]( ThreadMgr::Context&amp; tdata ) {
+            <span class="kwa">if</span>( proc.once.<span class="kwd">exchange</span>(<span class="kwa">false</span>) )
+                <span class="kwa">this</span>-&gt;<span class="kwd">SyncOutput</span>( id, [&amp;]{
+                std::<span class="kwd">fwrite</span>( text.<span class="kwd">data</span>(), <span class="num">1</span>, text.<span class="kwd">size</span>(), Config::output );
+                <span class="kwd">output</span>( size, tdata );
+            });
+        };
+    }
 
-    <span class="kwc">auto</span> <span class="kwd">Make</span><span class="opt">(</span> <span class="kwb">const</span> <span class="kwc">std</span><span class="opt">::</span>string_view<span class="opt">&amp;</span> text<span class="opt">,</span> <span class="kwb">unsigned</span> size<span class="opt">,</span>
-               <span class="kwc">auto</span> generate<span class="opt">,</span> <span class="kwc">auto</span> convert<span class="opt">,</span> <span class="kwc">auto</span> output <span class="opt">) {</span>
-        <span class="kwb">unsigned</span> work_count <span class="opt">=</span> <span class="kwc">std</span><span class="opt">::</span><span class="kwd">clamp</span><span class="opt">(</span> size <span class="opt">/</span> _threads<span class="opt">,</span>
-                                          <span class="kwc">Config</span><span class="opt">::</span>min_thread_work<span class="opt">,</span>
-                                          <span class="kwc">Config</span><span class="opt">::</span>max_thread_buff <span class="opt">);</span>
-        <span class="kwb">unsigned</span> id <span class="opt">=</span> _id_ctr<span class="opt">++;</span>
-        <span class="kwb">unsigned</span> limit <span class="opt">=</span> id <span class="opt">+ (</span>size <span class="opt">/</span> work_count<span class="opt">) + (</span>size <span class="opt">%</span> work_count <span class="opt">!=</span> <span class="num">0</span><span class="opt">);</span>
-        _id_ctr <span class="opt">=</span> limit <span class="opt">+</span> <span class="num">1</span><span class="opt">;</span>
-        <span class="kwc">auto</span><span class="opt">&amp;</span> proc <span class="opt">=</span> _proc<span class="opt">[</span> _proc_ctr<span class="opt">++ ];</span>
-        proc<span class="opt">.</span>index_reset <span class="opt">=</span> id <span class="opt">+</span> <span class="num">1</span><span class="opt">;</span>
+    <span class="kwc">auto</span> <span class="kwd">Make</span>( <span class="kwb">const</span> std::string_view&amp; text, <span class="kwb">unsigned</span> size,
+               <span class="kwc">auto</span> generate, <span class="kwc">auto</span> convert, <span class="kwc">auto</span> output ) {
+        <span class="kwb">unsigned</span> work_count = std::<span class="kwd">clamp</span>( size / _threads,
+                                          Config::min_thread_work,
+                                          Config::max_thread_buff );
+        <span class="kwb">unsigned</span> id = _id_ctr++;
+        <span class="kwb">unsigned</span> limit = id + (size / work_count) + (size % work_count != <span class="num">0</span>);
+        _id_ctr = limit + <span class="num">1</span>;
+        <span class="kwc">auto</span>&amp; proc = _proc[ _proc_ctr++ ];
+        proc.index_reset = id + <span class="num">1</span>;
 
-        <span class="kwa">return</span> <span class="opt">[=, &amp;</span>proc<span class="opt">](</span> <span class="kwc">ThreadMgr</span><span class="opt">::</span>Context<span class="opt">&amp;</span> tdata <span class="opt">) {</span>
-            <span class="kwa">if</span><span class="opt">(</span> proc<span class="opt">.</span>once<span class="opt">.</span><span class="kwd">exchange</span><span class="opt">(</span><span class="kwa">false</span><span class="opt">) )</span>
-                <span class="kwa">this</span><span class="opt">-&gt;</span><span class="kwd">SyncOutput</span><span class="opt">(</span> id<span class="opt">, [&amp;] {</span>
-                <span class="kwc">std</span><span class="opt">::</span><span class="kwd">fwrite</span><span class="opt">(</span> text<span class="opt">.</span><span class="kwd">data</span><span class="opt">(),</span> <span class="num">1</span><span class="opt">,</span> text<span class="opt">.</span><span class="kwd">size</span><span class="opt">(),</span> <span class="kwc">Config</span><span class="opt">::</span>output <span class="opt">);</span>
-            <span class="opt">});</span>
+        <span class="kwa">return</span> [=, &amp;proc]( ThreadMgr::Context&amp; tdata ) {
+            <span class="kwa">if</span>( proc.once.<span class="kwd">exchange</span>(<span class="kwa">false</span>) )
+                <span class="kwa">this</span>-&gt;<span class="kwd">SyncOutput</span>( id, [&amp;] {
+                std::<span class="kwd">fwrite</span>( text.<span class="kwd">data</span>(), <span class="num">1</span>, text.<span class="kwd">size</span>(), Config::output );
+            });
 
-            <span class="kwb">unsigned</span> start_index <span class="opt">=</span> id <span class="opt">+</span> <span class="num">1</span><span class="opt">;</span>
-            <span class="kwa">while</span><span class="opt">(</span><span class="kwa">true</span><span class="opt">) {</span>
-                <span class="kwb">unsigned</span> cvsize<span class="opt">;</span>
-                <span class="opt">{</span>
-                    <span class="kwc">std</span><span class="opt">::</span>scoped_lock <span class="kwd">lock</span><span class="opt">(</span>_gen_mutex<span class="opt">);</span>
-                    <span class="opt">{</span>
-                        <span class="kwc">std</span><span class="opt">::</span>scoped_lock <span class="kwd">lock</span><span class="opt">(</span>proc<span class="opt">.</span>mtx<span class="opt">);</span>
-                        <span class="kwa">if</span><span class="opt">(</span> proc<span class="opt">.</span>index <span class="opt">&gt;</span> limit <span class="opt">)</span>
-                            <span class="kwa">break</span><span class="opt">;</span>
-                        tdata<span class="opt">.</span>index <span class="opt">=</span> proc<span class="opt">.</span>index<span class="opt">++;</span>
-                    <span class="opt">}</span>
-                    cvsize <span class="opt">=</span> <span class="kwc">std</span><span class="opt">::</span><span class="kwd">min</span><span class="opt">(</span> work_count<span class="opt">,</span> size <span class="opt">-</span>
-                                       <span class="opt">(((</span>tdata<span class="opt">.</span>index <span class="opt">-</span> start_index<span class="opt">)</span>
-                                         <span class="opt">*</span> work_count<span class="opt">)) );</span>
-                    <span class="kwd">generate</span><span class="opt">(</span> cvsize<span class="opt">,</span> tdata <span class="opt">);</span>
-                <span class="opt">}</span>
+            <span class="kwb">unsigned</span> start_index = id + <span class="num">1</span>;
+            <span class="kwa">while</span>(<span class="kwa">true</span>) {
+                <span class="kwb">unsigned</span> cvsize;
+                {
+                    std::scoped_lock <span class="kwd">lock</span>(_gen_mutex);
+                    {
+                        std::scoped_lock <span class="kwd">lock</span>(proc.mtx);
+                        <span class="kwa">if</span>( proc.index &gt; limit )
+                            <span class="kwa">break</span>;
+                        tdata.index = proc.index++;
+                    }
+                    cvsize = std::<span class="kwd">min</span>( work_count, size -
+                                       (((tdata.index - start_index)
+                                         * work_count)) );
+                    <span class="kwd">generate</span>( cvsize, tdata );
+                }
 
-                <span class="kwb">unsigned</span> char_count <span class="opt">=</span> <span class="kwd">convert</span><span class="opt">(</span> cvsize<span class="opt">,</span> start_index<span class="opt">,</span>
-                                               work_count<span class="opt">,</span> tdata <span class="opt">);</span>
+                <span class="kwb">unsigned</span> char_count = <span class="kwd">convert</span>( cvsize, start_index,
+                                               work_count, tdata );
 
-                <span class="kwa">this</span><span class="opt">-&gt;</span><span class="kwd">SyncOutput</span><span class="opt">(</span> tdata<span class="opt">.</span>index<span class="opt">, [&amp;] {</span>
-                    <span class="kwa">if</span><span class="opt">(</span> tdata<span class="opt">.</span>index <span class="opt">==</span> limit <span class="opt">&amp;&amp;</span>
-                            tdata<span class="opt">.</span>cbuff<span class="opt">[</span>char_count<span class="opt">-</span><span class="num">1</span><span class="opt">] !=</span> <span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span> <span class="opt">)</span>
-                        tdata<span class="opt">.</span>cbuff<span class="opt">[</span>char_count<span class="opt">++] =</span> <span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span><span class="opt">;</span>
-                    <span class="kwd">output</span><span class="opt">(</span> char_count<span class="opt">,</span> tdata <span class="opt">);</span>
-                <span class="opt">});</span>
-            <span class="opt">}</span>
-        <span class="opt">};</span>
-    <span class="opt">}</span>
+                <span class="kwa">this</span>-&gt;<span class="kwd">SyncOutput</span>( tdata.index, [&amp;] {
+                    <span class="kwa">if</span>( tdata.index == limit &amp;&amp;
+                            tdata.cbuff[char_count-<span class="num">1</span>] != <span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span> )
+                        tdata.cbuff[char_count++] = <span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span>;
+                    <span class="kwd">output</span>( char_count, tdata );
+                });
+            }
+        };
+    }
 
-    <span class="kwb">void</span> <span class="kwd">RunSequence</span><span class="opt">(</span> <span class="kwc">auto</span><span class="opt">...</span> f <span class="opt">){</span>
-        <span class="kwa">static_assert</span><span class="opt">(</span> <span class="kwa">sizeof</span><span class="opt">...(</span>f<span class="opt">) &lt;=</span> <span class="kwc">Config</span><span class="opt">::</span>max_proc<span class="opt">,</span>
+    <span class="kwb">void</span> <span class="kwd">RunSequence</span>( <span class="kwc">auto</span>... f ){
+        <span class="kwa">static_assert</span>( <span class="kwa">sizeof</span>...(f) &lt;= Config::max_proc,
                        <span class="str">&quot;function chain is too large, &quot;</span>
-                       <span class="str">&quot;increase Config::max_proc.&quot;</span> <span class="opt">);</span>
-        <span class="kwc">std</span><span class="opt">::</span>thread threads<span class="opt">[</span> <span class="kwc">Config</span><span class="opt">::</span>max_threads <span class="opt">];</span>
+                       <span class="str">&quot;increase Config::max_proc.&quot;</span> );
+        std::thread threads[ Config::max_threads ];
 
-        _out_sequence <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
-        _proc_ctr <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
-        <span class="kwa">for</span><span class="opt">(</span> <span class="kwc">auto</span><span class="opt">&amp;</span> i <span class="opt">:</span> _proc <span class="opt">) {</span>
-            i<span class="opt">.</span>once <span class="opt">=</span> <span class="kwa">true</span><span class="opt">;</span>
-            i<span class="opt">.</span>index <span class="opt">=</span> i<span class="opt">.</span>index_reset<span class="opt">;</span>
-        <span class="opt">}</span>
+        _out_sequence = <span class="num">0</span>;
+        _proc_ctr = <span class="num">0</span>;
+        <span class="kwa">for</span>( <span class="kwc">auto</span>&amp; i : _proc ) {
+            i.once = <span class="kwa">true</span>;
+            i.index = i.index_reset;
+        }
 
-        <span class="kwa">for</span><span class="opt">(</span> <span class="kwb">unsigned</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> _threads<span class="opt">; ++</span>i <span class="opt">)</span>
-            threads<span class="opt">[</span>i<span class="opt">] =</span> <span class="kwc">std</span><span class="opt">::</span><span class="kwd">thread</span><span class="opt">( [=]{</span>
-                Context tdata <span class="opt">= {</span><span class="num">0</span><span class="opt">};</span>
-                <span class="opt">(</span><span class="kwd">f</span><span class="opt">(</span> tdata <span class="opt">), ...);</span>
-            <span class="opt">});</span>
+        <span class="kwa">for</span>( <span class="kwb">unsigned</span> i = <span class="num">0</span>; i &lt; _threads; ++i )
+            threads[i] = std::<span class="kwd">thread</span>( [=]{
+                Context tdata = {<span class="num">0</span>};
+                (<span class="kwd">f</span>( tdata ), ...);
+            });
 
-        <span class="kwa">for</span><span class="opt">(</span> <span class="kwb">unsigned</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> _threads<span class="opt">; ++</span>i <span class="opt">)</span>
-            threads<span class="opt">[</span>i<span class="opt">].</span><span class="kwd">join</span><span class="opt">();</span>
-    <span class="opt">}</span>
-<span class="opt">}</span> gdata<span class="opt">;</span>
+        <span class="kwa">for</span>( <span class="kwb">unsigned</span> i = <span class="num">0</span>; i &lt; _threads; ++i )
+            threads[i].<span class="kwd">join</span>();
+    }
+} gdata;
 
-<span class="kwb">int</span> <span class="kwd">main</span><span class="opt">(</span><span class="kwb">int</span> argc<span class="opt">,</span> <span class="kwb">char</span> <span class="opt">*</span>argv<span class="opt">[])</span>
-<span class="opt">{</span>
-    <span class="kwb">static</span> <span class="kwc">constexpr</span> <span class="kwb">char</span> alu<span class="opt">[] =</span>
+<span class="kwb">int</span> <span class="kwd">main</span>(<span class="kwb">int</span> argc, <span class="kwb">char</span> *argv[])
+{
+    <span class="kwb">static</span> <span class="kwc">constexpr</span> <span class="kwb">char</span> alu[] =
         <span class="str">&quot;GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAG&quot;</span>
         <span class="str">&quot;GTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGC&quot;</span>
         <span class="str">&quot;CGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCC&quot;</span>
         <span class="str">&quot;GGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTC&quot;</span>
-        <span class="str">&quot;CGTCTCAAAAA&quot;</span><span class="opt">;</span>
+        <span class="str">&quot;CGTCTCAAAAA&quot;</span>;
 
-    <span class="kwb">static</span> <span class="kwc">constexpr std</span><span class="opt">::</span>array<span class="opt">&lt;</span> <span class="kwc">std</span><span class="opt">::</span>pair<span class="opt">&lt;</span> <span class="kwb">float</span><span class="opt">,</span> <span class="kwb">char</span> <span class="opt">&gt;,</span> <span class="num">15</span><span class="opt">&gt;</span> iub <span class="opt">= {{</span>
-         <span class="opt">{</span> <span class="num">0.27</span>f<span class="opt">,</span> <span class="str">&apos;a&apos;</span> <span class="opt">}, {</span> <span class="num">0.12</span>f<span class="opt">,</span> <span class="str">&apos;c&apos;</span> <span class="opt">}, {</span> <span class="num">0.12</span>f<span class="opt">,</span> <span class="str">&apos;g&apos;</span> <span class="opt">}, {</span> <span class="num">0.27</span>f<span class="opt">,</span> <span class="str">&apos;t&apos;</span> <span class="opt">},</span>
-         <span class="opt">{</span> <span class="num">0.02</span>f<span class="opt">,</span> <span class="str">&apos;B&apos;</span> <span class="opt">}, {</span> <span class="num">0.02</span>f<span class="opt">,</span> <span class="str">&apos;D&apos;</span> <span class="opt">}, {</span> <span class="num">0.02</span>f<span class="opt">,</span> <span class="str">&apos;H&apos;</span> <span class="opt">}, {</span> <span class="num">0.02</span>f<span class="opt">,</span> <span class="str">&apos;K&apos;</span> <span class="opt">},</span>
-         <span class="opt">{</span> <span class="num">0.02</span>f<span class="opt">,</span> <span class="str">&apos;M&apos;</span> <span class="opt">}, {</span> <span class="num">0.02</span>f<span class="opt">,</span> <span class="str">&apos;N&apos;</span> <span class="opt">}, {</span> <span class="num">0.02</span>f<span class="opt">,</span> <span class="str">&apos;R&apos;</span> <span class="opt">}, {</span> <span class="num">0.02</span>f<span class="opt">,</span> <span class="str">&apos;S&apos;</span> <span class="opt">},</span>
-         <span class="opt">{</span> <span class="num">0.02</span>f<span class="opt">,</span> <span class="str">&apos;V&apos;</span> <span class="opt">}, {</span> <span class="num">0.02</span>f<span class="opt">,</span> <span class="str">&apos;W&apos;</span> <span class="opt">}, {</span> <span class="num">0.02</span>f<span class="opt">,</span> <span class="str">&apos;Y&apos;</span> <span class="opt">}</span>
-    <span class="opt">}};</span>
+    <span class="kwb">static</span> <span class="kwc">constexpr</span> std::array&lt; std::pair&lt; <span class="kwb">float</span>, <span class="kwb">char</span> &gt;, <span class="num">15</span>&gt; iub = {{
+         { <span class="num">0.27</span>f, <span class="str">&apos;a&apos;</span> }, { <span class="num">0.12</span>f, <span class="str">&apos;c&apos;</span> }, { <span class="num">0.12</span>f, <span class="str">&apos;g&apos;</span> }, { <span class="num">0.27</span>f, <span class="str">&apos;t&apos;</span> },
+         { <span class="num">0.02</span>f, <span class="str">&apos;B&apos;</span> }, { <span class="num">0.02</span>f, <span class="str">&apos;D&apos;</span> }, { <span class="num">0.02</span>f, <span class="str">&apos;H&apos;</span> }, { <span class="num">0.02</span>f, <span class="str">&apos;K&apos;</span> },
+         { <span class="num">0.02</span>f, <span class="str">&apos;M&apos;</span> }, { <span class="num">0.02</span>f, <span class="str">&apos;N&apos;</span> }, { <span class="num">0.02</span>f, <span class="str">&apos;R&apos;</span> }, { <span class="num">0.02</span>f, <span class="str">&apos;S&apos;</span> },
+         { <span class="num">0.02</span>f, <span class="str">&apos;V&apos;</span> }, { <span class="num">0.02</span>f, <span class="str">&apos;W&apos;</span> }, { <span class="num">0.02</span>f, <span class="str">&apos;Y&apos;</span> }
+    }};
 
-    <span class="kwb">static</span> <span class="kwc">constexpr std</span><span class="opt">::</span>array<span class="opt">&lt;</span> <span class="kwc">std</span><span class="opt">::</span>pair<span class="opt">&lt;</span> <span class="kwb">float</span><span class="opt">,</span> <span class="kwb">char</span> <span class="opt">&gt;,</span> <span class="num">4</span><span class="opt">&gt;</span> homosapiens <span class="opt">= {{</span>
-         <span class="opt">{</span> <span class="num">0.3029549426680</span>f<span class="opt">,</span> <span class="str">&apos;a&apos;</span> <span class="opt">},</span>
-         <span class="opt">{</span> <span class="num">0.1979883004921</span>f<span class="opt">,</span> <span class="str">&apos;c&apos;</span> <span class="opt">},</span>
-         <span class="opt">{</span> <span class="num">0.1975473066391</span>f<span class="opt">,</span> <span class="str">&apos;g&apos;</span> <span class="opt">},</span>
-         <span class="opt">{</span> <span class="num">0.3015094502008</span>f<span class="opt">,</span> <span class="str">&apos;t&apos;</span> <span class="opt">}</span>
-    <span class="opt">}};</span>
+    <span class="kwb">static</span> <span class="kwc">constexpr</span> std::array&lt; std::pair&lt; <span class="kwb">float</span>, <span class="kwb">char</span> &gt;, <span class="num">4</span>&gt; homosapiens = {{
+         { <span class="num">0.3029549426680</span>f, <span class="str">&apos;a&apos;</span> },
+         { <span class="num">0.1979883004921</span>f, <span class="str">&apos;c&apos;</span> },
+         { <span class="num">0.1975473066391</span>f, <span class="str">&apos;g&apos;</span> },
+         { <span class="num">0.3015094502008</span>f, <span class="str">&apos;t&apos;</span> }
+    }};
 
-    <span class="kwb">static</span> <span class="kwc">auto</span> make_commulative <span class="opt">= [](</span> <span class="kwb">const</span> <span class="kwc">auto</span><span class="opt">&amp;</span> p <span class="opt">) {</span>
-        <span class="kwb">struct</span> Ret <span class="opt">{</span>
-            <span class="kwd">alignas</span><span class="opt">(</span><span class="num">16</span><span class="opt">)</span> <span class="kwc">std</span><span class="opt">::</span>array<span class="opt">&lt;</span> <span class="kwb">float</span><span class="opt">,</span> p<span class="opt">.</span><span class="kwd">size</span><span class="opt">() &gt;</span>  real<span class="opt">;</span>
-            <span class="kwd">alignas</span><span class="opt">(</span><span class="num">16</span><span class="opt">)</span> <span class="kwc">std</span><span class="opt">::</span>array<span class="opt">&lt;</span> <span class="kwb">char</span><span class="opt">,</span> p<span class="opt">.</span><span class="kwd">size</span><span class="opt">() &gt;</span>  ch<span class="opt">;</span>
-        <span class="opt">}</span> ret<span class="opt">{{</span>p<span class="opt">[</span><span class="num">0</span><span class="opt">].</span>first<span class="opt">}, {</span>p<span class="opt">[</span><span class="num">0</span><span class="opt">].</span>second<span class="opt">}};</span>
+    <span class="kwb">static</span> <span class="kwc">auto</span> make_commulative = []( <span class="kwb">const</span> <span class="kwc">auto</span>&amp; p ) {
+        <span class="kwb">struct</span> Ret {
+            <span class="kwd">alignas</span>(<span class="num">16</span>) std::array&lt; <span class="kwb">float</span>, p.<span class="kwd">size</span>() &gt;  real;
+            <span class="kwd">alignas</span>(<span class="num">16</span>) std::array&lt; <span class="kwb">char</span>, p.<span class="kwd">size</span>() &gt;  ch;
+        } ret{{p[<span class="num">0</span>].first}, {p[<span class="num">0</span>].second}};
 
-        <span class="kwa">for</span><span class="opt">(</span><span class="kwb">unsigned</span> i <span class="opt">=</span> <span class="num">1</span><span class="opt">;</span> i <span class="opt">&lt;</span> p<span class="opt">.</span><span class="kwd">size</span><span class="opt">(); ++</span>i <span class="opt">) {</span>
-            ret<span class="opt">.</span>real<span class="opt">[</span>i<span class="opt">] =</span> ret<span class="opt">.</span>real<span class="opt">[</span>i<span class="opt">-</span><span class="num">1</span><span class="opt">] +</span> p<span class="opt">[</span>i<span class="opt">].</span>first<span class="opt">;</span>
-            ret<span class="opt">.</span>ch<span class="opt">[</span>i<span class="opt">] =</span> p<span class="opt">[</span>i<span class="opt">].</span>second<span class="opt">;</span>
-        <span class="opt">}</span>
-        <span class="kwa">return</span> ret<span class="opt">;</span>
-    <span class="opt">};</span>
+        <span class="kwa">for</span>(<span class="kwb">unsigned</span> i = <span class="num">1</span>; i &lt; p.<span class="kwd">size</span>(); ++i ) {
+            ret.real[i] = ret.real[i-<span class="num">1</span>] + p[i].first;
+            ret.ch[i] = p[i].second;
+        }
+        <span class="kwa">return</span> ret;
+    };
 
-    <span class="kwb">static</span> <span class="kwc">auto</span> get_random <span class="opt">= [] {</span>
-        <span class="kwb">static unsigned</span> last <span class="opt">=</span> <span class="num">42</span><span class="opt">;</span>
-        <span class="kwa">return</span> <span class="opt">(</span>last <span class="opt">= (</span>last <span class="opt">*</span> <span class="kwc">Config</span><span class="opt">::</span>ia <span class="opt">+</span> <span class="kwc">Config</span><span class="opt">::</span>ic<span class="opt">) %</span> <span class="kwc">Config</span><span class="opt">::</span>im<span class="opt">);</span>
-    <span class="opt">};</span>
+    <span class="kwb">static</span> <span class="kwc">auto</span> get_random = [] {
+        <span class="kwb">static unsigned</span> last = <span class="num">42</span>;
+        <span class="kwa">return</span> (last = (last * Config::ia + Config::ic) % Config::im);
+    };
 
-    <span class="kwb">static</span> <span class="kwc">auto</span> convert <span class="opt">= [](</span> <span class="kwb">const</span> <span class="kwc">auto</span><span class="opt">&amp;</span> data<span class="opt">,</span> <span class="kwb">unsigned</span> size<span class="opt">,</span>
-            <span class="kwb">unsigned</span> start_index<span class="opt">,</span> <span class="kwb">unsigned</span> max_work<span class="opt">,</span>
-            <span class="kwc">ThreadMgr</span><span class="opt">::</span>Context<span class="opt">&amp;</span> tdata <span class="opt">) {</span>
-        <span class="kwc">auto</span> iitr <span class="opt">=</span> tdata<span class="opt">.</span>ibuff<span class="opt">.</span><span class="kwd">begin</span><span class="opt">(),</span> iend <span class="opt">=</span> iitr <span class="opt">+</span> size<span class="opt">;</span>
-        <span class="kwc">auto</span> citr <span class="opt">=</span> tdata<span class="opt">.</span>cbuff<span class="opt">.</span><span class="kwd">begin</span><span class="opt">();</span>
-        <span class="kwc">auto</span> inner_loop <span class="opt">= [&amp;](</span> <span class="kwc">auto</span> end <span class="opt">) {</span>
-            <span class="kwa">while</span><span class="opt">(</span> iitr <span class="opt">!=</span> end <span class="opt">) {</span>
-                <span class="kwc">auto</span> f <span class="opt">= *</span>iitr<span class="opt">++ *</span> <span class="kwc">Config</span><span class="opt">::</span>reciprocal<span class="opt">;</span>
-                <span class="kwc">auto</span> i <span class="opt">=</span> <span class="kwc">std</span><span class="opt">::</span><span class="kwd">find_if</span><span class="opt">(</span> data<span class="opt">.</span>real<span class="opt">.</span><span class="kwd">begin</span><span class="opt">(),</span>
-                                       data<span class="opt">.</span>real<span class="opt">.</span><span class="kwd">end</span><span class="opt">(),</span>
-                                       <span class="opt">[</span>f<span class="opt">](</span> <span class="kwc">auto</span> t <span class="opt">){</span> <span class="kwa">return</span> f <span class="opt">&lt;=</span> t<span class="opt">; });</span>
-                <span class="opt">*</span>citr<span class="opt">++ =</span> data<span class="opt">.</span>ch<span class="opt">[</span> i <span class="opt">-</span> data<span class="opt">.</span>real<span class="opt">.</span><span class="kwd">begin</span><span class="opt">() ];</span>
-            <span class="opt">}</span>
-            <span class="opt">*</span>citr<span class="opt">++ =</span> <span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span><span class="opt">;</span>
-        <span class="opt">};</span>
+    <span class="kwb">static</span> <span class="kwc">auto</span> convert = []( <span class="kwb">const</span> <span class="kwc">auto</span>&amp; data, <span class="kwb">unsigned</span> size,
+            <span class="kwb">unsigned</span> start_index, <span class="kwb">unsigned</span> max_work,
+            ThreadMgr::Context&amp; tdata ) {
+        <span class="kwc">auto</span> iitr = tdata.ibuff.<span class="kwd">begin</span>(), iend = iitr + size;
+        <span class="kwc">auto</span> citr = tdata.cbuff.<span class="kwd">begin</span>();
+        <span class="kwc">auto</span> inner_loop = [&amp;]( <span class="kwc">auto</span> end ) {
+            <span class="kwa">while</span>( iitr != end ) {
+                <span class="kwc">auto</span> f = *iitr++ * Config::reciprocal;
+                <span class="kwc">auto</span> i = std::<span class="kwd">find_if</span>( data.real.<span class="kwd">begin</span>(),
+                                       data.real.<span class="kwd">end</span>(),
+                                       [f]( <span class="kwc">auto</span> t ){ <span class="kwa">return</span> f &lt;= t; });
+                *citr++ = data.ch[ i - data.real.<span class="kwd">begin</span>() ];
+            }
+            *citr++ = <span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span>;
+        };
 
-        <span class="kwb">unsigned</span> aligner_count <span class="opt">=</span> <span class="kwc">Config</span><span class="opt">::</span>chars_per_line <span class="opt">-</span>
-                <span class="opt">((</span>max_work <span class="opt">* (</span>tdata<span class="opt">.</span>index <span class="opt">-</span> start_index<span class="opt">))</span>
-                 <span class="opt">%</span> <span class="kwc">Config</span><span class="opt">::</span>chars_per_line<span class="opt">);</span>
+        <span class="kwb">unsigned</span> aligner_count = Config::chars_per_line -
+                ((max_work * (tdata.index - start_index))
+                 % Config::chars_per_line);
 
-        <span class="kwa">if</span><span class="opt">(</span> aligner_count <span class="opt">&gt;</span> <span class="num">0</span> <span class="opt">)</span>
-            <span class="kwd">inner_loop</span><span class="opt">(</span> iitr <span class="opt">+</span> aligner_count <span class="opt">);</span>
+        <span class="kwa">if</span>( aligner_count &gt; <span class="num">0</span> )
+            <span class="kwd">inner_loop</span>( iitr + aligner_count );
 
-        <span class="kwb">unsigned</span> odd_count <span class="opt">= (</span>iend <span class="opt">-</span> iitr<span class="opt">) %</span> <span class="kwc">Config</span><span class="opt">::</span>chars_per_line<span class="opt">;</span>
-        <span class="kwc">auto</span> iend_blocks <span class="opt">=</span> iend <span class="opt">-</span> odd_count<span class="opt">;</span>
-        <span class="kwa">while</span><span class="opt">(</span> iitr <span class="opt">&lt;</span> iend_blocks <span class="opt">)</span>
-            <span class="kwd">inner_loop</span><span class="opt">(</span> iitr <span class="opt">+</span> <span class="kwc">Config</span><span class="opt">::</span>chars_per_line <span class="opt">);</span>
+        <span class="kwb">unsigned</span> odd_count = (iend - iitr) % Config::chars_per_line;
+        <span class="kwc">auto</span> iend_blocks = iend - odd_count;
+        <span class="kwa">while</span>( iitr &lt; iend_blocks )
+            <span class="kwd">inner_loop</span>( iitr + Config::chars_per_line );
 
-        <span class="kwa">if</span><span class="opt">(</span> odd_count <span class="opt">) {</span>
-            <span class="kwd">inner_loop</span><span class="opt">(</span> iitr <span class="opt">+</span> odd_count <span class="opt">);</span>
-            citr <span class="opt">-=</span> <span class="num">1</span><span class="opt">;</span>
-        <span class="opt">}</span>
-        <span class="kwa">return</span> citr <span class="opt">-</span> tdata<span class="opt">.</span>cbuff<span class="opt">.</span><span class="kwd">begin</span><span class="opt">();</span>
-    <span class="opt">};</span>
+        <span class="kwa">if</span>( odd_count ) {
+            <span class="kwd">inner_loop</span>( iitr + odd_count );
+            citr -= <span class="num">1</span>;
+        }
+        <span class="kwa">return</span> citr - tdata.cbuff.<span class="kwd">begin</span>();
+    };
 
-    <span class="kwc">auto</span> generate <span class="opt">= [](</span> <span class="kwb">unsigned</span> size<span class="opt">,</span> <span class="kwc">ThreadMgr</span><span class="opt">::</span>Context<span class="opt">&amp;</span> tdata <span class="opt">) {</span>
-        <span class="kwa">for</span><span class="opt">(</span> <span class="kwc">auto</span> i <span class="opt">=</span> tdata<span class="opt">.</span>ibuff<span class="opt">.</span><span class="kwd">begin</span><span class="opt">(),</span> end <span class="opt">=</span> i <span class="opt">+</span> size<span class="opt">;</span> i <span class="opt">!=</span> end<span class="opt">; ++</span>i <span class="opt">)</span>
-            <span class="opt">*</span>i <span class="opt">=</span> <span class="kwd">get_random</span><span class="opt">();</span>
-    <span class="opt">};</span>
+    <span class="kwc">auto</span> generate = []( <span class="kwb">unsigned</span> size, ThreadMgr::Context&amp; tdata ) {
+        <span class="kwa">for</span>( <span class="kwc">auto</span> i = tdata.ibuff.<span class="kwd">begin</span>(), end = i + size; i != end; ++i )
+            *i = <span class="kwd">get_random</span>();
+    };
 
-    <span class="kwc">auto</span> output <span class="opt">= [](</span> <span class="kwb">unsigned</span> size<span class="opt">,</span> <span class="kwc">ThreadMgr</span><span class="opt">::</span>Context<span class="opt">&amp;</span> tdata <span class="opt">) {</span>
-        <span class="kwc">std</span><span class="opt">::</span><span class="kwd">fwrite</span><span class="opt">(</span> tdata<span class="opt">.</span>cbuff<span class="opt">.</span><span class="kwd">data</span><span class="opt">(),</span> <span class="num">1</span><span class="opt">,</span> size<span class="opt">,</span> <span class="kwc">Config</span><span class="opt">::</span>output <span class="opt">);</span>
-    <span class="opt">};</span>
+    <span class="kwc">auto</span> output = []( <span class="kwb">unsigned</span> size, ThreadMgr::Context&amp; tdata ) {
+        std::<span class="kwd">fwrite</span>( tdata.cbuff.<span class="kwd">data</span>(), <span class="num">1</span>, size, Config::output );
+    };
 
-    <span class="kwc">auto</span> alu_out <span class="opt">= [&amp;](</span> <span class="kwb">unsigned</span> size<span class="opt">,</span> <span class="kwc">ThreadMgr</span><span class="opt">::</span>Context<span class="opt">&amp; ) {</span>
-        <span class="kwb">static</span> <span class="kwc">constexpr auto</span> alu_data <span class="opt">= [&amp;] {</span>
-            <span class="kwc">constexpr</span> <span class="kwb">unsigned</span> char_count <span class="opt">= (</span><span class="kwc">Config</span><span class="opt">::</span>chars_per_line <span class="opt">+</span> <span class="num">1</span><span class="opt">)</span>
-                    <span class="opt">* (</span><span class="kwa">sizeof</span><span class="opt">(</span>alu<span class="opt">) -</span> <span class="num">1</span><span class="opt">);</span>
+    <span class="kwc">auto</span> alu_out = [&amp;]( <span class="kwb">unsigned</span> size, ThreadMgr::Context&amp; ) {
+        <span class="kwb">static</span> <span class="kwc">constexpr auto</span> alu_data = [&amp;] {
+            <span class="kwc">constexpr</span> <span class="kwb">unsigned</span> char_count = (Config::chars_per_line + <span class="num">1</span>)
+                    * (<span class="kwa">sizeof</span>(alu) - <span class="num">1</span>);
 
-            <span class="kwc">std</span><span class="opt">::</span>array<span class="opt">&lt;</span> <span class="kwb">char</span><span class="opt">,</span> char_count <span class="opt">&gt;</span> ret<span class="opt">{};</span>
-            <span class="kwa">for</span><span class="opt">(</span><span class="kwb">unsigned</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">,</span> j <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> char_count<span class="opt">; ++</span>i<span class="opt">, ++</span>j<span class="opt">) {</span>
-                <span class="kwb">unsigned</span> ul <span class="opt">=</span> <span class="kwc">std</span><span class="opt">::</span><span class="kwd">min</span><span class="opt">(</span>i <span class="opt">+</span> <span class="kwc">Config</span><span class="opt">::</span>chars_per_line<span class="opt">,</span> char_count<span class="opt">);</span>
-                <span class="kwa">for</span><span class="opt">(;</span> i <span class="opt">&lt;</span> ul<span class="opt">; ++</span>i <span class="opt">)</span>
-                    ret<span class="opt">[</span>i<span class="opt">] =</span> alu<span class="opt">[ (</span>i <span class="opt">-</span> j<span class="opt">) % (</span><span class="kwa">sizeof</span><span class="opt">(</span>alu<span class="opt">) -</span> <span class="num">1</span><span class="opt">)];</span>
-                ret<span class="opt">[</span>i<span class="opt">] =</span> <span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span><span class="opt">;</span>
-            <span class="opt">}</span>
-            <span class="kwa">return</span> ret<span class="opt">;</span>
-        <span class="opt">}();</span>
+            std::array&lt; <span class="kwb">char</span>, char_count &gt; ret{};
+            <span class="kwa">for</span>(<span class="kwb">unsigned</span> i = <span class="num">0</span>, j = <span class="num">0</span>; i &lt; char_count; ++i, ++j) {
+                <span class="kwb">unsigned</span> ul = std::<span class="kwd">min</span>(i + Config::chars_per_line, char_count);
+                <span class="kwa">for</span>(; i &lt; ul; ++i )
+                    ret[i] = alu[ (i - j) % (<span class="kwa">sizeof</span>(alu) - <span class="num">1</span>)];
+                ret[i] = <span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span>;
+            }
+            <span class="kwa">return</span> ret;
+        }();
 
-        <span class="kwc">constexpr</span> <span class="kwb">unsigned</span> char_count <span class="opt">=</span> <span class="kwc">Config</span><span class="opt">::</span>chars_per_line <span class="opt">*</span>
-                <span class="opt">(</span><span class="kwa">sizeof</span><span class="opt">(</span>alu<span class="opt">) -</span> <span class="num">1</span><span class="opt">);</span>
-        <span class="kwa">for</span><span class="opt">(;</span> size <span class="opt">&gt;=</span> char_count<span class="opt">;</span> size <span class="opt">-=</span> char_count <span class="opt">)</span>
-            <span class="kwc">std</span><span class="opt">::</span><span class="kwd">fwrite</span><span class="opt">(</span> alu_data<span class="opt">.</span><span class="kwd">data</span><span class="opt">(),</span> <span class="num">1</span><span class="opt">,</span> alu_data<span class="opt">.</span><span class="kwd">size</span><span class="opt">(),</span> <span class="kwc">Config</span><span class="opt">::</span>output <span class="opt">);</span>
-        <span class="kwc">std</span><span class="opt">::</span><span class="kwd">fwrite</span><span class="opt">(</span> alu_data<span class="opt">.</span><span class="kwd">data</span><span class="opt">(),</span> <span class="num">1</span><span class="opt">,</span> size <span class="opt">+</span>
-                     <span class="opt">(</span>size <span class="opt">/</span> <span class="kwc">Config</span><span class="opt">::</span>chars_per_line<span class="opt">),</span> <span class="kwc">Config</span><span class="opt">::</span>output <span class="opt">);</span>
-        <span class="kwc">std</span><span class="opt">::</span><span class="kwd">putc</span><span class="opt">(</span><span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span><span class="opt">,</span> <span class="kwc">Config</span><span class="opt">::</span>output <span class="opt">);</span>
-    <span class="opt">};</span>
+        <span class="kwc">constexpr</span> <span class="kwb">unsigned</span> char_count = Config::chars_per_line *
+                (<span class="kwa">sizeof</span>(alu) - <span class="num">1</span>);
+        <span class="kwa">for</span>(; size &gt;= char_count; size -= char_count )
+            std::<span class="kwd">fwrite</span>( alu_data.<span class="kwd">data</span>(), <span class="num">1</span>, alu_data.<span class="kwd">size</span>(), Config::output );
+        std::<span class="kwd">fwrite</span>( alu_data.<span class="kwd">data</span>(), <span class="num">1</span>, size +
+                     (size / Config::chars_per_line), Config::output );
+        std::<span class="kwd">putc</span>(<span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span>, Config::output );
+    };
 
-    <span class="kwc">auto</span> iub_convert <span class="opt">= [](</span> <span class="kwb">unsigned</span> size<span class="opt">,</span> <span class="kwb">unsigned</span> start_index<span class="opt">,</span>
-            <span class="kwb">unsigned</span> max_work<span class="opt">,</span> <span class="kwc">ThreadMgr</span><span class="opt">::</span>Context<span class="opt">&amp;</span> tdata <span class="opt">) {</span>
-        <span class="kwb">static</span> <span class="kwc">constexpr auto</span> iub_data <span class="opt">=</span> <span class="kwd">make_commulative</span><span class="opt">(</span> iub <span class="opt">);</span>
-        <span class="kwa">return</span> <span class="kwd">convert</span><span class="opt">(</span> iub_data<span class="opt">,</span> size<span class="opt">,</span> start_index<span class="opt">,</span> max_work<span class="opt">,</span> tdata  <span class="opt">);</span>
-    <span class="opt">};</span>
+    <span class="kwc">auto</span> iub_convert = []( <span class="kwb">unsigned</span> size, <span class="kwb">unsigned</span> start_index,
+            <span class="kwb">unsigned</span> max_work, ThreadMgr::Context&amp; tdata ) {
+        <span class="kwb">static</span> <span class="kwc">constexpr auto</span> iub_data = <span class="kwd">make_commulative</span>( iub );
+        <span class="kwa">return</span> <span class="kwd">convert</span>( iub_data, size, start_index, max_work, tdata  );
+    };
 
-    <span class="kwc">auto</span> homo_convert <span class="opt">= [](</span> <span class="kwb">unsigned</span> size<span class="opt">,</span> <span class="kwb">unsigned</span> start_index<span class="opt">,</span>
-            <span class="kwb">unsigned</span> max_work<span class="opt">,</span> <span class="kwc">ThreadMgr</span><span class="opt">::</span>Context<span class="opt">&amp;</span> tdata <span class="opt">) {</span>
-        <span class="kwb">static</span> <span class="kwc">constexpr auto</span> hom_data <span class="opt">=</span> <span class="kwd">make_commulative</span><span class="opt">(</span> homosapiens <span class="opt">);</span>
-        <span class="kwa">return</span> <span class="kwd">convert</span><span class="opt">(</span> hom_data<span class="opt">,</span> size<span class="opt">,</span> start_index<span class="opt">,</span> max_work<span class="opt">,</span> tdata  <span class="opt">);</span>
-    <span class="opt">};</span>
+    <span class="kwc">auto</span> homo_convert = []( <span class="kwb">unsigned</span> size, <span class="kwb">unsigned</span> start_index,
+            <span class="kwb">unsigned</span> max_work, ThreadMgr::Context&amp; tdata ) {
+        <span class="kwb">static</span> <span class="kwc">constexpr auto</span> hom_data = <span class="kwd">make_commulative</span>( homosapiens );
+        <span class="kwa">return</span> <span class="kwd">convert</span>( hom_data, size, start_index, max_work, tdata  );
+    };
 
-    gdata<span class="opt">.</span><span class="kwd">SetThreadCount</span><span class="opt">(</span> <span class="kwc">std</span><span class="opt">::</span><span class="kwc">thread</span><span class="opt">::</span><span class="kwd">hardware_concurrency</span><span class="opt">() );</span>
+    gdata.<span class="kwd">SetThreadCount</span>( std::thread::<span class="kwd">hardware_concurrency</span>() );
 
-    <span class="kwb">unsigned</span> n <span class="opt">=</span> <span class="kwc">std</span><span class="opt">::</span><span class="kwd">max</span><span class="opt">(</span> <span class="num">1000</span><span class="opt">,</span> <span class="kwc">std</span><span class="opt">::</span><span class="kwd">atoi</span><span class="opt">(</span> argv<span class="opt">[</span><span class="num">1</span><span class="opt">] ) );</span>
+    <span class="kwb">unsigned</span> n = std::<span class="kwd">max</span>( <span class="num">1000</span>, std::<span class="kwd">atoi</span>( argv[<span class="num">1</span>] ) );
 
-    <span class="kwb">const</span> <span class="kwc">auto</span> alu_proc <span class="opt">=</span> gdata<span class="opt">.</span><span class="kwd">Make</span><span class="opt">(</span> <span class="str">&quot;&gt;ONE Homo sapiens alu</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span>
-                                      n <span class="opt">*</span> <span class="num">2</span><span class="opt">,</span> alu_out <span class="opt">);</span>
+    <span class="kwb">const</span> <span class="kwc">auto</span> alu_proc = gdata.<span class="kwd">Make</span>( <span class="str">&quot;&gt;ONE Homo sapiens alu</span><span class="esc">\n</span><span class="str">&quot;</span>,
+                                      n * <span class="num">2</span>, alu_out );
 
-    <span class="kwb">const</span> <span class="kwc">auto</span> iub_proc <span class="opt">=</span> gdata<span class="opt">.</span><span class="kwd">Make</span><span class="opt">(</span> <span class="str">&quot;&gt;TWO IUB ambiguity codes</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span>
-                                      n <span class="opt">*</span> <span class="num">3</span><span class="opt">,</span> generate<span class="opt">,</span> iub_convert<span class="opt">,</span> output <span class="opt">);</span>
+    <span class="kwb">const</span> <span class="kwc">auto</span> iub_proc = gdata.<span class="kwd">Make</span>( <span class="str">&quot;&gt;TWO IUB ambiguity codes</span><span class="esc">\n</span><span class="str">&quot;</span>,
+                                      n * <span class="num">3</span>, generate, iub_convert, output );
 
-    <span class="kwb">const</span> <span class="kwc">auto</span> homo_proc <span class="opt">=</span> gdata<span class="opt">.</span><span class="kwd">Make</span><span class="opt">(</span> <span class="str">&quot;&gt;THREE Homo sapiens frequency</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span>
-                                       n <span class="opt">*</span> <span class="num">5</span><span class="opt">,</span> generate<span class="opt">,</span> homo_convert<span class="opt">,</span> output <span class="opt">);</span>
+    <span class="kwb">const</span> <span class="kwc">auto</span> homo_proc = gdata.<span class="kwd">Make</span>( <span class="str">&quot;&gt;THREE Homo sapiens frequency</span><span class="esc">\n</span><span class="str">&quot;</span>,
+                                       n * <span class="num">5</span>, generate, homo_convert, output );
 
-    gdata<span class="opt">.</span><span class="kwd">RunSequence</span><span class="opt">(</span> alu_proc<span class="opt">,</span> iub_proc<span class="opt">,</span> homo_proc <span class="opt">);</span>
-    <span class="kwa">return</span> <span class="num">0</span><span class="opt">;</span>
-<span class="opt">}</span>
+    gdata.<span class="kwd">RunSequence</span>( alu_proc, iub_proc, homo_proc );
+    <span class="kwa">return</span> <span class="num">0</span>;
+}
     </pre>
   </section>
   <section>
@@ -322,10 +322,10 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
     <pre>
 NOTES:
 64-bit Ubuntu quad core
-g++ (Ubuntu 10.2.0-13ubuntu1) 10.2.0
+g++ (Ubuntu 10.3.0-1ubuntu1) 10.3.0
 
 
-Mon, 02 Nov 2020 18:41:42 GMT
+Fri, 04 Jun 2021 23:51:52 GMT
 
 MAKE:
 /usr/bin/g++ -c -pipe -O3 -fomit-frame-pointer -march=ivybridge  -std=c++17 fasta.gpp-7.c++ -o fasta.gpp-7.c++.o &amp;&amp;  \
@@ -451,7 +451,7 @@ fasta.gpp-7.c++:207:45: error: ‘const struct main(int, char**)::&lt;lambda(con
 make: [/home/dunham/all-benchmarksgame/2000-benchmarksgame/nanobench/makefiles/u64q.programs.Makefile:54: fasta.gpp-7.gpp_run] Error 1 (ignored)
 rm fasta.gpp-7.c++
 
-2.69s to complete and log all make actions
+2.70s to complete and log all make actions
 
 COMMAND LINE:
 ./fasta.gpp-7.gpp_run 250000

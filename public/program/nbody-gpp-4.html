@@ -39,143 +39,143 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="ppc">#define solar_mass (4 * pi * pi)</span>
 <span class="ppc">#define days_per_year 365.24</span>
 
-<span class="kwc">typedef</span> <span class="kwb">double</span> v2df <span class="kwd">__attribute__</span> <span class="opt">((</span> <span class="kwd">vector_size</span><span class="opt">(</span><span class="num">2</span><span class="opt">*</span><span class="kwa">sizeof</span><span class="opt">(</span><span class="kwb">double</span><span class="opt">)) ));</span>
+<span class="kwc">typedef</span> <span class="kwb">double</span> v2df <span class="kwd">__attribute__</span> (( <span class="kwd">vector_size</span>(<span class="num">2</span>*<span class="kwa">sizeof</span>(<span class="kwb">double</span>)) ));
 
-<span class="kwb">double</span> __inline <span class="kwd">lower</span><span class="opt">(</span><span class="kwb">const</span> v2df<span class="opt">&amp;</span> v<span class="opt">) {</span>
-    <span class="kwa">return</span> <span class="opt">((</span><span class="kwb">double</span><span class="opt">*)&amp;</span>v<span class="opt">)[</span><span class="num">0</span><span class="opt">];</span>
-<span class="opt">}</span>
+<span class="kwb">double</span> __inline <span class="kwd">lower</span>(<span class="kwb">const</span> v2df&amp; v) {
+    <span class="kwa">return</span> ((<span class="kwb">double</span>*)&amp;v)[<span class="num">0</span>];
+}
 
-<span class="kwb">double</span> __inline <span class="kwd">upper</span><span class="opt">(</span><span class="kwb">const</span> v2df<span class="opt">&amp;</span> v<span class="opt">) {</span>
-    <span class="kwa">return</span> <span class="opt">((</span><span class="kwb">double</span><span class="opt">*)&amp;</span>v<span class="opt">)[</span><span class="num">1</span><span class="opt">];</span>
-<span class="opt">}</span>
+<span class="kwb">double</span> __inline <span class="kwd">upper</span>(<span class="kwb">const</span> v2df&amp; v) {
+    <span class="kwa">return</span> ((<span class="kwb">double</span>*)&amp;v)[<span class="num">1</span>];
+}
 
-<span class="kwb">struct</span> planet <span class="opt">{</span> 
-    v2df xy<span class="opt">;</span>
-    v2df z0<span class="opt">;</span> <span class="slc">// z and zero</span>
-    v2df vxvy<span class="opt">;</span>
-    v2df vz00<span class="opt">;</span>	<span class="slc">// vz and zero</span>
-    v2df massmass<span class="opt">;</span> <span class="slc">// the mass in both components</span>
-<span class="opt">};</span>
+<span class="kwb">struct</span> planet { 
+    v2df xy;
+    v2df z0; <span class="slc">// z and zero</span>
+    v2df vxvy;
+    v2df vz00;	<span class="slc">// vz and zero</span>
+    v2df massmass; <span class="slc">// the mass in both components</span>
+};
 
-<span class="kwb">void</span> <span class="kwd">advance</span><span class="opt">(</span><span class="kwb">int</span> nbodies<span class="opt">,</span> <span class="kwb">struct</span> planet <span class="opt">*</span> bodies<span class="opt">,</span> <span class="kwb">const</span> v2df<span class="opt">&amp;</span> dtdt<span class="opt">)</span>
-<span class="opt">{</span>
-  <span class="kwb">int</span> i<span class="opt">,</span> j<span class="opt">;</span>
-  <span class="kwa">for</span> <span class="opt">(</span>i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> nbodies<span class="opt">;</span> i<span class="opt">++) {</span>
-    <span class="kwb">struct</span> planet <span class="opt">*</span> b <span class="opt">= &amp;(</span>bodies<span class="opt">[</span>i<span class="opt">]);</span>
-    <span class="kwa">for</span> <span class="opt">(</span>j <span class="opt">=</span> i <span class="opt">+</span> <span class="num">1</span><span class="opt">;</span> j <span class="opt">&lt;</span> nbodies<span class="opt">;</span> j<span class="opt">++) {</span>
-      <span class="kwb">struct</span> planet <span class="opt">*</span> b2 <span class="opt">= &amp;(</span>bodies<span class="opt">[</span>j<span class="opt">]);</span>
-      v2df dxdy <span class="opt">=</span> b<span class="opt">-&gt;</span>xy <span class="opt">-</span> b2<span class="opt">-&gt;</span>xy<span class="opt">;</span>
-      v2df dz00 <span class="opt">=</span> b<span class="opt">-&gt;</span>z0 <span class="opt">-</span> b2<span class="opt">-&gt;</span>z0<span class="opt">;</span>
-      v2df tsquare <span class="opt">=</span> <span class="kwd">__builtin_ia32_haddpd</span><span class="opt">(</span>dxdy<span class="opt">*</span>dxdy<span class="opt">,</span>dz00<span class="opt">*</span>dz00<span class="opt">);</span>    <span class="slc">// dx*dx+dy*dy | dz*dz</span>
-      v2df distance2 <span class="opt">=</span> <span class="kwd">__builtin_ia32_haddpd</span><span class="opt">(</span>tsquare<span class="opt">,</span>tsquare<span class="opt">);</span>      <span class="slc">// dx*dx+dy*dy+dz*dz | dx*dx+dy*dy+dz*dz</span>
-      v2df magmag <span class="opt">=</span> dtdt <span class="opt">/ (</span><span class="kwd">__builtin_ia32_sqrtpd</span><span class="opt">(</span>distance2<span class="opt">)*</span>distance2<span class="opt">);</span>
-      dxdy <span class="opt">*=</span> magmag<span class="opt">;</span>
-      dz00 <span class="opt">*=</span> magmag<span class="opt">;</span>
-      b<span class="opt">-&gt;</span>vxvy <span class="opt">-=</span> dxdy <span class="opt">*</span> b2<span class="opt">-&gt;</span>massmass<span class="opt">;</span>
-      b<span class="opt">-&gt;</span>vz00 <span class="opt">-=</span> dz00 <span class="opt">*</span> b2<span class="opt">-&gt;</span>massmass<span class="opt">;</span>
-      b2<span class="opt">-&gt;</span>vxvy <span class="opt">+=</span> dxdy <span class="opt">*</span> b<span class="opt">-&gt;</span>massmass<span class="opt">;</span>
-      b2<span class="opt">-&gt;</span>vz00 <span class="opt">+=</span> dz00 <span class="opt">*</span> b<span class="opt">-&gt;</span>massmass<span class="opt">;</span>
-    <span class="opt">}</span>
-  <span class="opt">}</span>
-  <span class="kwa">for</span> <span class="opt">(</span>i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> nbodies<span class="opt">;</span> i<span class="opt">++) {</span>
-    bodies<span class="opt">[</span>i<span class="opt">].</span>xy <span class="opt">+=</span> dtdt <span class="opt">*</span> bodies<span class="opt">[</span>i<span class="opt">].</span>vxvy<span class="opt">;</span>
-    bodies<span class="opt">[</span>i<span class="opt">].</span>z0 <span class="opt">+=</span> dtdt <span class="opt">*</span> bodies<span class="opt">[</span>i<span class="opt">].</span>vz00<span class="opt">;</span>
-  <span class="opt">}</span>
-<span class="opt">}</span>
+<span class="kwb">void</span> <span class="kwd">advance</span>(<span class="kwb">int</span> nbodies, <span class="kwb">struct</span> planet * bodies, <span class="kwb">const</span> v2df&amp; dtdt)
+{
+  <span class="kwb">int</span> i, j;
+  <span class="kwa">for</span> (i = <span class="num">0</span>; i &lt; nbodies; i++) {
+    <span class="kwb">struct</span> planet * b = &amp;(bodies[i]);
+    <span class="kwa">for</span> (j = i + <span class="num">1</span>; j &lt; nbodies; j++) {
+      <span class="kwb">struct</span> planet * b2 = &amp;(bodies[j]);
+      v2df dxdy = b-&gt;xy - b2-&gt;xy;
+      v2df dz00 = b-&gt;z0 - b2-&gt;z0;
+      v2df tsquare = <span class="kwd">__builtin_ia32_haddpd</span>(dxdy*dxdy,dz00*dz00);    <span class="slc">// dx*dx+dy*dy | dz*dz</span>
+      v2df distance2 = <span class="kwd">__builtin_ia32_haddpd</span>(tsquare,tsquare);      <span class="slc">// dx*dx+dy*dy+dz*dz | dx*dx+dy*dy+dz*dz</span>
+      v2df magmag = dtdt / (<span class="kwd">__builtin_ia32_sqrtpd</span>(distance2)*distance2);
+      dxdy *= magmag;
+      dz00 *= magmag;
+      b-&gt;vxvy -= dxdy * b2-&gt;massmass;
+      b-&gt;vz00 -= dz00 * b2-&gt;massmass;
+      b2-&gt;vxvy += dxdy * b-&gt;massmass;
+      b2-&gt;vz00 += dz00 * b-&gt;massmass;
+    }
+  }
+  <span class="kwa">for</span> (i = <span class="num">0</span>; i &lt; nbodies; i++) {
+    bodies[i].xy += dtdt * bodies[i].vxvy;
+    bodies[i].z0 += dtdt * bodies[i].vz00;
+  }
+}
 
-<span class="kwb">double</span> <span class="kwd">energy</span><span class="opt">(</span><span class="kwb">int</span> nbodies<span class="opt">,</span> <span class="kwb">struct</span> planet <span class="opt">*</span> bodies<span class="opt">)</span>
-<span class="opt">{</span>
-  v2df e <span class="opt">= {</span><span class="num">0.0</span><span class="opt">,</span> <span class="num">0.0</span><span class="opt">};</span>
-  v2df half <span class="opt">= {</span><span class="num">0.5</span><span class="opt">,</span> <span class="num">0.5</span><span class="opt">};</span>
-  <span class="kwb">int</span> i<span class="opt">,</span> j<span class="opt">;</span>
+<span class="kwb">double</span> <span class="kwd">energy</span>(<span class="kwb">int</span> nbodies, <span class="kwb">struct</span> planet * bodies)
+{
+  v2df e = {<span class="num">0.0</span>, <span class="num">0.0</span>};
+  v2df half = {<span class="num">0.5</span>, <span class="num">0.5</span>};
+  <span class="kwb">int</span> i, j;
 
-  <span class="kwa">for</span> <span class="opt">(</span>i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> nbodies<span class="opt">;</span> i<span class="opt">++) {</span>
-    <span class="kwb">struct</span> planet <span class="opt">*</span> b <span class="opt">= &amp;(</span>bodies<span class="opt">[</span>i<span class="opt">]);</span>
-    v2df sq <span class="opt">=</span> b<span class="opt">-&gt;</span>massmass <span class="opt">*</span> <span class="kwd">__builtin_ia32_haddpd</span><span class="opt">(</span>b<span class="opt">-&gt;</span>vxvy<span class="opt">*</span>b<span class="opt">-&gt;</span>vxvy<span class="opt">,</span> b<span class="opt">-&gt;</span>vz00<span class="opt">*</span>b<span class="opt">-&gt;</span>vz00<span class="opt">);</span>  <span class="slc">// b-&gt;mass*(vx*vx + vy*vy) | b-&gt;mass*(vz*vz + 0*0)</span>
-    sq <span class="opt">=</span> <span class="kwd">__builtin_ia32_haddpd</span><span class="opt">(</span>sq<span class="opt">,</span>sq<span class="opt">);</span>
-    e <span class="opt">+=</span> half <span class="opt">*</span> sq<span class="opt">;</span>
-    <span class="kwa">for</span> <span class="opt">(</span>j <span class="opt">=</span> i <span class="opt">+</span> <span class="num">1</span><span class="opt">;</span> j <span class="opt">&lt;</span> nbodies<span class="opt">;</span> j<span class="opt">++) {</span>
-      <span class="kwb">struct</span> planet <span class="opt">*</span> b2 <span class="opt">= &amp;(</span>bodies<span class="opt">[</span>j<span class="opt">]);</span>
-      v2df dxdy <span class="opt">=</span> b<span class="opt">-&gt;</span>xy <span class="opt">-</span> b2<span class="opt">-&gt;</span>xy<span class="opt">;</span>
-      v2df dz00 <span class="opt">=</span> b<span class="opt">-&gt;</span>z0 <span class="opt">-</span> b2<span class="opt">-&gt;</span>z0<span class="opt">;</span>
-      v2df distance <span class="opt">=</span> <span class="kwd">__builtin_ia32_haddpd</span><span class="opt">(</span>dxdy<span class="opt">*</span>dxdy<span class="opt">,</span> dz00<span class="opt">*</span>dz00<span class="opt">);</span>  <span class="slc">// b-&gt;mass*(vx*vx + vy*vy) | b-&gt;mass*(vz*vz + 0*0)</span>
-      distance <span class="opt">=</span> <span class="kwd">__builtin_ia32_sqrtpd</span><span class="opt">(</span><span class="kwd">__builtin_ia32_haddpd</span><span class="opt">(</span>distance<span class="opt">,</span>distance<span class="opt">));</span>
-      e <span class="opt">-= (</span>b<span class="opt">-&gt;</span>massmass <span class="opt">*</span> b2<span class="opt">-&gt;</span>massmass<span class="opt">) /</span> distance<span class="opt">;</span>
-    <span class="opt">}</span>
-  <span class="opt">}</span>
-  <span class="kwa">return</span> <span class="kwd">lower</span><span class="opt">(</span>e<span class="opt">);</span>
-<span class="opt">}</span>
+  <span class="kwa">for</span> (i = <span class="num">0</span>; i &lt; nbodies; i++) {
+    <span class="kwb">struct</span> planet * b = &amp;(bodies[i]);
+    v2df sq = b-&gt;massmass * <span class="kwd">__builtin_ia32_haddpd</span>(b-&gt;vxvy*b-&gt;vxvy, b-&gt;vz00*b-&gt;vz00);  <span class="slc">// b-&gt;mass*(vx*vx + vy*vy) | b-&gt;mass*(vz*vz + 0*0)</span>
+    sq = <span class="kwd">__builtin_ia32_haddpd</span>(sq,sq);
+    e += half * sq;
+    <span class="kwa">for</span> (j = i + <span class="num">1</span>; j &lt; nbodies; j++) {
+      <span class="kwb">struct</span> planet * b2 = &amp;(bodies[j]);
+      v2df dxdy = b-&gt;xy - b2-&gt;xy;
+      v2df dz00 = b-&gt;z0 - b2-&gt;z0;
+      v2df distance = <span class="kwd">__builtin_ia32_haddpd</span>(dxdy*dxdy, dz00*dz00);  <span class="slc">// b-&gt;mass*(vx*vx + vy*vy) | b-&gt;mass*(vz*vz + 0*0)</span>
+      distance = <span class="kwd">__builtin_ia32_sqrtpd</span>(<span class="kwd">__builtin_ia32_haddpd</span>(distance,distance));
+      e -= (b-&gt;massmass * b2-&gt;massmass) / distance;
+    }
+  }
+  <span class="kwa">return</span> <span class="kwd">lower</span>(e);
+}
 
-<span class="kwb">void</span> <span class="kwd">offset_momentum</span><span class="opt">(</span><span class="kwb">int</span> nbodies<span class="opt">,</span> <span class="kwb">struct</span> planet <span class="opt">*</span> bodies<span class="opt">)</span>
-<span class="opt">{</span>
-  v2df pxpy <span class="opt">= {</span><span class="num">0.0</span><span class="opt">,</span> <span class="num">0.0</span><span class="opt">};</span>
-  v2df pz00 <span class="opt">= {</span><span class="num">0.0</span><span class="opt">,</span> <span class="num">0.0</span><span class="opt">};</span>
-  <span class="kwb">int</span> i<span class="opt">;</span>
-  <span class="kwa">for</span> <span class="opt">(</span>i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> nbodies<span class="opt">;</span> i<span class="opt">++) {</span>
-    pxpy <span class="opt">+=</span> bodies<span class="opt">[</span>i<span class="opt">].</span>vxvy <span class="opt">*</span> bodies<span class="opt">[</span>i<span class="opt">].</span>massmass<span class="opt">;</span>
-    pz00 <span class="opt">+=</span> bodies<span class="opt">[</span>i<span class="opt">].</span>vz00 <span class="opt">*</span> bodies<span class="opt">[</span>i<span class="opt">].</span>massmass<span class="opt">;</span>
-  <span class="opt">}</span>
-  v2df solar_mass_inv <span class="opt">= {</span> <span class="num">1.0</span> <span class="opt">/</span> solar_mass<span class="opt">,</span> <span class="num">1.0</span> <span class="opt">/</span> solar_mass<span class="opt">};</span>
-  bodies<span class="opt">[</span><span class="num">0</span><span class="opt">].</span>vxvy <span class="opt">= -</span> pxpy <span class="opt">*</span> solar_mass_inv<span class="opt">;</span>
-  bodies<span class="opt">[</span><span class="num">0</span><span class="opt">].</span>vz00 <span class="opt">= -</span> pz00 <span class="opt">*</span> solar_mass_inv<span class="opt">;</span>
-<span class="opt">}</span>
+<span class="kwb">void</span> <span class="kwd">offset_momentum</span>(<span class="kwb">int</span> nbodies, <span class="kwb">struct</span> planet * bodies)
+{
+  v2df pxpy = {<span class="num">0.0</span>, <span class="num">0.0</span>};
+  v2df pz00 = {<span class="num">0.0</span>, <span class="num">0.0</span>};
+  <span class="kwb">int</span> i;
+  <span class="kwa">for</span> (i = <span class="num">0</span>; i &lt; nbodies; i++) {
+    pxpy += bodies[i].vxvy * bodies[i].massmass;
+    pz00 += bodies[i].vz00 * bodies[i].massmass;
+  }
+  v2df solar_mass_inv = { <span class="num">1.0</span> / solar_mass, <span class="num">1.0</span> / solar_mass};
+  bodies[<span class="num">0</span>].vxvy = - pxpy * solar_mass_inv;
+  bodies[<span class="num">0</span>].vz00 = - pz00 * solar_mass_inv;
+}
 
 <span class="ppc">#define NBODIES 5</span>
-<span class="kwb">struct</span> planet bodies<span class="opt">[</span>NBODIES<span class="opt">] = {</span>
-  <span class="opt">{</span>                               <span class="slc">// sun</span>
-      <span class="opt">{</span><span class="num">0</span><span class="opt">,</span> <span class="num">0</span><span class="opt">}, {</span><span class="num">0</span><span class="opt">,</span><span class="num">0</span><span class="opt">}, {</span><span class="num">0</span><span class="opt">,</span> <span class="num">0</span><span class="opt">}, {</span><span class="num">0</span><span class="opt">,</span><span class="num">0</span><span class="opt">}, {</span>solar_mass<span class="opt">,</span>solar_mass<span class="opt">}</span>
-  <span class="opt">},</span>
-  <span class="opt">{</span>                               <span class="slc">// jupiter</span>
-      <span class="opt">{</span><span class="num">4.84143144246472090e+00</span><span class="opt">,</span>
-    <span class="opt">-</span><span class="num">1.16032004402742839e+00</span><span class="opt">},</span>
-    <span class="opt">{-</span><span class="num">1.03622044471123109e-01</span><span class="opt">,</span> <span class="num">0</span><span class="opt">},</span>
-    <span class="opt">{</span><span class="num">1.66007664274403694e-03</span> <span class="opt">*</span> days_per_year<span class="opt">,</span>
-    <span class="num">7.69901118419740425e-03</span> <span class="opt">*</span> days_per_year<span class="opt">},</span>
-    <span class="opt">{-</span><span class="num">6.90460016972063023e-05</span> <span class="opt">*</span> days_per_year<span class="opt">,</span><span class="num">0</span><span class="opt">},</span>
-    <span class="opt">{</span><span class="num">9.54791938424326609e-04</span> <span class="opt">*</span> solar_mass<span class="opt">,</span><span class="num">9.54791938424326609e-04</span> <span class="opt">*</span> solar_mass<span class="opt">}</span>
-  <span class="opt">},</span>
-  <span class="opt">{</span>                               <span class="slc">// saturn</span>
-      <span class="opt">{</span><span class="num">8.34336671824457987e+00</span><span class="opt">,</span>
-    <span class="num">4.12479856412430479e+00</span><span class="opt">},</span>
-    <span class="opt">{-</span><span class="num">4.03523417114321381e-01</span><span class="opt">,</span> <span class="num">0</span><span class="opt">},</span>
-    <span class="opt">{-</span><span class="num">2.76742510726862411e-03</span> <span class="opt">*</span> days_per_year<span class="opt">,</span>
-    <span class="num">4.99852801234917238e-03</span> <span class="opt">*</span> days_per_year<span class="opt">},</span>
-    <span class="opt">{</span><span class="num">2.30417297573763929e-05</span> <span class="opt">*</span> days_per_year<span class="opt">,</span><span class="num">0</span><span class="opt">},</span>
-    <span class="opt">{</span><span class="num">2.85885980666130812e-04</span> <span class="opt">*</span> solar_mass<span class="opt">,</span><span class="num">2.85885980666130812e-04</span> <span class="opt">*</span> solar_mass<span class="opt">}</span>
-  <span class="opt">},</span>
-  <span class="opt">{</span>                               <span class="slc">// uranus </span>
-      <span class="opt">{</span><span class="num">1.28943695621391310e+01</span><span class="opt">,</span>
-    <span class="opt">-</span><span class="num">1.51111514016986312e+01</span><span class="opt">},</span>
-    <span class="opt">{-</span><span class="num">2.23307578892655734e-01</span><span class="opt">,</span><span class="num">0</span><span class="opt">},</span>
-    <span class="opt">{</span><span class="num">2.96460137564761618e-03</span> <span class="opt">*</span> days_per_year<span class="opt">,</span>
-    <span class="num">2.37847173959480950e-03</span> <span class="opt">*</span> days_per_year<span class="opt">},</span>
-    <span class="opt">{-</span><span class="num">2.96589568540237556e-05</span> <span class="opt">*</span> days_per_year<span class="opt">,</span><span class="num">0</span><span class="opt">},</span>
-    <span class="opt">{</span><span class="num">4.36624404335156298e-05</span> <span class="opt">*</span> solar_mass<span class="opt">,</span><span class="num">4.36624404335156298e-05</span> <span class="opt">*</span> solar_mass<span class="opt">}</span>
-  <span class="opt">},</span>
-  <span class="opt">{</span>                               <span class="slc">// neptune </span>
-      <span class="opt">{</span><span class="num">1.53796971148509165e+01</span><span class="opt">,</span>
-    <span class="opt">-</span><span class="num">2.59193146099879641e+01</span><span class="opt">},</span>
-    <span class="opt">{</span><span class="num">1.79258772950371181e-01</span><span class="opt">,</span><span class="num">0</span><span class="opt">},</span>
-    <span class="opt">{</span><span class="num">2.68067772490389322e-03</span> <span class="opt">*</span> days_per_year<span class="opt">,</span>
-    <span class="num">1.62824170038242295e-03</span> <span class="opt">*</span> days_per_year<span class="opt">},</span>
-    <span class="opt">{-</span><span class="num">9.51592254519715870e-05</span> <span class="opt">*</span> days_per_year<span class="opt">,</span><span class="num">0</span><span class="opt">},</span>
-    <span class="opt">{</span><span class="num">5.15138902046611451e-05</span> <span class="opt">*</span> solar_mass<span class="opt">,</span><span class="num">5.15138902046611451e-05</span> <span class="opt">*</span> solar_mass<span class="opt">}</span>
-  <span class="opt">}</span>
-<span class="opt">};</span>
+<span class="kwb">struct</span> planet bodies[NBODIES] = {
+  {                               <span class="slc">// sun</span>
+      {<span class="num">0</span>, <span class="num">0</span>}, {<span class="num">0</span>,<span class="num">0</span>}, {<span class="num">0</span>, <span class="num">0</span>}, {<span class="num">0</span>,<span class="num">0</span>}, {solar_mass,solar_mass}
+  },
+  {                               <span class="slc">// jupiter</span>
+      {<span class="num">4.84143144246472090e+00</span>,
+    -<span class="num">1.16032004402742839e+00</span>},
+    {-<span class="num">1.03622044471123109e-01</span>, <span class="num">0</span>},
+    {<span class="num">1.66007664274403694e-03</span> * days_per_year,
+    <span class="num">7.69901118419740425e-03</span> * days_per_year},
+    {-<span class="num">6.90460016972063023e-05</span> * days_per_year,<span class="num">0</span>},
+    {<span class="num">9.54791938424326609e-04</span> * solar_mass,<span class="num">9.54791938424326609e-04</span> * solar_mass}
+  },
+  {                               <span class="slc">// saturn</span>
+      {<span class="num">8.34336671824457987e+00</span>,
+    <span class="num">4.12479856412430479e+00</span>},
+    {-<span class="num">4.03523417114321381e-01</span>, <span class="num">0</span>},
+    {-<span class="num">2.76742510726862411e-03</span> * days_per_year,
+    <span class="num">4.99852801234917238e-03</span> * days_per_year},
+    {<span class="num">2.30417297573763929e-05</span> * days_per_year,<span class="num">0</span>},
+    {<span class="num">2.85885980666130812e-04</span> * solar_mass,<span class="num">2.85885980666130812e-04</span> * solar_mass}
+  },
+  {                               <span class="slc">// uranus </span>
+      {<span class="num">1.28943695621391310e+01</span>,
+    -<span class="num">1.51111514016986312e+01</span>},
+    {-<span class="num">2.23307578892655734e-01</span>,<span class="num">0</span>},
+    {<span class="num">2.96460137564761618e-03</span> * days_per_year,
+    <span class="num">2.37847173959480950e-03</span> * days_per_year},
+    {-<span class="num">2.96589568540237556e-05</span> * days_per_year,<span class="num">0</span>},
+    {<span class="num">4.36624404335156298e-05</span> * solar_mass,<span class="num">4.36624404335156298e-05</span> * solar_mass}
+  },
+  {                               <span class="slc">// neptune </span>
+      {<span class="num">1.53796971148509165e+01</span>,
+    -<span class="num">2.59193146099879641e+01</span>},
+    {<span class="num">1.79258772950371181e-01</span>,<span class="num">0</span>},
+    {<span class="num">2.68067772490389322e-03</span> * days_per_year,
+    <span class="num">1.62824170038242295e-03</span> * days_per_year},
+    {-<span class="num">9.51592254519715870e-05</span> * days_per_year,<span class="num">0</span>},
+    {<span class="num">5.15138902046611451e-05</span> * solar_mass,<span class="num">5.15138902046611451e-05</span> * solar_mass}
+  }
+};
 
-<span class="kwb">int</span> <span class="kwd">main</span><span class="opt">(</span><span class="kwb">int</span> argc<span class="opt">,</span> <span class="kwb">char</span> <span class="opt">**</span> argv<span class="opt">)</span>
-<span class="opt">{</span>
-  <span class="kwb">int</span> n <span class="opt">=</span> <span class="kwd">atoi</span><span class="opt">(</span>argv<span class="opt">[</span><span class="num">1</span><span class="opt">]);</span>
-  <span class="kwb">int</span> i<span class="opt">;</span>
+<span class="kwb">int</span> <span class="kwd">main</span>(<span class="kwb">int</span> argc, <span class="kwb">char</span> ** argv)
+{
+  <span class="kwb">int</span> n = <span class="kwd">atoi</span>(argv[<span class="num">1</span>]);
+  <span class="kwb">int</span> i;
 
-  <span class="kwd">offset_momentum</span><span class="opt">(</span>NBODIES<span class="opt">,</span> bodies<span class="opt">);</span>
-  <span class="kwd">printf</span> <span class="opt">(</span><span class="str">&quot;%.9f</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span> <span class="kwd">energy</span><span class="opt">(</span>NBODIES<span class="opt">,</span> bodies<span class="opt">));</span>
-  v2df dtdt <span class="opt">= {</span><span class="num">0.01</span><span class="opt">,</span> <span class="num">0.01</span><span class="opt">};</span>
-  <span class="kwa">for</span> <span class="opt">(</span>i <span class="opt">=</span> <span class="num">1</span><span class="opt">;</span> i <span class="opt">&lt;=</span> n<span class="opt">;</span> i<span class="opt">++)</span>
-    <span class="kwd">advance</span><span class="opt">(</span>NBODIES<span class="opt">,</span> bodies<span class="opt">,</span> dtdt<span class="opt">);</span>
-  <span class="kwd">printf</span> <span class="opt">(</span><span class="str">&quot;%.9f</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span> <span class="kwd">energy</span><span class="opt">(</span>NBODIES<span class="opt">,</span> bodies<span class="opt">));</span>
-  <span class="kwa">return</span> <span class="num">0</span><span class="opt">;</span>
-<span class="opt">}</span>
+  <span class="kwd">offset_momentum</span>(NBODIES, bodies);
+  <span class="kwd">printf</span> (<span class="str">&quot;%.9f</span><span class="esc">\n</span><span class="str">&quot;</span>, <span class="kwd">energy</span>(NBODIES, bodies));
+  v2df dtdt = {<span class="num">0.01</span>, <span class="num">0.01</span>};
+  <span class="kwa">for</span> (i = <span class="num">1</span>; i &lt;= n; i++)
+    <span class="kwd">advance</span>(NBODIES, bodies, dtdt);
+  <span class="kwd">printf</span> (<span class="str">&quot;%.9f</span><span class="esc">\n</span><span class="str">&quot;</span>, <span class="kwd">energy</span>(NBODIES, bodies));
+  <span class="kwa">return</span> <span class="num">0</span>;
+}
     </pre>
   </section>
   <section>
@@ -185,17 +185,17 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
     <pre>
 NOTES:
 64-bit Ubuntu quad core
-g++ (Ubuntu 10.2.0-13ubuntu1) 10.2.0
+g++ (Ubuntu 10.3.0-1ubuntu1) 10.3.0
 
 
-Sun, 14 Mar 2021 22:23:12 GMT
+Sat, 05 Jun 2021 00:08:35 GMT
 
 MAKE:
 /usr/bin/g++ -c -pipe -O3 -fomit-frame-pointer -march=ivybridge   nbody.gpp-4.c++ -o nbody.gpp-4.c++.o &amp;&amp;  \
         /usr/bin/g++ nbody.gpp-4.c++.o -o nbody.gpp-4.gpp_run  
 rm nbody.gpp-4.c++
 
-2.26s to complete and log all make actions
+2.06s to complete and log all make actions
 
 COMMAND LINE:
 ./nbody.gpp-4.gpp_run 50000000

@@ -48,381 +48,381 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="ppc">#include &lt;pcre2.h&gt;</span>
 
 <span class="slc">// Cast std::string to PCRE2 buffer</span>
-<span class="kwc">inline</span> PCRE2_UCHAR8<span class="opt">*</span> <span class="kwd">pcre2_buffer_cast</span><span class="opt">(</span><span class="kwc">std</span><span class="opt">::</span>string<span class="opt">&amp;</span> str<span class="opt">)</span>
-<span class="opt">{</span>
-    <span class="kwa">return reinterpret_cast</span><span class="opt">&lt;</span>PCRE2_UCHAR8<span class="opt">*&gt;(</span>str<span class="opt">.</span><span class="kwd">data</span><span class="opt">());</span>
-<span class="opt">}</span>
+<span class="kwc">inline</span> PCRE2_UCHAR8* <span class="kwd">pcre2_buffer_cast</span>(std::string&amp; str)
+{
+    <span class="kwa">return reinterpret_cast</span>&lt;PCRE2_UCHAR8*&gt;(str.<span class="kwd">data</span>());
+}
 
 <span class="slc">// Cast std::string to PCRE2 immutable string</span>
-<span class="kwc">inline</span> PCRE2_SPTR8 <span class="kwd">pcre2_string_cast</span><span class="opt">(</span><span class="kwb">const</span> <span class="kwc">std</span><span class="opt">::</span>string<span class="opt">&amp;</span> str<span class="opt">)</span>
-<span class="opt">{</span>
-    <span class="kwa">return reinterpret_cast</span><span class="opt">&lt;</span>PCRE2_SPTR8<span class="opt">&gt;(</span>str<span class="opt">.</span><span class="kwd">c_str</span><span class="opt">());</span>
-<span class="opt">}</span>
+<span class="kwc">inline</span> PCRE2_SPTR8 <span class="kwd">pcre2_string_cast</span>(<span class="kwb">const</span> std::string&amp; str)
+{
+    <span class="kwa">return reinterpret_cast</span>&lt;PCRE2_SPTR8&gt;(str.<span class="kwd">c_str</span>());
+}
 
 <span class="com">/*</span>
 <span class="com"> * This class wraps JIT-compiled PCRE2 regular expressions and data-structures</span>
 <span class="com"> * needed for matching the regular expressions against strings. The class is</span>
 <span class="com"> * derived from boost::noncopyable to prevent accidental copying.</span>
 <span class="com"> */</span>
-<span class="kwc">class</span> regex <span class="opt">:</span> <span class="kwc">private boost</span><span class="opt">::</span>noncopyable
-<span class="opt">{</span>
-<span class="kwc">public</span><span class="opt">:</span>
-    <span class="kwc">inline explicit</span> <span class="kwd">regex</span><span class="opt">(</span><span class="kwb">const</span> <span class="kwc">std</span><span class="opt">::</span>string<span class="opt">&amp;</span> regex_str<span class="opt">)</span>
-    <span class="opt">{</span>
-        <span class="kwd">compile_regex</span><span class="opt">(</span>regex_str<span class="opt">);</span>
-        <span class="kwd">allocate_match_data</span><span class="opt">();</span>
-    <span class="opt">}</span>
+<span class="kwc">class</span> regex : <span class="kwc">private</span> boost::noncopyable
+{
+<span class="kwc">public</span>:
+    <span class="kwc">inline explicit</span> <span class="kwd">regex</span>(<span class="kwb">const</span> std::string&amp; regex_str)
+    {
+        <span class="kwd">compile_regex</span>(regex_str);
+        <span class="kwd">allocate_match_data</span>();
+    }
 
-    <span class="kwc">inline</span> <span class="opt">~</span><span class="kwd">regex</span><span class="opt">()</span>
-    <span class="opt">{</span>
-        <span class="kwd">pcre2_code_free</span><span class="opt">(</span>_code<span class="opt">);</span>
-        <span class="kwd">pcre2_match_data_free</span><span class="opt">(</span>_match_data<span class="opt">);</span>
-        <span class="kwd">pcre2_match_context_free</span><span class="opt">(</span>_match_context<span class="opt">);</span>
-        <span class="kwd">pcre2_jit_stack_free</span><span class="opt">(</span>_jit_stack<span class="opt">);</span>
-    <span class="opt">}</span>
+    <span class="kwc">inline</span> ~<span class="kwd">regex</span>()
+    {
+        <span class="kwd">pcre2_code_free</span>(_code);
+        <span class="kwd">pcre2_match_data_free</span>(_match_data);
+        <span class="kwd">pcre2_match_context_free</span>(_match_context);
+        <span class="kwd">pcre2_jit_stack_free</span>(_jit_stack);
+    }
 
     <span class="slc">// Count matches of this regex within subject</span>
-    <span class="kwc">inline std</span><span class="opt">::</span><span class="kwb">size_t</span> <span class="kwd">count_matches</span><span class="opt">(</span><span class="kwb">const</span> <span class="kwc">std</span><span class="opt">::</span>string<span class="opt">&amp;</span> subject<span class="opt">)</span> <span class="kwb">const</span>
-    <span class="opt">{</span>
+    <span class="kwc">inline</span> std::<span class="kwb">size_t</span> <span class="kwd">count_matches</span>(<span class="kwb">const</span> std::string&amp; subject) <span class="kwb">const</span>
+    {
         <span class="slc">// Definition of a functor for counting occurrences</span>
         <span class="kwb">struct</span> count_functor
-        <span class="opt">{</span>
-            <span class="kwc">std</span><span class="opt">::</span><span class="kwb">size_t</span> match_cnt <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+        {
+            std::<span class="kwb">size_t</span> match_cnt = <span class="num">0</span>;
             <span class="com">/* This method (operator) will be called for every match in the</span>
 <span class="com">             subject */</span>
-            <span class="kwc">inline</span> <span class="kwb">void</span> <span class="kwc">operator</span><span class="opt">()(</span>PCRE2_SPTR subject<span class="opt">,</span>
-                PCRE2_SIZE match_begin<span class="opt">,</span>
-                PCRE2_SIZE match_end<span class="opt">)</span>
-            <span class="opt">{</span>
+            <span class="kwc">inline</span> <span class="kwb">void</span> <span class="kwc">operator</span>()(PCRE2_SPTR subject,
+                PCRE2_SIZE match_begin,
+                PCRE2_SIZE match_end)
+            {
                 <span class="slc">// We ignore these arguments</span>
-                <span class="kwc">std</span><span class="opt">::</span>ignore <span class="opt">=</span> subject<span class="opt">;</span>
-                <span class="kwc">std</span><span class="opt">::</span>ignore <span class="opt">=</span> match_begin<span class="opt">;</span>
-                <span class="kwc">std</span><span class="opt">::</span>ignore <span class="opt">=</span> match_end<span class="opt">;</span>
+                std::ignore = subject;
+                std::ignore = match_begin;
+                std::ignore = match_end;
                 <span class="slc">// And just increase the match_cnt</span>
-                match_cnt<span class="opt">++;</span>
-            <span class="opt">}</span>
-        <span class="opt">};</span>
-        count_functor func<span class="opt">;</span>
-        <span class="kwb">const</span> PCRE2_SPTR subject_begin <span class="opt">=</span> <span class="kwd">pcre2_string_cast</span><span class="opt">(</span>subject<span class="opt">);</span>
-        <span class="kwb">const</span> PCRE2_SPTR subject_end <span class="opt">=</span> subject_begin <span class="opt">+</span> subject<span class="opt">.</span><span class="kwd">size</span><span class="opt">();</span>
+                match_cnt++;
+            }
+        };
+        count_functor func;
+        <span class="kwb">const</span> PCRE2_SPTR subject_begin = <span class="kwd">pcre2_string_cast</span>(subject);
+        <span class="kwb">const</span> PCRE2_SPTR subject_end = subject_begin + subject.<span class="kwd">size</span>();
         <span class="slc">// Here func.operator() is called for every match</span>
-        <span class="kwd">for_each_match</span><span class="opt">(</span>subject_begin<span class="opt">,</span> subject_end<span class="opt">,</span> func<span class="opt">);</span>
-        <span class="kwa">return</span> func<span class="opt">.</span>match_cnt<span class="opt">;</span>
-    <span class="opt">}</span>
+        <span class="kwd">for_each_match</span>(subject_begin, subject_end, func);
+        <span class="kwa">return</span> func.match_cnt;
+    }
 
     <span class="com">/* Replace all matches of this regex between &quot;subject_begin&quot; and</span>
 <span class="com">      &quot;subject_end&quot; with &quot;replacement&quot; and store the result in the</span>
 <span class="com">      result_buffer */</span>
-    <span class="kwc">inline</span> PCRE2_SIZE <span class="kwd">replace_all</span><span class="opt">(</span><span class="kwb">const</span> <span class="kwc">std</span><span class="opt">::</span>string<span class="opt">&amp;</span> replacement<span class="opt">,</span>
-        <span class="kwb">const</span> PCRE2_SPTR8 subject_begin<span class="opt">,</span>
-        <span class="kwb">const</span> PCRE2_SPTR8 subject_end<span class="opt">,</span>
-        PCRE2_UCHAR<span class="opt">*</span> <span class="kwb">const</span> result_buffer_begin<span class="opt">,</span>
-        PCRE2_UCHAR<span class="opt">*</span> <span class="kwb">const</span> result_buffer_end<span class="opt">)</span> <span class="kwb">const</span>
-    <span class="opt">{</span>
+    <span class="kwc">inline</span> PCRE2_SIZE <span class="kwd">replace_all</span>(<span class="kwb">const</span> std::string&amp; replacement,
+        <span class="kwb">const</span> PCRE2_SPTR8 subject_begin,
+        <span class="kwb">const</span> PCRE2_SPTR8 subject_end,
+        PCRE2_UCHAR* <span class="kwb">const</span> result_buffer_begin,
+        PCRE2_UCHAR* <span class="kwb">const</span> result_buffer_end) <span class="kwb">const</span>
+    {
         <span class="slc">// Definition of a functor for replacing matches with strings</span>
         <span class="kwb">struct</span> replace_functor
-        <span class="opt">{</span>
-            PCRE2_UCHAR<span class="opt">*</span> _result_buffer_ptr<span class="opt">;</span>
-            PCRE2_UCHAR<span class="opt">*</span> <span class="kwb">const</span> _result_buffer_end<span class="opt">;</span>
-            <span class="kwb">const</span> <span class="kwc">std</span><span class="opt">::</span>string<span class="opt">&amp;</span> _replacement<span class="opt">;</span>
-            PCRE2_SIZE _replacement_size<span class="opt">;</span>
+        {
+            PCRE2_UCHAR* _result_buffer_ptr;
+            PCRE2_UCHAR* <span class="kwb">const</span> _result_buffer_end;
+            <span class="kwb">const</span> std::string&amp; _replacement;
+            PCRE2_SIZE _replacement_size;
 
-            <span class="kwc">inline</span> <span class="kwd">replace_functor</span><span class="opt">(</span>PCRE2_UCHAR<span class="opt">*</span> <span class="kwb">const</span> result_buffer_begin<span class="opt">,</span>
-                PCRE2_UCHAR<span class="opt">*</span> <span class="kwb">const</span> result_buffer_end<span class="opt">,</span>
-                <span class="kwb">const</span> <span class="kwc">std</span><span class="opt">::</span>string<span class="opt">&amp;</span> replacement<span class="opt">)</span>
-                <span class="opt">:</span> <span class="kwd">_result_buffer_ptr</span><span class="opt">(</span>result_buffer_begin<span class="opt">)</span>
-                <span class="opt">,</span> <span class="kwd">_result_buffer_end</span><span class="opt">(</span>result_buffer_end<span class="opt">)</span>
-                <span class="opt">,</span> <span class="kwd">_replacement</span><span class="opt">(</span>replacement<span class="opt">)</span>
-                <span class="opt">,</span> <span class="kwd">_replacement_size</span><span class="opt">(</span>replacement<span class="opt">.</span><span class="kwd">size</span><span class="opt">())</span>
-            <span class="opt">{</span>
-            <span class="opt">}</span>
+            <span class="kwc">inline</span> <span class="kwd">replace_functor</span>(PCRE2_UCHAR* <span class="kwb">const</span> result_buffer_begin,
+                PCRE2_UCHAR* <span class="kwb">const</span> result_buffer_end,
+                <span class="kwb">const</span> std::string&amp; replacement)
+                : <span class="kwd">_result_buffer_ptr</span>(result_buffer_begin)
+                , <span class="kwd">_result_buffer_end</span>(result_buffer_end)
+                , <span class="kwd">_replacement</span>(replacement)
+                , <span class="kwd">_replacement_size</span>(replacement.<span class="kwd">size</span>())
+            {
+            }
 
             <span class="slc">// This operator will be called for every match</span>
-            <span class="kwc">inline</span> <span class="kwb">void</span> <span class="kwc">operator</span><span class="opt">()(</span><span class="kwb">const</span> PCRE2_SPTR subject_ptr<span class="opt">,</span>
-                <span class="kwb">const</span> PCRE2_SIZE match_begin<span class="opt">,</span>
-                <span class="kwb">const</span> PCRE2_SIZE match_end<span class="opt">)</span>
-            <span class="opt">{</span>
-                PCRE2_UCHAR<span class="opt">*</span> <span class="kwb">const</span> next_result_buffer
-                    <span class="opt">=</span> _result_buffer_ptr <span class="opt">+</span> match_begin <span class="opt">+</span> _replacement_size<span class="opt">;</span>
-                <span class="kwa">if</span> <span class="opt">(</span>next_result_buffer <span class="opt">&gt;</span> _result_buffer_end<span class="opt">)</span>
-                <span class="opt">{</span>
-                    <span class="kwa">throw</span> <span class="kwc">std</span><span class="opt">::</span><span class="kwd">runtime_error</span><span class="opt">(</span><span class="str">&quot;Result buffer too small&quot;</span><span class="opt">);</span>
-                <span class="opt">}</span>
+            <span class="kwc">inline</span> <span class="kwb">void</span> <span class="kwc">operator</span>()(<span class="kwb">const</span> PCRE2_SPTR subject_ptr,
+                <span class="kwb">const</span> PCRE2_SIZE match_begin,
+                <span class="kwb">const</span> PCRE2_SIZE match_end)
+            {
+                PCRE2_UCHAR* <span class="kwb">const</span> next_result_buffer
+                    = _result_buffer_ptr + match_begin + _replacement_size;
+                <span class="kwa">if</span> (next_result_buffer &gt; _result_buffer_end)
+                {
+                    <span class="kwa">throw</span> std::<span class="kwd">runtime_error</span>(<span class="str">&quot;Result buffer too small&quot;</span>);
+                }
                 <span class="slc">// copy portions that did no match</span>
-                <span class="kwc">std</span><span class="opt">::</span><span class="kwd">copy</span><span class="opt">(</span>
-                    subject_ptr<span class="opt">,</span> subject_ptr <span class="opt">+</span> match_begin<span class="opt">,</span> _result_buffer_ptr<span class="opt">);</span>
-                _result_buffer_ptr <span class="opt">+=</span> match_begin<span class="opt">;</span>
+                std::<span class="kwd">copy</span>(
+                    subject_ptr, subject_ptr + match_begin, _result_buffer_ptr);
+                _result_buffer_ptr += match_begin;
                 <span class="slc">// paste replacement string</span>
-                <span class="kwc">std</span><span class="opt">::</span><span class="kwd">copy</span><span class="opt">(</span>_replacement<span class="opt">.</span><span class="kwd">begin</span><span class="opt">(),</span> _replacement<span class="opt">.</span><span class="kwd">end</span><span class="opt">(),</span>
-                    _result_buffer_ptr<span class="opt">);</span>
-                _result_buffer_ptr <span class="opt">=</span> next_result_buffer<span class="opt">;</span>
-            <span class="opt">}</span>
+                std::<span class="kwd">copy</span>(_replacement.<span class="kwd">begin</span>(), _replacement.<span class="kwd">end</span>(),
+                    _result_buffer_ptr);
+                _result_buffer_ptr = next_result_buffer;
+            }
 
             <span class="slc">// Copy characters into the result buffer</span>
-            <span class="kwc">inline</span> PCRE2_UCHAR<span class="opt">*</span> <span class="kwd">copy_into_result_buffer</span><span class="opt">(</span>
-                <span class="kwb">const</span> PCRE2_SPTR begin<span class="opt">,</span> <span class="kwb">const</span> PCRE2_SPTR end<span class="opt">)</span>
-            <span class="opt">{</span>
+            <span class="kwc">inline</span> PCRE2_UCHAR* <span class="kwd">copy_into_result_buffer</span>(
+                <span class="kwb">const</span> PCRE2_SPTR begin, <span class="kwb">const</span> PCRE2_SPTR end)
+            {
                 <span class="slc">// Copy remainder</span>
-                <span class="kwa">if</span> <span class="opt">(</span>begin <span class="opt">&gt;=</span> end<span class="opt">)</span>
-                    <span class="kwa">return</span> _result_buffer_ptr<span class="opt">;</span>
-                <span class="kwb">const</span> PCRE2_SIZE size <span class="opt">=</span> end <span class="opt">-</span> begin<span class="opt">;</span>
-                <span class="kwa">if</span> <span class="opt">(</span>_result_buffer_ptr <span class="opt">+</span> size <span class="opt">&gt;</span> _result_buffer_end<span class="opt">)</span>
-                <span class="opt">{</span>
-                    <span class="kwa">throw</span> <span class="kwc">std</span><span class="opt">::</span><span class="kwd">runtime_error</span><span class="opt">(</span><span class="str">&quot;Result buffer too small&quot;</span><span class="opt">);</span>
-                <span class="opt">}</span>
-                <span class="kwc">std</span><span class="opt">::</span><span class="kwd">copy</span><span class="opt">(</span>begin<span class="opt">,</span> end<span class="opt">,</span> _result_buffer_ptr<span class="opt">);</span>
-                _result_buffer_ptr <span class="opt">+=</span> size<span class="opt">;</span>
-                <span class="kwa">return</span> _result_buffer_ptr<span class="opt">;</span>
-            <span class="opt">}</span>
-        <span class="opt">};</span>
+                <span class="kwa">if</span> (begin &gt;= end)
+                    <span class="kwa">return</span> _result_buffer_ptr;
+                <span class="kwb">const</span> PCRE2_SIZE size = end - begin;
+                <span class="kwa">if</span> (_result_buffer_ptr + size &gt; _result_buffer_end)
+                {
+                    <span class="kwa">throw</span> std::<span class="kwd">runtime_error</span>(<span class="str">&quot;Result buffer too small&quot;</span>);
+                }
+                std::<span class="kwd">copy</span>(begin, end, _result_buffer_ptr);
+                _result_buffer_ptr += size;
+                <span class="kwa">return</span> _result_buffer_ptr;
+            }
+        };
 
         <span class="slc">// Create an instance of the replace_functor</span>
-        replace_functor <span class="kwd">func</span><span class="opt">(</span>
-            result_buffer_begin<span class="opt">,</span> result_buffer_end<span class="opt">,</span> replacement<span class="opt">);</span>
+        replace_functor <span class="kwd">func</span>(
+            result_buffer_begin, result_buffer_end, replacement);
         <span class="com">/* Apply the func.operator() on every match. subject_ptr points to the</span>
 <span class="com">         * location just after the last match</span>
 <span class="com">         */</span>
         PCRE2_SPTR subject_ptr
-            <span class="opt">=</span> <span class="kwd">for_each_match</span><span class="opt">(</span>subject_begin<span class="opt">,</span> subject_end<span class="opt">,</span> func<span class="opt">);</span>
+            = <span class="kwd">for_each_match</span>(subject_begin, subject_end, func);
         <span class="slc">// Copy remainder from subject to result</span>
-        PCRE2_UCHAR<span class="opt">*</span> result_buffer_ptr
-            <span class="opt">=</span> func<span class="opt">.</span><span class="kwd">copy_into_result_buffer</span><span class="opt">(</span>subject_ptr<span class="opt">,</span> subject_end<span class="opt">);</span>
+        PCRE2_UCHAR* result_buffer_ptr
+            = func.<span class="kwd">copy_into_result_buffer</span>(subject_ptr, subject_end);
         <span class="slc">// Return the size of the result</span>
-        <span class="kwa">return</span> result_buffer_ptr <span class="opt">-</span> result_buffer_begin<span class="opt">;</span>
-    <span class="opt">}</span>
+        <span class="kwa">return</span> result_buffer_ptr - result_buffer_begin;
+    }
 
-    <span class="kwc">inline std</span><span class="opt">::</span>string <span class="kwd">replace_all</span><span class="opt">(</span>
-        <span class="kwb">const</span> <span class="kwc">std</span><span class="opt">::</span>string<span class="opt">&amp;</span> replacement<span class="opt">,</span> <span class="kwb">const</span> <span class="kwc">std</span><span class="opt">::</span>string<span class="opt">&amp;</span> subject<span class="opt">)</span> <span class="kwb">const</span>
-    <span class="opt">{</span>
-        <span class="kwc">std</span><span class="opt">::</span>string result<span class="opt">;</span>
-        result<span class="opt">.</span><span class="kwd">resize</span><span class="opt">(</span>subject<span class="opt">.</span><span class="kwd">size</span><span class="opt">());</span>
-        PCRE2_UCHAR<span class="opt">*</span> buffer_begin <span class="opt">=</span> <span class="kwd">pcre2_buffer_cast</span><span class="opt">(</span>result<span class="opt">);</span>
-        PCRE2_SPTR8 pcre2_subject <span class="opt">=</span> <span class="kwd">pcre2_string_cast</span><span class="opt">(</span>subject<span class="opt">);</span>
-        <span class="kwc">auto</span> result_size <span class="opt">=</span> <span class="kwd">replace_all</span><span class="opt">(</span>replacement<span class="opt">,</span> pcre2_subject<span class="opt">,</span>
-            pcre2_subject <span class="opt">+</span> subject<span class="opt">.</span><span class="kwd">size</span><span class="opt">(),</span> <span class="kwd">pcre2_buffer_cast</span><span class="opt">(</span>result<span class="opt">),</span>
-            buffer_begin <span class="opt">+</span> result<span class="opt">.</span><span class="kwd">size</span><span class="opt">());</span>
+    <span class="kwc">inline</span> std::string <span class="kwd">replace_all</span>(
+        <span class="kwb">const</span> std::string&amp; replacement, <span class="kwb">const</span> std::string&amp; subject) <span class="kwb">const</span>
+    {
+        std::string result;
+        result.<span class="kwd">resize</span>(subject.<span class="kwd">size</span>());
+        PCRE2_UCHAR* buffer_begin = <span class="kwd">pcre2_buffer_cast</span>(result);
+        PCRE2_SPTR8 pcre2_subject = <span class="kwd">pcre2_string_cast</span>(subject);
+        <span class="kwc">auto</span> result_size = <span class="kwd">replace_all</span>(replacement, pcre2_subject,
+            pcre2_subject + subject.<span class="kwd">size</span>(), <span class="kwd">pcre2_buffer_cast</span>(result),
+            buffer_begin + result.<span class="kwd">size</span>());
 
-        result<span class="opt">.</span><span class="kwd">resize</span><span class="opt">(</span>result_size<span class="opt">);</span>
-        <span class="kwa">return</span> result<span class="opt">;</span>
-    <span class="opt">}</span>
+        result.<span class="kwd">resize</span>(result_size);
+        <span class="kwa">return</span> result;
+    }
 
-<span class="kwc">private</span><span class="opt">:</span>
+<span class="kwc">private</span>:
     <span class="slc">// Higher order function that allows application of functors to matches</span>
-    <span class="kwc">template</span> <span class="opt">&lt;</span>typename FUNCTOR<span class="opt">&gt;</span>
-    <span class="kwc">inline</span> PCRE2_SPTR8 <span class="kwd">for_each_match</span><span class="opt">(</span>
-        PCRE2_SPTR subject_begin<span class="opt">,</span> PCRE2_SPTR subject_end<span class="opt">,</span> FUNCTOR<span class="opt">&amp;</span> action<span class="opt">)</span> <span class="kwb">const</span>
-    <span class="opt">{</span>
-        PCRE2_SPTR subject_ptr <span class="opt">=</span> subject_begin<span class="opt">;</span>
-        <span class="kwb">int</span> status <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
-        <span class="kwc">auto</span> ovector <span class="opt">=</span> <span class="kwd">pcre2_get_ovector_pointer</span><span class="opt">(</span>_match_data<span class="opt">);</span>
+    <span class="kwc">template</span> &lt;typename FUNCTOR&gt;
+    <span class="kwc">inline</span> PCRE2_SPTR8 <span class="kwd">for_each_match</span>(
+        PCRE2_SPTR subject_begin, PCRE2_SPTR subject_end, FUNCTOR&amp; action) <span class="kwb">const</span>
+    {
+        PCRE2_SPTR subject_ptr = subject_begin;
+        <span class="kwb">int</span> status = <span class="num">0</span>;
+        <span class="kwc">auto</span> ovector = <span class="kwd">pcre2_get_ovector_pointer</span>(_match_data);
         <span class="slc">// offset of begin of match will always be stored in this array-element</span>
-        PCRE2_SIZE<span class="opt">&amp;</span> begin_offset <span class="opt">=</span> ovector<span class="opt">[</span><span class="num">0</span><span class="opt">];</span>
+        PCRE2_SIZE&amp; begin_offset = ovector[<span class="num">0</span>];
         <span class="slc">// offset of end of match will always be stored in this array-element</span>
-        PCRE2_SIZE<span class="opt">&amp;</span> end_offset <span class="opt">=</span> ovector<span class="opt">[</span><span class="num">1</span><span class="opt">];</span>
-        <span class="kwa">while</span> <span class="opt">(</span>subject_ptr <span class="opt">&lt;</span> subject_end
-            <span class="opt">&amp;&amp; (</span>status <span class="opt">=</span> <span class="kwd">pcre2_jit_match</span><span class="opt">(</span>_code<span class="opt">,</span> <span class="slc">// JIT compiled regex</span>
-                    subject_ptr<span class="opt">,</span>
-                    subject_end <span class="opt">-</span> subject_ptr<span class="opt">,</span> <span class="slc">// Size of subject</span>
-                    <span class="num">0</span><span class="opt">,</span> <span class="slc">// Offset into subject</span>
-                    <span class="num">0</span><span class="opt">,</span> <span class="slc">// Flags</span>
-                    _match_data<span class="opt">,</span> <span class="slc">// Match info is stored here</span>
+        PCRE2_SIZE&amp; end_offset = ovector[<span class="num">1</span>];
+        <span class="kwa">while</span> (subject_ptr &lt; subject_end
+            &amp;&amp; (status = <span class="kwd">pcre2_jit_match</span>(_code, <span class="slc">// JIT compiled regex</span>
+                    subject_ptr,
+                    subject_end - subject_ptr, <span class="slc">// Size of subject</span>
+                    <span class="num">0</span>, <span class="slc">// Offset into subject</span>
+                    <span class="num">0</span>, <span class="slc">// Flags</span>
+                    _match_data, <span class="slc">// Match info is stored here</span>
                     <span class="kwc">nullptr</span> <span class="slc">// Match context (none in our case)</span>
-                    <span class="opt">))</span>
-                <span class="opt">&gt;</span> <span class="num">0</span><span class="opt">)</span>
-        <span class="opt">{</span>
+                    ))
+                &gt; <span class="num">0</span>)
+        {
             <span class="slc">// Call the functor</span>
-            <span class="kwd">action</span><span class="opt">(</span>subject_ptr<span class="opt">,</span> begin_offset<span class="opt">,</span> end_offset<span class="opt">);</span>
-            subject_ptr <span class="opt">+=</span> end_offset<span class="opt">;</span>
-        <span class="opt">}</span>
-        <span class="kwd">require_status_good</span><span class="opt">(</span>status<span class="opt">);</span>
-        <span class="kwa">return</span> subject_ptr<span class="opt">;</span>
-    <span class="opt">}</span>
+            <span class="kwd">action</span>(subject_ptr, begin_offset, end_offset);
+            subject_ptr += end_offset;
+        }
+        <span class="kwd">require_status_good</span>(status);
+        <span class="kwa">return</span> subject_ptr;
+    }
 
-    <span class="kwc">inline</span> <span class="kwb">void</span> <span class="kwd">compile_regex</span><span class="opt">(</span><span class="kwb">const</span> <span class="kwc">std</span><span class="opt">::</span>string<span class="opt">&amp;</span> regex_str<span class="opt">)</span>
-    <span class="opt">{</span>
-        PCRE2_SIZE error_offset<span class="opt">;</span>
-        <span class="kwb">int</span> error_number<span class="opt">;</span>
+    <span class="kwc">inline</span> <span class="kwb">void</span> <span class="kwd">compile_regex</span>(<span class="kwb">const</span> std::string&amp; regex_str)
+    {
+        PCRE2_SIZE error_offset;
+        <span class="kwb">int</span> error_number;
         <span class="slc">// Parse and compile regular expression into PCRE2 representation</span>
-        _code <span class="opt">= (</span><span class="kwd">pcre2_compile</span><span class="opt">(</span><span class="kwd">pcre2_string_cast</span><span class="opt">(</span>regex_str<span class="opt">),</span>
-            PCRE2_ZERO_TERMINATED<span class="opt">,</span> <span class="num">0</span><span class="opt">, &amp;</span>error_number<span class="opt">, &amp;</span>error_offset<span class="opt">,</span> <span class="kwc">nullptr</span><span class="opt">));</span>
-        <span class="kwa">if</span> <span class="opt">(!</span>_code<span class="opt">)</span>
-        <span class="opt">{</span>
-            <span class="kwd">throw_pcre2_error</span><span class="opt">(</span>error_number<span class="opt">);</span>
-        <span class="opt">}</span>
+        _code = (<span class="kwd">pcre2_compile</span>(<span class="kwd">pcre2_string_cast</span>(regex_str),
+            PCRE2_ZERO_TERMINATED, <span class="num">0</span>, &amp;error_number, &amp;error_offset, <span class="kwc">nullptr</span>));
+        <span class="kwa">if</span> (!_code)
+        {
+            <span class="kwd">throw_pcre2_error</span>(error_number);
+        }
         <span class="slc">// Now we transform the internal representation into machine code</span>
-        <span class="kwd">require_status_good</span><span class="opt">(</span><span class="kwd">pcre2_jit_compile</span><span class="opt">(</span>_code<span class="opt">,</span> PCRE2_JIT_COMPLETE<span class="opt">));</span>
-    <span class="opt">}</span>
+        <span class="kwd">require_status_good</span>(<span class="kwd">pcre2_jit_compile</span>(_code, PCRE2_JIT_COMPLETE));
+    }
 
     <span class="slc">// Allocate PCRE2 objects for applying the regular expression</span>
     <span class="slc">// and storing the result</span>
-    <span class="kwc">inline</span> <span class="kwb">void</span> <span class="kwd">allocate_match_data</span><span class="opt">()</span>
-    <span class="opt">{</span>
-        _match_context <span class="opt">=</span> <span class="kwd">pcre2_match_context_create</span><span class="opt">(</span><span class="kwc">nullptr</span><span class="opt">);</span>
-        <span class="kwd">require_allocation_good</span><span class="opt">(</span>_match_context<span class="opt">);</span>
+    <span class="kwc">inline</span> <span class="kwb">void</span> <span class="kwd">allocate_match_data</span>()
+    {
+        _match_context = <span class="kwd">pcre2_match_context_create</span>(<span class="kwc">nullptr</span>);
+        <span class="kwd">require_allocation_good</span>(_match_context);
 
-        _match_data <span class="opt">=</span> <span class="kwd">pcre2_match_data_create_from_pattern</span><span class="opt">(</span>_code<span class="opt">,</span> <span class="kwc">nullptr</span><span class="opt">);</span>
-        <span class="kwd">require_allocation_good</span><span class="opt">(</span>_match_data<span class="opt">);</span>
+        _match_data = <span class="kwd">pcre2_match_data_create_from_pattern</span>(_code, <span class="kwc">nullptr</span>);
+        <span class="kwd">require_allocation_good</span>(_match_data);
 
-        _jit_stack <span class="opt">=</span> <span class="kwd">pcre2_jit_stack_create</span><span class="opt">(</span><span class="num">32</span> <span class="opt">*</span> <span class="num">1024</span><span class="opt">,</span> <span class="num">512</span> <span class="opt">*</span> <span class="num">1024</span><span class="opt">,</span> <span class="kwc">nullptr</span><span class="opt">);</span>
-        <span class="kwd">require_allocation_good</span><span class="opt">(</span>_jit_stack<span class="opt">);</span>
+        _jit_stack = <span class="kwd">pcre2_jit_stack_create</span>(<span class="num">32</span> * <span class="num">1024</span>, <span class="num">512</span> * <span class="num">1024</span>, <span class="kwc">nullptr</span>);
+        <span class="kwd">require_allocation_good</span>(_jit_stack);
 
-        <span class="kwd">pcre2_jit_stack_assign</span><span class="opt">(</span>_match_context<span class="opt">,</span> <span class="kwc">nullptr</span><span class="opt">,</span> _jit_stack<span class="opt">);</span>
-    <span class="opt">}</span>
+        <span class="kwd">pcre2_jit_stack_assign</span>(_match_context, <span class="kwc">nullptr</span>, _jit_stack);
+    }
 
     <span class="slc">// Throw runtime_error with error-message from PCRE2</span>
-    <span class="kwc">inline</span> <span class="kwb">static void</span> <span class="kwd">throw_pcre2_error</span><span class="opt">(</span><span class="kwb">int</span> status<span class="opt">)</span>
-    <span class="opt">{</span>
-        <span class="kwc">std</span><span class="opt">::</span>string msg<span class="opt">;</span>
-        msg<span class="opt">.</span><span class="kwd">resize</span><span class="opt">(</span><span class="num">1024</span><span class="opt">);</span>
-        <span class="kwd">pcre2_get_error_message</span><span class="opt">(</span>status<span class="opt">,</span> <span class="kwd">pcre2_buffer_cast</span><span class="opt">(</span>msg<span class="opt">),</span> msg<span class="opt">.</span><span class="kwd">size</span><span class="opt">());</span>
-        <span class="kwa">throw</span> <span class="kwc">std</span><span class="opt">::</span><span class="kwd">runtime_error</span><span class="opt">(</span>msg<span class="opt">.</span><span class="kwd">c_str</span><span class="opt">());</span>
-    <span class="opt">}</span>
+    <span class="kwc">inline</span> <span class="kwb">static void</span> <span class="kwd">throw_pcre2_error</span>(<span class="kwb">int</span> status)
+    {
+        std::string msg;
+        msg.<span class="kwd">resize</span>(<span class="num">1024</span>);
+        <span class="kwd">pcre2_get_error_message</span>(status, <span class="kwd">pcre2_buffer_cast</span>(msg), msg.<span class="kwd">size</span>());
+        <span class="kwa">throw</span> std::<span class="kwd">runtime_error</span>(msg.<span class="kwd">c_str</span>());
+    }
 
     <span class="slc">// Throw exception if pinter is nullptr</span>
-    <span class="kwc">inline</span> <span class="kwb">static void</span> <span class="kwd">require_allocation_good</span><span class="opt">(</span><span class="kwb">void</span><span class="opt">*</span> ptr<span class="opt">)</span>
-    <span class="opt">{</span>
-        <span class="kwa">if</span> <span class="opt">(</span>ptr <span class="opt">==</span> <span class="kwc">nullptr</span><span class="opt">)</span>
-        <span class="opt">{</span>
-            <span class="kwa">throw</span> <span class="kwc">std</span><span class="opt">::</span><span class="kwd">bad_alloc</span><span class="opt">();</span>
-        <span class="opt">}</span>
-    <span class="opt">}</span>
+    <span class="kwc">inline</span> <span class="kwb">static void</span> <span class="kwd">require_allocation_good</span>(<span class="kwb">void</span>* ptr)
+    {
+        <span class="kwa">if</span> (ptr == <span class="kwc">nullptr</span>)
+        {
+            <span class="kwa">throw</span> std::<span class="kwd">bad_alloc</span>();
+        }
+    }
 
     <span class="slc">// Throw an exception if a PCRE2 error occurred</span>
-    <span class="kwc">inline</span> <span class="kwb">static void</span> <span class="kwd">require_status_good</span><span class="opt">(</span><span class="kwb">int</span> status<span class="opt">)</span>
-    <span class="opt">{</span>
-        <span class="kwa">if</span> <span class="opt">(</span>status <span class="opt">&lt;</span> <span class="num">0</span> <span class="opt">&amp;&amp;</span> status <span class="opt">!=</span> PCRE2_ERROR_NOMATCH<span class="opt">)</span>
-        <span class="opt">{</span>
-            <span class="kwd">throw_pcre2_error</span><span class="opt">(</span>status<span class="opt">);</span>
-        <span class="opt">}</span>
-    <span class="opt">}</span>
+    <span class="kwc">inline</span> <span class="kwb">static void</span> <span class="kwd">require_status_good</span>(<span class="kwb">int</span> status)
+    {
+        <span class="kwa">if</span> (status &lt; <span class="num">0</span> &amp;&amp; status != PCRE2_ERROR_NOMATCH)
+        {
+            <span class="kwd">throw_pcre2_error</span>(status);
+        }
+    }
 
-    pcre2_code<span class="opt">*</span> _code <span class="opt">=</span> <span class="kwc">nullptr</span><span class="opt">;</span>
-    pcre2_match_data<span class="opt">*</span> _match_data <span class="opt">=</span> <span class="kwc">nullptr</span><span class="opt">;</span>
-    pcre2_match_context<span class="opt">*</span> _match_context <span class="opt">=</span> <span class="kwc">nullptr</span><span class="opt">;</span>
-    pcre2_jit_stack<span class="opt">*</span> _jit_stack <span class="opt">=</span> <span class="kwc">nullptr</span><span class="opt">;</span>
-<span class="opt">};</span>
+    pcre2_code* _code = <span class="kwc">nullptr</span>;
+    pcre2_match_data* _match_data = <span class="kwc">nullptr</span>;
+    pcre2_match_context* _match_context = <span class="kwc">nullptr</span>;
+    pcre2_jit_stack* _jit_stack = <span class="kwc">nullptr</span>;
+};
 
 <span class="slc">/// Patterns for counting</span>
-<span class="kwb">const char</span><span class="opt">*</span> <span class="kwb">const</span> count_regexes<span class="opt">[] = {</span> <span class="str">&quot;agggtaaa|tttaccct&quot;</span><span class="opt">,</span>
-    <span class="str">&quot;[cgt]gggtaaa|tttaccc[acg]&quot;</span><span class="opt">,</span> <span class="str">&quot;a[act]ggtaaa|tttacc[agt]t&quot;</span><span class="opt">,</span>
-    <span class="str">&quot;ag[act]gtaaa|tttac[agt]ct&quot;</span><span class="opt">,</span> <span class="str">&quot;agg[act]taaa|ttta[agt]cct&quot;</span><span class="opt">,</span>
-    <span class="str">&quot;aggg[acg]aaa|ttt[cgt]ccct&quot;</span><span class="opt">,</span> <span class="str">&quot;agggt[cgt]aa|tt[acg]accct&quot;</span><span class="opt">,</span>
-    <span class="str">&quot;agggta[cgt]a|t[acg]taccct&quot;</span><span class="opt">,</span> <span class="str">&quot;agggtaa[cgt]|[acg]ttaccct&quot;</span> <span class="opt">};</span>
+<span class="kwb">const char</span>* <span class="kwb">const</span> count_regexes[] = { <span class="str">&quot;agggtaaa|tttaccct&quot;</span>,
+    <span class="str">&quot;[cgt]gggtaaa|tttaccc[acg]&quot;</span>, <span class="str">&quot;a[act]ggtaaa|tttacc[agt]t&quot;</span>,
+    <span class="str">&quot;ag[act]gtaaa|tttac[agt]ct&quot;</span>, <span class="str">&quot;agg[act]taaa|ttta[agt]cct&quot;</span>,
+    <span class="str">&quot;aggg[acg]aaa|ttt[cgt]ccct&quot;</span>, <span class="str">&quot;agggt[cgt]aa|tt[acg]accct&quot;</span>,
+    <span class="str">&quot;agggta[cgt]a|t[acg]taccct&quot;</span>, <span class="str">&quot;agggtaa[cgt]|[acg]ttaccct&quot;</span> };
 
-<span class="kwa">using</span> regex_replace_spec <span class="opt">=</span> <span class="kwc">std</span><span class="opt">::</span>pair<span class="opt">&lt;</span><span class="kwb">const char</span><span class="opt">*</span> <span class="kwb">const</span><span class="opt">,</span> <span class="kwb">const char</span><span class="opt">*</span> <span class="kwb">const</span><span class="opt">&gt;;</span>
+<span class="kwa">using</span> regex_replace_spec = std::pair&lt;<span class="kwb">const char</span>* <span class="kwb">const</span>, <span class="kwb">const char</span>* <span class="kwb">const</span>&gt;;
 
 <span class="slc">/// Patterns + replacements for replacement operation</span>
-<span class="kwb">const</span> regex_replace_spec replace_specs<span class="opt">[] = { {</span> <span class="str">&quot;tHa[Nt]&quot;</span><span class="opt">,</span> <span class="str">&quot;&lt;4&gt;&quot;</span> <span class="opt">},</span>
-    <span class="opt">{</span> <span class="str">&quot;aND|caN|Ha[DS]|WaS&quot;</span><span class="opt">,</span> <span class="str">&quot;&lt;3&gt;&quot;</span> <span class="opt">}, {</span> <span class="str">&quot;a[NSt]|BY&quot;</span><span class="opt">,</span> <span class="str">&quot;&lt;2&gt;&quot;</span> <span class="opt">}, {</span> <span class="str">&quot;&lt;[^&gt;]*&gt;&quot;</span><span class="opt">,</span> <span class="str">&quot;|&quot;</span> <span class="opt">},</span>
-    <span class="opt">{</span> <span class="str">&quot;</span><span class="esc">\\</span><span class="str">|[^|][^|]*</span><span class="esc">\\</span><span class="str">|&quot;</span><span class="opt">,</span> <span class="str">&quot;-&quot;</span> <span class="opt">} };</span>
+<span class="kwb">const</span> regex_replace_spec replace_specs[] = { { <span class="str">&quot;tHa[Nt]&quot;</span>, <span class="str">&quot;&lt;4&gt;&quot;</span> },
+    { <span class="str">&quot;aND|caN|Ha[DS]|WaS&quot;</span>, <span class="str">&quot;&lt;3&gt;&quot;</span> }, { <span class="str">&quot;a[NSt]|BY&quot;</span>, <span class="str">&quot;&lt;2&gt;&quot;</span> }, { <span class="str">&quot;&lt;[^&gt;]*&gt;&quot;</span>, <span class="str">&quot;|&quot;</span> },
+    { <span class="str">&quot;</span><span class="esc">\\</span><span class="str">|[^|][^|]*</span><span class="esc">\\</span><span class="str">|&quot;</span>, <span class="str">&quot;-&quot;</span> } };
 
 <span class="slc">// Run asynchronous tasks in separate thread</span>
-<span class="kwb">const</span> <span class="kwc">auto</span> launch_type <span class="opt">=</span> <span class="kwc">std</span><span class="opt">::</span><span class="kwc">launch</span><span class="opt">::</span>async<span class="opt">;</span>
+<span class="kwb">const</span> <span class="kwc">auto</span> launch_type = std::launch::async;
 
 <span class="slc">// Read all data from input-stream and return as string</span>
-<span class="kwc">inline std</span><span class="opt">::</span>string <span class="kwd">slurp</span><span class="opt">(</span><span class="kwc">std</span><span class="opt">::</span>istream<span class="opt">&amp;</span> in<span class="opt">)</span>
-<span class="opt">{</span>
-    <span class="kwc">std</span><span class="opt">::</span>string input_data<span class="opt">;</span>
-    <span class="kwb">size_t</span> buffer_size <span class="opt">=</span> <span class="num">1u</span> <span class="opt">&lt;&lt;</span> <span class="num">14</span><span class="opt">;</span>
-    input_data<span class="opt">.</span><span class="kwd">resize</span><span class="opt">(</span>buffer_size<span class="opt">);</span>
-    <span class="kwb">size_t</span> space_left <span class="opt">=</span> buffer_size<span class="opt">;</span>
-    <span class="kwa">while</span> <span class="opt">(</span>in<span class="opt">.</span><span class="kwd">good</span><span class="opt">())</span>
-    <span class="opt">{</span>
-        <span class="kwa">if</span> <span class="opt">(!</span>space_left<span class="opt">)</span>
-        <span class="opt">{</span>
-            space_left <span class="opt">=</span> buffer_size<span class="opt">;</span>
-            buffer_size <span class="opt">*=</span> <span class="num">2</span><span class="opt">;</span>
-            input_data<span class="opt">.</span><span class="kwd">resize</span><span class="opt">(</span>buffer_size<span class="opt">);</span>
-        <span class="opt">}</span>
-        in<span class="opt">.</span><span class="kwd">read</span><span class="opt">(&amp;</span>input_data<span class="opt">[</span>buffer_size <span class="opt">-</span> space_left<span class="opt">],</span> space_left<span class="opt">);</span>
-        space_left <span class="opt">-=</span> in<span class="opt">.</span><span class="kwd">gcount</span><span class="opt">();</span>
-    <span class="opt">}</span>
-    input_data<span class="opt">.</span><span class="kwd">resize</span><span class="opt">(</span>buffer_size <span class="opt">-</span> space_left<span class="opt">);</span>
-    <span class="kwa">return</span> input_data<span class="opt">;</span>
-<span class="opt">}</span>
+<span class="kwc">inline</span> std::string <span class="kwd">slurp</span>(std::istream&amp; in)
+{
+    std::string input_data;
+    <span class="kwb">size_t</span> buffer_size = <span class="num">1u</span> &lt;&lt; <span class="num">14</span>;
+    input_data.<span class="kwd">resize</span>(buffer_size);
+    <span class="kwb">size_t</span> space_left = buffer_size;
+    <span class="kwa">while</span> (in.<span class="kwd">good</span>())
+    {
+        <span class="kwa">if</span> (!space_left)
+        {
+            space_left = buffer_size;
+            buffer_size *= <span class="num">2</span>;
+            input_data.<span class="kwd">resize</span>(buffer_size);
+        }
+        in.<span class="kwd">read</span>(&amp;input_data[buffer_size - space_left], space_left);
+        space_left -= in.<span class="kwd">gcount</span>();
+    }
+    input_data.<span class="kwd">resize</span>(buffer_size - space_left);
+    <span class="kwa">return</span> input_data;
+}
 
-<span class="kwa">using</span> counter_list <span class="opt">=</span> <span class="kwc">std</span><span class="opt">::</span>vector<span class="opt">&lt;</span><span class="kwb">size_t</span><span class="opt">&gt;;</span>
+<span class="kwa">using</span> counter_list = std::vector&lt;<span class="kwb">size_t</span>&gt;;
 
-<span class="kwc">inline</span> counter_list <span class="kwd">count_occurrences</span><span class="opt">(</span><span class="kwb">const</span> <span class="kwc">std</span><span class="opt">::</span>string<span class="opt">&amp;</span> subject<span class="opt">)</span>
-<span class="opt">{</span>
-    counter_list counters<span class="opt">;</span>
-    <span class="kwc">std</span><span class="opt">::</span>vector<span class="opt">&lt;</span><span class="kwc">std</span><span class="opt">::</span>future<span class="opt">&lt;</span><span class="kwb">size_t</span><span class="opt">&gt;&gt;</span> tasks<span class="opt">;</span>
-    <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">const</span> <span class="kwc">auto</span><span class="opt">&amp;</span> regex_str <span class="opt">:</span> count_regexes<span class="opt">)</span>
-    <span class="opt">{</span>
-        tasks<span class="opt">.</span><span class="kwd">emplace_back</span><span class="opt">(</span>
+<span class="kwc">inline</span> counter_list <span class="kwd">count_occurrences</span>(<span class="kwb">const</span> std::string&amp; subject)
+{
+    counter_list counters;
+    std::vector&lt;std::future&lt;<span class="kwb">size_t</span>&gt;&gt; tasks;
+    <span class="kwa">for</span> (<span class="kwb">const</span> <span class="kwc">auto</span>&amp; regex_str : count_regexes)
+    {
+        tasks.<span class="kwd">emplace_back</span>(
             <span class="slc">// Launch task in separate thread</span>
-            <span class="kwc">std</span><span class="opt">::</span><span class="kwd">async</span><span class="opt">(</span>launch_type<span class="opt">, [&amp;</span>subject<span class="opt">, &amp;</span>regex_str<span class="opt">]() -&gt;</span> <span class="kwb">size_t</span> <span class="opt">{</span>
-                regex <span class="kwd">re</span><span class="opt">(</span>regex_str<span class="opt">);</span>
-                <span class="kwa">return</span> re<span class="opt">.</span><span class="kwd">count_matches</span><span class="opt">(</span>subject<span class="opt">);</span>
-            <span class="opt">}));</span>
-    <span class="opt">}</span>
-    counter_list results<span class="opt">;</span>
+            std::<span class="kwd">async</span>(launch_type, [&amp;subject, &amp;regex_str]() -&gt; <span class="kwb">size_t</span> {
+                regex <span class="kwd">re</span>(regex_str);
+                <span class="kwa">return</span> re.<span class="kwd">count_matches</span>(subject);
+            }));
+    }
+    counter_list results;
     <span class="slc">// Get results from all asychronous tasks and store them in &quot;results&quot;</span>
-    <span class="kwc">std</span><span class="opt">::</span><span class="kwd">transform</span><span class="opt">(</span>tasks<span class="opt">.</span><span class="kwd">begin</span><span class="opt">(),</span> tasks<span class="opt">.</span><span class="kwd">end</span><span class="opt">(),</span> <span class="kwc">std</span><span class="opt">::</span><span class="kwd">back_inserter</span><span class="opt">(</span>results<span class="opt">),</span>
-        <span class="opt">[](</span><span class="kwc">auto</span><span class="opt">&amp;</span> task<span class="opt">) {</span> <span class="kwa">return</span> task<span class="opt">.</span><span class="kwd">get</span><span class="opt">(); });</span>
-    <span class="kwa">return</span> results<span class="opt">;</span>
-<span class="opt">}</span>
+    std::<span class="kwd">transform</span>(tasks.<span class="kwd">begin</span>(), tasks.<span class="kwd">end</span>(), std::<span class="kwd">back_inserter</span>(results),
+        [](<span class="kwc">auto</span>&amp; task) { <span class="kwa">return</span> task.<span class="kwd">get</span>(); });
+    <span class="kwa">return</span> results;
+}
 
-<span class="kwc">inline std</span><span class="opt">::</span>string <span class="kwd">replace_patterns</span><span class="opt">(</span><span class="kwb">const</span> <span class="kwc">std</span><span class="opt">::</span>string<span class="opt">&amp;</span> subject<span class="opt">)</span>
-<span class="opt">{</span>
-    PCRE2_SIZE current_size <span class="opt">=</span> subject<span class="opt">.</span><span class="kwd">size</span><span class="opt">();</span>
+<span class="kwc">inline</span> std::string <span class="kwd">replace_patterns</span>(<span class="kwb">const</span> std::string&amp; subject)
+{
+    PCRE2_SIZE current_size = subject.<span class="kwd">size</span>();
     <span class="slc">// A heuristic value new size = original_size * 1.1</span>
-    <span class="kwb">const</span> PCRE2_SIZE buffer_size <span class="opt">=</span> current_size <span class="opt">*</span> <span class="num">1.1</span><span class="opt">;</span>
-    <span class="kwc">std</span><span class="opt">::</span>string <span class="kwd">source</span><span class="opt">(</span>subject<span class="opt">);</span>
-    <span class="kwc">std</span><span class="opt">::</span>string sink<span class="opt">;</span>
-    source<span class="opt">.</span><span class="kwd">resize</span><span class="opt">(</span>buffer_size<span class="opt">);</span>
-    sink<span class="opt">.</span><span class="kwd">resize</span><span class="opt">(</span>buffer_size<span class="opt">);</span>
-    <span class="kwa">for</span> <span class="opt">(</span><span class="kwc">auto</span> replace_spec <span class="opt">:</span> replace_specs<span class="opt">)</span>
-    <span class="opt">{</span>
-        <span class="kwc">auto</span> re <span class="opt">=</span> <span class="kwd">regex</span><span class="opt">(</span>replace_spec<span class="opt">.</span>first<span class="opt">);</span>
-        PCRE2_SPTR8 pcre2_src <span class="opt">=</span> <span class="kwd">pcre2_string_cast</span><span class="opt">(</span>source<span class="opt">);</span>
-        PCRE2_UCHAR<span class="opt">*</span> pcre2_sink <span class="opt">=</span> <span class="kwd">pcre2_buffer_cast</span><span class="opt">(</span>sink<span class="opt">);</span>
-        current_size <span class="opt">=</span> re<span class="opt">.</span><span class="kwd">replace_all</span><span class="opt">(</span>replace_spec<span class="opt">.</span>second<span class="opt">,</span> pcre2_src<span class="opt">,</span>
-            pcre2_src <span class="opt">+</span> current_size<span class="opt">,</span> pcre2_sink<span class="opt">,</span> pcre2_sink <span class="opt">+</span> buffer_size<span class="opt">);</span>
-        <span class="kwc">std</span><span class="opt">::</span><span class="kwd">swap</span><span class="opt">(</span>source<span class="opt">,</span> sink<span class="opt">);</span>
-    <span class="opt">}</span>
-    source<span class="opt">.</span><span class="kwd">resize</span><span class="opt">(</span>current_size<span class="opt">);</span>
-    <span class="kwa">return</span> source<span class="opt">;</span>
-<span class="opt">}</span>
+    <span class="kwb">const</span> PCRE2_SIZE buffer_size = current_size * <span class="num">1.1</span>;
+    std::string <span class="kwd">source</span>(subject);
+    std::string sink;
+    source.<span class="kwd">resize</span>(buffer_size);
+    sink.<span class="kwd">resize</span>(buffer_size);
+    <span class="kwa">for</span> (<span class="kwc">auto</span> replace_spec : replace_specs)
+    {
+        <span class="kwc">auto</span> re = <span class="kwd">regex</span>(replace_spec.first);
+        PCRE2_SPTR8 pcre2_src = <span class="kwd">pcre2_string_cast</span>(source);
+        PCRE2_UCHAR* pcre2_sink = <span class="kwd">pcre2_buffer_cast</span>(sink);
+        current_size = re.<span class="kwd">replace_all</span>(replace_spec.second, pcre2_src,
+            pcre2_src + current_size, pcre2_sink, pcre2_sink + buffer_size);
+        std::<span class="kwd">swap</span>(source, sink);
+    }
+    source.<span class="kwd">resize</span>(current_size);
+    <span class="kwa">return</span> source;
+}
 
-<span class="kwb">int</span> <span class="kwd">main</span><span class="opt">()</span>
-<span class="opt">{</span>
+<span class="kwb">int</span> <span class="kwd">main</span>()
+{
     <span class="kwa">try</span>
-    <span class="opt">{</span>
-        <span class="kwc">std</span><span class="opt">::</span>string input <span class="opt">=</span> <span class="kwd">slurp</span><span class="opt">(</span><span class="kwc">std</span><span class="opt">::</span>cin<span class="opt">);</span>
-        <span class="kwc">auto</span> clean_input_regex <span class="opt">=</span> <span class="kwd">regex</span><span class="opt">(</span>R<span class="str">&quot;(&gt;[^\n]*\n|\n)&quot;</span><span class="opt">);</span>
+    {
+        std::string input = <span class="kwd">slurp</span>(std::cin);
+        <span class="kwc">auto</span> clean_input_regex = <span class="kwd">regex</span>(R<span class="str">&quot;(&gt;[^\n]*\n|\n)&quot;</span>);
         <span class="slc">// Remove newlines and comments</span>
-        <span class="kwc">std</span><span class="opt">::</span>string clean_input <span class="opt">=</span> clean_input_regex<span class="opt">.</span><span class="kwd">replace_all</span><span class="opt">(</span><span class="str">&quot;&quot;</span><span class="opt">,</span> input<span class="opt">);</span>
+        std::string clean_input = clean_input_regex.<span class="kwd">replace_all</span>(<span class="str">&quot;&quot;</span>, input);
 
         <span class="slc">// Launch counting of occurrences of patterns in separate thread</span>
         <span class="kwc">auto</span> count_task
-            <span class="opt">=</span> <span class="kwc">std</span><span class="opt">::</span><span class="kwd">async</span><span class="opt">(</span>launch_type<span class="opt">,</span> count_occurrences<span class="opt">,</span> clean_input<span class="opt">);</span>
+            = std::<span class="kwd">async</span>(launch_type, count_occurrences, clean_input);
 
         <span class="slc">// Replace patterns with strings</span>
-        <span class="kwc">auto</span> processed_input <span class="opt">=</span> <span class="kwd">replace_patterns</span><span class="opt">(</span>clean_input<span class="opt">);</span>
+        <span class="kwc">auto</span> processed_input = <span class="kwd">replace_patterns</span>(clean_input);
         <span class="slc">// Get results from the thread that counted the occurrences of patterns</span>
-        <span class="kwc">auto</span> counters <span class="opt">=</span> count_task<span class="opt">.</span><span class="kwd">get</span><span class="opt">();</span>
+        <span class="kwc">auto</span> counters = count_task.<span class="kwd">get</span>();
 
         <span class="slc">// Print occurrences to stdout</span>
-        <span class="kwb">size_t</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
-        <span class="kwa">for</span> <span class="opt">(</span><span class="kwc">auto</span> counter <span class="opt">:</span> counters<span class="opt">)</span>
-        <span class="opt">{</span>
-            <span class="kwc">std</span><span class="opt">::</span>cout <span class="opt">&lt;&lt;</span> count_regexes<span class="opt">[</span>i<span class="opt">++] &lt;&lt;</span> <span class="str">&quot; &quot;</span> <span class="opt">&lt;&lt;</span> counter <span class="opt">&lt;&lt;</span> <span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">;</span>
-        <span class="opt">}</span>
+        <span class="kwb">size_t</span> i = <span class="num">0</span>;
+        <span class="kwa">for</span> (<span class="kwc">auto</span> counter : counters)
+        {
+            std::cout &lt;&lt; count_regexes[i++] &lt;&lt; <span class="str">&quot; &quot;</span> &lt;&lt; counter &lt;&lt; <span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span>;
+        }
 
         <span class="slc">// Print string lengths to stdout</span>
-        <span class="kwc">std</span><span class="opt">::</span>cout <span class="opt">&lt;&lt;</span> <span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span>
-                  <span class="opt">&lt;&lt;</span> input<span class="opt">.</span><span class="kwd">size</span><span class="opt">() &lt;&lt;</span> <span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span>
-                  <span class="opt">&lt;&lt;</span> clean_input<span class="opt">.</span><span class="kwd">size</span><span class="opt">() &lt;&lt;</span> <span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span>
-                  <span class="opt">&lt;&lt;</span> processed_input<span class="opt">.</span><span class="kwd">size</span><span class="opt">() &lt;&lt;</span> <span class="kwc">std</span><span class="opt">::</span>endl<span class="opt">;</span>
-        <span class="kwa">return</span> <span class="num">0</span><span class="opt">;</span>
-    <span class="opt">}</span>
-    <span class="kwa">catch</span> <span class="opt">(</span><span class="kwc">std</span><span class="opt">::</span>exception<span class="opt">&amp;</span> e<span class="opt">)</span>
-    <span class="opt">{</span>
-        <span class="kwc">std</span><span class="opt">::</span>cerr <span class="opt">&lt;&lt;</span> <span class="str">&quot;Exception caught: &quot;</span> <span class="opt">&lt;&lt;</span> e<span class="opt">.</span><span class="kwd">what</span><span class="opt">() &lt;&lt;</span> <span class="kwc">std</span><span class="opt">::</span>endl<span class="opt">;</span>
-    <span class="opt">}</span>
-    <span class="kwa">return</span> <span class="num">1</span><span class="opt">;</span>
-<span class="opt">}</span>
+        std::cout &lt;&lt; <span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span>
+                  &lt;&lt; input.<span class="kwd">size</span>() &lt;&lt; <span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span>
+                  &lt;&lt; clean_input.<span class="kwd">size</span>() &lt;&lt; <span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span>
+                  &lt;&lt; processed_input.<span class="kwd">size</span>() &lt;&lt; std::endl;
+        <span class="kwa">return</span> <span class="num">0</span>;
+    }
+    <span class="kwa">catch</span> (std::exception&amp; e)
+    {
+        std::cerr &lt;&lt; <span class="str">&quot;Exception caught: &quot;</span> &lt;&lt; e.<span class="kwd">what</span>() &lt;&lt; std::endl;
+    }
+    <span class="kwa">return</span> <span class="num">1</span>;
+}
     </pre>
   </section>
   <section>
@@ -432,17 +432,17 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
     <pre>
 NOTES:
 64-bit Ubuntu quad core
-g++ (Ubuntu 10.2.0-13ubuntu1) 10.2.0
+g++ (Ubuntu 10.3.0-1ubuntu1) 10.3.0
 
 
-Mon, 02 Nov 2020 19:39:17 GMT
+Sat, 05 Jun 2021 00:23:21 GMT
 
 MAKE:
 /usr/bin/g++ -c -pipe -O3 -fomit-frame-pointer -march=ivybridge  -std=c++17 regexredux.gpp-6.c++ -o regexredux.gpp-6.c++.o &amp;&amp;  \
         /usr/bin/g++ regexredux.gpp-6.c++.o -o regexredux.gpp-6.gpp_run -lpcre2-8 -lpthread 
 rm regexredux.gpp-6.c++
 
-4.56s to complete and log all make actions
+4.42s to complete and log all make actions
 
 COMMAND LINE:
 ./regexredux.gpp-6.gpp_run 0 &lt; regexredux-input5000000.txt

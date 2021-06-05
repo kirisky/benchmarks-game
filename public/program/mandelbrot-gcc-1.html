@@ -36,105 +36,105 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="ppc">#include &lt;stdlib.h&gt;</span>
 <span class="ppc">#include &lt;pthread.h&gt;</span>
 
-<span class="kwc">typedef</span> <span class="kwb">double</span> v2df <span class="kwd">__attribute__</span> <span class="opt">((</span><span class="kwd">vector_size</span><span class="opt">(</span><span class="num">16</span><span class="opt">)));</span> <span class="com">/* vector of two doubles */</span>
-<span class="kwc">typedef</span> <span class="kwb">int</span> v4si <span class="kwd">__attribute__</span> <span class="opt">((</span><span class="kwd">vector_size</span><span class="opt">(</span><span class="num">16</span><span class="opt">)));</span> <span class="com">/* vector of four ints */</span>
+<span class="kwc">typedef</span> <span class="kwb">double</span> v2df <span class="kwd">__attribute__</span> ((<span class="kwd">vector_size</span>(<span class="num">16</span>))); <span class="com">/* vector of two doubles */</span>
+<span class="kwc">typedef</span> <span class="kwb">int</span> v4si <span class="kwd">__attribute__</span> ((<span class="kwd">vector_size</span>(<span class="num">16</span>))); <span class="com">/* vector of four ints */</span>
 
 <span class="slc">// 4 works best on a quiet machine at nice -20</span>
 <span class="slc">// 8 on a noisy machine at default priority</span>
 <span class="ppc">#define NWORKERS 8</span>
 
-<span class="kwb">int</span> w<span class="opt">,</span> h<span class="opt">;</span>
-v2df zero <span class="opt">= {</span> <span class="num">0.0</span><span class="opt">,</span> <span class="num">0.0</span> <span class="opt">};</span>
-v2df four <span class="opt">= {</span> <span class="num">4.0</span><span class="opt">,</span> <span class="num">4.0</span> <span class="opt">};</span>
-v2df nzero<span class="opt">;</span>
-<span class="kwb">double</span> inverse_w<span class="opt">;</span>
-<span class="kwb">double</span> inverse_h<span class="opt">;</span>
+<span class="kwb">int</span> w, h;
+v2df zero = { <span class="num">0.0</span>, <span class="num">0.0</span> };
+v2df four = { <span class="num">4.0</span>, <span class="num">4.0</span> };
+v2df nzero;
+<span class="kwb">double</span> inverse_w;
+<span class="kwb">double</span> inverse_h;
 
-<span class="kwb">char</span> <span class="opt">*</span>whole_data<span class="opt">;</span>
-<span class="kwb">int</span> y_pick<span class="opt">;</span>
+<span class="kwb">char</span> *whole_data;
+<span class="kwb">int</span> y_pick;
 
-<span class="kwb">static void</span> <span class="opt">*</span> <span class="kwd">worker</span><span class="opt">(</span><span class="kwb">void</span> <span class="opt">*</span>_args<span class="opt">) {</span>
-    <span class="kwb">char</span> <span class="opt">*</span>data<span class="opt">;</span>
-    <span class="kwb">double</span> x<span class="opt">,</span> y<span class="opt">;</span>
-    <span class="kwb">int</span> bit_num<span class="opt">;</span>
-    <span class="kwb">char</span> byte_acc <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+<span class="kwb">static void</span> * <span class="kwd">worker</span>(<span class="kwb">void</span> *_args) {
+    <span class="kwb">char</span> *data;
+    <span class="kwb">double</span> x, y;
+    <span class="kwb">int</span> bit_num;
+    <span class="kwb">char</span> byte_acc = <span class="num">0</span>;
 
-    <span class="kwa">for</span> <span class="opt">(;;) {</span>
-	y <span class="opt">=</span> <span class="kwd">__sync_fetch_and_add</span><span class="opt">(&amp;</span>y_pick<span class="opt">,</span> <span class="num">1</span><span class="opt">);</span>
-        <span class="kwa">if</span> <span class="opt">(</span>y <span class="opt">&gt;=</span> h<span class="opt">)</span>
-            <span class="kwa">return</span> NULL<span class="opt">;</span>
-        data <span class="opt">= &amp;</span>whole_data<span class="opt">[(</span>w <span class="opt">&gt;&gt;</span> <span class="num">3</span><span class="opt">) * (</span><span class="kwb">int</span><span class="opt">)</span>y<span class="opt">];</span>
+    <span class="kwa">for</span> (;;) {
+	y = <span class="kwd">__sync_fetch_and_add</span>(&amp;y_pick, <span class="num">1</span>);
+        <span class="kwa">if</span> (y &gt;= h)
+            <span class="kwa">return</span> NULL;
+        data = &amp;whole_data[(w &gt;&gt; <span class="num">3</span>) * (<span class="kwb">int</span>)y];
 
-        <span class="kwa">for</span><span class="opt">(</span>bit_num<span class="opt">=</span><span class="num">0</span><span class="opt">,</span>x<span class="opt">=</span><span class="num">0</span><span class="opt">;</span>x<span class="opt">&lt;</span>w<span class="opt">;</span>x<span class="opt">+=</span><span class="num">2</span><span class="opt">)</span>
-        <span class="opt">{</span>
-            v2df Crv <span class="opt">= { (</span>x<span class="opt">+</span><span class="num">1.0</span><span class="opt">)*</span>inverse_w<span class="opt">-</span><span class="num">1.5</span><span class="opt">, (</span>x<span class="opt">)*</span>inverse_w<span class="opt">-</span><span class="num">1.5</span> <span class="opt">};</span>
-            v2df Civ <span class="opt">= {</span> y<span class="opt">*</span>inverse_h<span class="opt">-</span><span class="num">1.0</span><span class="opt">,</span> y<span class="opt">*</span>inverse_h<span class="opt">-</span><span class="num">1.0</span> <span class="opt">};</span>
-            v2df Zrv <span class="opt">= {</span> <span class="num">0.0</span><span class="opt">,</span> <span class="num">0.0</span> <span class="opt">};</span>
-            v2df Ziv <span class="opt">= {</span> <span class="num">0.0</span><span class="opt">,</span> <span class="num">0.0</span> <span class="opt">};</span>
-            v2df Trv <span class="opt">= {</span> <span class="num">0.0</span><span class="opt">,</span> <span class="num">0.0</span> <span class="opt">};</span>
-            v2df Tiv <span class="opt">= {</span> <span class="num">0.0</span><span class="opt">,</span> <span class="num">0.0</span> <span class="opt">};</span>
+        <span class="kwa">for</span>(bit_num=<span class="num">0</span>,x=<span class="num">0</span>;x&lt;w;x+=<span class="num">2</span>)
+        {
+            v2df Crv = { (x+<span class="num">1.0</span>)*inverse_w-<span class="num">1.5</span>, (x)*inverse_w-<span class="num">1.5</span> };
+            v2df Civ = { y*inverse_h-<span class="num">1.0</span>, y*inverse_h-<span class="num">1.0</span> };
+            v2df Zrv = { <span class="num">0.0</span>, <span class="num">0.0</span> };
+            v2df Ziv = { <span class="num">0.0</span>, <span class="num">0.0</span> };
+            v2df Trv = { <span class="num">0.0</span>, <span class="num">0.0</span> };
+            v2df Tiv = { <span class="num">0.0</span>, <span class="num">0.0</span> };
 
-            <span class="kwb">int</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
-	    <span class="kwb">int</span> mask<span class="opt">;</span>
-            <span class="kwa">do</span> <span class="opt">{</span>
-                Ziv <span class="opt">= (</span>Zrv<span class="opt">*</span>Ziv<span class="opt">) + (</span>Zrv<span class="opt">*</span>Ziv<span class="opt">) +</span> Civ<span class="opt">;</span>
-                Zrv <span class="opt">=</span> Trv <span class="opt">-</span> Tiv <span class="opt">+</span> Crv<span class="opt">;</span>
-                Trv <span class="opt">=</span> Zrv <span class="opt">*</span> Zrv<span class="opt">;</span>
-                Tiv <span class="opt">=</span> Ziv <span class="opt">*</span> Ziv<span class="opt">;</span>
+            <span class="kwb">int</span> i = <span class="num">0</span>;
+	    <span class="kwb">int</span> mask;
+            <span class="kwa">do</span> {
+                Ziv = (Zrv*Ziv) + (Zrv*Ziv) + Civ;
+                Zrv = Trv - Tiv + Crv;
+                Trv = Zrv * Zrv;
+                Tiv = Ziv * Ziv;
 
                 <span class="com">/* from mandelbrot C++ GNU g++ #5 program  */</span>
-		v2df delta <span class="opt">= (</span>v2df<span class="opt">)</span><span class="kwd">__builtin_ia32_cmplepd</span><span class="opt">( (</span>Trv <span class="opt">+</span> Tiv<span class="opt">),</span> four <span class="opt">);</span>
-		mask <span class="opt">=</span> <span class="kwd">__builtin_ia32_movmskpd</span><span class="opt">(</span>delta<span class="opt">);</span>
+		v2df delta = (v2df)<span class="kwd">__builtin_ia32_cmplepd</span>( (Trv + Tiv), four );
+		mask = <span class="kwd">__builtin_ia32_movmskpd</span>(delta);
 
-            <span class="opt">}</span> <span class="kwa">while</span> <span class="opt">(++</span>i <span class="opt">&lt;</span> <span class="num">50</span> <span class="opt">&amp;&amp; (</span>mask<span class="opt">));</span>
+            } <span class="kwa">while</span> (++i &lt; <span class="num">50</span> &amp;&amp; (mask));
 
-            byte_acc <span class="opt">&lt;&lt;=</span> <span class="num">2</span><span class="opt">;</span>
-	    byte_acc <span class="opt">|=</span> mask<span class="opt">;</span>
-            bit_num<span class="opt">+=</span><span class="num">2</span><span class="opt">;</span>
+            byte_acc &lt;&lt;= <span class="num">2</span>;
+	    byte_acc |= mask;
+            bit_num+=<span class="num">2</span>;
 
-            <span class="kwa">if</span><span class="opt">(!(</span>bit_num<span class="opt">&amp;</span><span class="num">7</span><span class="opt">)) {</span>
-                data<span class="opt">[(</span>bit_num<span class="opt">&gt;&gt;</span><span class="num">3</span><span class="opt">) -</span> <span class="num">1</span><span class="opt">] =</span> byte_acc<span class="opt">;</span>
-                byte_acc <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
-            <span class="opt">}</span>
-        <span class="opt">}</span>
+            <span class="kwa">if</span>(!(bit_num&amp;<span class="num">7</span>)) {
+                data[(bit_num&gt;&gt;<span class="num">3</span>) - <span class="num">1</span>] = byte_acc;
+                byte_acc = <span class="num">0</span>;
+            }
+        }
 
-        <span class="kwa">if</span><span class="opt">(</span>bit_num<span class="opt">&amp;</span><span class="num">7</span><span class="opt">) {</span>
-            byte_acc <span class="opt">&lt;&lt;= (</span><span class="num">8</span><span class="opt">-</span>w<span class="opt">%</span><span class="num">8</span><span class="opt">);</span>
-            bit_num <span class="opt">+=</span> <span class="num">8</span><span class="opt">;</span>
-            data<span class="opt">[</span>bit_num<span class="opt">&gt;&gt;</span><span class="num">3</span><span class="opt">] =</span> byte_acc<span class="opt">;</span>
-            byte_acc <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
-        <span class="opt">}</span>
-    <span class="opt">}</span>
-<span class="opt">}</span>
+        <span class="kwa">if</span>(bit_num&amp;<span class="num">7</span>) {
+            byte_acc &lt;&lt;= (<span class="num">8</span>-w%<span class="num">8</span>);
+            bit_num += <span class="num">8</span>;
+            data[bit_num&gt;&gt;<span class="num">3</span>] = byte_acc;
+            byte_acc = <span class="num">0</span>;
+        }
+    }
+}
 
 
-<span class="kwb">int</span> <span class="kwd">main</span> <span class="opt">(</span><span class="kwb">int</span> argc<span class="opt">,</span> <span class="kwb">char</span> <span class="opt">**</span>argv<span class="opt">)</span>
-<span class="opt">{</span>
-    pthread_t ids<span class="opt">[</span>NWORKERS<span class="opt">];</span>
-    <span class="kwb">int</span> i<span class="opt">;</span>
+<span class="kwb">int</span> <span class="kwd">main</span> (<span class="kwb">int</span> argc, <span class="kwb">char</span> **argv)
+{
+    pthread_t ids[NWORKERS];
+    <span class="kwb">int</span> i;
 
-    nzero <span class="opt">= -</span>zero<span class="opt">;</span>
+    nzero = -zero;
 
-    w <span class="opt">=</span> h <span class="opt">=</span> <span class="kwd">atoi</span><span class="opt">(</span>argv<span class="opt">[</span><span class="num">1</span><span class="opt">]);</span>
+    w = h = <span class="kwd">atoi</span>(argv[<span class="num">1</span>]);
 
-    inverse_w <span class="opt">=</span> <span class="num">2.0</span> <span class="opt">/</span> w<span class="opt">;</span>
-    inverse_h <span class="opt">=</span> <span class="num">2.0</span> <span class="opt">/</span> h<span class="opt">;</span>
+    inverse_w = <span class="num">2.0</span> / w;
+    inverse_h = <span class="num">2.0</span> / h;
 
-    y_pick <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
-    whole_data <span class="opt">=</span> <span class="kwd">malloc</span><span class="opt">(</span>w <span class="opt">* (</span>w <span class="opt">&gt;&gt;</span> <span class="num">3</span><span class="opt">));</span>
+    y_pick = <span class="num">0</span>;
+    whole_data = <span class="kwd">malloc</span>(w * (w &gt;&gt; <span class="num">3</span>));
 
-    <span class="kwa">for</span> <span class="opt">(</span>i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> NWORKERS<span class="opt">;</span> i<span class="opt">++)</span>
-        <span class="kwd">pthread_create</span><span class="opt">(&amp;</span>ids<span class="opt">[</span>i<span class="opt">],</span> NULL<span class="opt">,</span> worker<span class="opt">,</span> NULL<span class="opt">);</span>
-    <span class="kwa">for</span> <span class="opt">(</span>i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> NWORKERS<span class="opt">;</span> i<span class="opt">++)</span>
-        <span class="kwd">pthread_join</span><span class="opt">(</span>ids<span class="opt">[</span>i<span class="opt">],</span> NULL<span class="opt">);</span>
+    <span class="kwa">for</span> (i = <span class="num">0</span>; i &lt; NWORKERS; i++)
+        <span class="kwd">pthread_create</span>(&amp;ids[i], NULL, worker, NULL);
+    <span class="kwa">for</span> (i = <span class="num">0</span>; i &lt; NWORKERS; i++)
+        <span class="kwd">pthread_join</span>(ids[i], NULL);
 
-    <span class="kwd">printf</span><span class="opt">(</span><span class="str">&quot;P4</span><span class="esc">\n</span><span class="str">%d %d</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span>w<span class="opt">,</span>h<span class="opt">);</span>
-    <span class="kwd">fwrite</span><span class="opt">(</span>whole_data<span class="opt">,</span> h<span class="opt">,</span> w <span class="opt">&gt;&gt;</span> <span class="num">3</span><span class="opt">,</span> stdout<span class="opt">);</span>
+    <span class="kwd">printf</span>(<span class="str">&quot;P4</span><span class="esc">\n</span><span class="str">%d %d</span><span class="esc">\n</span><span class="str">&quot;</span>,w,h);
+    <span class="kwd">fwrite</span>(whole_data, h, w &gt;&gt; <span class="num">3</span>, stdout);
 
-    <span class="kwd">free</span><span class="opt">(</span>whole_data<span class="opt">);</span>
+    <span class="kwd">free</span>(whole_data);
 
-    <span class="kwa">return</span> <span class="num">0</span><span class="opt">;</span>
-<span class="opt">}</span>
+    <span class="kwa">return</span> <span class="num">0</span>;
+}
     </pre>
   </section>
   <section>
@@ -144,16 +144,16 @@ v2df nzero<span class="opt">;</span>
     <pre>
 NOTES:
 64-bit Ubuntu quad core
-gcc (Ubuntu 10.2.0-13ubuntu1) 10.2.0
+gcc (Ubuntu 10.3.0-1ubuntu1) 10.3.0
 
 
-Mon, 02 Nov 2020 18:56:25 GMT
+Sat, 05 Jun 2021 00:01:21 GMT
 
 MAKE:
 /usr/bin/gcc -pipe -Wall -O3 -fomit-frame-pointer -march=ivybridge -pthread mandelbrot.c -o mandelbrot.gcc_run -lm
 rm mandelbrot.c
 
-1.72s to complete and log all make actions
+1.71s to complete and log all make actions
 
 COMMAND LINE:
 ./mandelbrot.gcc_run 16000

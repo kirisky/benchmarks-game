@@ -29,305 +29,305 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="slc">-- Contributed by Jim Rogers</span>
 <span class="slc">-- Modified by Jonathan Parker (Oct 2009)</span>
 
-<span class="kwa">pragma</span> Restrictions <span class="opt">(</span>No_Abort_Statements<span class="opt">);</span>
-<span class="kwa">pragma</span> Restrictions <span class="opt">(</span>Max_Asynchronous_Select_Nesting <span class="opt">=&gt;</span> <span class="num">0</span><span class="opt">);</span>
+<span class="kwa">pragma</span> Restrictions (No_Abort_Statements);
+<span class="kwa">pragma</span> Restrictions (Max_Asynchronous_Select_Nesting =&gt; <span class="num">0</span>);
 
-<span class="kwa">with</span> Ada<span class="opt">.</span>Text_Io<span class="opt">;</span>
-<span class="kwa">with</span> Ada<span class="opt">.</span>Numerics<span class="opt">.</span>Generic_Elementary_Functions<span class="opt">;</span>
-<span class="kwa">with</span> Ada<span class="opt">.</span>Command_Line<span class="opt">;</span> <span class="kwa">use</span> Ada<span class="opt">.</span>Command_Line<span class="opt">;</span>
-<span class="kwa">with</span> Spectral_Utils<span class="opt">;</span>
+<span class="kwa">with</span> Ada.Text_Io;
+<span class="kwa">with</span> Ada.Numerics.Generic_Elementary_Functions;
+<span class="kwa">with</span> Ada.Command_Line; <span class="kwa">use</span> Ada.Command_Line;
+<span class="kwa">with</span> Spectral_Utils;
 
 <span class="kwa">procedure</span> SpectralNorm <span class="kwa">is</span>
 
-   <span class="kwa">type</span> Real <span class="kwa">is digits</span> <span class="num">15</span><span class="opt">;</span>
+   <span class="kwa">type</span> Real <span class="kwa">is digits</span> <span class="num">15</span>;
 
-   No_of_Cores_to_Use <span class="opt">:</span> <span class="kwa">constant</span> <span class="opt">:=</span> <span class="num">4</span><span class="opt">;</span>
+   No_of_Cores_to_Use : <span class="kwa">constant</span> := <span class="num">4</span>;
 
-   <span class="kwa">package</span> Real_IO <span class="kwa">is new</span> Ada<span class="opt">.</span>Text_Io<span class="opt">.</span>Float_Io<span class="opt">(</span>Real<span class="opt">);</span>
-   <span class="kwa">package</span> Real_Funcs <span class="kwa">is new</span> Ada<span class="opt">.</span>Numerics<span class="opt">.</span>Generic_Elementary_Functions<span class="opt">(</span>Real<span class="opt">);</span>
-   <span class="kwa">use</span> Real_Funcs<span class="opt">;</span>
+   <span class="kwa">package</span> Real_IO <span class="kwa">is new</span> Ada.Text_Io.Float_Io(Real);
+   <span class="kwa">package</span> Real_Funcs <span class="kwa">is new</span> Ada.Numerics.Generic_Elementary_Functions(Real);
+   <span class="kwa">use</span> Real_Funcs;
 
-   N <span class="opt">:</span> <span class="kwb">Natural</span> <span class="opt">:=</span> <span class="num">100</span><span class="opt">;</span>
-   Vbv<span class="opt">,</span> Vv <span class="opt">:</span> Real <span class="opt">:=</span> <span class="num">0.0</span><span class="opt">;</span>
+   N : <span class="kwb">Natural</span> := <span class="num">100</span>;
+   Vbv, Vv : Real := <span class="num">0.0</span>;
 <span class="kwa">begin</span>
-   <span class="kwa">if</span> Argument_Count <span class="opt">=</span> <span class="num">1</span> <span class="kwa">then</span>
-      N <span class="opt">:=</span> <span class="kwb">Natural</span><span class="kwd">&apos;Value</span> <span class="opt">(</span>Argument<span class="opt">(</span><span class="num">1</span><span class="opt">));</span>
-   <span class="kwa">end if</span><span class="opt">;</span>
+   <span class="kwa">if</span> Argument_Count = <span class="num">1</span> <span class="kwa">then</span>
+      N := <span class="kwb">Natural</span><span class="kwd">&apos;Value</span> (Argument(<span class="num">1</span>));
+   <span class="kwa">end if</span>;
 
    <span class="kwa">declare</span>
       <span class="kwa">package</span> Spectral_Utilities <span class="kwa">is new</span> Spectral_Utils
-        <span class="opt">(</span>Real<span class="opt">,</span> No_of_Tasks <span class="opt">=&gt;</span> No_of_Cores_to_Use<span class="opt">,</span> Matrix_Size <span class="opt">=&gt;</span> N<span class="opt">);</span>
-      <span class="kwa">use</span> Spectral_Utilities<span class="opt">;</span>
+        (Real, No_of_Tasks =&gt; No_of_Cores_to_Use, Matrix_Size =&gt; N);
+      <span class="kwa">use</span> Spectral_Utilities;
 
-      U <span class="opt">:</span> Matrix <span class="opt">:= (</span><span class="kwa">Others</span> <span class="opt">=&gt;</span> <span class="num">1.0</span><span class="opt">);</span>
-      V <span class="opt">:</span> Matrix <span class="opt">:= (</span><span class="kwa">Others</span> <span class="opt">=&gt;</span> <span class="num">0.0</span><span class="opt">);</span>
+      U : Matrix := (<span class="kwa">Others</span> =&gt; <span class="num">1.0</span>);
+      V : Matrix := (<span class="kwa">Others</span> =&gt; <span class="num">0.0</span>);
    <span class="kwa">begin</span>
-      <span class="kwa">for</span> I <span class="kwa">in</span> <span class="num">1</span> <span class="opt">..</span> <span class="num">10</span> <span class="kwa">loop</span>
-         Eval_Ata_Times_U<span class="opt">(</span>U<span class="opt">,</span> V<span class="opt">);</span>
-         Eval_Ata_Times_U<span class="opt">(</span>V<span class="opt">,</span> U<span class="opt">);</span>
-      <span class="kwa">end loop</span><span class="opt">;</span>
+      <span class="kwa">for</span> I <span class="kwa">in</span> <span class="num">1</span> .. <span class="num">10</span> <span class="kwa">loop</span>
+         Eval_Ata_Times_U(U, V);
+         Eval_Ata_Times_U(V, U);
+      <span class="kwa">end loop</span>;
       <span class="kwa">for</span> I <span class="kwa">in</span> V<span class="kwd">&apos;Range</span> <span class="kwa">loop</span>
-         Vbv <span class="opt">:=</span> Vbv <span class="opt">+</span> U<span class="opt">(</span>I<span class="opt">) *</span> V<span class="opt">(</span>I<span class="opt">);</span>
-         Vv  <span class="opt">:=</span> Vv  <span class="opt">+</span> V<span class="opt">(</span>I<span class="opt">) *</span> V<span class="opt">(</span>I<span class="opt">);</span>
-      <span class="kwa">end loop</span><span class="opt">;</span>
-   <span class="kwa">end</span><span class="opt">;</span>
-   Real_IO<span class="opt">.</span>Put<span class="opt">(</span>Item <span class="opt">=&gt;</span> Sqrt<span class="opt">(</span>Vbv<span class="opt">/</span>Vv<span class="opt">),</span> Fore <span class="opt">=&gt;</span> <span class="num">1</span><span class="opt">,</span> Aft <span class="opt">=&gt;</span> <span class="num">9</span><span class="opt">,</span> Exp <span class="opt">=&gt;</span> <span class="num">0</span><span class="opt">);</span>
-   Ada<span class="opt">.</span>Text_Io<span class="opt">.</span>New_Line<span class="opt">;</span>
-<span class="kwa">end</span> SpectralNorm<span class="opt">;</span>
+         Vbv := Vbv + U(I) * V(I);
+         Vv  := Vv  + V(I) * V(I);
+      <span class="kwa">end loop</span>;
+   <span class="kwa">end</span>;
+   Real_IO.Put(Item =&gt; Sqrt(Vbv/Vv), Fore =&gt; <span class="num">1</span>, Aft =&gt; <span class="num">9</span>, Exp =&gt; <span class="num">0</span>);
+   Ada.Text_Io.New_Line;
+<span class="kwa">end</span> SpectralNorm;
 
 <span class="kwa">generic</span>
 
-   <span class="kwa">type</span> Real <span class="kwa">is digits</span> <span class="opt">&lt;&gt;;</span>
-   No_Of_Tasks <span class="opt">:</span> <span class="kwb">Positive</span><span class="opt">;</span>
-   Matrix_Size <span class="opt">:</span> <span class="kwb">Positive</span><span class="opt">;</span>
+   <span class="kwa">type</span> Real <span class="kwa">is digits</span> &lt;&gt;;
+   No_Of_Tasks : <span class="kwb">Positive</span>;
+   Matrix_Size : <span class="kwb">Positive</span>;
 
 <span class="kwa">package</span> Spectral_Utils <span class="kwa">is</span>
 
-   <span class="kwa">type</span> Matrix <span class="kwa">is array</span><span class="opt">(</span><span class="kwb">Natural</span> <span class="kwa">range</span> <span class="num">0</span> <span class="opt">..</span> Matrix_Size<span class="opt">-</span><span class="num">1</span><span class="opt">)</span> <span class="kwa">of</span> Real<span class="opt">;</span>
+   <span class="kwa">type</span> Matrix <span class="kwa">is array</span>(<span class="kwb">Natural</span> <span class="kwa">range</span> <span class="num">0</span> .. Matrix_Size-<span class="num">1</span>) <span class="kwa">of</span> Real;
 
    <span class="slc">--  Evaluate matrix A at indices I, J.</span>
  
-   <span class="kwa">function</span> Eval_A<span class="opt">(</span>I<span class="opt">,</span> J <span class="opt">:</span> <span class="kwb">Natural</span><span class="opt">)</span> <span class="kwa">return</span> Real<span class="opt">;</span>
+   <span class="kwa">function</span> Eval_A(I, J : <span class="kwb">Natural</span>) <span class="kwa">return</span> Real;
 
    <span class="slc">--  Get   A_transpose_A_times_U = A_transpose * A * U. </span>
  
    <span class="kwa">procedure</span> Eval_Ata_Times_U
-     <span class="opt">(</span>U                     <span class="opt">:</span> <span class="kwa">in</span> Matrix<span class="opt">;</span> 
-      A_transpose_A_times_U <span class="opt">:</span> <span class="kwa">out</span> Matrix<span class="opt">);</span>
+     (U                     : <span class="kwa">in</span> Matrix; 
+      A_transpose_A_times_U : <span class="kwa">out</span> Matrix);
 
    <span class="slc">--  Get   AU = A * U.  Calculate only AU(Start .. Finish).</span>
  
    <span class="kwa">procedure</span> Eval_A_Times 
-     <span class="opt">(</span>U      <span class="opt">:</span> <span class="kwa">in</span>  Matrix<span class="opt">;</span> 
-      Start  <span class="opt">:</span> <span class="kwa">in</span>  <span class="kwb">Natural</span><span class="opt">;</span> 
-      Finish <span class="opt">:</span> <span class="kwa">in</span>  <span class="kwb">Natural</span><span class="opt">;</span> 
-      AU     <span class="opt">:</span> <span class="kwa">out</span> Matrix<span class="opt">);</span>
+     (U      : <span class="kwa">in</span>  Matrix; 
+      Start  : <span class="kwa">in</span>  <span class="kwb">Natural</span>; 
+      Finish : <span class="kwa">in</span>  <span class="kwb">Natural</span>; 
+      AU     : <span class="kwa">out</span> Matrix);
 
    <span class="slc">--  Get   AU = A_transpose * U.   Calculate only AU(Start .. Finish).</span>
  
    <span class="kwa">procedure</span> Eval_At_Times
-     <span class="opt">(</span>U      <span class="opt">:</span> <span class="kwa">in</span>  Matrix<span class="opt">;</span> 
-      Start  <span class="opt">:</span> <span class="kwa">in</span>  <span class="kwb">Natural</span><span class="opt">;</span> 
-      Finish <span class="opt">:</span> <span class="kwa">in</span>  <span class="kwb">Natural</span><span class="opt">;</span> 
-      AU     <span class="opt">:</span> <span class="kwa">out</span> Matrix<span class="opt">);</span>
+     (U      : <span class="kwa">in</span>  Matrix; 
+      Start  : <span class="kwa">in</span>  <span class="kwb">Natural</span>; 
+      Finish : <span class="kwa">in</span>  <span class="kwb">Natural</span>; 
+      AU     : <span class="kwa">out</span> Matrix);
 
-   <span class="kwa">pragma</span> Inline <span class="opt">(</span>Eval_A_Times<span class="opt">,</span> Eval_At_Times<span class="opt">);</span>
-   <span class="kwa">pragma</span> Inline <span class="opt">(</span>Eval_A<span class="opt">,</span> Eval_Ata_Times_U<span class="opt">);</span>
+   <span class="kwa">pragma</span> Inline (Eval_A_Times, Eval_At_Times);
+   <span class="kwa">pragma</span> Inline (Eval_A, Eval_Ata_Times_U);
 
-<span class="kwa">end</span> Spectral_Utils<span class="opt">;</span>
+<span class="kwa">end</span> Spectral_Utils;
 
 <span class="kwa">package body</span> Spectral_Utils <span class="kwa">is</span>
 
-   <span class="kwa">function</span> Eval_A <span class="opt">(</span>I<span class="opt">,</span> J <span class="opt">:</span> <span class="kwa">in</span> <span class="kwb">Natural</span><span class="opt">)</span> <span class="kwa">return</span> Real <span class="kwa">is</span>
-      Denom <span class="opt">:</span> <span class="kwa">constant</span> Real <span class="opt">:=</span> Real <span class="opt">(((</span>I <span class="opt">+</span> J<span class="opt">) * (</span>I <span class="opt">+</span> J <span class="opt">+</span> <span class="num">1</span><span class="opt">)) /</span> <span class="num">2</span> <span class="opt">+</span> I <span class="opt">+</span> <span class="num">1</span><span class="opt">);</span>
+   <span class="kwa">function</span> Eval_A (I, J : <span class="kwa">in</span> <span class="kwb">Natural</span>) <span class="kwa">return</span> Real <span class="kwa">is</span>
+      Denom : <span class="kwa">constant</span> Real := Real (((I + J) * (I + J + <span class="num">1</span>)) / <span class="num">2</span> + I + <span class="num">1</span>);
    <span class="kwa">begin</span>
-      <span class="kwa">return</span> <span class="num">1.0</span> <span class="opt">/</span> Denom<span class="opt">;</span>
-   <span class="kwa">end</span> Eval_A<span class="opt">;</span>
+      <span class="kwa">return</span> <span class="num">1.0</span> / Denom;
+   <span class="kwa">end</span> Eval_A;
 
-   <span class="kwa">type</span> A_Element_Pair <span class="kwa">is array</span> <span class="opt">(</span><span class="num">0</span> <span class="opt">..</span> <span class="num">1</span><span class="opt">)</span> <span class="kwa">of</span> Real<span class="opt">;</span>
+   <span class="kwa">type</span> A_Element_Pair <span class="kwa">is array</span> (<span class="num">0</span> .. <span class="num">1</span>) <span class="kwa">of</span> Real;
 
    <span class="slc">-- Evaluate matrix A twice - at (I,J) and (I,J+1):</span>
 
-   <span class="kwa">function</span> Eval_A_Twice <span class="opt">(</span>I<span class="opt">,</span> J <span class="opt">:</span> <span class="kwa">in</span> <span class="kwb">Integer</span><span class="opt">)</span> <span class="kwa">return</span> A_Element_Pair <span class="kwa">is</span>
-      Denom_0 <span class="opt">:</span> <span class="kwa">constant</span> Real <span class="opt">:=</span> Real <span class="opt">((</span>I <span class="opt">+</span> J    <span class="opt">)*(</span>I <span class="opt">+</span> J <span class="opt">+</span> <span class="num">1</span><span class="opt">)/</span><span class="num">2</span> <span class="opt">+</span> I <span class="opt">+</span> <span class="num">1</span><span class="opt">);</span>
-      Denom_1 <span class="opt">:</span> <span class="kwa">constant</span> Real <span class="opt">:=</span> Real <span class="opt">((</span>I <span class="opt">+</span> J <span class="opt">+</span> <span class="num">1</span><span class="opt">)*(</span>I <span class="opt">+</span> J <span class="opt">+</span> <span class="num">2</span><span class="opt">)/</span><span class="num">2</span> <span class="opt">+</span> I <span class="opt">+</span> <span class="num">1</span><span class="opt">);</span>
+   <span class="kwa">function</span> Eval_A_Twice (I, J : <span class="kwa">in</span> <span class="kwb">Integer</span>) <span class="kwa">return</span> A_Element_Pair <span class="kwa">is</span>
+      Denom_0 : <span class="kwa">constant</span> Real := Real ((I + J    )*(I + J + <span class="num">1</span>)/<span class="num">2</span> + I + <span class="num">1</span>);
+      Denom_1 : <span class="kwa">constant</span> Real := Real ((I + J + <span class="num">1</span>)*(I + J + <span class="num">2</span>)/<span class="num">2</span> + I + <span class="num">1</span>);
    <span class="kwa">begin</span>
-      <span class="kwa">return</span> <span class="opt">(</span><span class="num">1.0</span> <span class="opt">/</span> Denom_0<span class="opt">,</span> <span class="num">1.0</span> <span class="opt">/</span> Denom_1<span class="opt">);</span>
-   <span class="kwa">end</span> Eval_A_Twice<span class="opt">;</span>
+      <span class="kwa">return</span> (<span class="num">1.0</span> / Denom_0, <span class="num">1.0</span> / Denom_1);
+   <span class="kwa">end</span> Eval_A_Twice;
 
    <span class="slc">-- Evaluate A_transpose (indices I and J swapped):</span>
 
-   <span class="kwa">function</span> Eval_A_tr_Twice <span class="opt">(</span>I<span class="opt">,</span> J <span class="opt">:</span> <span class="kwa">in</span> <span class="kwb">Integer</span><span class="opt">)</span> <span class="kwa">return</span> A_Element_Pair <span class="kwa">is</span> 
-      Denom_0 <span class="opt">:</span> <span class="kwa">constant</span> Real <span class="opt">:=</span> Real <span class="opt">((</span>I <span class="opt">+</span> J    <span class="opt">)*(</span>I <span class="opt">+</span> J <span class="opt">+</span> <span class="num">1</span><span class="opt">)/</span><span class="num">2</span> <span class="opt">+</span> J <span class="opt">+</span> <span class="num">1</span><span class="opt">);</span>
-      Denom_1 <span class="opt">:</span> <span class="kwa">constant</span> Real <span class="opt">:=</span> Real <span class="opt">((</span>I <span class="opt">+</span> J <span class="opt">+</span> <span class="num">1</span><span class="opt">)*(</span>I <span class="opt">+</span> J <span class="opt">+</span> <span class="num">2</span><span class="opt">)/</span><span class="num">2</span> <span class="opt">+</span> J <span class="opt">+</span> <span class="num">2</span><span class="opt">);</span>
+   <span class="kwa">function</span> Eval_A_tr_Twice (I, J : <span class="kwa">in</span> <span class="kwb">Integer</span>) <span class="kwa">return</span> A_Element_Pair <span class="kwa">is</span> 
+      Denom_0 : <span class="kwa">constant</span> Real := Real ((I + J    )*(I + J + <span class="num">1</span>)/<span class="num">2</span> + J + <span class="num">1</span>);
+      Denom_1 : <span class="kwa">constant</span> Real := Real ((I + J + <span class="num">1</span>)*(I + J + <span class="num">2</span>)/<span class="num">2</span> + J + <span class="num">2</span>);
    <span class="kwa">begin</span>
-      <span class="kwa">return</span> <span class="opt">(</span><span class="num">1.0</span> <span class="opt">/</span> Denom_0<span class="opt">,</span> <span class="num">1.0</span> <span class="opt">/</span> Denom_1<span class="opt">);</span>
-   <span class="kwa">end</span> Eval_A_tr_Twice<span class="opt">;</span>
+      <span class="kwa">return</span> (<span class="num">1.0</span> / Denom_0, <span class="num">1.0</span> / Denom_1);
+   <span class="kwa">end</span> Eval_A_tr_Twice;
 
    <span class="kwa">procedure</span> Eval_A_Times
-     <span class="opt">(</span>U      <span class="opt">:</span> <span class="kwa">in</span>  Matrix<span class="opt">;</span> 
-      Start  <span class="opt">:</span> <span class="kwa">in</span>  <span class="kwb">Natural</span><span class="opt">;</span> 
-      Finish <span class="opt">:</span> <span class="kwa">in</span>  <span class="kwb">Natural</span><span class="opt">;</span> 
-      Au     <span class="opt">:</span> <span class="kwa">out</span> Matrix<span class="opt">)</span> 
+     (U      : <span class="kwa">in</span>  Matrix; 
+      Start  : <span class="kwa">in</span>  <span class="kwb">Natural</span>; 
+      Finish : <span class="kwa">in</span>  <span class="kwb">Natural</span>; 
+      Au     : <span class="kwa">out</span> Matrix) 
    <span class="kwa">is</span>
-      Sum <span class="opt">:</span> Real<span class="opt">;</span>
-      J_Index <span class="opt">:</span> <span class="kwb">Natural</span><span class="opt">;</span>
-      A_Elements <span class="opt">:</span> A_Element_Pair<span class="opt">;</span>
+      Sum : Real;
+      J_Index : <span class="kwb">Natural</span>;
+      A_Elements : A_Element_Pair;
    <span class="kwa">begin</span>
-      <span class="kwa">for</span> I <span class="kwa">in</span> Start <span class="opt">..</span> Finish <span class="kwa">loop</span>
-         Sum <span class="opt">:=</span> <span class="num">0.0</span><span class="opt">;</span>
-         <span class="kwa">for</span> J <span class="kwa">in</span> <span class="kwb">Natural</span> <span class="kwa">range</span> <span class="num">0</span> <span class="opt">..</span> U<span class="kwd">&apos;Length</span><span class="opt">/</span><span class="num">2</span> <span class="opt">-</span> <span class="num">1</span> <span class="kwa">loop</span>
-            J_Index    <span class="opt">:=</span> U<span class="kwd">&apos;First</span> <span class="opt">+</span> <span class="num">2</span><span class="opt">*</span>J<span class="opt">;</span>
-            A_Elements <span class="opt">:=</span> Eval_A_Twice <span class="opt">(</span>I<span class="opt">,</span> J_Index<span class="opt">);</span>
-            Sum <span class="opt">:=</span> Sum <span class="opt">+</span> A_Elements<span class="opt">(</span><span class="num">0</span><span class="opt">)*</span>U<span class="opt">(</span>J_Index<span class="opt">) +</span> A_Elements<span class="opt">(</span><span class="num">1</span><span class="opt">)*</span>U<span class="opt">(</span>J_Index<span class="opt">+</span><span class="num">1</span><span class="opt">);</span>
-         <span class="kwa">end loop</span><span class="opt">;</span>
-         <span class="kwa">if</span> U<span class="kwd">&apos;Length</span> <span class="kwa">mod</span> <span class="num">2</span> <span class="opt">=</span> <span class="num">1</span> <span class="kwa">then</span>
-            Sum <span class="opt">:=</span> Sum <span class="opt">+</span> Eval_A<span class="opt">(</span>I<span class="opt">,</span> U<span class="kwd">&apos;Last</span><span class="opt">) *</span> U<span class="opt">(</span>U<span class="kwd">&apos;Last</span><span class="opt">);</span> <span class="slc">-- J_Index := U&apos;Last;</span>
-         <span class="kwa">end if</span><span class="opt">;</span>
-         Au<span class="opt">(</span>I<span class="opt">) :=</span> Sum<span class="opt">;</span>
-      <span class="kwa">end loop</span><span class="opt">;</span>
-   <span class="kwa">end</span> Eval_A_Times<span class="opt">;</span>
+      <span class="kwa">for</span> I <span class="kwa">in</span> Start .. Finish <span class="kwa">loop</span>
+         Sum := <span class="num">0.0</span>;
+         <span class="kwa">for</span> J <span class="kwa">in</span> <span class="kwb">Natural</span> <span class="kwa">range</span> <span class="num">0</span> .. U<span class="kwd">&apos;Length</span>/<span class="num">2</span> - <span class="num">1</span> <span class="kwa">loop</span>
+            J_Index    := U<span class="kwd">&apos;First</span> + <span class="num">2</span>*J;
+            A_Elements := Eval_A_Twice (I, J_Index);
+            Sum := Sum + A_Elements(<span class="num">0</span>)*U(J_Index) + A_Elements(<span class="num">1</span>)*U(J_Index+<span class="num">1</span>);
+         <span class="kwa">end loop</span>;
+         <span class="kwa">if</span> U<span class="kwd">&apos;Length</span> <span class="kwa">mod</span> <span class="num">2</span> = <span class="num">1</span> <span class="kwa">then</span>
+            Sum := Sum + Eval_A(I, U<span class="kwd">&apos;Last</span>) * U(U<span class="kwd">&apos;Last</span>); <span class="slc">-- J_Index := U&apos;Last;</span>
+         <span class="kwa">end if</span>;
+         Au(I) := Sum;
+      <span class="kwa">end loop</span>;
+   <span class="kwa">end</span> Eval_A_Times;
 
 
    <span class="kwa">procedure</span> Eval_At_Times
-     <span class="opt">(</span>U      <span class="opt">:</span> <span class="kwa">in</span>  Matrix<span class="opt">;</span> 
-      Start  <span class="opt">:</span> <span class="kwa">in</span>  <span class="kwb">Natural</span><span class="opt">;</span> 
-      Finish <span class="opt">:</span> <span class="kwa">in</span>  <span class="kwb">Natural</span><span class="opt">;</span> 
-      Au     <span class="opt">:</span> <span class="kwa">out</span> Matrix<span class="opt">)</span> 
+     (U      : <span class="kwa">in</span>  Matrix; 
+      Start  : <span class="kwa">in</span>  <span class="kwb">Natural</span>; 
+      Finish : <span class="kwa">in</span>  <span class="kwb">Natural</span>; 
+      Au     : <span class="kwa">out</span> Matrix) 
    <span class="kwa">is</span>
-      Sum <span class="opt">:</span> Real<span class="opt">;</span>
-      J_Index <span class="opt">:</span> <span class="kwb">Natural</span><span class="opt">;</span>
-      A_Elements <span class="opt">:</span> A_Element_Pair<span class="opt">;</span>
+      Sum : Real;
+      J_Index : <span class="kwb">Natural</span>;
+      A_Elements : A_Element_Pair;
    <span class="kwa">begin</span>
-      <span class="kwa">for</span> I <span class="kwa">in</span> Start <span class="opt">..</span> Finish <span class="kwa">loop</span>
-         Sum <span class="opt">:=</span> <span class="num">0.0</span><span class="opt">;</span>
-         <span class="kwa">for</span> J <span class="kwa">in</span> <span class="kwb">Natural</span> <span class="kwa">range</span> <span class="num">0</span> <span class="opt">..</span> U<span class="kwd">&apos;Length</span><span class="opt">/</span><span class="num">2</span> <span class="opt">-</span> <span class="num">1</span> <span class="kwa">loop</span>
-            J_Index    <span class="opt">:=</span> U<span class="kwd">&apos;First</span> <span class="opt">+</span> <span class="num">2</span><span class="opt">*</span>J<span class="opt">;</span>
-            A_Elements <span class="opt">:=</span> Eval_A_tr_Twice <span class="opt">(</span>I<span class="opt">,</span> J_Index<span class="opt">);</span>
-            Sum <span class="opt">:=</span> Sum <span class="opt">+</span> A_Elements<span class="opt">(</span><span class="num">0</span><span class="opt">)*</span>U<span class="opt">(</span>J_Index<span class="opt">) +</span> A_Elements<span class="opt">(</span><span class="num">1</span><span class="opt">)*</span>U<span class="opt">(</span>J_Index<span class="opt">+</span><span class="num">1</span><span class="opt">);</span>
-         <span class="kwa">end loop</span><span class="opt">;</span>
-         <span class="kwa">if</span> U<span class="kwd">&apos;Length</span> <span class="kwa">mod</span> <span class="num">2</span> <span class="opt">=</span> <span class="num">1</span> <span class="kwa">then</span>
-            Sum <span class="opt">:=</span> Sum <span class="opt">+</span> Eval_A <span class="opt">(</span>U<span class="kwd">&apos;Last</span><span class="opt">,</span> I<span class="opt">) *</span> U<span class="opt">(</span>U<span class="kwd">&apos;Last</span><span class="opt">);</span> <span class="slc">-- J_Index := U&apos;Last;</span>
-         <span class="kwa">end if</span><span class="opt">;</span>
-         Au<span class="opt">(</span>I<span class="opt">) :=</span> Sum<span class="opt">;</span>
-      <span class="kwa">end loop</span><span class="opt">;</span>
-   <span class="kwa">end</span> Eval_At_Times<span class="opt">;</span>
+      <span class="kwa">for</span> I <span class="kwa">in</span> Start .. Finish <span class="kwa">loop</span>
+         Sum := <span class="num">0.0</span>;
+         <span class="kwa">for</span> J <span class="kwa">in</span> <span class="kwb">Natural</span> <span class="kwa">range</span> <span class="num">0</span> .. U<span class="kwd">&apos;Length</span>/<span class="num">2</span> - <span class="num">1</span> <span class="kwa">loop</span>
+            J_Index    := U<span class="kwd">&apos;First</span> + <span class="num">2</span>*J;
+            A_Elements := Eval_A_tr_Twice (I, J_Index);
+            Sum := Sum + A_Elements(<span class="num">0</span>)*U(J_Index) + A_Elements(<span class="num">1</span>)*U(J_Index+<span class="num">1</span>);
+         <span class="kwa">end loop</span>;
+         <span class="kwa">if</span> U<span class="kwd">&apos;Length</span> <span class="kwa">mod</span> <span class="num">2</span> = <span class="num">1</span> <span class="kwa">then</span>
+            Sum := Sum + Eval_A (U<span class="kwd">&apos;Last</span>, I) * U(U<span class="kwd">&apos;Last</span>); <span class="slc">-- J_Index := U&apos;Last;</span>
+         <span class="kwa">end if</span>;
+         Au(I) := Sum;
+      <span class="kwa">end loop</span>;
+   <span class="kwa">end</span> Eval_At_Times;
 
 
    <span class="slc">-- Calculate A * U</span>
 
    <span class="kwa">task type</span> Matrix_A_times_U <span class="kwa">is</span>
-      <span class="kwa">pragma</span> Storage_Size <span class="opt">(</span><span class="num">2</span><span class="opt">**</span><span class="num">20</span><span class="opt">);</span>
-      <span class="kwa">entry</span> Multiply <span class="opt">(</span>U <span class="opt">:</span> <span class="kwa">in</span> Matrix<span class="opt">;</span> Start <span class="opt">:</span> <span class="kwa">in</span> <span class="kwb">Natural</span><span class="opt">;</span> Finish <span class="opt">:</span> <span class="kwa">in</span> <span class="kwb">Natural</span><span class="opt">);</span>
-      <span class="kwa">entry</span> Result <span class="opt">(</span>Start <span class="opt">:</span> <span class="kwa">out</span> <span class="kwb">Natural</span><span class="opt">;</span> Finish <span class="opt">:</span> <span class="kwa">out</span> <span class="kwb">Natural</span><span class="opt">;</span> R <span class="opt">:</span> <span class="kwa">out</span> Matrix<span class="opt">);</span>
-   <span class="kwa">end</span> Matrix_A_times_U<span class="opt">;</span>
+      <span class="kwa">pragma</span> Storage_Size (<span class="num">2</span>**<span class="num">20</span>);
+      <span class="kwa">entry</span> Multiply (U : <span class="kwa">in</span> Matrix; Start : <span class="kwa">in</span> <span class="kwb">Natural</span>; Finish : <span class="kwa">in</span> <span class="kwb">Natural</span>);
+      <span class="kwa">entry</span> Result (Start : <span class="kwa">out</span> <span class="kwb">Natural</span>; Finish : <span class="kwa">out</span> <span class="kwb">Natural</span>; R : <span class="kwa">out</span> Matrix);
+   <span class="kwa">end</span> Matrix_A_times_U;
 
    <span class="kwa">task body</span> Matrix_A_times_U <span class="kwa">is</span>
-      I1<span class="opt">,</span> I2 <span class="opt">:</span> <span class="kwb">Natural</span><span class="opt">;</span>
-      AU<span class="opt">,</span> U_local <span class="opt">:</span> Matrix<span class="opt">;</span>
+      I1, I2 : <span class="kwb">Natural</span>;
+      AU, U_local : Matrix;
    <span class="kwa">begin</span>
      <span class="kwa">loop</span>
      <span class="kwa">select</span>
-        <span class="kwa">accept</span> Multiply <span class="opt">(</span>U <span class="opt">:</span> <span class="kwa">in</span> Matrix<span class="opt">;</span> Start <span class="opt">:</span> <span class="kwa">in</span> <span class="kwb">Natural</span><span class="opt">;</span> Finish <span class="opt">:</span> <span class="kwa">in</span> <span class="kwb">Natural</span><span class="opt">)</span> <span class="kwa">do</span>
-           I1 <span class="opt">:=</span> Start<span class="opt">;</span>
-           I2 <span class="opt">:=</span> Finish<span class="opt">;</span>
-           U_local <span class="opt">:=</span> U<span class="opt">;</span>
-        <span class="kwa">end</span> Multiply<span class="opt">;</span>
+        <span class="kwa">accept</span> Multiply (U : <span class="kwa">in</span> Matrix; Start : <span class="kwa">in</span> <span class="kwb">Natural</span>; Finish : <span class="kwa">in</span> <span class="kwb">Natural</span>) <span class="kwa">do</span>
+           I1 := Start;
+           I2 := Finish;
+           U_local := U;
+        <span class="kwa">end</span> Multiply;
   
-        Eval_A_Times <span class="opt">(</span>U_local<span class="opt">,</span> I1<span class="opt">,</span> I2<span class="opt">,</span> AU<span class="opt">);</span> <span class="slc">-- updates AU(I1..I2)</span>
+        Eval_A_Times (U_local, I1, I2, AU); <span class="slc">-- updates AU(I1..I2)</span>
   
-        <span class="kwa">accept</span> Result <span class="opt">(</span>Start <span class="opt">:</span> <span class="kwa">out</span> <span class="kwb">Natural</span><span class="opt">;</span> Finish <span class="opt">:</span> <span class="kwa">out</span> <span class="kwb">Natural</span><span class="opt">;</span> R <span class="opt">:</span> <span class="kwa">out</span> Matrix<span class="opt">)</span> <span class="kwa">do</span>
-           Start  <span class="opt">:=</span> I1<span class="opt">;</span>
-           Finish <span class="opt">:=</span> I2<span class="opt">;</span>
-           R<span class="opt">(</span>Start <span class="opt">..</span> Finish<span class="opt">) :=</span> AU<span class="opt">(</span>Start <span class="opt">..</span> Finish<span class="opt">);</span>
-        <span class="kwa">end</span> Result<span class="opt">;</span>
+        <span class="kwa">accept</span> Result (Start : <span class="kwa">out</span> <span class="kwb">Natural</span>; Finish : <span class="kwa">out</span> <span class="kwb">Natural</span>; R : <span class="kwa">out</span> Matrix) <span class="kwa">do</span>
+           Start  := I1;
+           Finish := I2;
+           R(Start .. Finish) := AU(Start .. Finish);
+        <span class="kwa">end</span> Result;
      <span class="kwa">or</span>
-        <span class="kwa">terminate</span><span class="opt">;</span>
-     <span class="kwa">end select</span><span class="opt">;</span>
-     <span class="kwa">end loop</span><span class="opt">;</span>
-   <span class="kwa">end</span> Matrix_A_times_U<span class="opt">;</span>
+        <span class="kwa">terminate</span>;
+     <span class="kwa">end select</span>;
+     <span class="kwa">end loop</span>;
+   <span class="kwa">end</span> Matrix_A_times_U;
 
 
    <span class="slc">-- Calculate A_transpose * V</span>
 
    <span class="kwa">task type</span> Matrix_A_tr_times_V <span class="kwa">is</span>
-      <span class="kwa">pragma</span> Storage_Size <span class="opt">(</span><span class="num">2</span><span class="opt">**</span><span class="num">20</span><span class="opt">);</span>
-      <span class="kwa">entry</span> Multiply <span class="opt">(</span>V <span class="opt">:</span> <span class="kwa">in</span> Matrix<span class="opt">;</span> Start <span class="opt">:</span> <span class="kwa">in</span> <span class="kwb">Natural</span><span class="opt">;</span> Finish <span class="opt">:</span> <span class="kwa">in</span> <span class="kwb">Natural</span><span class="opt">);</span>
-      <span class="kwa">entry</span> Result <span class="opt">(</span>Start <span class="opt">:</span> <span class="kwa">out</span> <span class="kwb">Natural</span><span class="opt">;</span> Finish <span class="opt">:</span> <span class="kwa">out</span> <span class="kwb">Natural</span><span class="opt">;</span> R <span class="opt">:</span> <span class="kwa">out</span> Matrix<span class="opt">);</span>
-   <span class="kwa">end</span> Matrix_A_tr_times_V<span class="opt">;</span>
+      <span class="kwa">pragma</span> Storage_Size (<span class="num">2</span>**<span class="num">20</span>);
+      <span class="kwa">entry</span> Multiply (V : <span class="kwa">in</span> Matrix; Start : <span class="kwa">in</span> <span class="kwb">Natural</span>; Finish : <span class="kwa">in</span> <span class="kwb">Natural</span>);
+      <span class="kwa">entry</span> Result (Start : <span class="kwa">out</span> <span class="kwb">Natural</span>; Finish : <span class="kwa">out</span> <span class="kwb">Natural</span>; R : <span class="kwa">out</span> Matrix);
+   <span class="kwa">end</span> Matrix_A_tr_times_V;
 
    <span class="kwa">task body</span> Matrix_A_tr_times_V <span class="kwa">is</span>
-      I1<span class="opt">,</span> I2 <span class="opt">:</span> <span class="kwb">Natural</span><span class="opt">;</span>
-      AV<span class="opt">,</span> V_local <span class="opt">:</span> Matrix<span class="opt">;</span>
+      I1, I2 : <span class="kwb">Natural</span>;
+      AV, V_local : Matrix;
    <span class="kwa">begin</span>
      <span class="kwa">loop</span>
      <span class="kwa">select</span>
-        <span class="kwa">accept</span> Multiply <span class="opt">(</span>V <span class="opt">:</span> <span class="kwa">in</span> Matrix<span class="opt">;</span> Start <span class="opt">:</span> <span class="kwa">in</span> <span class="kwb">Natural</span><span class="opt">;</span> Finish <span class="opt">:</span> <span class="kwa">in</span> <span class="kwb">Natural</span><span class="opt">)</span> <span class="kwa">do</span>
-           I1 <span class="opt">:=</span> Start<span class="opt">;</span>
-           I2 <span class="opt">:=</span> Finish<span class="opt">;</span>
-           V_local <span class="opt">:=</span> V<span class="opt">;</span>
-        <span class="kwa">end</span> Multiply<span class="opt">;</span>
+        <span class="kwa">accept</span> Multiply (V : <span class="kwa">in</span> Matrix; Start : <span class="kwa">in</span> <span class="kwb">Natural</span>; Finish : <span class="kwa">in</span> <span class="kwb">Natural</span>) <span class="kwa">do</span>
+           I1 := Start;
+           I2 := Finish;
+           V_local := V;
+        <span class="kwa">end</span> Multiply;
   
-        Eval_At_Times <span class="opt">(</span>V_local<span class="opt">,</span> I1<span class="opt">,</span> I2<span class="opt">,</span> AV<span class="opt">);</span>  <span class="slc">-- AV = A_transpose * V_local</span>
+        Eval_At_Times (V_local, I1, I2, AV);  <span class="slc">-- AV = A_transpose * V_local</span>
   
-        <span class="kwa">accept</span> Result <span class="opt">(</span>Start <span class="opt">:</span> <span class="kwa">out</span> <span class="kwb">Natural</span><span class="opt">;</span> Finish <span class="opt">:</span> <span class="kwa">out</span> <span class="kwb">Natural</span><span class="opt">;</span> R <span class="opt">:</span> <span class="kwa">out</span> Matrix<span class="opt">)</span> <span class="kwa">do</span>
-           Start  <span class="opt">:=</span> I1<span class="opt">;</span>
-           Finish <span class="opt">:=</span> I2<span class="opt">;</span>
-           R<span class="opt">(</span>Start <span class="opt">..</span> Finish<span class="opt">) :=</span> AV<span class="opt">(</span>Start <span class="opt">..</span> Finish<span class="opt">);</span>
-        <span class="kwa">end</span> Result<span class="opt">;</span>
+        <span class="kwa">accept</span> Result (Start : <span class="kwa">out</span> <span class="kwb">Natural</span>; Finish : <span class="kwa">out</span> <span class="kwb">Natural</span>; R : <span class="kwa">out</span> Matrix) <span class="kwa">do</span>
+           Start  := I1;
+           Finish := I2;
+           R(Start .. Finish) := AV(Start .. Finish);
+        <span class="kwa">end</span> Result;
      <span class="kwa">or</span>
-        <span class="kwa">terminate</span><span class="opt">;</span>
-     <span class="kwa">end select</span><span class="opt">;</span>
-     <span class="kwa">end loop</span><span class="opt">;</span>
-   <span class="kwa">end</span> Matrix_A_tr_times_V<span class="opt">;</span>
+        <span class="kwa">terminate</span>;
+     <span class="kwa">end select</span>;
+     <span class="kwa">end loop</span>;
+   <span class="kwa">end</span> Matrix_A_tr_times_V;
 
 
    <span class="slc">-- Create (No_Of_Tasks-1) tasks. The final task is the environmental task, </span>
    <span class="slc">-- which does its fair share of the work in procedure Eval_Ata_Times_U.</span>
 
-   <span class="kwa">subtype</span> Task_Range <span class="kwa">is</span> <span class="kwb">Positive</span> <span class="kwa">range</span> <span class="num">1</span> <span class="opt">..</span> No_Of_Tasks<span class="opt">-</span><span class="num">1</span><span class="opt">;</span>
+   <span class="kwa">subtype</span> Task_Range <span class="kwa">is</span> <span class="kwb">Positive</span> <span class="kwa">range</span> <span class="num">1</span> .. No_Of_Tasks-<span class="num">1</span>;
 
-   Partial_Matrix_A_times_U    <span class="opt">:</span> <span class="kwa">array</span> <span class="opt">(</span>Task_Range<span class="opt">)</span> <span class="kwa">of</span> Matrix_A_times_U<span class="opt">;</span> 
-   Partial_Matrix_A_tr_times_V <span class="opt">:</span> <span class="kwa">array</span> <span class="opt">(</span>Task_Range<span class="opt">)</span> <span class="kwa">of</span> Matrix_A_tr_times_V<span class="opt">;</span> 
+   Partial_Matrix_A_times_U    : <span class="kwa">array</span> (Task_Range) <span class="kwa">of</span> Matrix_A_times_U; 
+   Partial_Matrix_A_tr_times_V : <span class="kwa">array</span> (Task_Range) <span class="kwa">of</span> Matrix_A_tr_times_V; 
 
 
    <span class="kwa">procedure</span> Eval_Ata_Times_U 
-     <span class="opt">(</span>U                     <span class="opt">:</span> <span class="kwa">in</span>  Matrix<span class="opt">;</span> 
-      A_transpose_A_times_U <span class="opt">:</span> <span class="kwa">out</span> Matrix<span class="opt">)</span> 
+     (U                     : <span class="kwa">in</span>  Matrix; 
+      A_transpose_A_times_U : <span class="kwa">out</span> Matrix) 
    <span class="kwa">is</span>
-      V<span class="opt">,</span> Partial_Product <span class="opt">:</span> Matrix<span class="opt">;</span>
+      V, Partial_Product : Matrix;
    
-      Segment_Length <span class="opt">:</span> <span class="kwa">constant</span> <span class="kwb">Integer</span> <span class="opt">:=</span> U<span class="kwd">&apos;Length</span> <span class="opt">/</span> No_Of_Tasks <span class="opt">+</span> <span class="num">1</span><span class="opt">;</span>
+      Segment_Length : <span class="kwa">constant</span> <span class="kwb">Integer</span> := U<span class="kwd">&apos;Length</span> / No_Of_Tasks + <span class="num">1</span>;
       <span class="slc">-- Gives the 1st few tasks a slightly greater share of the work.</span>
  
-      I1<span class="opt">,</span> I2<span class="opt">,</span> J1<span class="opt">,</span> J2 <span class="opt">:</span> <span class="kwb">Natural</span><span class="opt">;</span>
+      I1, I2, J1, J2 : <span class="kwb">Natural</span>;
    <span class="kwa">begin</span>
-      I1 <span class="opt">:=</span> V<span class="kwd">&apos;First</span><span class="opt">;</span>
-      I2 <span class="opt">:=</span> V<span class="kwd">&apos;First</span> <span class="opt">+</span> Segment_Length <span class="opt">-</span> <span class="num">1</span><span class="opt">;</span>
-      I2 <span class="opt">:=</span> <span class="kwb">Integer</span><span class="kwd">&apos;Min</span> <span class="opt">(</span>I2<span class="opt">,</span> V<span class="kwd">&apos;Last</span><span class="opt">);</span> 
+      I1 := V<span class="kwd">&apos;First</span>;
+      I2 := V<span class="kwd">&apos;First</span> + Segment_Length - <span class="num">1</span>;
+      I2 := <span class="kwb">Integer</span><span class="kwd">&apos;Min</span> (I2, V<span class="kwd">&apos;Last</span>); 
 
       <span class="slc">-- Start running the tasks in Task_Range:</span>
 
       <span class="kwa">for</span> k <span class="kwa">in</span> Task_Range <span class="kwa">loop</span>
-         Partial_Matrix_A_times_U<span class="opt">(</span>k<span class="opt">).</span>Multiply <span class="opt">(</span>U<span class="opt">,</span> I1<span class="opt">,</span> I2<span class="opt">);</span>
-         I1 <span class="opt">:=</span> I2 <span class="opt">+</span> <span class="num">1</span><span class="opt">;</span>
-         I2 <span class="opt">:=</span> I2 <span class="opt">+</span> Segment_Length<span class="opt">;</span>
-         I2 <span class="opt">:=</span> <span class="kwb">Integer</span><span class="kwd">&apos;Min</span> <span class="opt">(</span>I2<span class="opt">,</span> V<span class="kwd">&apos;Last</span><span class="opt">);</span>
-      <span class="kwa">end loop</span><span class="opt">;</span>
+         Partial_Matrix_A_times_U(k).Multiply (U, I1, I2);
+         I1 := I2 + <span class="num">1</span>;
+         I2 := I2 + Segment_Length;
+         I2 := <span class="kwb">Integer</span><span class="kwd">&apos;Min</span> (I2, V<span class="kwd">&apos;Last</span>);
+      <span class="kwa">end loop</span>;
 
-      Eval_A_Times <span class="opt">(</span>U<span class="opt">,</span> I1<span class="opt">,</span> V<span class="kwd">&apos;Last</span><span class="opt">,</span> V<span class="opt">);</span> <span class="slc">-- Env task updates V(I1 .. V&apos;Last).</span>
+      Eval_A_Times (U, I1, V<span class="kwd">&apos;Last</span>, V); <span class="slc">-- Env task updates V(I1 .. V&apos;Last).</span>
 
       <span class="slc">-- Rendezvous with tasks to get partial results. Write results to V:</span>
 
       <span class="kwa">for</span> k <span class="kwa">in</span> Task_Range <span class="kwa">loop</span>
-         Partial_Matrix_A_times_U<span class="opt">(</span>k<span class="opt">).</span>Result <span class="opt">(</span>J1<span class="opt">,</span> J2<span class="opt">,</span> Partial_Product<span class="opt">);</span>
-         V<span class="opt">(</span>J1 <span class="opt">..</span> J2<span class="opt">) :=</span> Partial_Product<span class="opt">(</span>J1 <span class="opt">..</span> J2<span class="opt">);</span>
-      <span class="kwa">end loop</span><span class="opt">;</span>
+         Partial_Matrix_A_times_U(k).Result (J1, J2, Partial_Product);
+         V(J1 .. J2) := Partial_Product(J1 .. J2);
+      <span class="kwa">end loop</span>;
 
       <span class="slc">-- The result, stored in V, is A*U. Next get A_transpose * (A*U).</span>
 
-      I1 <span class="opt">:=</span> V<span class="kwd">&apos;First</span><span class="opt">;</span>
-      I2 <span class="opt">:=</span> V<span class="kwd">&apos;First</span> <span class="opt">+</span> Segment_Length <span class="opt">-</span> <span class="num">1</span><span class="opt">;</span>
-      I2 <span class="opt">:=</span> <span class="kwb">Integer</span><span class="kwd">&apos;Min</span> <span class="opt">(</span>I2<span class="opt">,</span> V<span class="kwd">&apos;Last</span><span class="opt">);</span> 
+      I1 := V<span class="kwd">&apos;First</span>;
+      I2 := V<span class="kwd">&apos;First</span> + Segment_Length - <span class="num">1</span>;
+      I2 := <span class="kwb">Integer</span><span class="kwd">&apos;Min</span> (I2, V<span class="kwd">&apos;Last</span>); 
 
       <span class="kwa">for</span> k <span class="kwa">in</span> Task_Range <span class="kwa">loop</span>
-         Partial_Matrix_A_tr_times_V<span class="opt">(</span>k<span class="opt">).</span>Multiply <span class="opt">(</span>V<span class="opt">,</span> I1<span class="opt">,</span> I2<span class="opt">);</span>
-         I1 <span class="opt">:=</span> I2 <span class="opt">+</span> <span class="num">1</span><span class="opt">;</span>
-         I2 <span class="opt">:=</span> I2 <span class="opt">+</span> Segment_Length<span class="opt">;</span>
-         I2 <span class="opt">:=</span> <span class="kwb">Integer</span><span class="kwd">&apos;Min</span> <span class="opt">(</span>I2<span class="opt">,</span> V<span class="kwd">&apos;Last</span><span class="opt">);</span>
-      <span class="kwa">end loop</span><span class="opt">;</span>
+         Partial_Matrix_A_tr_times_V(k).Multiply (V, I1, I2);
+         I1 := I2 + <span class="num">1</span>;
+         I2 := I2 + Segment_Length;
+         I2 := <span class="kwb">Integer</span><span class="kwd">&apos;Min</span> (I2, V<span class="kwd">&apos;Last</span>);
+      <span class="kwa">end loop</span>;
 
-      Eval_At_Times <span class="opt">(</span>V<span class="opt">,</span> I1<span class="opt">,</span> V<span class="kwd">&apos;Last</span><span class="opt">,</span> A_transpose_A_times_U<span class="opt">);</span> 
+      Eval_At_Times (V, I1, V<span class="kwd">&apos;Last</span>, A_transpose_A_times_U); 
       <span class="slc">-- Env. task updates A_transpose_A_times_U (I1 .. V&apos;Last).</span>
 
       <span class="kwa">for</span> k <span class="kwa">in</span> Task_Range <span class="kwa">loop</span>
-         Partial_Matrix_A_tr_times_V<span class="opt">(</span>k<span class="opt">).</span>Result <span class="opt">(</span>J1<span class="opt">,</span> J2<span class="opt">,</span> Partial_Product<span class="opt">);</span>
-         A_transpose_A_times_U<span class="opt">(</span>J1 <span class="opt">..</span> J2<span class="opt">) :=</span> Partial_Product<span class="opt">(</span>J1 <span class="opt">..</span> J2<span class="opt">);</span>
-      <span class="kwa">end loop</span><span class="opt">;</span>
+         Partial_Matrix_A_tr_times_V(k).Result (J1, J2, Partial_Product);
+         A_transpose_A_times_U(J1 .. J2) := Partial_Product(J1 .. J2);
+      <span class="kwa">end loop</span>;
 
-   <span class="kwa">end</span> Eval_Ata_Times_U<span class="opt">;</span>
+   <span class="kwa">end</span> Eval_Ata_Times_U;
 
-<span class="kwa">end</span> Spectral_Utils<span class="opt">;</span>
+<span class="kwa">end</span> Spectral_Utils;
 
 
     </pre>
@@ -339,12 +339,12 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
     <pre>
 NOTES:
 64-bit Ubuntu quad core
-GNATMAKE 9.3.0
-gcc (Ubuntu 10.2.0-13ubuntu1) 10.2.0
+GNATMAKE 10.3.0
+gcc (Ubuntu 10.3.0-1ubuntu1) 10.3.0
 
 
 
-Fri, 23 Oct 2020 19:39:44 GMT
+Sat, 05 Jun 2021 02:40:29 GMT
 
 MAKE:
 gnatchop -r -w spectralnorm.gnat-3.gnat
@@ -353,12 +353,12 @@ splitting spectralnorm.gnat-3.gnat into:
    spectral_utils.ads
    spectral_utils.adb
 gnatmake -O3 -fomit-frame-pointer -march=ivybridge -gnatNp -f spectralnorm.adb -o spectralnorm.gnat-3.gnat_run 
-x86_64-linux-gnu-gcc-9 -c -O3 -fomit-frame-pointer -march=ivybridge -gnatNp spectralnorm.adb
-x86_64-linux-gnu-gcc-9 -c -O3 -fomit-frame-pointer -march=ivybridge -gnatNp spectral_utils.adb
-x86_64-linux-gnu-gnatbind-9 -x spectralnorm.ali
-x86_64-linux-gnu-gnatlink-9 spectralnorm.ali -O3 -fomit-frame-pointer -march=ivybridge -o spectralnorm.gnat-3.gnat_run
+x86_64-linux-gnu-gcc-10 -c -O3 -fomit-frame-pointer -march=ivybridge -gnatNp spectralnorm.adb
+x86_64-linux-gnu-gcc-10 -c -O3 -fomit-frame-pointer -march=ivybridge -gnatNp spectral_utils.adb
+x86_64-linux-gnu-gnatbind-10 -x spectralnorm.ali
+x86_64-linux-gnu-gnatlink-10 spectralnorm.ali -O3 -fomit-frame-pointer -march=ivybridge -o spectralnorm.gnat-3.gnat_run
 
-2.75s to complete and log all make actions
+2.77s to complete and log all make actions
 
 COMMAND LINE:
 ./spectralnorm.gnat-3.gnat_run 5500
