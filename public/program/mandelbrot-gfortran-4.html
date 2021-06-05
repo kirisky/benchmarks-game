@@ -32,74 +32,74 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="kwa">program</span> mandelbrot
   <span class="kwa">implicit none</span>
 
-  <span class="kwa">integer</span><span class="opt">,</span> <span class="kwa">parameter</span> <span class="opt">::</span> dp <span class="opt">=</span> <span class="kwd">selected_real_kind</span><span class="opt">(</span><span class="num">15</span><span class="opt">,</span> <span class="num">307</span><span class="opt">)</span>
-  <span class="kwa">integer</span><span class="opt">,</span> <span class="kwa">parameter</span> <span class="opt">::</span> int8 <span class="opt">=</span> <span class="kwd">selected_int_kind</span><span class="opt">(</span><span class="num">2</span><span class="opt">)</span>
-  <span class="kwa">integer</span><span class="opt">,</span> <span class="kwa">parameter</span> <span class="opt">::</span> iter <span class="opt">=</span> <span class="num">50</span>
-  <span class="kwa">real</span><span class="opt">(</span>dp<span class="opt">),</span> <span class="kwa">parameter</span> <span class="opt">::</span> limit2 <span class="opt">=</span> <span class="num">4.0</span>_dp
-  <span class="kwa">character</span><span class="opt">(</span>len<span class="opt">=</span><span class="num">8</span><span class="opt">) ::</span> argv
-  <span class="kwa">integer</span> <span class="opt">::</span> w<span class="opt">,</span> h<span class="opt">,</span> x<span class="opt">,</span> y<span class="opt">,</span> i<span class="opt">,</span> pos<span class="opt">,</span> bit_num
-  <span class="kwa">integer</span><span class="opt">(</span>int8<span class="opt">) ::</span> <span class="kwa">byte</span>
-  <span class="kwa">real</span><span class="opt">(</span>dp<span class="opt">) ::</span> inv_w<span class="opt">,</span> inv_h<span class="opt">,</span> Zi<span class="opt">,</span> Zr<span class="opt">,</span> Ti<span class="opt">,</span> Tr<span class="opt">,</span> Cr<span class="opt">,</span> Ci
-  <span class="kwa">logical</span> <span class="opt">::</span> inside
-  <span class="kwa">integer</span><span class="opt">(</span>int8<span class="opt">),</span> <span class="kwa">dimension</span><span class="opt">(:,:),</span> allocatable <span class="opt">::</span> buf
+  <span class="kwa">integer</span>, <span class="kwa">parameter</span> :: dp = <span class="kwd">selected_real_kind</span>(<span class="num">15</span>, <span class="num">307</span>)
+  <span class="kwa">integer</span>, <span class="kwa">parameter</span> :: int8 = <span class="kwd">selected_int_kind</span>(<span class="num">2</span>)
+  <span class="kwa">integer</span>, <span class="kwa">parameter</span> :: iter = <span class="num">50</span>
+  <span class="kwa">real</span>(dp), <span class="kwa">parameter</span> :: limit2 = <span class="num">4.0</span>_dp
+  <span class="kwa">character</span>(len=<span class="num">8</span>) :: argv
+  <span class="kwa">integer</span> :: w, h, x, y, i, pos, bit_num
+  <span class="kwa">integer</span>(int8) :: <span class="kwa">byte</span>
+  <span class="kwa">real</span>(dp) :: inv_w, inv_h, Zi, Zr, Ti, Tr, Cr, Ci
+  <span class="kwa">logical</span> :: inside
+  <span class="kwa">integer</span>(int8), <span class="kwa">dimension</span>(:,:), allocatable :: buf
 
   <span class="slc">! read dimension from command line</span>
-  <span class="kwa">call</span> <span class="kwd">get_command_argument</span><span class="opt">(</span><span class="num">1</span><span class="opt">,</span> argv<span class="opt">)</span>
-  <span class="kwa">read</span><span class="opt">(</span>argv<span class="opt">, *)</span> w
-  h <span class="opt">=</span> w
+  <span class="kwa">call</span> <span class="kwd">get_command_argument</span>(<span class="num">1</span>, argv)
+  <span class="kwa">read</span>(argv, *) w
+  h = w
 
   <span class="slc">! allocate output buffer</span>
-  <span class="kwd">allocate</span><span class="opt">(</span><span class="kwd">buf</span><span class="opt">(</span><span class="kwd">ceiling</span><span class="opt">(</span>w<span class="opt">/</span><span class="num">8.0</span>_dp<span class="opt">),</span>h<span class="opt">))</span>
+  <span class="kwd">allocate</span>(<span class="kwd">buf</span>(<span class="kwd">ceiling</span>(w/<span class="num">8.0</span>_dp),h))
 
   <span class="slc">! precalculate constants</span>
-  inv_w <span class="opt">=</span> <span class="num">2.0</span>_dp <span class="opt">/</span> w
-  inv_h <span class="opt">=</span> <span class="num">2.0</span>_dp <span class="opt">/</span> h
+  inv_w = <span class="num">2.0</span>_dp / w
+  inv_h = <span class="num">2.0</span>_dp / h
 
   <span class="slc">! pbm header</span>
-  <span class="kwa">write</span><span class="opt">(*,</span><span class="str">&apos;(&quot;P4&quot;,/,i0,&quot; &quot;,i0)&apos;</span><span class="opt">)</span> w<span class="opt">,</span> h
+  <span class="kwa">write</span>(*,<span class="str">&apos;(&quot;P4&quot;,/,i0,&quot; &quot;,i0)&apos;</span>) w, h
 
   <span class="slc">!$OMP PARALLEL DO PRIVATE(y, x, bit_num, pos, byte, Zr, Cr, Ci, inside, i)</span>
-  <span class="kwa">do</span> y <span class="opt">=</span> <span class="num">0</span><span class="opt">,</span> h <span class="opt">-</span> <span class="num">1</span>
-     bit_num <span class="opt">=</span> <span class="num">8</span> <span class="slc">! when moving left to right, bits are numbered 7 to 0</span>
-     <span class="kwa">byte</span> <span class="opt">=</span> <span class="num">0</span>_int8
-     pos <span class="opt">=</span> <span class="num">0</span>
-     <span class="kwa">do</span> x <span class="opt">=</span> <span class="num">0</span><span class="opt">,</span> w <span class="opt">-</span> <span class="num">1</span>
-        bit_num <span class="opt">=</span> bit_num <span class="opt">-</span> <span class="num">1</span>
+  <span class="kwa">do</span> y = <span class="num">0</span>, h - <span class="num">1</span>
+     bit_num = <span class="num">8</span> <span class="slc">! when moving left to right, bits are numbered 7 to 0</span>
+     <span class="kwa">byte</span> = <span class="num">0</span>_int8
+     pos = <span class="num">0</span>
+     <span class="kwa">do</span> x = <span class="num">0</span>, w - <span class="num">1</span>
+        bit_num = bit_num - <span class="num">1</span>
 
-        Zr <span class="opt">=</span> <span class="num">0.0</span>_dp<span class="opt">;</span> Zi <span class="opt">=</span> <span class="num">0.0</span>_dp<span class="opt">;</span> Tr <span class="opt">=</span> <span class="num">0.0</span>_dp<span class="opt">;</span> Ti <span class="opt">=</span> <span class="num">0.0</span>_dp<span class="opt">;</span>
-        Cr <span class="opt">=</span> inv_w <span class="opt">*</span> x <span class="opt">-</span> <span class="num">1.5</span>_dp
-        Ci <span class="opt">=</span> inv_h <span class="opt">*</span> y <span class="opt">-</span> <span class="num">1.0</span>_dp
-        inside <span class="opt">= .</span>true<span class="opt">.</span>
-        <span class="kwa">do</span> i <span class="opt">=</span> <span class="num">1</span><span class="opt">,</span> iter
-           Zi <span class="opt">=</span> <span class="num">2.0</span> <span class="opt">*</span> Zr <span class="opt">*</span> Zi <span class="opt">+</span> Ci
-           Zr <span class="opt">=</span> Tr <span class="opt">-</span> Ti <span class="opt">+</span> Cr
-           Ti <span class="opt">=</span> Zi <span class="opt">*</span> Zi
-           Tr <span class="opt">=</span> Zr <span class="opt">*</span> Zr
-           <span class="kwa">if</span> <span class="opt">(</span>Tr <span class="opt">+</span> Ti <span class="opt">&gt;</span> limit2<span class="opt">)</span> <span class="kwa">then</span>
-              inside <span class="opt">= .</span>false<span class="opt">.</span>
+        Zr = <span class="num">0.0</span>_dp; Zi = <span class="num">0.0</span>_dp; Tr = <span class="num">0.0</span>_dp; Ti = <span class="num">0.0</span>_dp;
+        Cr = inv_w * x - <span class="num">1.5</span>_dp
+        Ci = inv_h * y - <span class="num">1.0</span>_dp
+        inside = .true.
+        <span class="kwa">do</span> i = <span class="num">1</span>, iter
+           Zi = <span class="num">2.0</span> * Zr * Zi + Ci
+           Zr = Tr - Ti + Cr
+           Ti = Zi * Zi
+           Tr = Zr * Zr
+           <span class="kwa">if</span> (Tr + Ti &gt; limit2) <span class="kwa">then</span>
+              inside = .false.
               exit
            <span class="kwa">end if</span>
         <span class="kwa">end do</span>
 
         <span class="slc">! We&apos;re in the set, set this bit to 0</span>
-        <span class="kwa">if</span> <span class="opt">(</span>inside<span class="opt">)</span> <span class="kwa">byte</span> <span class="opt">=</span> <span class="kwd">ibset</span><span class="opt">(</span><span class="kwa">byte</span><span class="opt">,</span> bit_num<span class="opt">)</span>
+        <span class="kwa">if</span> (inside) <span class="kwa">byte</span> = <span class="kwd">ibset</span>(<span class="kwa">byte</span>, bit_num)
 
-        <span class="kwa">if</span> <span class="opt">(</span>bit_num <span class="opt">==</span> <span class="num">0</span> <span class="opt">.</span>or<span class="opt">.</span> x <span class="opt">==</span> w <span class="opt">-</span> <span class="num">1</span><span class="opt">)</span> <span class="kwa">then</span>
+        <span class="kwa">if</span> (bit_num == <span class="num">0</span> .or. x == w - <span class="num">1</span>) <span class="kwa">then</span>
            <span class="slc">! All bits set or end of row, so store full byte</span>
-           pos <span class="opt">=</span> pos <span class="opt">+</span> <span class="num">1</span>
-           <span class="kwd">buf</span><span class="opt">(</span>pos<span class="opt">,</span>y<span class="opt">+</span><span class="num">1</span><span class="opt">) =</span> <span class="kwa">byte</span>
-           <span class="kwa">byte</span> <span class="opt">=</span> <span class="num">0</span>_int8
-           bit_num <span class="opt">=</span> <span class="num">8</span>
+           pos = pos + <span class="num">1</span>
+           <span class="kwd">buf</span>(pos,y+<span class="num">1</span>) = <span class="kwa">byte</span>
+           <span class="kwa">byte</span> = <span class="num">0</span>_int8
+           bit_num = <span class="num">8</span>
         <span class="kwa">end if</span>
      <span class="kwa">end do</span>
   <span class="kwa">end do</span>
   <span class="slc">!$OMP END PARALLEL DO</span>
 
   <span class="slc">! print output</span>
-  <span class="kwa">do</span> y <span class="opt">=</span> <span class="num">1</span><span class="opt">,</span> h
-     <span class="kwa">write</span><span class="opt">(*,</span> <span class="str">&apos;(10000000a1)&apos;</span><span class="opt">,</span> advance<span class="opt">=</span><span class="str">&apos;no&apos;</span><span class="opt">)</span> <span class="kwd">buf</span><span class="opt">(:,</span>y<span class="opt">)</span>
+  <span class="kwa">do</span> y = <span class="num">1</span>, h
+     <span class="kwa">write</span>(*, <span class="str">&apos;(10000000a1)&apos;</span>, advance=<span class="str">&apos;no&apos;</span>) <span class="kwd">buf</span>(:,y)
   <span class="kwa">end do</span>
-  <span class="kwd">deallocate</span><span class="opt">(</span>buf<span class="opt">)</span>
+  <span class="kwd">deallocate</span>(buf)
 <span class="kwa">end program</span> mandelbrot
     </pre>
   </section>
@@ -110,16 +110,17 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
     <pre>
 NOTES:
 64-bit Ubuntu quad core
-GNU Fortran (Ubuntu 10.2.0-13ubuntu1) 10.2.0
+GNU Fortran (Ubuntu 10.3.0-1ubuntu1) 10.3.0
 
 
-Fri, 23 Oct 2020 20:35:08 GMT
+
+Sat, 05 Jun 2021 04:49:28 GMT
 
 MAKE:
 /usr/bin/gfortran -pipe -O3 -fomit-frame-pointer -march=ivybridge  -fopenmp mandelbrot.gfortran-4.f95 -o mandelbrot.gfortran-4.gfortran_run 
 rm mandelbrot.gfortran-4.f95
 
-1.80s to complete and log all make actions
+1.95s to complete and log all make actions
 
 COMMAND LINE:
 ./mandelbrot.gfortran-4.gfortran_run 16000

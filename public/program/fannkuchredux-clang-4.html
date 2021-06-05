@@ -37,178 +37,178 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="com">/* this depends highly on the platform.  It might be faster to use</span>
 <span class="com">    char type on 32-bit systems; it might be faster to use unsigned. */</span>
 
-<span class="kwc">typedef</span> <span class="kwb">char</span> elem<span class="opt">;</span>
+<span class="kwc">typedef</span> <span class="kwb">char</span> elem;
 
-elem s<span class="opt">[</span><span class="num">16</span><span class="opt">]</span> <span class="kwd">__attribute__</span> <span class="opt">((</span><span class="kwd">aligned</span> <span class="opt">(</span><span class="num">16</span><span class="opt">)));</span>
+elem s[<span class="num">16</span>] <span class="kwd">__attribute__</span> ((<span class="kwd">aligned</span> (<span class="num">16</span>)));
 
-<span class="kwb">int</span> maxflips <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
-<span class="kwb">int</span> max_n<span class="opt">;</span>
-<span class="kwb">int</span> odd <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
-<span class="kwb">int</span> checksum <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+<span class="kwb">int</span> maxflips = <span class="num">0</span>;
+<span class="kwb">int</span> max_n;
+<span class="kwb">int</span> odd = <span class="num">0</span>;
+<span class="kwb">int</span> checksum = <span class="num">0</span>;
 <span class="slc">// naieve method of rotation using basic sisd instructions for sanity&apos;s sake</span>
-<span class="kwc">inline</span> <span class="kwb">void</span> <span class="kwd">rotate_sisd</span><span class="opt">(</span><span class="kwb">int</span> n<span class="opt">) {</span>
-   elem c<span class="opt">;</span>
-   <span class="kwc">register</span> <span class="kwb">int</span> i<span class="opt">;</span>
-   c <span class="opt">=</span> s<span class="opt">[</span><span class="num">0</span><span class="opt">];</span>
-   <span class="kwa">for</span> <span class="opt">(</span>i <span class="opt">=</span> <span class="num">1</span><span class="opt">;</span> i <span class="opt">&lt;=</span> n<span class="opt">;</span> i<span class="opt">++)</span> s<span class="opt">[</span>i<span class="opt">-</span><span class="num">1</span><span class="opt">] =</span> s<span class="opt">[</span>i<span class="opt">];</span>
-   s<span class="opt">[</span>n<span class="opt">] =</span> c<span class="opt">;</span>
-<span class="opt">}</span>
+<span class="kwc">inline</span> <span class="kwb">void</span> <span class="kwd">rotate_sisd</span>(<span class="kwb">int</span> n) {
+   elem c;
+   <span class="kwc">register</span> <span class="kwb">int</span> i;
+   c = s[<span class="num">0</span>];
+   <span class="kwa">for</span> (i = <span class="num">1</span>; i &lt;= n; i++) s[i-<span class="num">1</span>] = s[i];
+   s[n] = c;
+}
 <span class="slc">// flip and rotation masks needed to use SSE for rotations and flipping</span>
 <span class="slc">// the number of these remains constant for all sizes</span>
-__m128i flip_masks<span class="opt">[</span><span class="num">16</span><span class="opt">];</span>
-__m128i rotate_masks<span class="opt">[</span><span class="num">16</span><span class="opt">];</span>
-__m128i MM_ITRUE<span class="opt">;</span>
+__m128i flip_masks[<span class="num">16</span>];
+__m128i rotate_masks[<span class="num">16</span>];
+__m128i MM_ITRUE;
 <span class="slc">// populate the data in the masks. could be hard coded. will never change.</span>
-<span class="kwb">void</span> <span class="kwd">popmasks</span><span class="opt">() {</span>
-   <span class="kwb">char</span> mask<span class="opt">[</span><span class="num">16</span><span class="opt">];</span>
-   elem <span class="opt">*</span>x<span class="opt">, *</span>y<span class="opt">,</span> c<span class="opt">;</span>
-   <span class="kwb">unsigned</span> i<span class="opt">,</span> j<span class="opt">;</span>
-   <span class="kwb">char</span> truth<span class="opt">[</span><span class="num">16</span><span class="opt">] = {</span><span class="num">0</span><span class="opt">,</span><span class="num">0</span><span class="opt">,</span><span class="num">0</span><span class="opt">,</span><span class="num">0</span><span class="opt">,</span><span class="num">0</span><span class="opt">,</span><span class="num">0</span><span class="opt">,</span><span class="num">0</span><span class="opt">,</span><span class="num">0</span><span class="opt">,</span><span class="num">0</span><span class="opt">,</span><span class="num">0</span><span class="opt">,</span><span class="num">0</span><span class="opt">,</span><span class="num">0</span><span class="opt">,</span><span class="num">0</span><span class="opt">,</span><span class="num">0</span><span class="opt">,</span><span class="num">0</span><span class="opt">,</span><span class="num">0</span><span class="opt">};</span>
+<span class="kwb">void</span> <span class="kwd">popmasks</span>() {
+   <span class="kwb">char</span> mask[<span class="num">16</span>];
+   elem *x, *y, c;
+   <span class="kwb">unsigned</span> i, j;
+   <span class="kwb">char</span> truth[<span class="num">16</span>] = {<span class="num">0</span>,<span class="num">0</span>,<span class="num">0</span>,<span class="num">0</span>,<span class="num">0</span>,<span class="num">0</span>,<span class="num">0</span>,<span class="num">0</span>,<span class="num">0</span>,<span class="num">0</span>,<span class="num">0</span>,<span class="num">0</span>,<span class="num">0</span>,<span class="num">0</span>,<span class="num">0</span>,<span class="num">0</span>};
    
-   <span class="kwa">for</span> <span class="opt">(</span>i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i<span class="opt">&lt;</span><span class="num">16</span><span class="opt">; ++</span>i<span class="opt">) {</span>
-      <span class="kwa">for</span> <span class="opt">(</span>j <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> j<span class="opt">&lt;</span><span class="num">16</span><span class="opt">; ++</span>j<span class="opt">)</span> mask<span class="opt">[</span>j<span class="opt">] =</span> j<span class="opt">;</span>
+   <span class="kwa">for</span> (i = <span class="num">0</span>; i&lt;<span class="num">16</span>; ++i) {
+      <span class="kwa">for</span> (j = <span class="num">0</span>; j&lt;<span class="num">16</span>; ++j) mask[j] = j;
       <span class="slc">// this is actually slower than a for loop for small arrays</span>
-      <span class="kwa">for</span> <span class="opt">(</span>x <span class="opt">=</span> mask<span class="opt">,</span> y <span class="opt">=</span> mask <span class="opt">+</span> i<span class="opt">;</span> x <span class="opt">&lt;</span> y<span class="opt">; ) {</span>
-         c <span class="opt">= *</span>x<span class="opt">;</span>
-         <span class="opt">*</span>x<span class="opt">++ = *</span>y<span class="opt">;</span>
-         <span class="opt">*</span>y<span class="opt">-- =</span> c<span class="opt">;</span>
-      <span class="opt">}</span>
-      flip_masks<span class="opt">[</span>i<span class="opt">] =</span> <span class="kwd">_mm_loadu_si128</span><span class="opt">((</span>__m128i<span class="opt">*)</span>mask<span class="opt">);</span>
+      <span class="kwa">for</span> (x = mask, y = mask + i; x &lt; y; ) {
+         c = *x;
+         *x++ = *y;
+         *y-- = c;
+      }
+      flip_masks[i] = <span class="kwd">_mm_loadu_si128</span>((__m128i*)mask);
       
-      <span class="kwa">for</span> <span class="opt">(</span>j <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> j<span class="opt">&lt;</span><span class="num">16</span><span class="opt">; ++</span>j<span class="opt">)</span> s<span class="opt">[</span>j<span class="opt">] =</span> j<span class="opt">;</span>
-      <span class="kwd">rotate_sisd</span><span class="opt">(</span>i<span class="opt">);</span>
-      rotate_masks<span class="opt">[</span>i<span class="opt">] =</span> <span class="kwd">_mm_load_si128</span><span class="opt">((</span>__m128i<span class="opt">*)</span>s<span class="opt">);</span>
-   <span class="opt">}</span>
-   MM_ITRUE <span class="opt">=</span> <span class="kwd">_mm_loadu_si128</span><span class="opt">((</span>__m128i<span class="opt">*)</span>truth<span class="opt">);</span>
-<span class="opt">}</span>
-<span class="kwc">inline</span> <span class="kwb">void</span> <span class="kwd">rotate</span><span class="opt">(</span><span class="kwb">int</span> n<span class="opt">) {</span>
+      <span class="kwa">for</span> (j = <span class="num">0</span>; j&lt;<span class="num">16</span>; ++j) s[j] = j;
+      <span class="kwd">rotate_sisd</span>(i);
+      rotate_masks[i] = <span class="kwd">_mm_load_si128</span>((__m128i*)s);
+   }
+   MM_ITRUE = <span class="kwd">_mm_loadu_si128</span>((__m128i*)truth);
+}
+<span class="kwc">inline</span> <span class="kwb">void</span> <span class="kwd">rotate</span>(<span class="kwb">int</span> n) {
    <span class="slc">// use SSE to rotate the values</span>
    <span class="slc">// n could get as high as the max for the range,</span>
    <span class="slc">//   but only 16 constants will ever be needed</span>
-   <span class="kwd">_mm_store_si128</span><span class="opt">((</span>__m128i<span class="opt">*)</span>s<span class="opt">,</span>
-      <span class="kwd">_mm_shuffle_epi8</span><span class="opt">(</span><span class="kwd">_mm_load_si128</span><span class="opt">((</span>__m128i<span class="opt">*)</span>s<span class="opt">),</span>rotate_masks<span class="opt">[</span>n<span class="opt">]));</span>
-<span class="opt">}</span>
+   <span class="kwd">_mm_store_si128</span>((__m128i*)s,
+      <span class="kwd">_mm_shuffle_epi8</span>(<span class="kwd">_mm_load_si128</span>((__m128i*)s),rotate_masks[n]));
+}
 <span class="ppc">#define permcount 60</span>
-<span class="kwb">void</span> <span class="kwd">tk</span><span class="opt">(</span><span class="kwb">int</span> n<span class="opt">) {</span>
+<span class="kwb">void</span> <span class="kwd">tk</span>(<span class="kwb">int</span> n) {
    <span class="slc">// for flipping</span>
-   <span class="kwb">char</span> tmp<span class="opt">[</span><span class="num">16</span><span class="opt">]</span> <span class="kwd">__attribute__</span> <span class="opt">((</span><span class="kwd">aligned</span> <span class="opt">(</span><span class="num">16</span><span class="opt">)));</span>
-   <span class="kwb">char</span> tmp2<span class="opt">[</span><span class="num">16</span><span class="opt">]</span> <span class="kwd">__attribute__</span> <span class="opt">((</span><span class="kwd">aligned</span> <span class="opt">(</span><span class="num">16</span><span class="opt">)));</span>
+   <span class="kwb">char</span> tmp[<span class="num">16</span>] <span class="kwd">__attribute__</span> ((<span class="kwd">aligned</span> (<span class="num">16</span>)));
+   <span class="kwb">char</span> tmp2[<span class="num">16</span>] <span class="kwd">__attribute__</span> ((<span class="kwd">aligned</span> (<span class="num">16</span>)));
    <span class="slc">// a place to put the backlog of permutations</span>
-   <span class="kwb">struct</span> Perm <span class="opt">{</span>
-      __m128i perm<span class="opt">;</span>
-      elem start<span class="opt">;</span>
-      <span class="kwb">short</span> odd<span class="opt">;</span>
-   <span class="opt">}</span> perms<span class="opt">[</span>permcount<span class="opt">];</span>
+   <span class="kwb">struct</span> Perm {
+      __m128i perm;
+      elem start;
+      <span class="kwb">short</span> odd;
+   } perms[permcount];
 
-   <span class="kwb">int</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
-   elem c<span class="opt">[</span><span class="num">16</span><span class="opt">] = {</span><span class="num">0</span><span class="opt">};</span>
-   <span class="kwb">int</span> perm_max <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
-   <span class="kwa">while</span> <span class="opt">(</span>i <span class="opt">&lt;</span> n<span class="opt">) {</span>
+   <span class="kwb">int</span> i = <span class="num">0</span>;
+   elem c[<span class="num">16</span>] = {<span class="num">0</span>};
+   <span class="kwb">int</span> perm_max = <span class="num">0</span>;
+   <span class="kwa">while</span> (i &lt; n) {
       <span class="com">/* Tompkin-Paige iterative perm generation */</span>
       <span class="slc">// fill the queue up to 60</span>
-      <span class="kwa">while</span> <span class="opt">(</span>i<span class="opt">&lt;</span>n <span class="opt">&amp;&amp;</span> perm_max<span class="opt">&lt;</span>permcount<span class="opt">) {</span>
-         <span class="kwd">rotate</span><span class="opt">(</span>i<span class="opt">);</span>
-         <span class="kwa">if</span> <span class="opt">(</span>c<span class="opt">[</span>i<span class="opt">] &gt;=</span> i<span class="opt">) {</span>
-            c<span class="opt">[</span>i<span class="opt">++] =</span> <span class="num">0</span><span class="opt">;</span>
-            <span class="kwa">continue</span><span class="opt">;</span>
-         <span class="opt">}</span>
+      <span class="kwa">while</span> (i&lt;n &amp;&amp; perm_max&lt;permcount) {
+         <span class="kwd">rotate</span>(i);
+         <span class="kwa">if</span> (c[i] &gt;= i) {
+            c[i++] = <span class="num">0</span>;
+            <span class="kwa">continue</span>;
+         }
 
-         c<span class="opt">[</span>i<span class="opt">]++;</span>
-         i <span class="opt">=</span> <span class="num">1</span><span class="opt">;</span>
-         odd <span class="opt">= ~</span>odd<span class="opt">;</span>
-         <span class="kwa">if</span> <span class="opt">(*</span>s<span class="opt">) {</span>
-            <span class="kwa">if</span> <span class="opt">(</span>s<span class="opt">[(</span><span class="kwb">int</span><span class="opt">)</span>s<span class="opt">[</span><span class="num">0</span><span class="opt">]]) {</span>
-               perms<span class="opt">[</span>perm_max<span class="opt">].</span>perm <span class="opt">=</span> <span class="kwd">_mm_load_si128</span><span class="opt">((</span>__m128i<span class="opt">*)</span>s<span class="opt">);</span>
-               perms<span class="opt">[</span>perm_max<span class="opt">].</span>start <span class="opt">= *</span>s<span class="opt">;</span>
-               perms<span class="opt">[</span>perm_max<span class="opt">].</span>odd <span class="opt">=</span> odd<span class="opt">;</span>
-               perm_max<span class="opt">++;</span>
-            <span class="opt">}</span> <span class="kwa">else</span> <span class="opt">{</span>
-               <span class="kwa">if</span> <span class="opt">(</span>maxflips<span class="opt">==</span><span class="num">0</span><span class="opt">)</span> maxflips <span class="opt">=</span> <span class="num">1</span><span class="opt">;</span>
-               checksum <span class="opt">+=</span> odd <span class="opt">? -</span><span class="num">1</span> <span class="opt">:</span> <span class="num">1</span><span class="opt">;</span>
-            <span class="opt">}</span>
-         <span class="opt">}</span>
-      <span class="opt">}</span>
+         c[i]++;
+         i = <span class="num">1</span>;
+         odd = ~odd;
+         <span class="kwa">if</span> (*s) {
+            <span class="kwa">if</span> (s[(<span class="kwb">int</span>)s[<span class="num">0</span>]]) {
+               perms[perm_max].perm = <span class="kwd">_mm_load_si128</span>((__m128i*)s);
+               perms[perm_max].start = *s;
+               perms[perm_max].odd = odd;
+               perm_max++;
+            } <span class="kwa">else</span> {
+               <span class="kwa">if</span> (maxflips==<span class="num">0</span>) maxflips = <span class="num">1</span>;
+               checksum += odd ? -<span class="num">1</span> : <span class="num">1</span>;
+            }
+         }
+      }
       <span class="slc">// process the queue</span>
-      <span class="kwb">int</span> k<span class="opt">;</span>
+      <span class="kwb">int</span> k;
       <span class="slc">// do 2 at a time when possible to take advantage of pipelining</span>
       <span class="slc">// see the next loop for implementation logic</span>
-      <span class="kwa">for</span> <span class="opt">(</span>k<span class="opt">=</span><span class="num">0</span><span class="opt">;</span> k<span class="opt">&lt;</span>perm_max<span class="opt">-</span><span class="num">1</span><span class="opt">;</span> k<span class="opt">+=</span><span class="num">2</span><span class="opt">) {</span>
-         __m128i perm1 <span class="opt">=</span> perms<span class="opt">[</span>k<span class="opt">].</span>perm<span class="opt">;</span>
-         __m128i perm2 <span class="opt">=</span> perms<span class="opt">[</span>k<span class="opt">+</span><span class="num">1</span><span class="opt">].</span>perm<span class="opt">;</span>
+      <span class="kwa">for</span> (k=<span class="num">0</span>; k&lt;perm_max-<span class="num">1</span>; k+=<span class="num">2</span>) {
+         __m128i perm1 = perms[k].perm;
+         __m128i perm2 = perms[k+<span class="num">1</span>].perm;
          
          
-         <span class="kwb">int</span> f1 <span class="opt">=</span> <span class="num">0</span><span class="opt">,</span> f2 <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
-         <span class="kwb">int</span> toterm1 <span class="opt">=</span> perms<span class="opt">[</span>k<span class="opt">].</span>start<span class="opt">,</span> toterm2 <span class="opt">=</span> perms<span class="opt">[</span>k<span class="opt">+</span><span class="num">1</span><span class="opt">].</span>start<span class="opt">;</span>
-         <span class="kwa">while</span> <span class="opt">(</span>toterm1 <span class="opt">&amp;&amp;</span> toterm2<span class="opt">) {</span>
-            perm1 <span class="opt">=</span> <span class="kwd">_mm_shuffle_epi8</span><span class="opt">(</span>perm1<span class="opt">,</span>flip_masks<span class="opt">[</span>toterm1<span class="opt">]);</span>
-            perm2 <span class="opt">=</span> <span class="kwd">_mm_shuffle_epi8</span><span class="opt">(</span>perm2<span class="opt">,</span>flip_masks<span class="opt">[</span>toterm2<span class="opt">]);</span>
-            <span class="kwd">_mm_storel_epi64</span><span class="opt">((</span>__m128i<span class="opt">*)</span>tmp<span class="opt">,</span>perm1<span class="opt">);</span>
-            <span class="kwd">_mm_storel_epi64</span><span class="opt">((</span>__m128i<span class="opt">*)</span>tmp2<span class="opt">,</span>perm2<span class="opt">);</span>
-            toterm1 <span class="opt">=</span> tmp<span class="opt">[</span><span class="num">0</span><span class="opt">];</span>
-            toterm2 <span class="opt">=</span> tmp2<span class="opt">[</span><span class="num">0</span><span class="opt">];</span>
-            <span class="opt">++</span>f1<span class="opt">; ++</span>f2<span class="opt">;</span>
-         <span class="opt">}</span>
-         <span class="kwa">while</span> <span class="opt">(</span>toterm1<span class="opt">) {</span>
-            perm1 <span class="opt">=</span> <span class="kwd">_mm_shuffle_epi8</span><span class="opt">(</span>perm1<span class="opt">,</span>flip_masks<span class="opt">[</span>toterm1<span class="opt">]);</span>
-            <span class="kwd">_mm_storel_epi64</span><span class="opt">((</span>__m128i<span class="opt">*)</span>tmp<span class="opt">,</span>perm1<span class="opt">);</span>
-            toterm1 <span class="opt">=</span> tmp<span class="opt">[</span><span class="num">0</span><span class="opt">];</span>
-            <span class="opt">++</span>f1<span class="opt">;</span>
-         <span class="opt">}</span>
-         <span class="kwa">while</span> <span class="opt">(</span>toterm2<span class="opt">) {</span>
-            perm2 <span class="opt">=</span> <span class="kwd">_mm_shuffle_epi8</span><span class="opt">(</span>perm2<span class="opt">,</span>flip_masks<span class="opt">[</span>toterm2<span class="opt">]);</span>
-            <span class="kwd">_mm_storel_epi64</span><span class="opt">((</span>__m128i<span class="opt">*)</span>tmp2<span class="opt">,</span>perm2<span class="opt">);</span>
-            toterm2 <span class="opt">=</span> tmp2<span class="opt">[</span><span class="num">0</span><span class="opt">];</span>
-            <span class="opt">++</span>f2<span class="opt">;</span>
-         <span class="opt">}</span>
+         <span class="kwb">int</span> f1 = <span class="num">0</span>, f2 = <span class="num">0</span>;
+         <span class="kwb">int</span> toterm1 = perms[k].start, toterm2 = perms[k+<span class="num">1</span>].start;
+         <span class="kwa">while</span> (toterm1 &amp;&amp; toterm2) {
+            perm1 = <span class="kwd">_mm_shuffle_epi8</span>(perm1,flip_masks[toterm1]);
+            perm2 = <span class="kwd">_mm_shuffle_epi8</span>(perm2,flip_masks[toterm2]);
+            <span class="kwd">_mm_storel_epi64</span>((__m128i*)tmp,perm1);
+            <span class="kwd">_mm_storel_epi64</span>((__m128i*)tmp2,perm2);
+            toterm1 = tmp[<span class="num">0</span>];
+            toterm2 = tmp2[<span class="num">0</span>];
+            ++f1; ++f2;
+         }
+         <span class="kwa">while</span> (toterm1) {
+            perm1 = <span class="kwd">_mm_shuffle_epi8</span>(perm1,flip_masks[toterm1]);
+            <span class="kwd">_mm_storel_epi64</span>((__m128i*)tmp,perm1);
+            toterm1 = tmp[<span class="num">0</span>];
+            ++f1;
+         }
+         <span class="kwa">while</span> (toterm2) {
+            perm2 = <span class="kwd">_mm_shuffle_epi8</span>(perm2,flip_masks[toterm2]);
+            <span class="kwd">_mm_storel_epi64</span>((__m128i*)tmp2,perm2);
+            toterm2 = tmp2[<span class="num">0</span>];
+            ++f2;
+         }
          
-         <span class="kwa">if</span> <span class="opt">(</span>f1 <span class="opt">&gt;</span> maxflips<span class="opt">)</span> maxflips <span class="opt">=</span> f1<span class="opt">;</span>
-         <span class="kwa">if</span> <span class="opt">(</span>f2 <span class="opt">&gt;</span> maxflips<span class="opt">)</span> maxflips <span class="opt">=</span> f2<span class="opt">;</span>
-         checksum <span class="opt">+=</span> perms<span class="opt">[</span>k<span class="opt">].</span>odd <span class="opt">? -</span>f1 <span class="opt">:</span> f1<span class="opt">;</span>
-         checksum <span class="opt">+=</span> perms<span class="opt">[</span>k<span class="opt">+</span><span class="num">1</span><span class="opt">].</span>odd <span class="opt">? -</span>f2 <span class="opt">:</span> f2<span class="opt">;</span>
-      <span class="opt">}</span>
+         <span class="kwa">if</span> (f1 &gt; maxflips) maxflips = f1;
+         <span class="kwa">if</span> (f2 &gt; maxflips) maxflips = f2;
+         checksum += perms[k].odd ? -f1 : f1;
+         checksum += perms[k+<span class="num">1</span>].odd ? -f2 : f2;
+      }
       <span class="slc">// finish up one at a time</span>
-      <span class="kwa">for</span> <span class="opt">(;</span>k<span class="opt">&lt;</span>perm_max<span class="opt">;++</span>k<span class="opt">) {</span>
+      <span class="kwa">for</span> (;k&lt;perm_max;++k) {
          <span class="slc">// get the data out of the structure</span>
          <span class="slc">// the whole array is packed into an sse integer type</span>
          <span class="slc">// we could use more fairly easily if we wanted to</span>
-         __m128i perm <span class="opt">=</span> perms<span class="opt">[</span>k<span class="opt">].</span>perm<span class="opt">;</span>
-         <span class="kwb">int</span> f <span class="opt">=</span> <span class="num">0</span><span class="opt">,</span> toterm <span class="opt">=</span> perms<span class="opt">[</span>k<span class="opt">].</span>start<span class="opt">;</span>
-         <span class="kwa">while</span> <span class="opt">(</span>toterm<span class="opt">) {</span>
+         __m128i perm = perms[k].perm;
+         <span class="kwb">int</span> f = <span class="num">0</span>, toterm = perms[k].start;
+         <span class="kwa">while</span> (toterm) {
             <span class="slc">// hardware support for reversing arbitrary subsequences</span>
-            perm <span class="opt">=</span> <span class="kwd">_mm_shuffle_epi8</span><span class="opt">(</span>perm<span class="opt">,</span>flip_masks<span class="opt">[</span>toterm<span class="opt">]);</span>
+            perm = <span class="kwd">_mm_shuffle_epi8</span>(perm,flip_masks[toterm]);
             <span class="slc">// check the first number. this is ~1/3 of the execution time</span>
-            <span class="kwd">_mm_storel_epi64</span><span class="opt">((</span>__m128i<span class="opt">*)</span>tmp<span class="opt">,</span>perm<span class="opt">);</span>
-            toterm <span class="opt">=</span> tmp<span class="opt">[</span><span class="num">0</span><span class="opt">];</span>
-            <span class="opt">++</span>f<span class="opt">;</span>
-         <span class="opt">}</span>
+            <span class="kwd">_mm_storel_epi64</span>((__m128i*)tmp,perm);
+            toterm = tmp[<span class="num">0</span>];
+            ++f;
+         }
          
-         <span class="kwa">if</span> <span class="opt">(</span>f <span class="opt">&gt;</span> maxflips<span class="opt">)</span> maxflips <span class="opt">=</span> f<span class="opt">;</span>
-         checksum <span class="opt">+=</span> perms<span class="opt">[</span>k<span class="opt">].</span>odd <span class="opt">? -</span>f <span class="opt">:</span> f<span class="opt">;</span>
-      <span class="opt">}</span>
-      perm_max <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
-   <span class="opt">}</span>
-<span class="opt">}</span>
+         <span class="kwa">if</span> (f &gt; maxflips) maxflips = f;
+         checksum += perms[k].odd ? -f : f;
+      }
+      perm_max = <span class="num">0</span>;
+   }
+}
 
-<span class="kwb">int</span> <span class="kwd">main</span><span class="opt">(</span><span class="kwb">int</span> argc<span class="opt">,</span> <span class="kwb">char</span> <span class="opt">**</span>v<span class="opt">) {</span>
-   <span class="kwb">int</span> i<span class="opt">;</span>
-   <span class="kwd">popmasks</span><span class="opt">();</span>
-   <span class="kwa">if</span> <span class="opt">(</span>argc <span class="opt">&lt;</span> <span class="num">2</span><span class="opt">) {</span>
-      <span class="kwd">fprintf</span><span class="opt">(</span>stderr<span class="opt">,</span> <span class="str">&quot;usage: %s number</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span> v<span class="opt">[</span><span class="num">0</span><span class="opt">]);</span>
-      <span class="kwd">exit</span><span class="opt">(</span><span class="num">1</span><span class="opt">);</span>
-   <span class="opt">}</span>
+<span class="kwb">int</span> <span class="kwd">main</span>(<span class="kwb">int</span> argc, <span class="kwb">char</span> **v) {
+   <span class="kwb">int</span> i;
+   <span class="kwd">popmasks</span>();
+   <span class="kwa">if</span> (argc &lt; <span class="num">2</span>) {
+      <span class="kwd">fprintf</span>(stderr, <span class="str">&quot;usage: %s number</span><span class="esc">\n</span><span class="str">&quot;</span>, v[<span class="num">0</span>]);
+      <span class="kwd">exit</span>(<span class="num">1</span>);
+   }
 
-   max_n <span class="opt">=</span> <span class="kwd">atoi</span><span class="opt">(</span>v<span class="opt">[</span><span class="num">1</span><span class="opt">]);</span>
-   <span class="kwa">if</span> <span class="opt">(</span>max_n <span class="opt">&lt;</span> <span class="num">3</span> <span class="opt">||</span> max_n <span class="opt">&gt;</span> <span class="num">15</span><span class="opt">) {</span>
-      <span class="kwd">fprintf</span><span class="opt">(</span>stderr<span class="opt">,</span> <span class="str">&quot;range: must be 3 &lt;= n &lt;= 12</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">);</span>
-      <span class="kwd">exit</span><span class="opt">(</span><span class="num">1</span><span class="opt">);</span>
-   <span class="opt">}</span>
+   max_n = <span class="kwd">atoi</span>(v[<span class="num">1</span>]);
+   <span class="kwa">if</span> (max_n &lt; <span class="num">3</span> || max_n &gt; <span class="num">15</span>) {
+      <span class="kwd">fprintf</span>(stderr, <span class="str">&quot;range: must be 3 &lt;= n &lt;= 12</span><span class="esc">\n</span><span class="str">&quot;</span>);
+      <span class="kwd">exit</span>(<span class="num">1</span>);
+   }
 
-   <span class="kwa">for</span> <span class="opt">(</span>i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> max_n<span class="opt">;</span> i<span class="opt">++)</span> s<span class="opt">[</span>i<span class="opt">] =</span> i<span class="opt">;</span>
-   <span class="kwd">tk</span><span class="opt">(</span>max_n<span class="opt">);</span>
-   <span class="kwd">printf</span><span class="opt">(</span><span class="str">&quot;%d</span><span class="esc">\n</span><span class="str">Pfannkuchen(%d) = %d</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span> checksum<span class="opt">,</span> max_n<span class="opt">,</span> maxflips<span class="opt">);</span>
+   <span class="kwa">for</span> (i = <span class="num">0</span>; i &lt; max_n; i++) s[i] = i;
+   <span class="kwd">tk</span>(max_n);
+   <span class="kwd">printf</span>(<span class="str">&quot;%d</span><span class="esc">\n</span><span class="str">Pfannkuchen(%d) = %d</span><span class="esc">\n</span><span class="str">&quot;</span>, checksum, max_n, maxflips);
 
-   <span class="kwa">return</span> <span class="num">0</span><span class="opt">;</span>
-<span class="opt">}</span>
+   <span class="kwa">return</span> <span class="num">0</span>;
+}
     </pre>
   </section>
   <section>
@@ -218,16 +218,16 @@ __m128i MM_ITRUE<span class="opt">;</span>
     <pre>
 NOTES:
 64-bit Ubuntu quad core
-Ubuntu clang version 11.0.0-2
+Ubuntu clang version 12.0.0-1ubuntu
 
 
-Mon, 02 Nov 2020 18:26:09 GMT
+Sat, 05 Jun 2021 03:46:37 GMT
 
 MAKE:
 /usr/bin/clang -pipe -Wall -O3 -fomit-frame-pointer -march=ivybridge  fannkuchredux.clang-4.c -o fannkuchredux.clang-4.clang_run 
 rm fannkuchredux.clang-4.c
 
-3.48s to complete and log all make actions
+3.82s to complete and log all make actions
 
 COMMAND LINE:
 ./fannkuchredux.clang-4.clang_run 12

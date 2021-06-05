@@ -38,11 +38,11 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="ppc">#include &lt;stdio.h&gt;</span>
 
 <span class="slc">// intptr_t should be the native integer type on most sane systems.</span>
-<span class="kwc">typedef</span> <span class="kwb">intptr_t</span> intnative_t<span class="opt">;</span>
+<span class="kwc">typedef</span> <span class="kwb">intptr_t</span> intnative_t;
 
-<span class="kwb">int</span> <span class="kwd">main</span><span class="opt">(</span><span class="kwb">int</span> argc<span class="opt">,</span> <span class="kwb">char</span> <span class="opt">**</span> argv<span class="opt">){</span>
+<span class="kwb">int</span> <span class="kwd">main</span>(<span class="kwb">int</span> argc, <span class="kwb">char</span> ** argv){
    <span class="slc">// Ensure image_Width_And_Height are multiples of 8.</span>
-   <span class="kwb">const</span> intnative_t image_Width_And_Height<span class="opt">=(</span><span class="kwd">atoi</span><span class="opt">(</span>argv<span class="opt">[</span><span class="num">1</span><span class="opt">])+</span><span class="num">7</span><span class="opt">)/</span><span class="num">8</span><span class="opt">*</span><span class="num">8</span><span class="opt">;</span>
+   <span class="kwb">const</span> intnative_t image_Width_And_Height=(<span class="kwd">atoi</span>(argv[<span class="num">1</span>])+<span class="num">7</span>)/<span class="num">8</span>*<span class="num">8</span>;
 
    <span class="slc">// The image will be black and white with one bit for each pixel. Bits with</span>
    <span class="slc">// a value of zero are white pixels which are the ones that &quot;escape&quot; from</span>
@@ -50,68 +50,68 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
    <span class="slc">// will be made up of pixel groups that are eight pixels in size so each</span>
    <span class="slc">// pixel group will be one byte. This allows for some more optimizations to</span>
    <span class="slc">// be done.</span>
-   <span class="kwb">uint8_t</span> <span class="opt">*</span> <span class="kwb">const</span> pixels<span class="opt">=</span><span class="kwd">malloc</span><span class="opt">(</span>image_Width_And_Height<span class="opt">*</span>
-     image_Width_And_Height<span class="opt">/</span><span class="num">8</span><span class="opt">);</span>
+   <span class="kwb">uint8_t</span> * <span class="kwb">const</span> pixels=<span class="kwd">malloc</span>(image_Width_And_Height*
+     image_Width_And_Height/<span class="num">8</span>);
 
    <span class="slc">// Precompute the initial real and imaginary values for each x and y</span>
    <span class="slc">// coordinate in the image.</span>
-   <span class="kwb">double</span> initial_r<span class="opt">[</span>image_Width_And_Height<span class="opt">],</span> initial_i<span class="opt">[</span>image_Width_And_Height<span class="opt">];</span>
+   <span class="kwb">double</span> initial_r[image_Width_And_Height], initial_i[image_Width_And_Height];
    <span class="ppc">#pragma omp parallel for</span>
-   <span class="kwa">for</span><span class="opt">(</span>intnative_t xy<span class="opt">=</span><span class="num">0</span><span class="opt">;</span> xy<span class="opt">&lt;</span>image_Width_And_Height<span class="opt">;</span> xy<span class="opt">++){</span>
-      initial_r<span class="opt">[</span>xy<span class="opt">]=</span><span class="num">2.0</span><span class="opt">/</span>image_Width_And_Height<span class="opt">*</span>xy <span class="opt">-</span> <span class="num">1.5</span><span class="opt">;</span>
-      initial_i<span class="opt">[</span>xy<span class="opt">]=</span><span class="num">2.0</span><span class="opt">/</span>image_Width_And_Height<span class="opt">*</span>xy <span class="opt">-</span> <span class="num">1.0</span><span class="opt">;</span>
-   <span class="opt">}</span>
+   <span class="kwa">for</span>(intnative_t xy=<span class="num">0</span>; xy&lt;image_Width_And_Height; xy++){
+      initial_r[xy]=<span class="num">2.0</span>/image_Width_And_Height*xy - <span class="num">1.5</span>;
+      initial_i[xy]=<span class="num">2.0</span>/image_Width_And_Height*xy - <span class="num">1.0</span>;
+   }
 
    <span class="ppc">#pragma omp parallel for schedule(guided)</span>
-   <span class="kwa">for</span><span class="opt">(</span>intnative_t y<span class="opt">=</span><span class="num">0</span><span class="opt">;</span> y<span class="opt">&lt;</span>image_Width_And_Height<span class="opt">;</span> y<span class="opt">++){</span>
-      <span class="kwb">const double</span> prefetched_Initial_i<span class="opt">=</span>initial_i<span class="opt">[</span>y<span class="opt">];</span>
-      <span class="kwa">for</span><span class="opt">(</span>intnative_t x_Major<span class="opt">=</span><span class="num">0</span><span class="opt">;</span> x_Major<span class="opt">&lt;</span>image_Width_And_Height<span class="opt">;</span> x_Major<span class="opt">+=</span><span class="num">8</span><span class="opt">){</span>
+   <span class="kwa">for</span>(intnative_t y=<span class="num">0</span>; y&lt;image_Width_And_Height; y++){
+      <span class="kwb">const double</span> prefetched_Initial_i=initial_i[y];
+      <span class="kwa">for</span>(intnative_t x_Major=<span class="num">0</span>; x_Major&lt;image_Width_And_Height; x_Major+=<span class="num">8</span>){
 
          <span class="slc">// pixel_Group_r and pixel_Group_i will store real and imaginary</span>
          <span class="slc">// values for each pixel in the current pixel group as we perform</span>
          <span class="slc">// iterations. Set their initial values here.</span>
-         <span class="kwb">double</span> pixel_Group_r<span class="opt">[</span><span class="num">8</span><span class="opt">],</span> pixel_Group_i<span class="opt">[</span><span class="num">8</span><span class="opt">];</span>
-         <span class="kwa">for</span><span class="opt">(</span>intnative_t x_Minor<span class="opt">=</span><span class="num">0</span><span class="opt">;</span> x_Minor<span class="opt">&lt;</span><span class="num">8</span><span class="opt">;</span> x_Minor<span class="opt">++){</span>
-            pixel_Group_r<span class="opt">[</span>x_Minor<span class="opt">]=</span>initial_r<span class="opt">[</span>x_Major<span class="opt">+</span>x_Minor<span class="opt">];</span>
-            pixel_Group_i<span class="opt">[</span>x_Minor<span class="opt">]=</span>prefetched_Initial_i<span class="opt">;</span>
-         <span class="opt">}</span>
+         <span class="kwb">double</span> pixel_Group_r[<span class="num">8</span>], pixel_Group_i[<span class="num">8</span>];
+         <span class="kwa">for</span>(intnative_t x_Minor=<span class="num">0</span>; x_Minor&lt;<span class="num">8</span>; x_Minor++){
+            pixel_Group_r[x_Minor]=initial_r[x_Major+x_Minor];
+            pixel_Group_i[x_Minor]=prefetched_Initial_i;
+         }
 
          <span class="slc">// Assume all pixels are in the Mandelbrot set initially.</span>
-         <span class="kwb">uint8_t</span> eight_Pixels<span class="opt">=</span><span class="num">0xff</span><span class="opt">;</span>
+         <span class="kwb">uint8_t</span> eight_Pixels=<span class="num">0xff</span>;
 
-         intnative_t iteration<span class="opt">=</span>MAXIMUM_ITERATIONS<span class="opt">;</span>
-         <span class="kwa">do</span><span class="opt">{</span>
-            <span class="kwb">uint8_t</span> current_Pixel_Bitmask<span class="opt">=</span><span class="num">0x80</span><span class="opt">;</span>
-            <span class="kwa">for</span><span class="opt">(</span>intnative_t x_Minor<span class="opt">=</span><span class="num">0</span><span class="opt">;</span> x_Minor<span class="opt">&lt;</span><span class="num">8</span><span class="opt">;</span> x_Minor<span class="opt">++){</span>
-               <span class="kwb">const double</span> r<span class="opt">=</span>pixel_Group_r<span class="opt">[</span>x_Minor<span class="opt">];</span>
-               <span class="kwb">const double</span> i<span class="opt">=</span>pixel_Group_i<span class="opt">[</span>x_Minor<span class="opt">];</span>
+         intnative_t iteration=MAXIMUM_ITERATIONS;
+         <span class="kwa">do</span>{
+            <span class="kwb">uint8_t</span> current_Pixel_Bitmask=<span class="num">0x80</span>;
+            <span class="kwa">for</span>(intnative_t x_Minor=<span class="num">0</span>; x_Minor&lt;<span class="num">8</span>; x_Minor++){
+               <span class="kwb">const double</span> r=pixel_Group_r[x_Minor];
+               <span class="kwb">const double</span> i=pixel_Group_i[x_Minor];
 
-               pixel_Group_r<span class="opt">[</span>x_Minor<span class="opt">]=</span>r<span class="opt">*</span>r <span class="opt">-</span> i<span class="opt">*</span>i <span class="opt">+</span>
-                 initial_r<span class="opt">[</span>x_Major<span class="opt">+</span>x_Minor<span class="opt">];</span>
-               pixel_Group_i<span class="opt">[</span>x_Minor<span class="opt">]=</span><span class="num">2.0</span><span class="opt">*</span>r<span class="opt">*</span>i <span class="opt">+</span> prefetched_Initial_i<span class="opt">;</span>
+               pixel_Group_r[x_Minor]=r*r - i*i +
+                 initial_r[x_Major+x_Minor];
+               pixel_Group_i[x_Minor]=<span class="num">2.0</span>*r*i + prefetched_Initial_i;
 
                <span class="slc">// Clear the bit for the pixel if it escapes from the</span>
                <span class="slc">// Mandelbrot set.</span>
-               <span class="kwa">if</span><span class="opt">(</span>r<span class="opt">*</span>r <span class="opt">+</span> i<span class="opt">*</span>i<span class="opt">&gt;</span>LIMIT_SQUARED<span class="opt">)</span>
-                  eight_Pixels<span class="opt">&amp;=~</span>current_Pixel_Bitmask<span class="opt">;</span>
+               <span class="kwa">if</span>(r*r + i*i&gt;LIMIT_SQUARED)
+                  eight_Pixels&amp;=~current_Pixel_Bitmask;
 
-               current_Pixel_Bitmask<span class="opt">&gt;&gt;=</span><span class="num">1</span><span class="opt">;</span>
-            <span class="opt">}</span>
-         <span class="opt">}</span><span class="kwa">while</span><span class="opt">(</span>eight_Pixels <span class="opt">&amp;&amp; --</span>iteration<span class="opt">);</span>
+               current_Pixel_Bitmask&gt;&gt;=<span class="num">1</span>;
+            }
+         }<span class="kwa">while</span>(eight_Pixels &amp;&amp; --iteration);
 
-         pixels<span class="opt">[</span>y<span class="opt">*</span>image_Width_And_Height<span class="opt">/</span><span class="num">8</span> <span class="opt">+</span> x_Major<span class="opt">/</span><span class="num">8</span><span class="opt">]=</span>eight_Pixels<span class="opt">;</span>
-      <span class="opt">}</span>
-   <span class="opt">}</span>
+         pixels[y*image_Width_And_Height/<span class="num">8</span> + x_Major/<span class="num">8</span>]=eight_Pixels;
+      }
+   }
 
    <span class="slc">// Output the image to stdout.</span>
-   <span class="kwd">fprintf</span><span class="opt">(</span>stdout<span class="opt">,</span> <span class="str">&quot;P4</span><span class="esc">\n</span><span class="str">%jd %jd</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">, (</span><span class="kwb">intmax_t</span><span class="opt">)</span>image_Width_And_Height<span class="opt">,</span>
-     <span class="opt">(</span><span class="kwb">intmax_t</span><span class="opt">)</span>image_Width_And_Height<span class="opt">);</span>
-   <span class="kwd">fwrite</span><span class="opt">(</span>pixels<span class="opt">,</span> image_Width_And_Height<span class="opt">*</span>image_Width_And_Height<span class="opt">/</span><span class="num">8</span><span class="opt">,</span> <span class="num">1</span><span class="opt">,</span> stdout<span class="opt">);</span>
+   <span class="kwd">fprintf</span>(stdout, <span class="str">&quot;P4</span><span class="esc">\n</span><span class="str">%jd %jd</span><span class="esc">\n</span><span class="str">&quot;</span>, (<span class="kwb">intmax_t</span>)image_Width_And_Height,
+     (<span class="kwb">intmax_t</span>)image_Width_And_Height);
+   <span class="kwd">fwrite</span>(pixels, image_Width_And_Height*image_Width_And_Height/<span class="num">8</span>, <span class="num">1</span>, stdout);
 
-   <span class="kwd">free</span><span class="opt">(</span>pixels<span class="opt">);</span>
+   <span class="kwd">free</span>(pixels);
 
-   <span class="kwa">return</span> <span class="num">0</span><span class="opt">;</span>
-<span class="opt">}</span>
+   <span class="kwa">return</span> <span class="num">0</span>;
+}
     </pre>
   </section>
   <section>
@@ -121,21 +121,25 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
     <pre>
 NOTES:
 64-bit Ubuntu quad core
-Ubuntu clang version 11.0.0-2
+Ubuntu clang version 12.0.0-1ubuntu
 
 
-Mon, 02 Nov 2020 19:02:08 GMT
+Sat, 05 Jun 2021 03:51:40 GMT
 
 MAKE:
 /usr/bin/clang -pipe -Wall -O3 -fomit-frame-pointer -march=ivybridge -fopenmp mandelbrot.clang-9.c -o mandelbrot.clang-9.clang_run 
+/usr/bin/ld: cannot find -lomp
+clang: error: linker command failed with exit code 1 (use -v to see invocation)
+make: [/home/dunham/all-benchmarksgame/2000-benchmarksgame/nanobench/makefiles/u64q.programs.Makefile:102: mandelbrot.clang-9.clang_run] Error 1 (ignored)
 rm mandelbrot.clang-9.c
 
-3.63s to complete and log all make actions
+4.62s to complete and log all make actions
 
 COMMAND LINE:
-./mandelbrot.clang-9.clang_run 16000
+./mandelbrot.clang-9.clang_run 1000
 
-(BINARY) PROGRAM OUTPUT NOT SHOWN
+MAKE ERROR 
+
     </pre>
   </section>
 </article>

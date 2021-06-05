@@ -42,194 +42,194 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="slc">// utilize vrsqrtps to compute an approximation of 1/sqrt(x) with float,</span>
 <span class="slc">// cast back to double and refine using a variation of</span>
 <span class="slc">// Goldschmidt’s algorithm to get &lt; 1e-9 error</span>
-<span class="kwb">static</span> <span class="kwc">inline</span> __m256d <span class="kwd">_mm256_rsqrt_pd</span><span class="opt">(</span>__m256d s<span class="opt">) {</span>
-    __m128 q <span class="opt">=</span> <span class="kwd">_mm256_cvtpd_ps</span><span class="opt">(</span>s<span class="opt">);</span>
-    q <span class="opt">=</span> <span class="kwd">_mm_rsqrt_ps</span><span class="opt">(</span>q<span class="opt">);</span>
-    __m256d x <span class="opt">=</span> <span class="kwd">_mm256_cvtps_pd</span><span class="opt">(</span>q<span class="opt">);</span>
-    __m256d y <span class="opt">=</span> s <span class="opt">*</span> x <span class="opt">*</span> x<span class="opt">;</span>
-    __m256d a <span class="opt">=</span> <span class="kwd">_mm256_mul_pd</span><span class="opt">(</span>y<span class="opt">,</span> <span class="kwd">_mm256_set1_pd</span><span class="opt">(</span><span class="num">0.375</span><span class="opt">));</span>
-    a <span class="opt">=</span> <span class="kwd">_mm256_mul_pd</span><span class="opt">(</span>a<span class="opt">,</span> y<span class="opt">);</span>
-    __m256d b <span class="opt">=</span> <span class="kwd">_mm256_mul_pd</span><span class="opt">(</span>y<span class="opt">,</span> <span class="kwd">_mm256_set1_pd</span><span class="opt">(</span><span class="num">1.25</span><span class="opt">));</span>
-    b <span class="opt">=</span> <span class="kwd">_mm256_sub_pd</span><span class="opt">(</span>b<span class="opt">,</span> <span class="kwd">_mm256_set1_pd</span><span class="opt">(</span><span class="num">1.875</span><span class="opt">));</span>
-    y <span class="opt">=</span> <span class="kwd">_mm256_sub_pd</span><span class="opt">(</span>a<span class="opt">,</span> b<span class="opt">);</span>
-    x <span class="opt">=</span> <span class="kwd">_mm256_mul_pd</span><span class="opt">(</span>x<span class="opt">,</span> y<span class="opt">);</span>
-    <span class="kwa">return</span> x<span class="opt">;</span>
-<span class="opt">}</span>
+<span class="kwb">static</span> <span class="kwc">inline</span> __m256d <span class="kwd">_mm256_rsqrt_pd</span>(__m256d s) {
+    __m128 q = <span class="kwd">_mm256_cvtpd_ps</span>(s);
+    q = <span class="kwd">_mm_rsqrt_ps</span>(q);
+    __m256d x = <span class="kwd">_mm256_cvtps_pd</span>(q);
+    __m256d y = s * x * x;
+    __m256d a = <span class="kwd">_mm256_mul_pd</span>(y, <span class="kwd">_mm256_set1_pd</span>(<span class="num">0.375</span>));
+    a = <span class="kwd">_mm256_mul_pd</span>(a, y);
+    __m256d b = <span class="kwd">_mm256_mul_pd</span>(y, <span class="kwd">_mm256_set1_pd</span>(<span class="num">1.25</span>));
+    b = <span class="kwd">_mm256_sub_pd</span>(b, <span class="kwd">_mm256_set1_pd</span>(<span class="num">1.875</span>));
+    y = <span class="kwd">_mm256_sub_pd</span>(a, b);
+    x = <span class="kwd">_mm256_mul_pd</span>(x, y);
+    <span class="kwa">return</span> x;
+}
 
 <span class="slc">// compute rsqrt of distance between each pair of bodies</span>
-<span class="kwb">static</span> <span class="kwc">inline</span> <span class="kwb">void</span> <span class="kwd">kernel</span><span class="opt">(</span>__m256d <span class="opt">*</span>r<span class="opt">,</span> <span class="kwb">double</span> <span class="opt">*</span>w<span class="opt">,</span> __m256d <span class="opt">*</span>p<span class="opt">) {</span>
-    <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> i <span class="opt">=</span> <span class="num">1</span><span class="opt">,</span> k <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> N<span class="opt">;</span> i<span class="opt">++)</span>
-        <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> j <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> j <span class="opt">&lt;</span> i<span class="opt">;</span> j<span class="opt">++,</span> k<span class="opt">++)</span>
-            r<span class="opt">[</span>k<span class="opt">] =</span> <span class="kwd">_mm256_sub_pd</span><span class="opt">(</span>p<span class="opt">[</span>i<span class="opt">],</span> p<span class="opt">[</span>j<span class="opt">]);</span>
+<span class="kwb">static</span> <span class="kwc">inline</span> <span class="kwb">void</span> <span class="kwd">kernel</span>(__m256d *r, <span class="kwb">double</span> *w, __m256d *p) {
+    <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">1</span>, k = <span class="num">0</span>; i &lt; N; i++)
+        <span class="kwa">for</span> (<span class="kwb">int</span> j = <span class="num">0</span>; j &lt; i; j++, k++)
+            r[k] = <span class="kwd">_mm256_sub_pd</span>(p[i], p[j]);
     
-    <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> k <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> k <span class="opt">&lt;</span> PAIRS<span class="opt">;</span> k <span class="opt">+=</span> <span class="num">4</span><span class="opt">) {</span>
-        __m256d x0 <span class="opt">=</span> <span class="kwd">_mm256_mul_pd</span><span class="opt">(</span>r<span class="opt">[</span>k  <span class="opt">],</span> r<span class="opt">[</span>k  <span class="opt">]);</span>
-        __m256d x1 <span class="opt">=</span> <span class="kwd">_mm256_mul_pd</span><span class="opt">(</span>r<span class="opt">[</span>k<span class="opt">+</span><span class="num">1</span><span class="opt">],</span> r<span class="opt">[</span>k<span class="opt">+</span><span class="num">1</span><span class="opt">]);</span>
-        __m256d x2 <span class="opt">=</span> <span class="kwd">_mm256_mul_pd</span><span class="opt">(</span>r<span class="opt">[</span>k<span class="opt">+</span><span class="num">2</span><span class="opt">],</span> r<span class="opt">[</span>k<span class="opt">+</span><span class="num">2</span><span class="opt">]);</span>
-        __m256d x3 <span class="opt">=</span> <span class="kwd">_mm256_mul_pd</span><span class="opt">(</span>r<span class="opt">[</span>k<span class="opt">+</span><span class="num">3</span><span class="opt">],</span> r<span class="opt">[</span>k<span class="opt">+</span><span class="num">3</span><span class="opt">]);</span>
+    <span class="kwa">for</span> (<span class="kwb">int</span> k = <span class="num">0</span>; k &lt; PAIRS; k += <span class="num">4</span>) {
+        __m256d x0 = <span class="kwd">_mm256_mul_pd</span>(r[k  ], r[k  ]);
+        __m256d x1 = <span class="kwd">_mm256_mul_pd</span>(r[k+<span class="num">1</span>], r[k+<span class="num">1</span>]);
+        __m256d x2 = <span class="kwd">_mm256_mul_pd</span>(r[k+<span class="num">2</span>], r[k+<span class="num">2</span>]);
+        __m256d x3 = <span class="kwd">_mm256_mul_pd</span>(r[k+<span class="num">3</span>], r[k+<span class="num">3</span>]);
 
-        __m256d t0 <span class="opt">=</span> <span class="kwd">_mm256_hadd_pd</span><span class="opt">(</span>x0<span class="opt">,</span> x1<span class="opt">);</span>
-        __m256d t1 <span class="opt">=</span> <span class="kwd">_mm256_hadd_pd</span><span class="opt">(</span>x2<span class="opt">,</span> x3<span class="opt">);</span>
-        __m256d y0 <span class="opt">=</span> <span class="kwd">_mm256_permute2f128_pd</span><span class="opt">(</span>t0<span class="opt">,</span> t1<span class="opt">,</span> <span class="num">0x21</span><span class="opt">);</span>
-        __m256d y1 <span class="opt">=</span> <span class="kwd">_mm256_blend_pd</span><span class="opt">(</span>t0<span class="opt">,</span> t1<span class="opt">,</span> <span class="num">0b1100</span><span class="opt">);</span>
+        __m256d t0 = <span class="kwd">_mm256_hadd_pd</span>(x0, x1);
+        __m256d t1 = <span class="kwd">_mm256_hadd_pd</span>(x2, x3);
+        __m256d y0 = <span class="kwd">_mm256_permute2f128_pd</span>(t0, t1, <span class="num">0x21</span>);
+        __m256d y1 = <span class="kwd">_mm256_blend_pd</span>(t0, t1, <span class="num">0</span>b1100);
 
-        __m256d z <span class="opt">=</span> <span class="kwd">_mm256_add_pd</span><span class="opt">(</span>y0<span class="opt">,</span> y1<span class="opt">);</span>
-        z <span class="opt">=</span> <span class="kwd">_mm256_rsqrt_pd</span><span class="opt">(</span>z<span class="opt">);</span>
-        <span class="kwd">_mm256_store_pd</span><span class="opt">(</span>w<span class="opt">+</span>k<span class="opt">,</span> z<span class="opt">);</span>
-    <span class="opt">}</span>
-<span class="opt">}</span>
+        __m256d z = <span class="kwd">_mm256_add_pd</span>(y0, y1);
+        z = <span class="kwd">_mm256_rsqrt_pd</span>(z);
+        <span class="kwd">_mm256_store_pd</span>(w+k, z);
+    }
+}
 
-<span class="kwb">static double</span> <span class="kwd">energy</span><span class="opt">(</span><span class="kwb">double</span> <span class="opt">*</span>m<span class="opt">,</span> __m256d <span class="opt">*</span>p<span class="opt">,</span> __m256d <span class="opt">*</span>v<span class="opt">) {</span>
-    <span class="kwb">double</span> e <span class="opt">=</span> <span class="num">0.0</span><span class="opt">;</span>
+<span class="kwb">static double</span> <span class="kwd">energy</span>(<span class="kwb">double</span> *m, __m256d *p, __m256d *v) {
+    <span class="kwb">double</span> e = <span class="num">0.0</span>;
 
-    __m256d r<span class="opt">[</span>PAIRS<span class="opt">+</span><span class="num">3</span><span class="opt">];</span>
-    <span class="kwb">double</span> w<span class="opt">[</span>PAIRS<span class="opt">+</span><span class="num">3</span><span class="opt">]</span> <span class="kwd">__attribute__</span><span class="opt">((</span><span class="kwd">aligned</span><span class="opt">(</span><span class="kwa">sizeof</span><span class="opt">(</span>__m256d<span class="opt">))));</span>
+    __m256d r[PAIRS+<span class="num">3</span>];
+    <span class="kwb">double</span> w[PAIRS+<span class="num">3</span>] <span class="kwd">__attribute__</span>((<span class="kwd">aligned</span>(<span class="kwa">sizeof</span>(__m256d))));
 
-    r<span class="opt">[</span>N<span class="opt">] =</span> <span class="kwd">_mm256_set1_pd</span><span class="opt">(</span><span class="num">0.0</span><span class="opt">);</span>
-    r<span class="opt">[</span>N<span class="opt">+</span><span class="num">1</span><span class="opt">] =</span> <span class="kwd">_mm256_set1_pd</span><span class="opt">(</span><span class="num">0.0</span><span class="opt">);</span>
-    r<span class="opt">[</span>N<span class="opt">+</span><span class="num">2</span><span class="opt">] =</span> <span class="kwd">_mm256_set1_pd</span><span class="opt">(</span><span class="num">0.0</span><span class="opt">);</span>
+    r[N] = <span class="kwd">_mm256_set1_pd</span>(<span class="num">0.0</span>);
+    r[N+<span class="num">1</span>] = <span class="kwd">_mm256_set1_pd</span>(<span class="num">0.0</span>);
+    r[N+<span class="num">2</span>] = <span class="kwd">_mm256_set1_pd</span>(<span class="num">0.0</span>);
 
-    <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> k <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> k <span class="opt">&lt;</span> N<span class="opt">;</span> k<span class="opt">++)</span>
-        r<span class="opt">[</span>k<span class="opt">] =</span> <span class="kwd">_mm256_mul_pd</span><span class="opt">(</span>v<span class="opt">[</span>k<span class="opt">],</span> v<span class="opt">[</span>k<span class="opt">]);</span>
+    <span class="kwa">for</span> (<span class="kwb">int</span> k = <span class="num">0</span>; k &lt; N; k++)
+        r[k] = <span class="kwd">_mm256_mul_pd</span>(v[k], v[k]);
 
-    <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> k <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> k <span class="opt">&lt;</span> N<span class="opt">;</span> k <span class="opt">+=</span> <span class="num">4</span><span class="opt">) {</span>
-        __m256d t0 <span class="opt">=</span> <span class="kwd">_mm256_hadd_pd</span><span class="opt">(</span>r<span class="opt">[</span>k  <span class="opt">],</span> r<span class="opt">[</span>k<span class="opt">+</span><span class="num">1</span><span class="opt">]);</span>
-        __m256d t1 <span class="opt">=</span> <span class="kwd">_mm256_hadd_pd</span><span class="opt">(</span>r<span class="opt">[</span>k<span class="opt">+</span><span class="num">2</span><span class="opt">],</span> r<span class="opt">[</span>k<span class="opt">+</span><span class="num">3</span><span class="opt">]);</span>
-        __m256d y0 <span class="opt">=</span> <span class="kwd">_mm256_permute2f128_pd</span><span class="opt">(</span>t0<span class="opt">,</span> t1<span class="opt">,</span> <span class="num">0x21</span><span class="opt">);</span>
-        __m256d y1 <span class="opt">=</span> <span class="kwd">_mm256_blend_pd</span><span class="opt">(</span>t0<span class="opt">,</span> t1<span class="opt">,</span> <span class="num">0b1100</span><span class="opt">);</span>
+    <span class="kwa">for</span> (<span class="kwb">int</span> k = <span class="num">0</span>; k &lt; N; k += <span class="num">4</span>) {
+        __m256d t0 = <span class="kwd">_mm256_hadd_pd</span>(r[k  ], r[k+<span class="num">1</span>]);
+        __m256d t1 = <span class="kwd">_mm256_hadd_pd</span>(r[k+<span class="num">2</span>], r[k+<span class="num">3</span>]);
+        __m256d y0 = <span class="kwd">_mm256_permute2f128_pd</span>(t0, t1, <span class="num">0x21</span>);
+        __m256d y1 = <span class="kwd">_mm256_blend_pd</span>(t0, t1, <span class="num">0</span>b1100);
 
-        __m256d z <span class="opt">=</span> <span class="kwd">_mm256_add_pd</span><span class="opt">(</span>y0<span class="opt">,</span> y1<span class="opt">);</span>
-        <span class="kwd">_mm256_store_pd</span><span class="opt">(</span>w<span class="opt">+</span>k<span class="opt">,</span> z<span class="opt">);</span>
-    <span class="opt">}</span>
+        __m256d z = <span class="kwd">_mm256_add_pd</span>(y0, y1);
+        <span class="kwd">_mm256_store_pd</span>(w+k, z);
+    }
 
-    <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> k <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> k <span class="opt">&lt;</span> N<span class="opt">;</span> k<span class="opt">++)</span>
-        e <span class="opt">+=</span> <span class="num">0.5</span> <span class="opt">*</span> m<span class="opt">[</span>k<span class="opt">] *</span> w<span class="opt">[</span>k<span class="opt">];</span>
+    <span class="kwa">for</span> (<span class="kwb">int</span> k = <span class="num">0</span>; k &lt; N; k++)
+        e += <span class="num">0.5</span> * m[k] * w[k];
 
-    r<span class="opt">[</span>PAIRS<span class="opt">] =</span> <span class="kwd">_mm256_set1_pd</span><span class="opt">(</span><span class="num">1.0</span><span class="opt">);</span>
-    r<span class="opt">[</span>PAIRS<span class="opt">+</span><span class="num">1</span><span class="opt">] =</span> <span class="kwd">_mm256_set1_pd</span><span class="opt">(</span><span class="num">1.0</span><span class="opt">);</span>
-    r<span class="opt">[</span>PAIRS<span class="opt">+</span><span class="num">2</span><span class="opt">] =</span> <span class="kwd">_mm256_set1_pd</span><span class="opt">(</span><span class="num">1.0</span><span class="opt">);</span>
+    r[PAIRS] = <span class="kwd">_mm256_set1_pd</span>(<span class="num">1.0</span>);
+    r[PAIRS+<span class="num">1</span>] = <span class="kwd">_mm256_set1_pd</span>(<span class="num">1.0</span>);
+    r[PAIRS+<span class="num">2</span>] = <span class="kwd">_mm256_set1_pd</span>(<span class="num">1.0</span>);
 
-    <span class="kwd">kernel</span><span class="opt">(</span>r<span class="opt">,</span> w<span class="opt">,</span> p<span class="opt">);</span>
+    <span class="kwd">kernel</span>(r, w, p);
 
-    <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> i <span class="opt">=</span> <span class="num">1</span><span class="opt">,</span> k <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> N<span class="opt">;</span> i<span class="opt">++)</span>
-        <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> j <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> j <span class="opt">&lt;</span> i<span class="opt">;</span> j<span class="opt">++,</span> k<span class="opt">++)</span>
-            e <span class="opt">-=</span> m<span class="opt">[</span>i<span class="opt">] *</span> m<span class="opt">[</span>j<span class="opt">] *</span> w<span class="opt">[</span>k<span class="opt">];</span>
+    <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">1</span>, k = <span class="num">0</span>; i &lt; N; i++)
+        <span class="kwa">for</span> (<span class="kwb">int</span> j = <span class="num">0</span>; j &lt; i; j++, k++)
+            e -= m[i] * m[j] * w[k];
 
-    <span class="kwa">return</span> e<span class="opt">;</span>
-<span class="opt">}</span>
+    <span class="kwa">return</span> e;
+}
 
-<span class="kwb">static void</span> <span class="kwd">advance</span><span class="opt">(</span><span class="kwb">int</span> n<span class="opt">,</span> <span class="kwb">double</span> dt<span class="opt">,</span> <span class="kwb">double</span> <span class="opt">*</span>m<span class="opt">,</span> __m256d <span class="opt">*</span>p<span class="opt">,</span> __m256d <span class="opt">*</span>v<span class="opt">) {</span>
-    __m256d r<span class="opt">[</span>PAIRS<span class="opt">+</span><span class="num">3</span><span class="opt">];</span>
-    <span class="kwb">double</span> w<span class="opt">[</span>PAIRS<span class="opt">+</span><span class="num">3</span><span class="opt">]</span> <span class="kwd">__attribute__</span><span class="opt">((</span><span class="kwd">aligned</span><span class="opt">(</span><span class="kwa">sizeof</span><span class="opt">(</span>__m256d<span class="opt">))));</span>
+<span class="kwb">static void</span> <span class="kwd">advance</span>(<span class="kwb">int</span> n, <span class="kwb">double</span> dt, <span class="kwb">double</span> *m, __m256d *p, __m256d *v) {
+    __m256d r[PAIRS+<span class="num">3</span>];
+    <span class="kwb">double</span> w[PAIRS+<span class="num">3</span>] <span class="kwd">__attribute__</span>((<span class="kwd">aligned</span>(<span class="kwa">sizeof</span>(__m256d))));
 
-    r<span class="opt">[</span>PAIRS<span class="opt">] =</span> <span class="kwd">_mm256_set1_pd</span><span class="opt">(</span><span class="num">1.0</span><span class="opt">);</span>
-    r<span class="opt">[</span>PAIRS<span class="opt">+</span><span class="num">1</span><span class="opt">] =</span> <span class="kwd">_mm256_set1_pd</span><span class="opt">(</span><span class="num">1.0</span><span class="opt">);</span>
-    r<span class="opt">[</span>PAIRS<span class="opt">+</span><span class="num">2</span><span class="opt">] =</span> <span class="kwd">_mm256_set1_pd</span><span class="opt">(</span><span class="num">1.0</span><span class="opt">);</span>
+    r[PAIRS] = <span class="kwd">_mm256_set1_pd</span>(<span class="num">1.0</span>);
+    r[PAIRS+<span class="num">1</span>] = <span class="kwd">_mm256_set1_pd</span>(<span class="num">1.0</span>);
+    r[PAIRS+<span class="num">2</span>] = <span class="kwd">_mm256_set1_pd</span>(<span class="num">1.0</span>);
 
-    __m256d rt <span class="opt">=</span> <span class="kwd">_mm256_set1_pd</span><span class="opt">(</span>dt<span class="opt">);</span>
+    __m256d rt = <span class="kwd">_mm256_set1_pd</span>(dt);
 
-    __m256d rm<span class="opt">[</span>N<span class="opt">];</span>
-    <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> N<span class="opt">;</span> i<span class="opt">++)</span>
-        rm<span class="opt">[</span>i<span class="opt">] =</span> <span class="kwd">_mm256_set1_pd</span><span class="opt">(</span>m<span class="opt">[</span>i<span class="opt">]);</span>
+    __m256d rm[N];
+    <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">0</span>; i &lt; N; i++)
+        rm[i] = <span class="kwd">_mm256_set1_pd</span>(m[i]);
 
-    <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> s <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> s <span class="opt">&lt;</span> n<span class="opt">;</span> s<span class="opt">++) {</span>
-        <span class="kwd">kernel</span><span class="opt">(</span>r<span class="opt">,</span> w<span class="opt">,</span> p<span class="opt">);</span>
+    <span class="kwa">for</span> (<span class="kwb">int</span> s = <span class="num">0</span>; s &lt; n; s++) {
+        <span class="kwd">kernel</span>(r, w, p);
 
-        <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> k <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> k <span class="opt">&lt;</span> PAIRS<span class="opt">;</span> k <span class="opt">+=</span> <span class="num">4</span><span class="opt">) {</span>
-            __m256d x <span class="opt">=</span> <span class="kwd">_mm256_load_pd</span><span class="opt">(</span>w<span class="opt">+</span>k<span class="opt">);</span>
-            __m256d y <span class="opt">=</span> <span class="kwd">_mm256_mul_pd</span><span class="opt">(</span>x<span class="opt">,</span> x<span class="opt">);</span>
-            __m256d z <span class="opt">=</span> <span class="kwd">_mm256_mul_pd</span><span class="opt">(</span>x<span class="opt">,</span> rt<span class="opt">);</span>
-            x <span class="opt">=</span> <span class="kwd">_mm256_mul_pd</span><span class="opt">(</span>y<span class="opt">,</span> z<span class="opt">);</span>
-            <span class="kwd">_mm256_store_pd</span><span class="opt">(</span>w<span class="opt">+</span>k<span class="opt">,</span> x<span class="opt">);</span>
-        <span class="opt">}</span>
+        <span class="kwa">for</span> (<span class="kwb">int</span> k = <span class="num">0</span>; k &lt; PAIRS; k += <span class="num">4</span>) {
+            __m256d x = <span class="kwd">_mm256_load_pd</span>(w+k);
+            __m256d y = <span class="kwd">_mm256_mul_pd</span>(x, x);
+            __m256d z = <span class="kwd">_mm256_mul_pd</span>(x, rt);
+            x = <span class="kwd">_mm256_mul_pd</span>(y, z);
+            <span class="kwd">_mm256_store_pd</span>(w+k, x);
+        }
 
-        <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> i <span class="opt">=</span> <span class="num">1</span><span class="opt">,</span> k <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> N<span class="opt">;</span> i<span class="opt">++)</span>
-            <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> j <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> j <span class="opt">&lt;</span> i<span class="opt">;</span> j<span class="opt">++,</span> k<span class="opt">++) {</span>
-                __m256d t <span class="opt">=</span> <span class="kwd">_mm256_set1_pd</span><span class="opt">(</span>w<span class="opt">[</span>k<span class="opt">]);</span>
-                t <span class="opt">=</span> <span class="kwd">_mm256_mul_pd</span><span class="opt">(</span>r<span class="opt">[</span>k<span class="opt">],</span> t<span class="opt">);</span>
-                __m256d x <span class="opt">=</span> <span class="kwd">_mm256_mul_pd</span><span class="opt">(</span>t<span class="opt">,</span> rm<span class="opt">[</span>j<span class="opt">]);</span>
-                __m256d y <span class="opt">=</span> <span class="kwd">_mm256_mul_pd</span><span class="opt">(</span>t<span class="opt">,</span> rm<span class="opt">[</span>i<span class="opt">]);</span>
+        <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">1</span>, k = <span class="num">0</span>; i &lt; N; i++)
+            <span class="kwa">for</span> (<span class="kwb">int</span> j = <span class="num">0</span>; j &lt; i; j++, k++) {
+                __m256d t = <span class="kwd">_mm256_set1_pd</span>(w[k]);
+                t = <span class="kwd">_mm256_mul_pd</span>(r[k], t);
+                __m256d x = <span class="kwd">_mm256_mul_pd</span>(t, rm[j]);
+                __m256d y = <span class="kwd">_mm256_mul_pd</span>(t, rm[i]);
 
-                v<span class="opt">[</span>i<span class="opt">] =</span> <span class="kwd">_mm256_sub_pd</span><span class="opt">(</span>v<span class="opt">[</span>i<span class="opt">],</span> x<span class="opt">);</span>
-                v<span class="opt">[</span>j<span class="opt">] =</span> <span class="kwd">_mm256_add_pd</span><span class="opt">(</span>v<span class="opt">[</span>j<span class="opt">],</span> y<span class="opt">);</span>
-            <span class="opt">}</span>
+                v[i] = <span class="kwd">_mm256_sub_pd</span>(v[i], x);
+                v[j] = <span class="kwd">_mm256_add_pd</span>(v[j], y);
+            }
 
-        <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> N<span class="opt">;</span> i<span class="opt">++) {</span>
-            __m256d t <span class="opt">=</span> <span class="kwd">_mm256_mul_pd</span><span class="opt">(</span>v<span class="opt">[</span>i<span class="opt">],</span> rt<span class="opt">);</span>
-            p<span class="opt">[</span>i<span class="opt">] =</span> <span class="kwd">_mm256_add_pd</span><span class="opt">(</span>p<span class="opt">[</span>i<span class="opt">],</span> t<span class="opt">);</span>
-        <span class="opt">}</span>
-    <span class="opt">}</span>
-<span class="opt">}</span>
+        <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">0</span>; i &lt; N; i++) {
+            __m256d t = <span class="kwd">_mm256_mul_pd</span>(v[i], rt);
+            p[i] = <span class="kwd">_mm256_add_pd</span>(p[i], t);
+        }
+    }
+}
 
-<span class="kwb">int</span> <span class="kwd">main</span><span class="opt">(</span><span class="kwb">int</span> argc<span class="opt">,</span> <span class="kwb">char</span> <span class="opt">*</span>argv<span class="opt">[]) {</span>
-    <span class="kwb">int</span> n <span class="opt">=</span> <span class="kwd">atoi</span><span class="opt">(</span>argv<span class="opt">[</span><span class="num">1</span><span class="opt">]);</span>
+<span class="kwb">int</span> <span class="kwd">main</span>(<span class="kwb">int</span> argc, <span class="kwb">char</span> *argv[]) {
+    <span class="kwb">int</span> n = <span class="kwd">atoi</span>(argv[<span class="num">1</span>]);
 
-    <span class="kwb">double</span> m<span class="opt">[</span>N<span class="opt">];</span>
-    __m256d p<span class="opt">[</span>N<span class="opt">],</span> v<span class="opt">[</span>N<span class="opt">];</span>
+    <span class="kwb">double</span> m[N];
+    __m256d p[N], v[N];
 
     <span class="slc">// sun</span>
-    m<span class="opt">[</span><span class="num">0</span><span class="opt">] =</span> SOLAR_MASS<span class="opt">;</span>
-    p<span class="opt">[</span><span class="num">0</span><span class="opt">] =</span> <span class="kwd">_mm256_set1_pd</span><span class="opt">(</span><span class="num">0.0</span><span class="opt">);</span>
-    v<span class="opt">[</span><span class="num">0</span><span class="opt">] =</span> <span class="kwd">_mm256_set1_pd</span><span class="opt">(</span><span class="num">0.0</span><span class="opt">);</span>
+    m[<span class="num">0</span>] = SOLAR_MASS;
+    p[<span class="num">0</span>] = <span class="kwd">_mm256_set1_pd</span>(<span class="num">0.0</span>);
+    v[<span class="num">0</span>] = <span class="kwd">_mm256_set1_pd</span>(<span class="num">0.0</span>);
 
     <span class="slc">// jupiter</span>
-    m<span class="opt">[</span><span class="num">1</span><span class="opt">] =</span> <span class="num">9.54791938424326609e-04</span> <span class="opt">*</span> SOLAR_MASS<span class="opt">;</span>
-    p<span class="opt">[</span><span class="num">1</span><span class="opt">] =</span> <span class="kwd">_mm256_setr_pd</span><span class="opt">(</span><span class="num">0.0</span><span class="opt">,</span>
-         <span class="num">4.84143144246472090e+00</span><span class="opt">,</span>
-        <span class="opt">-</span><span class="num">1.16032004402742839e+00</span><span class="opt">,</span>
-        <span class="opt">-</span><span class="num">1.03622044471123109e-01</span><span class="opt">);</span>
-    v<span class="opt">[</span><span class="num">1</span><span class="opt">] =</span> <span class="kwd">_mm256_setr_pd</span><span class="opt">(</span><span class="num">0.0</span><span class="opt">,</span>
-         <span class="num">1.66007664274403694e-03</span> <span class="opt">*</span> DAYS_PER_YEAR<span class="opt">,</span>
-         <span class="num">7.69901118419740425e-03</span> <span class="opt">*</span> DAYS_PER_YEAR<span class="opt">,</span>
-        <span class="opt">-</span><span class="num">6.90460016972063023e-05</span> <span class="opt">*</span> DAYS_PER_YEAR<span class="opt">);</span>
+    m[<span class="num">1</span>] = <span class="num">9.54791938424326609e-04</span> * SOLAR_MASS;
+    p[<span class="num">1</span>] = <span class="kwd">_mm256_setr_pd</span>(<span class="num">0.0</span>,
+         <span class="num">4.84143144246472090e+00</span>,
+        -<span class="num">1.16032004402742839e+00</span>,
+        -<span class="num">1.03622044471123109e-01</span>);
+    v[<span class="num">1</span>] = <span class="kwd">_mm256_setr_pd</span>(<span class="num">0.0</span>,
+         <span class="num">1.66007664274403694e-03</span> * DAYS_PER_YEAR,
+         <span class="num">7.69901118419740425e-03</span> * DAYS_PER_YEAR,
+        -<span class="num">6.90460016972063023e-05</span> * DAYS_PER_YEAR);
 
     <span class="slc">// saturn</span>
-    m<span class="opt">[</span><span class="num">2</span><span class="opt">] =</span> <span class="num">2.85885980666130812e-04</span> <span class="opt">*</span> SOLAR_MASS<span class="opt">;</span>
-    p<span class="opt">[</span><span class="num">2</span><span class="opt">] =</span> <span class="kwd">_mm256_setr_pd</span><span class="opt">(</span><span class="num">0.0</span><span class="opt">,</span>
-         <span class="num">8.34336671824457987e+00</span><span class="opt">,</span>
-         <span class="num">4.12479856412430479e+00</span><span class="opt">,</span>
-        <span class="opt">-</span><span class="num">4.03523417114321381e-01</span><span class="opt">);</span>
-    v<span class="opt">[</span><span class="num">2</span><span class="opt">] =</span> <span class="kwd">_mm256_setr_pd</span><span class="opt">(</span><span class="num">0.0</span><span class="opt">,</span>
-        <span class="opt">-</span><span class="num">2.76742510726862411e-03</span> <span class="opt">*</span> DAYS_PER_YEAR<span class="opt">,</span>
-         <span class="num">4.99852801234917238e-03</span> <span class="opt">*</span> DAYS_PER_YEAR<span class="opt">,</span>
-         <span class="num">2.30417297573763929e-05</span> <span class="opt">*</span> DAYS_PER_YEAR<span class="opt">);</span>
+    m[<span class="num">2</span>] = <span class="num">2.85885980666130812e-04</span> * SOLAR_MASS;
+    p[<span class="num">2</span>] = <span class="kwd">_mm256_setr_pd</span>(<span class="num">0.0</span>,
+         <span class="num">8.34336671824457987e+00</span>,
+         <span class="num">4.12479856412430479e+00</span>,
+        -<span class="num">4.03523417114321381e-01</span>);
+    v[<span class="num">2</span>] = <span class="kwd">_mm256_setr_pd</span>(<span class="num">0.0</span>,
+        -<span class="num">2.76742510726862411e-03</span> * DAYS_PER_YEAR,
+         <span class="num">4.99852801234917238e-03</span> * DAYS_PER_YEAR,
+         <span class="num">2.30417297573763929e-05</span> * DAYS_PER_YEAR);
 
     <span class="slc">// uranus</span>
-    m<span class="opt">[</span><span class="num">3</span><span class="opt">] =</span> <span class="num">4.36624404335156298e-05</span> <span class="opt">*</span> SOLAR_MASS<span class="opt">;</span>
-    p<span class="opt">[</span><span class="num">3</span><span class="opt">] =</span> <span class="kwd">_mm256_setr_pd</span><span class="opt">(</span><span class="num">0.0</span><span class="opt">,</span>
-         <span class="num">1.28943695621391310e+01</span><span class="opt">,</span>
-        <span class="opt">-</span><span class="num">1.51111514016986312e+01</span><span class="opt">,</span>
-        <span class="opt">-</span><span class="num">2.23307578892655734e-01</span><span class="opt">);</span>
-    v<span class="opt">[</span><span class="num">3</span><span class="opt">] =</span> <span class="kwd">_mm256_setr_pd</span><span class="opt">(</span><span class="num">0.0</span><span class="opt">,</span>
-         <span class="num">2.96460137564761618e-03</span> <span class="opt">*</span> DAYS_PER_YEAR<span class="opt">,</span>
-         <span class="num">2.37847173959480950e-03</span> <span class="opt">*</span> DAYS_PER_YEAR<span class="opt">,</span>
-        <span class="opt">-</span><span class="num">2.96589568540237556e-05</span> <span class="opt">*</span> DAYS_PER_YEAR<span class="opt">);</span>
+    m[<span class="num">3</span>] = <span class="num">4.36624404335156298e-05</span> * SOLAR_MASS;
+    p[<span class="num">3</span>] = <span class="kwd">_mm256_setr_pd</span>(<span class="num">0.0</span>,
+         <span class="num">1.28943695621391310e+01</span>,
+        -<span class="num">1.51111514016986312e+01</span>,
+        -<span class="num">2.23307578892655734e-01</span>);
+    v[<span class="num">3</span>] = <span class="kwd">_mm256_setr_pd</span>(<span class="num">0.0</span>,
+         <span class="num">2.96460137564761618e-03</span> * DAYS_PER_YEAR,
+         <span class="num">2.37847173959480950e-03</span> * DAYS_PER_YEAR,
+        -<span class="num">2.96589568540237556e-05</span> * DAYS_PER_YEAR);
 
     <span class="slc">// neptune</span>
-    m<span class="opt">[</span><span class="num">4</span><span class="opt">] =</span> <span class="num">5.15138902046611451e-05</span> <span class="opt">*</span> SOLAR_MASS<span class="opt">;</span>
-    p<span class="opt">[</span><span class="num">4</span><span class="opt">] =</span> <span class="kwd">_mm256_setr_pd</span><span class="opt">(</span><span class="num">0.0</span><span class="opt">,</span>
-         <span class="num">1.53796971148509165e+01</span><span class="opt">,</span>
-        <span class="opt">-</span><span class="num">2.59193146099879641e+01</span><span class="opt">,</span>
-         <span class="num">1.79258772950371181e-01</span><span class="opt">);</span>
-    v<span class="opt">[</span><span class="num">4</span><span class="opt">] =</span> <span class="kwd">_mm256_setr_pd</span><span class="opt">(</span><span class="num">0.0</span><span class="opt">,</span>
-         <span class="num">2.68067772490389322e-03</span> <span class="opt">*</span> DAYS_PER_YEAR<span class="opt">,</span>
-         <span class="num">1.62824170038242295e-03</span> <span class="opt">*</span> DAYS_PER_YEAR<span class="opt">,</span>
-        <span class="opt">-</span><span class="num">9.51592254519715870e-05</span> <span class="opt">*</span> DAYS_PER_YEAR<span class="opt">);</span>
+    m[<span class="num">4</span>] = <span class="num">5.15138902046611451e-05</span> * SOLAR_MASS;
+    p[<span class="num">4</span>] = <span class="kwd">_mm256_setr_pd</span>(<span class="num">0.0</span>,
+         <span class="num">1.53796971148509165e+01</span>,
+        -<span class="num">2.59193146099879641e+01</span>,
+         <span class="num">1.79258772950371181e-01</span>);
+    v[<span class="num">4</span>] = <span class="kwd">_mm256_setr_pd</span>(<span class="num">0.0</span>,
+         <span class="num">2.68067772490389322e-03</span> * DAYS_PER_YEAR,
+         <span class="num">1.62824170038242295e-03</span> * DAYS_PER_YEAR,
+        -<span class="num">9.51592254519715870e-05</span> * DAYS_PER_YEAR);
 
     <span class="slc">// offset momentum</span>
-    __m256d o <span class="opt">=</span> <span class="kwd">_mm256_set1_pd</span><span class="opt">(</span><span class="num">0.0</span><span class="opt">);</span>
-    <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> N<span class="opt">;</span> i<span class="opt">++) {</span>
-        __m256d t <span class="opt">=</span> <span class="kwd">_mm256_mul_pd</span><span class="opt">(</span><span class="kwd">_mm256_set1_pd</span><span class="opt">(</span>m<span class="opt">[</span>i<span class="opt">]),</span> v<span class="opt">[</span>i<span class="opt">]);</span>
-        o <span class="opt">=</span> <span class="kwd">_mm256_add_pd</span><span class="opt">(</span>o<span class="opt">,</span> t<span class="opt">);</span>
-    <span class="opt">}</span>
-    v<span class="opt">[</span><span class="num">0</span><span class="opt">] =</span> <span class="kwd">_mm256_mul_pd</span><span class="opt">(</span>o<span class="opt">,</span> <span class="kwd">_mm256_set1_pd</span><span class="opt">(-</span><span class="num">1.0</span> <span class="opt">/</span> SOLAR_MASS<span class="opt">));</span>
+    __m256d o = <span class="kwd">_mm256_set1_pd</span>(<span class="num">0.0</span>);
+    <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">0</span>; i &lt; N; i++) {
+        __m256d t = <span class="kwd">_mm256_mul_pd</span>(<span class="kwd">_mm256_set1_pd</span>(m[i]), v[i]);
+        o = <span class="kwd">_mm256_add_pd</span>(o, t);
+    }
+    v[<span class="num">0</span>] = <span class="kwd">_mm256_mul_pd</span>(o, <span class="kwd">_mm256_set1_pd</span>(-<span class="num">1.0</span> / SOLAR_MASS));
 
-    <span class="kwd">printf</span><span class="opt">(</span><span class="str">&quot;%.9f</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span> <span class="kwd">energy</span><span class="opt">(</span>m<span class="opt">,</span> p<span class="opt">,</span> v<span class="opt">));</span>
-    <span class="kwd">advance</span><span class="opt">(</span>n<span class="opt">,</span> <span class="num">0.01</span><span class="opt">,</span> m<span class="opt">,</span> p<span class="opt">,</span> v<span class="opt">);</span>
-    <span class="kwd">printf</span><span class="opt">(</span><span class="str">&quot;%.9f</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span> <span class="kwd">energy</span><span class="opt">(</span>m<span class="opt">,</span> p<span class="opt">,</span> v<span class="opt">));</span>
+    <span class="kwd">printf</span>(<span class="str">&quot;%.9f</span><span class="esc">\n</span><span class="str">&quot;</span>, <span class="kwd">energy</span>(m, p, v));
+    <span class="kwd">advance</span>(n, <span class="num">0.01</span>, m, p, v);
+    <span class="kwd">printf</span>(<span class="str">&quot;%.9f</span><span class="esc">\n</span><span class="str">&quot;</span>, <span class="kwd">energy</span>(m, p, v));
 
-    <span class="kwa">return</span> <span class="num">0</span><span class="opt">;</span>
-<span class="opt">}</span>
+    <span class="kwa">return</span> <span class="num">0</span>;
+}
     </pre>
   </section>
   <section>
@@ -239,16 +239,16 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
     <pre>
 NOTES:
 64-bit Ubuntu quad core
-Ubuntu clang version 11.0.0-2
+Ubuntu clang version 12.0.0-1ubuntu
 
 
-Tue, 27 Apr 2021 20:28:20 GMT
+Sat, 05 Jun 2021 03:59:30 GMT
 
 MAKE:
 /usr/bin/clang -pipe -Wall -O3 -fomit-frame-pointer -march=ivybridge  nbody.clang-9.c -o nbody.clang-9.clang_run 
 rm nbody.clang-9.c
 
-4.21s to complete and log all make actions
+4.37s to complete and log all make actions
 
 COMMAND LINE:
 ./nbody.clang-9.clang_run 50000000

@@ -44,16 +44,16 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="slc">// default hash function is used.</span>
 <span class="ppc">#define CUSTOM_HASH_FUNCTION(key) ((key) ^ (key)&gt;&gt;7)</span>
 
-<span class="kwd">KHASH_INIT</span><span class="opt">(</span>oligonucleotide<span class="opt">,</span> <span class="kwb">uint64_t</span><span class="opt">,</span> <span class="kwb">uint32_t</span><span class="opt">,</span> <span class="num">1</span><span class="opt">,</span> CUSTOM_HASH_FUNCTION
-  <span class="opt">,</span> kh_int64_hash_equal<span class="opt">)</span>
+<span class="kwd">KHASH_INIT</span>(oligonucleotide, <span class="kwb">uint64_t</span>, <span class="kwb">uint32_t</span>, <span class="num">1</span>, CUSTOM_HASH_FUNCTION
+  , kh_int64_hash_equal)
 
 <span class="slc">// intptr_t should be the native integer type on most sane systems.</span>
-<span class="kwc">typedef</span> <span class="kwb">intptr_t</span> intnative_t<span class="opt">;</span>
+<span class="kwc">typedef</span> <span class="kwb">intptr_t</span> intnative_t;
 
-<span class="kwc">typedef</span> <span class="kwb">struct</span> <span class="opt">{</span>
-	<span class="kwb">uint64_t</span>	key<span class="opt">;</span>
-	<span class="kwb">uint32_t</span>	value<span class="opt">;</span>
-<span class="opt">}</span> element<span class="opt">;</span>
+<span class="kwc">typedef</span> <span class="kwb">struct</span> {
+	<span class="kwb">uint64_t</span>	key;
+	<span class="kwb">uint32_t</span>	value;
+} element;
 
 
 <span class="slc">// Macro to convert a nucleotide character to a code. Note that upper and lower</span>
@@ -71,204 +71,204 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="slc">// Function to use when sorting elements with qsort() later. Elements with</span>
 <span class="slc">// larger values will come first and in cases of identical values then elements</span>
 <span class="slc">// with smaller keys will come first.</span>
-<span class="kwb">static int</span> <span class="kwd">element_Compare</span><span class="opt">(</span><span class="kwb">const</span> element <span class="opt">*</span> <span class="kwb">const</span> left_Element
-  <span class="opt">,</span> <span class="kwb">const</span> element <span class="opt">*</span> <span class="kwb">const</span> right_Element<span class="opt">){</span>
+<span class="kwb">static int</span> <span class="kwd">element_Compare</span>(<span class="kwb">const</span> element * <span class="kwb">const</span> left_Element
+  , <span class="kwb">const</span> element * <span class="kwb">const</span> right_Element){
 
 	<span class="slc">// Sort based on element values.</span>
-	<span class="kwa">if</span><span class="opt">(</span>left_Element<span class="opt">-&gt;</span>value <span class="opt">&lt;</span> right_Element<span class="opt">-&gt;</span>value<span class="opt">)</span> <span class="kwa">return</span> <span class="num">1</span><span class="opt">;</span>
-	<span class="kwa">if</span><span class="opt">(</span>left_Element<span class="opt">-&gt;</span>value <span class="opt">&gt;</span> right_Element<span class="opt">-&gt;</span>value<span class="opt">)</span> <span class="kwa">return</span> <span class="opt">-</span><span class="num">1</span><span class="opt">;</span>
+	<span class="kwa">if</span>(left_Element-&gt;value &lt; right_Element-&gt;value) <span class="kwa">return</span> <span class="num">1</span>;
+	<span class="kwa">if</span>(left_Element-&gt;value &gt; right_Element-&gt;value) <span class="kwa">return</span> -<span class="num">1</span>;
 
 	<span class="slc">// If we got here then both items have the same value so then sort based on</span>
 	<span class="slc">// key.</span>
-	<span class="kwa">return</span> left_Element<span class="opt">-&gt;</span>key <span class="opt">&gt;</span> right_Element<span class="opt">-&gt;</span>key <span class="opt">?</span> <span class="num">1</span> <span class="opt">: -</span><span class="num">1</span><span class="opt">;</span>
-<span class="opt">}</span>
+	<span class="kwa">return</span> left_Element-&gt;key &gt; right_Element-&gt;key ? <span class="num">1</span> : -<span class="num">1</span>;
+}
 
 
 <span class="slc">// Generate frequencies for all oligonucleotides in polynucleotide that are of</span>
 <span class="slc">// desired_Length_For_Oligonucleotides and then save it to output.</span>
-<span class="kwb">static void</span> <span class="kwd">generate_Frequencies_For_Desired_Length_Oligonucleotides</span><span class="opt">(</span>
-  <span class="kwb">const char</span> <span class="opt">*</span> <span class="kwb">const</span> polynucleotide<span class="opt">,</span> <span class="kwb">const</span> intnative_t polynucleotide_Length
-  <span class="opt">,</span> <span class="kwb">const</span> intnative_t desired_Length_For_Oligonucleotides<span class="opt">,</span> <span class="kwb">char</span> <span class="opt">*</span> <span class="kwb">const</span> output<span class="opt">){</span>
+<span class="kwb">static void</span> <span class="kwd">generate_Frequencies_For_Desired_Length_Oligonucleotides</span>(
+  <span class="kwb">const char</span> * <span class="kwb">const</span> polynucleotide, <span class="kwb">const</span> intnative_t polynucleotide_Length
+  , <span class="kwb">const</span> intnative_t desired_Length_For_Oligonucleotides, <span class="kwb">char</span> * <span class="kwb">const</span> output){
 
-	<span class="kwd">khash_t</span><span class="opt">(</span>oligonucleotide<span class="opt">) *</span> hash_Table<span class="opt">=</span><span class="kwd">kh_init</span><span class="opt">(</span>oligonucleotide<span class="opt">);</span>
+	<span class="kwd">khash_t</span>(oligonucleotide) * hash_Table=<span class="kwd">kh_init</span>(oligonucleotide);
 
-	<span class="kwb">uint64_t</span> key<span class="opt">=</span><span class="num">0</span><span class="opt">;</span>
-	<span class="kwb">const uint64_t</span> mask<span class="opt">=((</span><span class="kwb">uint64_t</span><span class="opt">)</span><span class="num">1</span><span class="opt">&lt;&lt;</span><span class="num">2</span><span class="opt">*</span>desired_Length_For_Oligonucleotides<span class="opt">)-</span><span class="num">1</span><span class="opt">;</span>
+	<span class="kwb">uint64_t</span> key=<span class="num">0</span>;
+	<span class="kwb">const uint64_t</span> mask=((<span class="kwb">uint64_t</span>)<span class="num">1</span>&lt;&lt;<span class="num">2</span>*desired_Length_For_Oligonucleotides)-<span class="num">1</span>;
 
 	<span class="slc">// For the first several nucleotides we only need to append them to key in</span>
 	<span class="slc">// preparation for the insertion of complete oligonucleotides to hash_Table.</span>
-	<span class="kwa">for</span><span class="opt">(</span>intnative_t i<span class="opt">=</span><span class="num">0</span><span class="opt">;</span> i<span class="opt">&lt;</span>desired_Length_For_Oligonucleotides<span class="opt">-</span><span class="num">1</span><span class="opt">;</span> i<span class="opt">++)</span>
-		key<span class="opt">=(</span>key<span class="opt">&lt;&lt;</span><span class="num">2</span> <span class="opt">&amp;</span> mask<span class="opt">) |</span> polynucleotide<span class="opt">[</span>i<span class="opt">];</span>
+	<span class="kwa">for</span>(intnative_t i=<span class="num">0</span>; i&lt;desired_Length_For_Oligonucleotides-<span class="num">1</span>; i++)
+		key=(key&lt;&lt;<span class="num">2</span> &amp; mask) | polynucleotide[i];
 
 	<span class="slc">// Add all the complete oligonucleotides of</span>
 	<span class="slc">// desired_Length_For_Oligonucleotides to hash_Table and update the count</span>
 	<span class="slc">// for each oligonucleotide.</span>
-	<span class="kwa">for</span><span class="opt">(</span>intnative_t i<span class="opt">=</span>desired_Length_For_Oligonucleotides<span class="opt">-</span><span class="num">1</span>
-	  <span class="opt">;</span> i<span class="opt">&lt;</span>polynucleotide_Length<span class="opt">;</span> i<span class="opt">++){</span>
+	<span class="kwa">for</span>(intnative_t i=desired_Length_For_Oligonucleotides-<span class="num">1</span>
+	  ; i&lt;polynucleotide_Length; i++){
 
-		key<span class="opt">=(</span>key<span class="opt">&lt;&lt;</span><span class="num">2</span> <span class="opt">&amp;</span> mask<span class="opt">) |</span> polynucleotide<span class="opt">[</span>i<span class="opt">];</span>
+		key=(key&lt;&lt;<span class="num">2</span> &amp; mask) | polynucleotide[i];
 
-		<span class="kwb">int</span> element_Was_Unused<span class="opt">;</span>
-		<span class="kwb">const</span> khiter_t k<span class="opt">=</span><span class="kwd">kh_put</span><span class="opt">(</span>oligonucleotide<span class="opt">,</span> hash_Table<span class="opt">,</span> key
-		  <span class="opt">, &amp;</span>element_Was_Unused<span class="opt">);</span>
+		<span class="kwb">int</span> element_Was_Unused;
+		<span class="kwb">const</span> khiter_t k=<span class="kwd">kh_put</span>(oligonucleotide, hash_Table, key
+		  , &amp;element_Was_Unused);
 
 		<span class="slc">// If the element_Was_Unused, then initialize the count to 1, otherwise</span>
 		<span class="slc">// increment the count.</span>
-		<span class="kwa">if</span><span class="opt">(</span>element_Was_Unused<span class="opt">)</span>
-			<span class="kwd">kh_value</span><span class="opt">(</span>hash_Table<span class="opt">,</span> k<span class="opt">)=</span><span class="num">1</span><span class="opt">;</span>
+		<span class="kwa">if</span>(element_Was_Unused)
+			<span class="kwd">kh_value</span>(hash_Table, k)=<span class="num">1</span>;
 		<span class="kwa">else</span>
-			<span class="kwd">kh_value</span><span class="opt">(</span>hash_Table<span class="opt">,</span> k<span class="opt">)++;</span>
-	<span class="opt">}</span>
+			<span class="kwd">kh_value</span>(hash_Table, k)++;
+	}
 
 	<span class="slc">// Create an array of elements from hash_Table.</span>
-	intnative_t elements_Array_Size<span class="opt">=</span><span class="kwd">kh_size</span><span class="opt">(</span>hash_Table<span class="opt">),</span> i<span class="opt">=</span><span class="num">0</span><span class="opt">;</span>
-	element <span class="opt">*</span> elements_Array<span class="opt">=</span><span class="kwd">malloc</span><span class="opt">(</span>elements_Array_Size<span class="opt">*</span><span class="kwa">sizeof</span><span class="opt">(</span>element<span class="opt">));</span>
-	<span class="kwb">uint32_t</span> value<span class="opt">;</span>
-	<span class="kwd">kh_foreach</span><span class="opt">(</span>hash_Table<span class="opt">,</span> key<span class="opt">,</span> value
-	  <span class="opt">,</span> elements_Array<span class="opt">[</span>i<span class="opt">++]=((</span>element<span class="opt">){</span>key<span class="opt">,</span> value<span class="opt">}));</span>
+	intnative_t elements_Array_Size=<span class="kwd">kh_size</span>(hash_Table), i=<span class="num">0</span>;
+	element * elements_Array=<span class="kwd">malloc</span>(elements_Array_Size*<span class="kwa">sizeof</span>(element));
+	<span class="kwb">uint32_t</span> value;
+	<span class="kwd">kh_foreach</span>(hash_Table, key, value
+	  , elements_Array[i++]=((element){key, value}));
 
-	<span class="kwd">kh_destroy</span><span class="opt">(</span>oligonucleotide<span class="opt">,</span> hash_Table<span class="opt">);</span>
+	<span class="kwd">kh_destroy</span>(oligonucleotide, hash_Table);
 
 	<span class="slc">// Sort elements_Array.</span>
-	<span class="kwd">qsort</span><span class="opt">(</span>elements_Array<span class="opt">,</span> elements_Array_Size<span class="opt">,</span> <span class="kwa">sizeof</span><span class="opt">(</span>element<span class="opt">)</span>
-	  <span class="opt">, (</span><span class="kwb">int</span> <span class="opt">(*)(</span><span class="kwb">const void</span> <span class="opt">*,</span> <span class="kwb">const void</span> <span class="opt">*))</span> element_Compare<span class="opt">);</span>
+	<span class="kwd">qsort</span>(elements_Array, elements_Array_Size, <span class="kwa">sizeof</span>(element)
+	  , (<span class="kwb">int</span> (*)(<span class="kwb">const void</span> *, <span class="kwb">const void</span> *)) element_Compare);
 
 	<span class="slc">// Print the frequencies for each oligonucleotide.</span>
-	<span class="kwa">for</span><span class="opt">(</span>intnative_t output_Position<span class="opt">=</span><span class="num">0</span><span class="opt">,</span> i<span class="opt">=</span><span class="num">0</span><span class="opt">;</span> i<span class="opt">&lt;</span>elements_Array_Size<span class="opt">;</span> i<span class="opt">++){</span>
+	<span class="kwa">for</span>(intnative_t output_Position=<span class="num">0</span>, i=<span class="num">0</span>; i&lt;elements_Array_Size; i++){
 
 		<span class="slc">// Convert the key for the oligonucleotide to a string.</span>
-		<span class="kwb">char</span> oligonucleotide<span class="opt">[</span>desired_Length_For_Oligonucleotides<span class="opt">+</span><span class="num">1</span><span class="opt">];</span>
-		<span class="kwa">for</span><span class="opt">(</span>intnative_t j<span class="opt">=</span>desired_Length_For_Oligonucleotides<span class="opt">-</span><span class="num">1</span><span class="opt">;</span> j<span class="opt">&gt;-</span><span class="num">1</span><span class="opt">;</span> j<span class="opt">--){</span>
-			oligonucleotide<span class="opt">[</span>j<span class="opt">]=</span><span class="kwd">nucleotide_For_Code</span><span class="opt">(</span>elements_Array<span class="opt">[</span>i<span class="opt">].</span>key<span class="opt">);</span>
-			elements_Array<span class="opt">[</span>i<span class="opt">].</span>key<span class="opt">&gt;&gt;=</span><span class="num">2</span><span class="opt">;</span>
-		<span class="opt">}</span>
-		oligonucleotide<span class="opt">[</span>desired_Length_For_Oligonucleotides<span class="opt">]=</span><span class="str">&apos;\0&apos;</span><span class="opt">;</span>
+		<span class="kwb">char</span> oligonucleotide[desired_Length_For_Oligonucleotides+<span class="num">1</span>];
+		<span class="kwa">for</span>(intnative_t j=desired_Length_For_Oligonucleotides-<span class="num">1</span>; j&gt;-<span class="num">1</span>; j--){
+			oligonucleotide[j]=<span class="kwd">nucleotide_For_Code</span>(elements_Array[i].key);
+			elements_Array[i].key&gt;&gt;=<span class="num">2</span>;
+		}
+		oligonucleotide[desired_Length_For_Oligonucleotides]=<span class="str">&apos;\0&apos;</span>;
 
 		<span class="slc">// Output the frequency for oligonucleotide to output.</span>
-		output_Position<span class="opt">+=</span><span class="kwd">snprintf</span><span class="opt">(</span>output<span class="opt">+</span>output_Position
-		  <span class="opt">,</span> MAXIMUM_OUTPUT_LENGTH<span class="opt">-</span>output_Position<span class="opt">,</span> <span class="str">&quot;%s %.3f</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span> oligonucleotide
-		  <span class="opt">,</span> <span class="num">100.0</span>f<span class="opt">*</span>elements_Array<span class="opt">[</span>i<span class="opt">].</span>value
-		  <span class="opt">/(</span>polynucleotide_Length<span class="opt">-</span>desired_Length_For_Oligonucleotides<span class="opt">+</span><span class="num">1</span><span class="opt">));</span>
-	<span class="opt">}</span>
+		output_Position+=<span class="kwd">snprintf</span>(output+output_Position
+		  , MAXIMUM_OUTPUT_LENGTH-output_Position, <span class="str">&quot;%s %.3f</span><span class="esc">\n</span><span class="str">&quot;</span>, oligonucleotide
+		  , <span class="num">100.0</span>f*elements_Array[i].value
+		  /(polynucleotide_Length-desired_Length_For_Oligonucleotides+<span class="num">1</span>));
+	}
 
-	<span class="kwd">free</span><span class="opt">(</span>elements_Array<span class="opt">);</span>
-<span class="opt">}</span>
+	<span class="kwd">free</span>(elements_Array);
+}
 
 
 <span class="slc">// Generate a count for the number of times oligonucleotide appears in</span>
 <span class="slc">// polynucleotide and then save it to output.</span>
-<span class="kwb">static void</span> <span class="kwd">generate_Count_For_Oligonucleotide</span><span class="opt">(</span>
-  <span class="kwb">const char</span> <span class="opt">*</span> <span class="kwb">const</span> polynucleotide<span class="opt">,</span> <span class="kwb">const</span> intnative_t polynucleotide_Length
-  <span class="opt">,</span> <span class="kwb">const char</span> <span class="opt">*</span> <span class="kwb">const</span> oligonucleotide<span class="opt">,</span> <span class="kwb">char</span> <span class="opt">*</span> <span class="kwb">const</span> output<span class="opt">){</span>
-	<span class="kwb">const</span> intnative_t oligonucleotide_Length<span class="opt">=</span><span class="kwd">strlen</span><span class="opt">(</span>oligonucleotide<span class="opt">);</span>
+<span class="kwb">static void</span> <span class="kwd">generate_Count_For_Oligonucleotide</span>(
+  <span class="kwb">const char</span> * <span class="kwb">const</span> polynucleotide, <span class="kwb">const</span> intnative_t polynucleotide_Length
+  , <span class="kwb">const char</span> * <span class="kwb">const</span> oligonucleotide, <span class="kwb">char</span> * <span class="kwb">const</span> output){
+	<span class="kwb">const</span> intnative_t oligonucleotide_Length=<span class="kwd">strlen</span>(oligonucleotide);
 
-	<span class="kwd">khash_t</span><span class="opt">(</span>oligonucleotide<span class="opt">) *</span> <span class="kwb">const</span> hash_Table<span class="opt">=</span><span class="kwd">kh_init</span><span class="opt">(</span>oligonucleotide<span class="opt">);</span>
+	<span class="kwd">khash_t</span>(oligonucleotide) * <span class="kwb">const</span> hash_Table=<span class="kwd">kh_init</span>(oligonucleotide);
 
-	<span class="kwb">uint64_t</span> key<span class="opt">=</span><span class="num">0</span><span class="opt">;</span>
-	<span class="kwb">const uint64_t</span> mask<span class="opt">=((</span><span class="kwb">uint64_t</span><span class="opt">)</span><span class="num">1</span><span class="opt">&lt;&lt;</span><span class="num">2</span><span class="opt">*</span>oligonucleotide_Length<span class="opt">)-</span><span class="num">1</span><span class="opt">;</span>
+	<span class="kwb">uint64_t</span> key=<span class="num">0</span>;
+	<span class="kwb">const uint64_t</span> mask=((<span class="kwb">uint64_t</span>)<span class="num">1</span>&lt;&lt;<span class="num">2</span>*oligonucleotide_Length)-<span class="num">1</span>;
 
 	<span class="slc">// For the first several nucleotides we only need to append them to key in</span>
 	<span class="slc">// preparation for the insertion of complete oligonucleotides to hash_Table.</span>
-	<span class="kwa">for</span><span class="opt">(</span>intnative_t i<span class="opt">=</span><span class="num">0</span><span class="opt">;</span> i<span class="opt">&lt;</span>oligonucleotide_Length<span class="opt">-</span><span class="num">1</span><span class="opt">;</span> i<span class="opt">++)</span>
-		key<span class="opt">=(</span>key<span class="opt">&lt;&lt;</span><span class="num">2</span> <span class="opt">&amp;</span> mask<span class="opt">) |</span> polynucleotide<span class="opt">[</span>i<span class="opt">];</span>
+	<span class="kwa">for</span>(intnative_t i=<span class="num">0</span>; i&lt;oligonucleotide_Length-<span class="num">1</span>; i++)
+		key=(key&lt;&lt;<span class="num">2</span> &amp; mask) | polynucleotide[i];
 
 	<span class="slc">// Add all the complete oligonucleotides of oligonucleotide_Length to</span>
 	<span class="slc">// hash_Table and update the count for each oligonucleotide.</span>
-	<span class="kwa">for</span><span class="opt">(</span>intnative_t i<span class="opt">=</span>oligonucleotide_Length<span class="opt">-</span><span class="num">1</span><span class="opt">;</span> i<span class="opt">&lt;</span>polynucleotide_Length<span class="opt">;</span> i<span class="opt">++){</span>
+	<span class="kwa">for</span>(intnative_t i=oligonucleotide_Length-<span class="num">1</span>; i&lt;polynucleotide_Length; i++){
 
-		key<span class="opt">=(</span>key<span class="opt">&lt;&lt;</span><span class="num">2</span> <span class="opt">&amp;</span> mask<span class="opt">) |</span> polynucleotide<span class="opt">[</span>i<span class="opt">];</span>
+		key=(key&lt;&lt;<span class="num">2</span> &amp; mask) | polynucleotide[i];
 
-		<span class="kwb">int</span> element_Was_Unused<span class="opt">;</span>
-		<span class="kwb">const</span> khiter_t k<span class="opt">=</span><span class="kwd">kh_put</span><span class="opt">(</span>oligonucleotide<span class="opt">,</span> hash_Table<span class="opt">,</span> key
-		  <span class="opt">, &amp;</span>element_Was_Unused<span class="opt">);</span>
+		<span class="kwb">int</span> element_Was_Unused;
+		<span class="kwb">const</span> khiter_t k=<span class="kwd">kh_put</span>(oligonucleotide, hash_Table, key
+		  , &amp;element_Was_Unused);
 
 		<span class="slc">// If the element_Was_Unused, then initialize the count to 1, otherwise</span>
 		<span class="slc">// increment the count.</span>
-		<span class="kwa">if</span><span class="opt">(</span>element_Was_Unused<span class="opt">)</span>
-			<span class="kwd">kh_value</span><span class="opt">(</span>hash_Table<span class="opt">,</span> k<span class="opt">)=</span><span class="num">1</span><span class="opt">;</span>
+		<span class="kwa">if</span>(element_Was_Unused)
+			<span class="kwd">kh_value</span>(hash_Table, k)=<span class="num">1</span>;
 		<span class="kwa">else</span>
-			<span class="kwd">kh_value</span><span class="opt">(</span>hash_Table<span class="opt">,</span> k<span class="opt">)++;</span>
-	<span class="opt">}</span>
+			<span class="kwd">kh_value</span>(hash_Table, k)++;
+	}
 
 	<span class="slc">// Generate the key for oligonucleotide.</span>
-	key<span class="opt">=</span><span class="num">0</span><span class="opt">;</span>
-	<span class="kwa">for</span><span class="opt">(</span>intnative_t i<span class="opt">=</span><span class="num">0</span><span class="opt">;</span> i<span class="opt">&lt;</span>oligonucleotide_Length<span class="opt">;</span> i<span class="opt">++)</span>
-		key<span class="opt">=(</span>key<span class="opt">&lt;&lt;</span><span class="num">2</span><span class="opt">) |</span> <span class="kwd">code_For_Nucleotide</span><span class="opt">(</span>oligonucleotide<span class="opt">[</span>i<span class="opt">]);</span>
+	key=<span class="num">0</span>;
+	<span class="kwa">for</span>(intnative_t i=<span class="num">0</span>; i&lt;oligonucleotide_Length; i++)
+		key=(key&lt;&lt;<span class="num">2</span>) | <span class="kwd">code_For_Nucleotide</span>(oligonucleotide[i]);
 
 	<span class="slc">// Output the count for oligonucleotide to output.</span>
-	khiter_t k<span class="opt">=</span><span class="kwd">kh_get</span><span class="opt">(</span>oligonucleotide<span class="opt">,</span> hash_Table<span class="opt">,</span> key<span class="opt">);</span>
-	<span class="kwb">uintmax_t</span> count<span class="opt">=</span>k<span class="opt">==</span><span class="kwd">kh_end</span><span class="opt">(</span>hash_Table<span class="opt">) ?</span> <span class="num">0</span> <span class="opt">:</span> <span class="kwd">kh_value</span><span class="opt">(</span>hash_Table<span class="opt">,</span> k<span class="opt">);</span>
-	<span class="kwd">snprintf</span><span class="opt">(</span>output<span class="opt">,</span> MAXIMUM_OUTPUT_LENGTH<span class="opt">,</span> <span class="str">&quot;%ju</span><span class="esc">\t</span><span class="str">%s&quot;</span><span class="opt">,</span> count<span class="opt">,</span> oligonucleotide<span class="opt">);</span>
+	khiter_t k=<span class="kwd">kh_get</span>(oligonucleotide, hash_Table, key);
+	<span class="kwb">uintmax_t</span> count=k==<span class="kwd">kh_end</span>(hash_Table) ? <span class="num">0</span> : <span class="kwd">kh_value</span>(hash_Table, k);
+	<span class="kwd">snprintf</span>(output, MAXIMUM_OUTPUT_LENGTH, <span class="str">&quot;%ju</span><span class="esc">\t</span><span class="str">%s&quot;</span>, count, oligonucleotide);
 
-	<span class="kwd">kh_destroy</span><span class="opt">(</span>oligonucleotide<span class="opt">,</span> hash_Table<span class="opt">);</span>
-<span class="opt">}</span>
+	<span class="kwd">kh_destroy</span>(oligonucleotide, hash_Table);
+}
 
 
-<span class="kwb">int</span> <span class="kwd">main</span><span class="opt">(){</span>
-	<span class="kwb">char</span> buffer<span class="opt">[</span><span class="num">4096</span><span class="opt">];</span>
+<span class="kwb">int</span> <span class="kwd">main</span>(){
+	<span class="kwb">char</span> buffer[<span class="num">4096</span>];
 
 	<span class="slc">// Find the start of the third polynucleotide.</span>
-	<span class="kwa">while</span><span class="opt">(</span><span class="kwd">fgets</span><span class="opt">(</span>buffer<span class="opt">,</span> <span class="kwa">sizeof</span><span class="opt">(</span>buffer<span class="opt">),</span> stdin<span class="opt">) &amp;&amp;</span> <span class="kwd">memcmp</span><span class="opt">(</span><span class="str">&quot;&gt;THREE&quot;</span><span class="opt">,</span> buffer
-	  <span class="opt">,</span> <span class="kwa">sizeof</span><span class="opt">(</span><span class="str">&quot;&gt;THREE&quot;</span><span class="opt">)-</span><span class="num">1</span><span class="opt">));</span>
+	<span class="kwa">while</span>(<span class="kwd">fgets</span>(buffer, <span class="kwa">sizeof</span>(buffer), stdin) &amp;&amp; <span class="kwd">memcmp</span>(<span class="str">&quot;&gt;THREE&quot;</span>, buffer
+	  , <span class="kwa">sizeof</span>(<span class="str">&quot;&gt;THREE&quot;</span>)-<span class="num">1</span>));
 
 	<span class="slc">// Start with 1 MB of storage for reading in the polynucleotide and grow</span>
 	<span class="slc">// geometrically.</span>
-	intnative_t polynucleotide_Capacity<span class="opt">=</span><span class="num">1048576</span><span class="opt">;</span>
-	intnative_t polynucleotide_Length<span class="opt">=</span><span class="num">0</span><span class="opt">;</span>
-	<span class="kwb">char</span> <span class="opt">*</span> polynucleotide<span class="opt">=</span><span class="kwd">malloc</span><span class="opt">(</span>polynucleotide_Capacity<span class="opt">);</span>
+	intnative_t polynucleotide_Capacity=<span class="num">1048576</span>;
+	intnative_t polynucleotide_Length=<span class="num">0</span>;
+	<span class="kwb">char</span> * polynucleotide=<span class="kwd">malloc</span>(polynucleotide_Capacity);
 
 	<span class="slc">// Start reading and encoding the third polynucleotide.</span>
-	<span class="kwa">while</span><span class="opt">(</span><span class="kwd">fgets</span><span class="opt">(</span>buffer<span class="opt">,</span> <span class="kwa">sizeof</span><span class="opt">(</span>buffer<span class="opt">),</span> stdin<span class="opt">) &amp;&amp;</span> buffer<span class="opt">[</span><span class="num">0</span><span class="opt">]!=</span><span class="str">&apos;&gt;&apos;</span><span class="opt">){</span>
-		<span class="kwa">for</span><span class="opt">(</span>intnative_t i<span class="opt">=</span><span class="num">0</span><span class="opt">;</span> buffer<span class="opt">[</span>i<span class="opt">]!=</span><span class="str">&apos;\0&apos;</span><span class="opt">;</span> i<span class="opt">++)</span>
-			<span class="kwa">if</span><span class="opt">(</span>buffer<span class="opt">[</span>i<span class="opt">]!=</span><span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span><span class="opt">)</span>
-				polynucleotide<span class="opt">[</span>polynucleotide_Length<span class="opt">++]</span>
-				  <span class="opt">=</span><span class="kwd">code_For_Nucleotide</span><span class="opt">(</span>buffer<span class="opt">[</span>i<span class="opt">]);</span>
+	<span class="kwa">while</span>(<span class="kwd">fgets</span>(buffer, <span class="kwa">sizeof</span>(buffer), stdin) &amp;&amp; buffer[<span class="num">0</span>]!=<span class="str">&apos;&gt;&apos;</span>){
+		<span class="kwa">for</span>(intnative_t i=<span class="num">0</span>; buffer[i]!=<span class="str">&apos;\0&apos;</span>; i++)
+			<span class="kwa">if</span>(buffer[i]!=<span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span>)
+				polynucleotide[polynucleotide_Length++]
+				  =<span class="kwd">code_For_Nucleotide</span>(buffer[i]);
 
 		<span class="slc">// Make sure we still have enough memory allocated for any potential</span>
 		<span class="slc">// nucleotides in the next line.</span>
-		<span class="kwa">if</span><span class="opt">(</span>polynucleotide_Capacity<span class="opt">-</span>polynucleotide_Length<span class="opt">&lt;</span><span class="kwa">sizeof</span><span class="opt">(</span>buffer<span class="opt">))</span>
-			polynucleotide<span class="opt">=</span><span class="kwd">realloc</span><span class="opt">(</span>polynucleotide<span class="opt">,</span> polynucleotide_Capacity<span class="opt">*=</span><span class="num">2</span><span class="opt">);</span>
-	<span class="opt">}</span>
+		<span class="kwa">if</span>(polynucleotide_Capacity-polynucleotide_Length&lt;<span class="kwa">sizeof</span>(buffer))
+			polynucleotide=<span class="kwd">realloc</span>(polynucleotide, polynucleotide_Capacity*=<span class="num">2</span>);
+	}
 
 	<span class="slc">// Free up any leftover memory.</span>
-	polynucleotide<span class="opt">=</span><span class="kwd">realloc</span><span class="opt">(</span>polynucleotide<span class="opt">,</span> polynucleotide_Length<span class="opt">);</span>
+	polynucleotide=<span class="kwd">realloc</span>(polynucleotide, polynucleotide_Length);
 
-	<span class="kwb">char</span> output_Buffer<span class="opt">[</span><span class="num">7</span><span class="opt">][</span>MAXIMUM_OUTPUT_LENGTH<span class="opt">];</span>
+	<span class="kwb">char</span> output_Buffer[<span class="num">7</span>][MAXIMUM_OUTPUT_LENGTH];
 
 	<span class="slc">// Do the following functions in parallel.</span>
 	<span class="ppc">#pragma omp parallel sections</span>
-	<span class="opt">{</span>
+	{
 		<span class="ppc">#pragma omp section</span>
-		<span class="kwd">generate_Count_For_Oligonucleotide</span><span class="opt">(</span>polynucleotide
-		  <span class="opt">,</span> polynucleotide_Length<span class="opt">,</span> <span class="str">&quot;GGTATTTTAATTTATAGT&quot;</span><span class="opt">,</span> output_Buffer<span class="opt">[</span><span class="num">6</span><span class="opt">]);</span>
+		<span class="kwd">generate_Count_For_Oligonucleotide</span>(polynucleotide
+		  , polynucleotide_Length, <span class="str">&quot;GGTATTTTAATTTATAGT&quot;</span>, output_Buffer[<span class="num">6</span>]);
 		<span class="ppc">#pragma omp section</span>
-		<span class="kwd">generate_Count_For_Oligonucleotide</span><span class="opt">(</span>polynucleotide
-		  <span class="opt">,</span> polynucleotide_Length<span class="opt">,</span> <span class="str">&quot;GGTATTTTAATT&quot;</span><span class="opt">,</span> output_Buffer<span class="opt">[</span><span class="num">5</span><span class="opt">]);</span>
+		<span class="kwd">generate_Count_For_Oligonucleotide</span>(polynucleotide
+		  , polynucleotide_Length, <span class="str">&quot;GGTATTTTAATT&quot;</span>, output_Buffer[<span class="num">5</span>]);
 		<span class="ppc">#pragma omp section</span>
-		<span class="kwd">generate_Count_For_Oligonucleotide</span><span class="opt">(</span>polynucleotide
-		  <span class="opt">,</span> polynucleotide_Length<span class="opt">,</span> <span class="str">&quot;GGTATT&quot;</span><span class="opt">,</span> output_Buffer<span class="opt">[</span><span class="num">4</span><span class="opt">]);</span>
+		<span class="kwd">generate_Count_For_Oligonucleotide</span>(polynucleotide
+		  , polynucleotide_Length, <span class="str">&quot;GGTATT&quot;</span>, output_Buffer[<span class="num">4</span>]);
 		<span class="ppc">#pragma omp section</span>
-		<span class="kwd">generate_Count_For_Oligonucleotide</span><span class="opt">(</span>polynucleotide
-		  <span class="opt">,</span> polynucleotide_Length<span class="opt">,</span> <span class="str">&quot;GGTA&quot;</span><span class="opt">,</span> output_Buffer<span class="opt">[</span><span class="num">3</span><span class="opt">]);</span>
+		<span class="kwd">generate_Count_For_Oligonucleotide</span>(polynucleotide
+		  , polynucleotide_Length, <span class="str">&quot;GGTA&quot;</span>, output_Buffer[<span class="num">3</span>]);
 		<span class="ppc">#pragma omp section</span>
-		<span class="kwd">generate_Count_For_Oligonucleotide</span><span class="opt">(</span>polynucleotide
-		  <span class="opt">,</span> polynucleotide_Length<span class="opt">,</span> <span class="str">&quot;GGT&quot;</span><span class="opt">,</span> output_Buffer<span class="opt">[</span><span class="num">2</span><span class="opt">]);</span>
+		<span class="kwd">generate_Count_For_Oligonucleotide</span>(polynucleotide
+		  , polynucleotide_Length, <span class="str">&quot;GGT&quot;</span>, output_Buffer[<span class="num">2</span>]);
 
 		<span class="ppc">#pragma omp section</span>
-		<span class="kwd">generate_Frequencies_For_Desired_Length_Oligonucleotides</span><span class="opt">(</span>polynucleotide
-		  <span class="opt">,</span> polynucleotide_Length<span class="opt">,</span> <span class="num">2</span><span class="opt">,</span> output_Buffer<span class="opt">[</span><span class="num">1</span><span class="opt">]);</span>
+		<span class="kwd">generate_Frequencies_For_Desired_Length_Oligonucleotides</span>(polynucleotide
+		  , polynucleotide_Length, <span class="num">2</span>, output_Buffer[<span class="num">1</span>]);
 		<span class="ppc">#pragma omp section</span>
-		<span class="kwd">generate_Frequencies_For_Desired_Length_Oligonucleotides</span><span class="opt">(</span>polynucleotide
-		  <span class="opt">,</span> polynucleotide_Length<span class="opt">,</span> <span class="num">1</span><span class="opt">,</span> output_Buffer<span class="opt">[</span><span class="num">0</span><span class="opt">]);</span>
-	<span class="opt">}</span>
+		<span class="kwd">generate_Frequencies_For_Desired_Length_Oligonucleotides</span>(polynucleotide
+		  , polynucleotide_Length, <span class="num">1</span>, output_Buffer[<span class="num">0</span>]);
+	}
 
 	<span class="slc">// Output the results to stdout.</span>
-	<span class="kwa">for</span><span class="opt">(</span>intnative_t i<span class="opt">=</span><span class="num">0</span><span class="opt">;</span> i<span class="opt">&lt;</span><span class="num">7</span><span class="opt">;</span> <span class="kwd">printf</span><span class="opt">(</span><span class="str">&quot;%s</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span> output_Buffer<span class="opt">[</span>i<span class="opt">++]));</span>
+	<span class="kwa">for</span>(intnative_t i=<span class="num">0</span>; i&lt;<span class="num">7</span>; <span class="kwd">printf</span>(<span class="str">&quot;%s</span><span class="esc">\n</span><span class="str">&quot;</span>, output_Buffer[i++]));
 
-	<span class="kwd">free</span><span class="opt">(</span>polynucleotide<span class="opt">);</span>
+	<span class="kwd">free</span>(polynucleotide);
 
-	<span class="kwa">return</span> <span class="num">0</span><span class="opt">;</span>
-<span class="opt">}</span>
+	<span class="kwa">return</span> <span class="num">0</span>;
+}
     </pre>
   </section>
   <section>
@@ -278,48 +278,25 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
     <pre>
 NOTES:
 64-bit Ubuntu quad core
-Ubuntu clang version 11.0.0-2
+Ubuntu clang version 12.0.0-1ubuntu
 
 
-Mon, 02 Nov 2020 18:47:27 GMT
+Sat, 05 Jun 2021 03:51:05 GMT
 
 MAKE:
 /usr/bin/clang -pipe -Wall -O3 -fomit-frame-pointer -march=ivybridge -fopenmp -IInclude knucleotide.c -o knucleotide.clang_run 
+/usr/bin/ld: cannot find -lomp
+clang: error: linker command failed with exit code 1 (use -v to see invocation)
+make: [/home/dunham/all-benchmarksgame/2000-benchmarksgame/nanobench/makefiles/u64q.programs.Makefile:102: knucleotide.clang_run] Error 1 (ignored)
 rm knucleotide.c
 
-3.66s to complete and log all make actions
+4.12s to complete and log all make actions
 
 COMMAND LINE:
-./knucleotide.clang_run 0 &lt; knucleotide-input25000000.txt
+./knucleotide.clang_run 0 &lt; knucleotide-input250000.txt
 
-PROGRAM OUTPUT:
-A 30.295
-T 30.151
-C 19.800
-G 19.754
+MAKE ERROR 
 
-AA 9.177
-TA 9.132
-AT 9.131
-TT 9.091
-CA 6.002
-AC 6.001
-AG 5.987
-GA 5.984
-CT 5.971
-TC 5.971
-GT 5.957
-TG 5.956
-CC 3.917
-GC 3.911
-CG 3.909
-GG 3.902
-
-1471758	GGT
-446535	GGTA
-47336	GGTATT
-893	GGTATTTTAATT
-893	GGTATTTTAATTTATAGT
     </pre>
   </section>
 </article>
