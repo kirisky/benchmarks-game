@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,follow,noarchive">
+
+<title>n-body C++ g++ program | Computer Language Benchmarks Game </title>
+<style><!--
+a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,header{margin:auto;width:92%}body{font:100% Droid Sans, Ubuntu, Verdana, sans-serif;margin:0;-webkit-text-size-adjust:100%}h3, h1, h2, li a{font-family:Ubuntu Mono,Consolas,Menlo,monospace}div,footer,header{max-width:31em}footer{padding:2.6em 0 0}h3{font-size:1.4em;font-weight:bold;margin:0;padding: .4em}h3, h3 a{color:white;background-color:#77216f}h3 small{font-size:0.64em}h1,h2{margin:1.5em 0 0}h1{font-size:1.4em;font-weight:normal}h2{font-size:1.2em}li{list-style-type:none;vertical-align:top}li a{display:block;font-size:1.2em;margin: .5em .5em 0;padding: .5em .5em .3em}ul{clear:left;margin:-0.3em 0 1.5em;padding-left:0;text-align:center}p{color:#333;line-height:1.4;margin: .3em 0 0}p a, a span{border-bottom: .1em solid #333;padding-bottom: .1em}.com,.slc{color:#888}.kwa{color:#066}.kwb{color:#900}.kwc{color:#050}.kwa,.kwb,.kwc{font-weight:bold}.dstr,.str,.sym,.num{color:#930}pre{color:#222;font-size:1em;overflow-wrap:break-word;white-space:pre-wrap;word-wrap:break-word}@media only screen and (min-width: 60em){article,footer,header{font-size:1.25em}}
+--></style>
+<link rel="shortcut icon" href="../favicon.ico">
+<header>
+  <h3><a href="https://benchmarksgame-team.pages.debian.net/benchmarksgame/index.html">The&nbsp;<small>Computer&nbsp;Language</small><br>Benchmarks&nbsp;Game</a></h3>
+</header>
+<article>
+  <div>
+    <h1>n-body C++ g++ program</h1>
+    <aside>
+      <p><a href="../description/nbody.html#nbody">description</a>
+    </aside>
+  </div>
+  <section>
+    <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc">// The Computer Language Benchmarks Game</span>
+<span class="slc">// https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">//</span>
+<span class="slc">// Contributed by Andrei Simion</span>
+
+<span class="ppc">#include &lt;cstdio&gt;</span>
+<span class="ppc">#include &lt;cstdlib&gt;</span>
+<span class="ppc">#include &lt;array&gt;</span>
+<span class="ppc">#include &lt;cmath&gt;</span>
+
+<span class="kwc">constexpr</span> <span class="kwb">double</span> pi = <span class="num">3.141592653589793</span>;
+<span class="kwc">constexpr</span> <span class="kwb">double</span> solar_mass = <span class="num">4</span> * pi * pi;
+<span class="kwc">constexpr</span> <span class="kwb">double</span> days_per_year = <span class="num">365.24</span>;
+<span class="kwc">constexpr</span> <span class="kwb">int</span> num_bodies = <span class="num">5</span>;
+<span class="kwc">constexpr</span> <span class="kwb">int</span> interactions = (num_bodies - <span class="num">1</span>) * num_bodies / <span class="num">2</span>;
+
+<span class="kwb">struct</span> Body
+{
+    <span class="kwb">double</span> x, y, z, vx, vy, vz, mass;
+
+    <span class="kwb">double</span> <span class="kwd">get_velocity_square_sum</span>()
+    {
+        <span class="kwa">return</span> vx * vx + vy * vy + vz * vz;
+    }
+};
+
+
+<span class="kwc">class</span> NBodySystem
+{
+<span class="kwc">public</span>:
+
+    <span class="kwb">double</span> <span class="kwd">compute_energy</span>()
+    {
+        <span class="kwb">double</span> energy = <span class="num">0.0</span>;
+        <span class="kwa">for</span> (std::<span class="kwb">size_t</span> i = <span class="num">0</span>; i &lt; bodies.<span class="kwd">size</span>(); ++i)
+        {
+            energy += <span class="num">0.5</span> * bodies[i].mass * bodies[i].<span class="kwd">get_velocity_square_sum</span>();
+  
+            <span class="kwa">for</span> (std::<span class="kwb">size_t</span> j = i + <span class="num">1</span>; j &lt; bodies.<span class="kwd">size</span>(); ++j)
+            {
+                <span class="kwb">double</span> dx = bodies[i].x - bodies[j].x;
+                <span class="kwb">double</span> dy = bodies[i].y - bodies[j].y;
+                <span class="kwb">double</span> dz = bodies[i].z - bodies[j].z;
+                <span class="kwb">double</span> distance = std::<span class="kwd">sqrt</span>(dx * dx + dy * dy + dz * dz);
+
+                energy-= (bodies[i].mass * bodies[j].mass) / distance;
+            }
+        }
+        <span class="kwa">return</span> energy;
+    }
+   
+   <span class="kwb">void</span> <span class="kwd">advance</span>(<span class="kwb">const</span> std::<span class="kwb">size_t</span> n)
+   {
+       <span class="kwc">constexpr</span> <span class="kwb">double</span> dt = <span class="num">0.01</span>;
+      
+       <span class="kwb">double</span> dxs[interactions], dys[interactions], dzs[interactions];
+       <span class="kwb">double</span> magnitudes[interactions];
+
+       <span class="kwa">for</span> (std::<span class="kwb">size_t</span>  i = <span class="num">0</span>; i &lt; n; ++i)
+       {
+           <span class="kwa">for</span> (std::<span class="kwb">size_t</span> i = <span class="num">0</span>, k = <span class="num">0</span>; i &lt; bodies.<span class="kwd">size</span>(); ++i)
+           {
+               <span class="kwa">for</span> (std::<span class="kwb">size_t</span> j = i + <span class="num">1</span>; j &lt; bodies.<span class="kwd">size</span>(); ++j, ++k)
+               {
+                   dxs[k] = bodies[i].x - bodies[j].x;
+                   dys[k] = bodies[i].y - bodies[j].y;
+                   dzs[k] = bodies[i].z - bodies[j].z;
+
+                   <span class="kwb">const double</span> d_squared = dxs[k] * dxs[k] + dys[k] * dys[k] + dzs[k] * dzs[k];
+                   <span class="kwb">const double</span> distance = std::<span class="kwd">sqrt</span>(d_squared);
+				
+                   magnitudes[k] = dt / (d_squared * distance);
+                }
+            }
+
+            <span class="kwa">for</span> (std::<span class="kwb">size_t</span> i = <span class="num">0</span>, k = <span class="num">0</span>; i &lt; bodies.<span class="kwd">size</span>(); ++i)
+            {
+                <span class="kwa">for</span> (std::<span class="kwb">size_t</span> j = i + <span class="num">1</span>; j &lt; bodies.<span class="kwd">size</span>(); ++j, ++k)
+                {
+                    <span class="kwb">const double</span> mm1 = bodies[j].mass * magnitudes[k];
+                    <span class="kwb">const double</span> mm2 = bodies[i].mass * magnitudes[k];
+ 
+                    bodies[i].vx -= dxs[k] * mm1;
+                    bodies[i].vy -= dys[k] * mm1;					
+                    bodies[i].vz -= dzs[k] * mm1;
+ 
+                    bodies[j].vx += dxs[k] * mm2;
+                    bodies[j].vy += dys[k] * mm2;
+                    bodies[j].vz += dzs[k] * mm2;
+                }
+        
+<span class="ppc">#ifndef __clang__</span>
+                <span class="slc">// g++ gives 1-2% better performance </span>
+                <span class="slc">// if the update happens here</span>
+                bodies[i].x += dt * bodies[i].vx;
+                bodies[i].y += dt * bodies[i].vy;
+                bodies[i].z += dt * bodies[i].vz;
+<span class="ppc">#endif</span>
+            }
+            
+<span class="ppc">#ifdef __clang__</span>
+            <span class="kwa">for</span> (std::<span class="kwb">size_t</span> i = <span class="num">0</span>; i &lt; bodies.<span class="kwd">size</span>(); ++i)
+            {
+                bodies[i].x += dt * bodies[i].vx;
+                bodies[i].y += dt * bodies[i].vy;
+                bodies[i].z += dt * bodies[i].vz;
+            }
+<span class="ppc">#endif</span>
+       }
+    }
+
+<span class="kwc">private</span>:
+    std::array&lt;Body, num_bodies&gt; bodies = <span class="kwd">create_bodies</span>();
+ 
+    <span class="kwc">constexpr</span> <span class="kwb">static double</span> <span class="kwd">compute_p</span>(<span class="kwb">double</span> Body::* member,
+                            <span class="kwb">const</span> std::array&lt;Body, num_bodies - <span class="num">1</span>&gt;&amp; bodies)
+    {
+        <span class="kwb">double</span> p = <span class="num">0.0</span>;
+        <span class="kwa">for</span> (<span class="kwb">size_t</span> i = <span class="num">0</span>; i &lt; bodies.<span class="kwd">size</span>(); ++i)
+        {
+            p += bodies[i].*member * bodies[i].mass;
+        }
+        <span class="kwa">return</span> p;
+    }
+
+    <span class="kwc">constexpr</span> <span class="kwb">static</span> std::array&lt;Body, num_bodies&gt; <span class="kwd">create_bodies</span>()
+    {
+        <span class="kwc">constexpr</span> Body jupiter = { .x    = <span class="num">4.84143144246472090e+00</span>,
+                                   .y    = -<span class="num">1.16032004402742839e+00</span>,
+                                   .z    = -<span class="num">1.03622044471123109e-01</span>,
+                                   .vx   = <span class="num">1.66007664274403694e-03</span> * days_per_year,
+                                   .vy   = <span class="num">7.69901118419740425e-03</span> * days_per_year,
+                                   .vz   = -<span class="num">6.90460016972063023e-05</span> * days_per_year,
+                                   .mass = <span class="num">9.54791938424326609e-04</span> * solar_mass };
+
+        <span class="kwc">constexpr</span> Body saturn  = { .x    = <span class="num">8.34336671824457987e+00</span>,
+                                   .y    = <span class="num">4.12479856412430479e+00</span>,
+                                   .z    = -<span class="num">4.03523417114321381e-01</span>,
+                                   .vx   = -<span class="num">2.76742510726862411e-03</span> * days_per_year,
+                                   .vy   = <span class="num">4.99852801234917238e-03</span> * days_per_year,
+                                   .vz   = <span class="num">2.30417297573763929e-05</span> * days_per_year,
+                                   .mass = <span class="num">2.85885980666130812e-04</span> * solar_mass };
+
+        <span class="kwc">constexpr</span> Body uranus  = { .x    = <span class="num">1.28943695621391310e+01</span>,
+                                   .y    = -<span class="num">1.51111514016986312e+01</span>,
+                                   .z    = -<span class="num">2.23307578892655734e-01</span>,
+                                   .vx   = <span class="num">2.96460137564761618e-03</span> * days_per_year,
+                                   .vy   = <span class="num">2.37847173959480950e-03</span> * days_per_year,
+                                   .vz   = -<span class="num">2.96589568540237556e-05</span> * days_per_year,
+                                   .mass = <span class="num">4.36624404335156298e-05</span> * solar_mass };
+
+        <span class="kwc">constexpr</span> Body neptune = { .x    = <span class="num">1.53796971148509165e+01</span>,
+                                   .y    = -<span class="num">2.59193146099879641e+01</span>,
+                                   .z    = <span class="num">1.79258772950371181e-01</span>,
+                                   .vx   = <span class="num">2.68067772490389322e-03</span> * days_per_year,
+                                   .vy   = <span class="num">1.62824170038242295e-03</span> * days_per_year,
+                                   .vz   = -<span class="num">9.51592254519715870e-05</span> * days_per_year,
+                                   .mass = <span class="num">5.15138902046611451e-05</span> * solar_mass };
+
+        <span class="kwc">constexpr</span> std::array&lt;Body, num_bodies - <span class="num">1</span>&gt; aux_bodies = { jupiter, saturn, uranus, neptune };
+
+        <span class="kwc">constexpr</span> <span class="kwb">double</span> px = <span class="kwd">compute_p</span>(&amp;Body::vx, aux_bodies);
+        <span class="kwc">constexpr</span> <span class="kwb">double</span> py = <span class="kwd">compute_p</span>(&amp;Body::vy, aux_bodies);
+        <span class="kwc">constexpr</span> <span class="kwb">double</span> pz = <span class="kwd">compute_p</span>(&amp;Body::vz, aux_bodies);
+        
+        <span class="kwc">constexpr</span> Body sun = { .x  = <span class="num">0</span>,
+                               .y  = <span class="num">0</span>,
+                               .z  = <span class="num">0</span>,
+                               .vx = -px / solar_mass,
+                               .vy = -py / solar_mass,
+                               .vz = -pz / solar_mass,
+                               .mass = solar_mass };
+
+        <span class="kwa">return</span> { sun, jupiter, saturn, uranus, neptune };
+    }   
+};
+
+
+<span class="kwb">int</span> <span class="kwd">main</span>(<span class="kwb">int</span> argc, <span class="kwb">char</span>** argv)
+{
+    std::<span class="kwb">size_t</span> n = <span class="kwd">atoi</span>(argv[<span class="num">1</span>]);
+
+    NBodySystem system;
+
+    <span class="kwd">printf</span>(<span class="str">&quot;%.9f</span><span class="esc">\n</span><span class="str">&quot;</span>, system.<span class="kwd">compute_energy</span>());
+
+    system.<span class="kwd">advance</span>(n);
+
+    <span class="kwd">printf</span>(<span class="str">&quot;%.9f</span><span class="esc">\n</span><span class="str">&quot;</span>, system.<span class="kwd">compute_energy</span>());
+}
+    </pre>
+  </section>
+  <section>
+    <div>
+      <h2 id="log">notes, command-line, and program output</h2>
+    </div>
+    <pre>
+NOTES:
+64-bit Ubuntu quad core
+g++ (Ubuntu 10.3.0-1ubuntu1) 10.3.0
+
+
+Tue, 08 Jun 2021 21:42:17 GMT
+
+MAKE:
+/usr/bin/g++ -c -pipe -O3 -fomit-frame-pointer -march=ivybridge  -std=c++17 nbody.gpp-0.c++ -o nbody.gpp-0.c++.o &amp;&amp;  \
+        /usr/bin/g++ nbody.gpp-0.c++.o -o nbody.gpp-0.gpp_run  
+rm nbody.gpp-0.c++
+
+1.72s to complete and log all make actions
+
+COMMAND LINE:
+./nbody.gpp-0.gpp_run 50000000
+
+PROGRAM OUTPUT:
+-0.169075164
+-0.169059907
+    </pre>
+  </section>
+</article>
+<footer>
+  <nav>
+    <ul>
+      <li><a href="../license.html"><span>3-Clause BSD License</span></a>
+    </ul>
+  </nav>
+</footer>
+
