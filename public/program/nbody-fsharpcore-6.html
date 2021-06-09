@@ -26,22 +26,28 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="slc">// https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
 <span class="slc">//</span>
 <span class="slc">// ported from C# version with local variable changes by Anthony Lloyd</span>
-<span class="slc">// Refactored for Span&lt;&gt; and Intrinsics, with optimizations from C# code by François-David Collin</span>
+<span class="slc">// Refactored for Span&lt;&gt; + Intrinsics, with optimizations from C# code by François-David Collin</span>
 <span class="ppc">#nowarn</span> <span class="pps">&quot;9&quot;</span><span class="ppc"></span>
 <span class="kwa">open</span> <span class="kwd">System</span>
 <span class="kwa">open</span> <span class="kwd">System</span><span class="opt">.</span><span class="kwd">Runtime</span><span class="opt">.</span><span class="kwd">Intrinsics</span>
 <span class="kwa">open</span> <span class="kwd">System</span><span class="opt">.</span><span class="kwd">Runtime</span><span class="opt">.</span><span class="kwd">Intrinsics</span><span class="opt">.</span><span class="kwd">X86</span>
 <span class="kwa">open</span> <span class="kwd">FSharp</span><span class="opt">.</span><span class="kwd">NativeInterop</span>
 
-<span class="kwa">let inline</span> <span class="opt">(.</span>*) <span class="opt">(</span>v1 <span class="opt">:</span> <span class="kwd">Vector256</span><span class="opt">&lt;</span><span class="kwb">float</span><span class="opt">&gt;) (</span>v2 <span class="opt">:</span> <span class="kwd">Vector256</span><span class="opt">&lt;</span><span class="kwb">float</span><span class="opt">&gt;) =</span> <span class="kwd">Avx</span><span class="opt">.</span><span class="kwd">Multiply</span><span class="opt">(</span>v1<span class="opt">,</span>v2<span class="opt">)</span>
-<span class="kwa">let inline</span> <span class="opt">(.+) (</span>v1 <span class="opt">:</span> <span class="kwd">Vector256</span><span class="opt">&lt;</span><span class="kwb">float</span><span class="opt">&gt;) (</span>v2 <span class="opt">:</span> <span class="kwd">Vector256</span><span class="opt">&lt;</span><span class="kwb">float</span><span class="opt">&gt;) =</span> <span class="kwd">Avx</span><span class="opt">.</span><span class="kwd">Add</span><span class="opt">(</span>v1<span class="opt">,</span>v2<span class="opt">)</span>
-<span class="kwa">let inline</span> <span class="opt">(.-) (</span>v1 <span class="opt">:</span> <span class="kwd">Vector256</span><span class="opt">&lt;</span><span class="kwb">float</span><span class="opt">&gt;) (</span>v2 <span class="opt">:</span> <span class="kwd">Vector256</span><span class="opt">&lt;</span><span class="kwb">float</span><span class="opt">&gt;) =</span> <span class="kwd">Avx</span><span class="opt">.</span><span class="kwd">Subtract</span><span class="opt">(</span>v1<span class="opt">,</span>v2<span class="opt">)</span>
-<span class="kwa">let inline</span> <span class="opt">(./) (</span>v1 <span class="opt">:</span> <span class="kwd">Vector256</span><span class="opt">&lt;</span><span class="kwb">float</span><span class="opt">&gt;) (</span>v2 <span class="opt">:</span> <span class="kwd">Vector256</span><span class="opt">&lt;</span><span class="kwb">float</span><span class="opt">&gt;) =</span> <span class="kwd">Avx</span><span class="opt">.</span><span class="kwd">Divide</span><span class="opt">(</span>v1<span class="opt">,</span>v2<span class="opt">)</span>
-<span class="kwa">let inline</span> <span class="opt">(?</span>*) <span class="opt">(</span>v1 <span class="opt">:</span> <span class="kwd">Vector256</span><span class="opt">&lt;</span><span class="kwb">float</span><span class="opt">&gt;) (</span>f <span class="opt">:</span> <span class="kwb">float</span><span class="opt">) =</span> v1 <span class="opt">.*</span> <span class="kwd">Vector256</span><span class="opt">.</span><span class="kwd">Create</span><span class="opt">(</span>f<span class="opt">)</span>
+<span class="slc">// Vector Intrinsics</span>
+<span class="kwa">type</span> <span class="kwc">Vec</span> <span class="opt">=</span> <span class="kwd">Vector256</span>
+<span class="kwa">type</span> <span class="kwc">Vf</span> <span class="opt">=</span> <span class="kwd">Vector256</span><span class="opt">&lt;</span><span class="kwb">float</span><span class="opt">&gt;</span>
 
-<span class="kwa">let inline</span> <span class="kwd">Sum</span> <span class="opt">(</span>v <span class="opt">:</span> <span class="kwd">Vector256</span><span class="opt">&lt;</span><span class="kwb">float</span><span class="opt">&gt;) =</span> v<span class="opt">.</span><span class="kwd">GetElement</span><span class="opt">(</span><span class="num">2</span><span class="opt">) +</span> v<span class="opt">.</span><span class="kwd">GetElement</span><span class="opt">(</span><span class="num">1</span><span class="opt">)  +</span> v<span class="opt">.</span><span class="kwd">GetElement</span><span class="opt">(</span><span class="num">3</span><span class="opt">)</span>
-<span class="kwa">let inline</span> <span class="kwd">Sqr</span> <span class="opt">(</span>v <span class="opt">:</span> <span class="kwd">Vector256</span><span class="opt">&lt;</span><span class="kwb">float</span><span class="opt">&gt;) =</span> <span class="kwd">Sum</span> <span class="opt">(</span>v <span class="opt">.*</span> v<span class="opt">)</span>
+<span class="kwa">let inline</span> <span class="opt">(.</span>*) <span class="opt">(</span>v1 <span class="opt">:</span> <span class="kwc">Vf</span><span class="opt">) (</span>v2 <span class="opt">:</span> <span class="kwc">Vf</span><span class="opt">) =</span> <span class="kwd">Avx</span><span class="opt">.</span><span class="kwd">Multiply</span><span class="opt">(</span>v1<span class="opt">,</span>v2<span class="opt">)</span>
+<span class="kwa">let inline</span> <span class="opt">(.+) (</span>v1 <span class="opt">:</span> <span class="kwc">Vf</span><span class="opt">) (</span>v2 <span class="opt">:</span> <span class="kwc">Vf</span><span class="opt">) =</span> <span class="kwd">Avx</span><span class="opt">.</span><span class="kwd">Add</span><span class="opt">(</span>v1<span class="opt">,</span>v2<span class="opt">)</span>
+<span class="kwa">let inline</span> <span class="opt">(.-) (</span>v1 <span class="opt">:</span> <span class="kwc">Vf</span><span class="opt">) (</span>v2 <span class="opt">:</span> <span class="kwc">Vf</span><span class="opt">) =</span> <span class="kwd">Avx</span><span class="opt">.</span><span class="kwd">Subtract</span><span class="opt">(</span>v1<span class="opt">,</span>v2<span class="opt">)</span>
+<span class="kwa">let inline</span> <span class="opt">(./) (</span>v1 <span class="opt">:</span> <span class="kwc">Vf</span><span class="opt">) (</span>v2 <span class="opt">:</span> <span class="kwc">Vf</span><span class="opt">) =</span> <span class="kwd">Avx</span><span class="opt">.</span><span class="kwd">Divide</span><span class="opt">(</span>v1<span class="opt">,</span>v2<span class="opt">)</span>
+<span class="kwa">let inline</span> <span class="opt">(?</span>*) <span class="opt">(</span>v1 <span class="opt">:</span> <span class="kwc">Vf</span><span class="opt">) (</span>f <span class="opt">:</span> <span class="kwb">float</span><span class="opt">) =</span> v1 <span class="opt">.*</span> <span class="kwc">Vec</span><span class="opt">.</span><span class="kwd">Create</span><span class="opt">(</span>f<span class="opt">)</span>
 
+<span class="slc">// Order of elements matters (1,0,3,2) gives best codegen</span>
+<span class="kwa">let inline</span> <span class="kwd">Sum</span> <span class="opt">(</span>v <span class="opt">:</span> <span class="kwc">Vf</span><span class="opt">) =</span> v<span class="opt">.</span><span class="kwd">GetElement</span><span class="opt">(</span><span class="num">1</span><span class="opt">) +</span> v<span class="opt">.</span><span class="kwd">GetElement</span><span class="opt">(</span><span class="num">0</span><span class="opt">)  +</span> v<span class="opt">.</span><span class="kwd">GetElement</span><span class="opt">(</span><span class="num">3</span><span class="opt">)</span>
+<span class="kwa">let inline</span> <span class="kwd">Sqr</span> <span class="opt">(</span>v <span class="opt">:</span> <span class="kwc">Vf</span><span class="opt">) =</span> <span class="kwd">Sum</span> <span class="opt">(</span>v <span class="opt">.*</span> v<span class="opt">)</span>
+
+<span class="kwa">let</span> <span class="kwc">vecInit</span><span class="opt">(</span>x<span class="opt">,</span>y<span class="opt">,</span>z<span class="opt">) =</span> <span class="kwc">Vec</span><span class="opt">.</span><span class="kwd">Create</span><span class="opt">(</span>x<span class="opt">,</span>y<span class="opt">,</span><span class="num">0</span><span class="opt">.,</span>z<span class="opt">)</span>
 
 <span class="slc">// Global Variables</span>
 <span class="kwa">let</span> <span class="kwc">N</span> <span class="opt">=</span> <span class="num">5</span>
@@ -49,73 +55,72 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="kwa">let</span> <span class="kwc">DaysPeryear</span> <span class="opt">=</span> <span class="num">365.24</span>
 <span class="kwa">let</span> <span class="kwc">Solarmass</span> <span class="opt">=</span> <span class="num">39.4784176043574</span>
 
-<span class="kwa">let</span> <span class="kwc">DaysPeryearV</span> <span class="opt">=</span> <span class="kwd">Vector256</span><span class="opt">.</span><span class="kwd">Create</span><span class="opt">(</span><span class="kwc">DaysPeryear</span><span class="opt">)</span>
-<span class="kwa">let</span> <span class="kwc">SolarmassV</span> <span class="opt">=</span> <span class="kwd">Vector256</span><span class="opt">.</span><span class="kwd">Create</span><span class="opt">(</span><span class="kwc">Solarmass</span><span class="opt">)</span>
+<span class="kwa">let</span> <span class="kwc">DaysPeryearV</span> <span class="opt">=</span> <span class="kwc">Vec</span><span class="opt">.</span><span class="kwd">Create</span><span class="opt">(</span><span class="kwc">DaysPeryear</span><span class="opt">)</span>
+<span class="kwa">let</span> <span class="kwc">SolarmassV</span> <span class="opt">=</span> <span class="kwc">Vec</span><span class="opt">.</span><span class="kwd">Create</span><span class="opt">(</span><span class="kwc">Solarmass</span><span class="opt">)</span>
 
 <span class="slc">// Main functions</span>
-<span class="kwa">let</span> <span class="kwc">initSystem</span> <span class="opt">(</span><span class="kwd">P</span><span class="opt">:</span> <span class="kwd">Span</span><span class="opt">&lt;</span><span class="kwd">Vector256</span><span class="opt">&lt;</span><span class="kwb">float</span><span class="opt">&gt;&gt;) (</span><span class="kwd">V</span><span class="opt">:</span> <span class="kwd">Span</span><span class="opt">&lt;</span><span class="kwd">Vector256</span><span class="opt">&lt;</span><span class="kwb">float</span><span class="opt">&gt;&gt;) (</span><span class="kwd">M</span><span class="opt">:</span> <span class="kwd">Span</span><span class="opt">&lt;</span><span class="kwd">Vector256</span><span class="opt">&lt;</span><span class="kwb">float</span><span class="opt">&gt;&gt;) =</span>
-    <span class="kwd">M</span><span class="opt">.[</span><span class="num">0</span><span class="opt">] &lt;-</span> <span class="kwd">Vector256</span><span class="opt">.</span><span class="kwd">Create</span><span class="opt">(</span><span class="kwc">Solarmass</span><span class="opt">)</span>
+<span class="kwa">let</span> <span class="kwc">initSystem</span> <span class="opt">(</span><span class="kwd">P</span><span class="opt">:</span> <span class="kwd">Span</span><span class="opt">&lt;</span><span class="kwc">Vf</span><span class="opt">&gt;) (</span><span class="kwd">V</span><span class="opt">:</span> <span class="kwd">Span</span><span class="opt">&lt;</span><span class="kwc">Vf</span><span class="opt">&gt;) (</span><span class="kwd">M</span><span class="opt">:</span> <span class="kwd">Span</span><span class="opt">&lt;</span><span class="kwc">Vf</span><span class="opt">&gt;) =</span>
+    <span class="slc">// Sun</span>
+    <span class="kwd">M</span><span class="opt">.[</span><span class="num">0</span><span class="opt">] &lt;-</span> <span class="kwc">Vec</span><span class="opt">.</span><span class="kwd">Create</span><span class="opt">(</span><span class="kwc">Solarmass</span><span class="opt">)</span>
 
     <span class="slc">// Jupiter</span>
-    <span class="kwd">P</span><span class="opt">.[</span><span class="num">1</span><span class="opt">] &lt;-</span> <span class="kwd">Vector256</span><span class="opt">.</span><span class="kwd">Create</span><span class="opt">(</span><span class="num">0</span><span class="opt">.,</span>
+    <span class="kwd">P</span><span class="opt">.[</span><span class="num">1</span><span class="opt">] &lt;-</span> <span class="kwc">vecInit</span><span class="opt">(</span>
             <span class="num">4.84143144246472090e+00</span><span class="opt">,</span>
             <span class="opt">-</span><span class="num">1.16032004402742839e+00</span><span class="opt">,</span>
             <span class="opt">-</span><span class="num">1.03622044471123109e-01</span>
     <span class="opt">)</span>
-    <span class="kwd">V</span><span class="opt">.[</span><span class="num">1</span><span class="opt">] &lt;-</span> <span class="kwd">Vector256</span><span class="opt">.</span><span class="kwd">Create</span><span class="opt">(</span><span class="num">0</span><span class="opt">.,</span>
+    <span class="kwd">V</span><span class="opt">.[</span><span class="num">1</span><span class="opt">] &lt;-</span> <span class="kwc">vecInit</span><span class="opt">(</span>
             <span class="num">1.66007664274403694e-03</span><span class="opt">,</span>
             <span class="num">7.69901118419740425e-03</span><span class="opt">,</span>
             <span class="opt">-</span><span class="num">6.90460016972063023e-05</span>
     <span class="opt">)</span>
-    <span class="kwd">M</span><span class="opt">.[</span><span class="num">1</span><span class="opt">] &lt;-</span> <span class="kwd">Vector256</span><span class="opt">.</span><span class="kwd">Create</span><span class="opt">(</span><span class="kwc">Solarmass</span> <span class="opt">*</span> <span class="num">9.54791938424326609e-04</span><span class="opt">)</span>
+    <span class="kwd">M</span><span class="opt">.[</span><span class="num">1</span><span class="opt">] &lt;-</span> <span class="kwc">Vec</span><span class="opt">.</span><span class="kwd">Create</span><span class="opt">(</span><span class="kwc">Solarmass</span> <span class="opt">*</span> <span class="num">9.54791938424326609e-04</span><span class="opt">)</span>
     
     <span class="slc">// Saturn</span>
-    <span class="kwd">P</span><span class="opt">.[</span><span class="num">2</span><span class="opt">] &lt;-</span> <span class="kwd">Vector256</span><span class="opt">.</span><span class="kwd">Create</span><span class="opt">(</span><span class="num">0</span><span class="opt">.,</span>
+    <span class="kwd">P</span><span class="opt">.[</span><span class="num">2</span><span class="opt">] &lt;-</span> <span class="kwc">vecInit</span><span class="opt">(</span>
             <span class="num">8.34336671824457987e+00</span><span class="opt">,</span>
             <span class="num">4.12479856412430479e+00</span><span class="opt">,</span>
             <span class="opt">-</span><span class="num">4.03523417114321381e-01</span>
     <span class="opt">)</span>
-    <span class="kwd">V</span><span class="opt">.[</span><span class="num">2</span><span class="opt">] &lt;-</span> <span class="kwd">Vector256</span><span class="opt">.</span><span class="kwd">Create</span><span class="opt">(</span><span class="num">0</span><span class="opt">.,</span>
+    <span class="kwd">V</span><span class="opt">.[</span><span class="num">2</span><span class="opt">] &lt;-</span> <span class="kwc">vecInit</span><span class="opt">(</span>
             <span class="opt">-</span><span class="num">2.76742510726862411e-03</span><span class="opt">,</span>
             <span class="num">4.99852801234917238e-03</span><span class="opt">,</span>
             <span class="num">2.30417297573763929e-05</span>
     <span class="opt">)</span>
-    <span class="kwd">M</span><span class="opt">.[</span><span class="num">2</span><span class="opt">] &lt;-</span> <span class="kwd">Vector256</span><span class="opt">.</span><span class="kwd">Create</span><span class="opt">(</span><span class="kwc">Solarmass</span> <span class="opt">*</span> <span class="num">2.85885980666130812e-04</span><span class="opt">)</span>       
+    <span class="kwd">M</span><span class="opt">.[</span><span class="num">2</span><span class="opt">] &lt;-</span> <span class="kwc">Vec</span><span class="opt">.</span><span class="kwd">Create</span><span class="opt">(</span><span class="kwc">Solarmass</span> <span class="opt">*</span> <span class="num">2.85885980666130812e-04</span><span class="opt">)</span>       
 
     <span class="slc">// Uranus</span>
-    <span class="kwd">P</span><span class="opt">.[</span><span class="num">3</span><span class="opt">] &lt;-</span> <span class="kwd">Vector256</span><span class="opt">.</span><span class="kwd">Create</span><span class="opt">(</span><span class="num">0</span><span class="opt">.,</span>
+    <span class="kwd">P</span><span class="opt">.[</span><span class="num">3</span><span class="opt">] &lt;-</span> <span class="kwc">vecInit</span><span class="opt">(</span>
             <span class="num">1.28943695621391310e+01</span><span class="opt">,</span>
             <span class="opt">-</span><span class="num">1.51111514016986312e+01</span><span class="opt">,</span>
             <span class="opt">-</span><span class="num">2.23307578892655734e-01</span>
     <span class="opt">)</span>
-    <span class="kwd">V</span><span class="opt">.[</span><span class="num">3</span><span class="opt">] &lt;-</span> <span class="kwd">Vector256</span><span class="opt">.</span><span class="kwd">Create</span><span class="opt">(</span><span class="num">0</span><span class="opt">.,</span>
+    <span class="kwd">V</span><span class="opt">.[</span><span class="num">3</span><span class="opt">] &lt;-</span> <span class="kwc">vecInit</span><span class="opt">(</span>
             <span class="num">2.96460137564761618e-03</span><span class="opt">,</span>
             <span class="num">2.37847173959480950e-03</span><span class="opt">,</span>
             <span class="opt">-</span><span class="num">2.96589568540237556e-05</span>
     <span class="opt">)</span>
-    <span class="kwd">M</span><span class="opt">.[</span><span class="num">3</span><span class="opt">] &lt;-</span> <span class="kwd">Vector256</span><span class="opt">.</span><span class="kwd">Create</span><span class="opt">(</span><span class="kwc">Solarmass</span> <span class="opt">*</span> <span class="num">4.36624404335156298e-05</span><span class="opt">)</span>
+    <span class="kwd">M</span><span class="opt">.[</span><span class="num">3</span><span class="opt">] &lt;-</span> <span class="kwc">Vec</span><span class="opt">.</span><span class="kwd">Create</span><span class="opt">(</span><span class="kwc">Solarmass</span> <span class="opt">*</span> <span class="num">4.36624404335156298e-05</span><span class="opt">)</span>
 
     <span class="slc">// Neptune</span>
-    <span class="kwd">P</span><span class="opt">.[</span><span class="num">4</span><span class="opt">] &lt;-</span> <span class="kwd">Vector256</span><span class="opt">.</span><span class="kwd">Create</span><span class="opt">(</span><span class="num">0</span><span class="opt">.,</span>
+    <span class="kwd">P</span><span class="opt">.[</span><span class="num">4</span><span class="opt">] &lt;-</span> <span class="kwc">vecInit</span><span class="opt">(</span>
             <span class="num">1.53796971148509165e+01</span><span class="opt">,</span>
             <span class="opt">-</span><span class="num">2.59193146099879641e+01</span><span class="opt">,</span>
             <span class="num">1.79258772950371181e-01</span>
     <span class="opt">)</span>
-    <span class="kwd">V</span><span class="opt">.[</span><span class="num">4</span><span class="opt">] &lt;-</span> <span class="kwd">Vector256</span><span class="opt">.</span><span class="kwd">Create</span><span class="opt">(</span><span class="num">0</span><span class="opt">.,</span>
+    <span class="kwd">V</span><span class="opt">.[</span><span class="num">4</span><span class="opt">] &lt;-</span> <span class="kwc">vecInit</span><span class="opt">(</span>
             <span class="num">2.68067772490389322e-03</span><span class="opt">,</span>
             <span class="num">1.62824170038242295e-03</span><span class="opt">,</span>
             <span class="opt">-</span><span class="num">9.51592254519715870e-05</span>
     <span class="opt">)</span>
-    <span class="kwd">M</span><span class="opt">.[</span><span class="num">4</span><span class="opt">] &lt;-</span> <span class="kwd">Vector256</span><span class="opt">.</span><span class="kwd">Create</span><span class="opt">(</span><span class="kwc">Solarmass</span> <span class="opt">*</span> <span class="num">5.15138902046611451e-05</span><span class="opt">)</span>
-
+    <span class="kwd">M</span><span class="opt">.[</span><span class="num">4</span><span class="opt">] &lt;-</span> <span class="kwc">Vec</span><span class="opt">.</span><span class="kwd">Create</span><span class="opt">(</span><span class="kwc">Solarmass</span> <span class="opt">*</span> <span class="num">5.15138902046611451e-05</span><span class="opt">)</span>
 
     <span class="kwa">for</span> i <span class="kwa">in</span> <span class="num">1</span><span class="opt">..</span><span class="kwc">N</span><span class="opt">-</span><span class="num">1</span> <span class="kwa">do</span>
         <span class="kwd">V</span><span class="opt">.[</span><span class="num">0</span><span class="opt">] &lt;-</span> <span class="kwd">V</span><span class="opt">.[</span><span class="num">0</span><span class="opt">] .- (</span><span class="kwd">V</span><span class="opt">.[</span>i<span class="opt">] .*</span> <span class="kwd">M</span><span class="opt">.[</span>i<span class="opt">])</span>
-    <span class="kwd">V</span><span class="opt">.[</span><span class="num">0</span><span class="opt">] &lt;-</span> <span class="kwd">V</span><span class="opt">.[</span><span class="num">0</span><span class="opt">] ./</span> <span class="kwc">SolarmassV</span>
-    <span class="kwa">for</span> i <span class="kwa">in</span> <span class="num">0</span><span class="opt">..</span><span class="kwc">N</span><span class="opt">-</span><span class="num">1</span> <span class="kwa">do</span>
         <span class="kwd">V</span><span class="opt">.[</span>i<span class="opt">] &lt;-</span> <span class="kwd">V</span><span class="opt">.[</span>i<span class="opt">] .*</span> <span class="kwc">DaysPeryearV</span>
+    <span class="kwd">V</span><span class="opt">.[</span><span class="num">0</span><span class="opt">] &lt;- (</span><span class="kwd">V</span><span class="opt">.[</span><span class="num">0</span><span class="opt">] ./</span> <span class="kwc">SolarmassV</span><span class="opt">) .*</span> <span class="kwc">DaysPeryearV</span>
 
-<span class="kwa">let inline</span> energy <span class="opt">(</span><span class="kwd">P</span><span class="opt">:</span> <span class="kwd">Span</span><span class="opt">&lt;</span><span class="kwd">Vector256</span><span class="opt">&lt;</span><span class="kwb">float</span><span class="opt">&gt;&gt;) (</span><span class="kwd">V</span><span class="opt">:</span> <span class="kwd">Span</span><span class="opt">&lt;</span><span class="kwd">Vector256</span><span class="opt">&lt;</span><span class="kwb">float</span><span class="opt">&gt;&gt;) (</span><span class="kwd">M</span><span class="opt">:</span> <span class="kwd">Span</span><span class="opt">&lt;</span><span class="kwd">Vector256</span><span class="opt">&lt;</span><span class="kwb">float</span><span class="opt">&gt;&gt;) =</span>
+<span class="kwa">let inline</span> energy <span class="opt">(</span><span class="kwd">P</span><span class="opt">:</span> <span class="kwd">Span</span><span class="opt">&lt;</span><span class="kwc">Vf</span><span class="opt">&gt;) (</span><span class="kwd">V</span><span class="opt">:</span> <span class="kwd">Span</span><span class="opt">&lt;</span><span class="kwc">Vf</span><span class="opt">&gt;) (</span><span class="kwd">M</span><span class="opt">:</span> <span class="kwd">Span</span><span class="opt">&lt;</span><span class="kwc">Vf</span><span class="opt">&gt;) =</span>
     <span class="kwa">let mutable</span> <span class="kwc">e</span> <span class="opt">=</span> <span class="num">0.0</span>
     <span class="kwa">for</span> i <span class="kwa">in</span> <span class="num">0</span><span class="opt">..</span><span class="kwc">N</span><span class="opt">-</span><span class="num">1</span> <span class="kwa">do</span>
         <span class="kwc">e</span> <span class="opt">&lt;-</span> <span class="kwc">e</span> <span class="opt">+</span> <span class="num">0.5</span> <span class="opt">*</span> <span class="kwd">M</span><span class="opt">.[</span>i<span class="opt">].</span><span class="kwd">ToScalar</span><span class="opt">() *  (</span><span class="kwd">Sqr V</span><span class="opt">.[</span>i<span class="opt">])</span>
@@ -125,9 +130,9 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
             <span class="kwc">e</span> <span class="opt">&lt;-</span> <span class="kwc">e</span> <span class="opt">-</span> <span class="kwd">M</span><span class="opt">.[</span>i<span class="opt">].</span><span class="kwd">ToScalar</span><span class="opt">() *</span> <span class="kwd">M</span><span class="opt">.[</span>j<span class="opt">].</span><span class="kwd">ToScalar</span><span class="opt">() / (</span>sqrt <span class="opt">(</span><span class="kwd">Sqr</span> <span class="kwc">dstv</span><span class="opt">))</span>
     <span class="kwc">e</span>
 
-<span class="kwa">let inline</span> advance <span class="opt">(</span><span class="kwd">P</span><span class="opt">:</span> <span class="kwd">Span</span><span class="opt">&lt;</span><span class="kwd">Vector256</span><span class="opt">&lt;</span><span class="kwb">float</span><span class="opt">&gt;&gt;) (</span><span class="kwd">V</span><span class="opt">:</span> <span class="kwd">Span</span><span class="opt">&lt;</span><span class="kwd">Vector256</span><span class="opt">&lt;</span><span class="kwb">float</span><span class="opt">&gt;&gt;) (</span><span class="kwd">M</span><span class="opt">:</span> <span class="kwd">Span</span><span class="opt">&lt;</span><span class="kwd">Vector256</span><span class="opt">&lt;</span><span class="kwb">float</span><span class="opt">&gt;&gt;) (</span><span class="kwc">DT</span><span class="opt">:</span> <span class="kwb">float</span><span class="opt">)</span> repetitions <span class="opt">=</span>
+<span class="kwa">let inline</span> advance <span class="opt">(</span><span class="kwd">P</span><span class="opt">:</span> <span class="kwd">Span</span><span class="opt">&lt;</span><span class="kwc">Vf</span><span class="opt">&gt;) (</span><span class="kwd">V</span><span class="opt">:</span> <span class="kwd">Span</span><span class="opt">&lt;</span><span class="kwc">Vf</span><span class="opt">&gt;) (</span><span class="kwd">M</span><span class="opt">:</span> <span class="kwd">Span</span><span class="opt">&lt;</span><span class="kwc">Vf</span><span class="opt">&gt;) (</span><span class="kwc">DT</span><span class="opt">:</span> <span class="kwb">float</span><span class="opt">)</span> repetitions <span class="opt">=</span>
     <span class="kwa">let</span> <span class="kwc">N</span> <span class="opt">=</span> <span class="kwd">P</span><span class="opt">.</span><span class="kwd">Length</span>
-    <span class="kwa">let</span> <span class="kwc">DTV</span> <span class="opt">=</span> <span class="kwd">Vector256</span><span class="opt">.</span><span class="kwd">Create</span><span class="opt">(</span><span class="kwc">DT</span><span class="opt">)</span>
+    <span class="kwa">let</span> <span class="kwc">DTV</span> <span class="opt">=</span> <span class="kwc">Vec</span><span class="opt">.</span><span class="kwd">Create</span><span class="opt">(</span><span class="kwc">DT</span><span class="opt">)</span>
 
     <span class="kwa">for</span> _ <span class="kwa">in</span> <span class="num">1</span><span class="opt">..</span>repetitions <span class="kwa">do</span>
         <span class="kwa">for</span> i <span class="kwa">in</span> <span class="num">0</span><span class="opt">..</span><span class="kwc">N</span><span class="opt">-</span><span class="num">2</span> <span class="kwa">do</span>
@@ -143,12 +148,17 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
         <span class="kwa">for</span> i <span class="kwa">in</span> <span class="num">0</span><span class="opt">.</span><span class="num">.4</span> <span class="kwa">do</span>
             <span class="kwd">P</span><span class="opt">.[</span>i<span class="opt">] &lt;-</span> <span class="kwd">P</span><span class="opt">.[</span>i<span class="opt">] .+ (</span><span class="kwd">V</span><span class="opt">.[</span>i<span class="opt">] .*</span> <span class="kwc">DTV</span><span class="opt">)</span>
 
+<span class="kwa">let inline</span> vecUnsafeAllocate <span class="kwc">n</span> <span class="opt">=</span>
+    <span class="kwa">let</span> <span class="kwc">mem</span> <span class="opt">=</span> <span class="kwd">NativePtr</span><span class="opt">.</span>stackalloc<span class="opt">&lt;</span>byte<span class="opt">&gt;(</span>sizeof<span class="opt">&lt;</span><span class="kwc">Vf</span><span class="opt">&gt; *</span> <span class="kwc">n</span><span class="opt">)</span>
+    <span class="kwa">let</span> <span class="kwc">memvoid</span> <span class="opt">=</span> <span class="kwc">mem</span> <span class="opt">|&gt;</span> <span class="kwd">NativePtr</span><span class="opt">.</span>toVoidPtr 
+    <span class="kwd">Span</span><span class="opt">&lt;</span><span class="kwc">Vf</span><span class="opt">&gt;(</span><span class="kwc">memvoid</span><span class="opt">,</span><span class="kwc">n</span><span class="opt">)</span>
+
 <span class="opt">[&lt;</span><span class="kwd">EntryPoint</span><span class="opt">&gt;]</span>
 <span class="kwa">let</span> <span class="kwc">main</span> args <span class="opt">=</span>
     <span class="kwa">let</span> <span class="kwc">repetitions</span> <span class="opt">=</span> <span class="kwa">try</span> <span class="kwb">int</span> <span class="kwc">args</span><span class="opt">.[</span><span class="num">0</span><span class="opt">]</span> <span class="kwa">with</span> _ <span class="opt">-&gt;</span> <span class="num">1000</span>
-    <span class="kwa">let</span> <span class="kwc">P</span> <span class="opt">=</span> <span class="kwd">Span</span><span class="opt">&lt;</span><span class="kwd">Vector256</span><span class="opt">&lt;</span><span class="kwb">float</span><span class="opt">&gt;&gt;(</span><span class="kwd">NativePtr</span><span class="opt">.</span>stackalloc<span class="opt">&lt;</span>byte<span class="opt">&gt;(</span>sizeof<span class="opt">&lt;</span><span class="kwd">Vector256</span><span class="opt">&lt;</span><span class="kwb">float</span><span class="opt">&gt;&gt; *</span> <span class="kwc">N</span><span class="opt">) |&gt;</span> <span class="kwd">NativePtr</span><span class="opt">.</span>toVoidPtr<span class="opt">,</span><span class="kwc">N</span><span class="opt">)</span>
-    <span class="kwa">let</span> <span class="kwc">V</span> <span class="opt">=</span> <span class="kwd">Span</span><span class="opt">&lt;</span><span class="kwd">Vector256</span><span class="opt">&lt;</span><span class="kwb">float</span><span class="opt">&gt;&gt;(</span><span class="kwd">NativePtr</span><span class="opt">.</span>stackalloc<span class="opt">&lt;</span>byte<span class="opt">&gt;(</span>sizeof<span class="opt">&lt;</span><span class="kwd">Vector256</span><span class="opt">&lt;</span><span class="kwb">float</span><span class="opt">&gt;&gt; *</span> <span class="kwc">N</span><span class="opt">) |&gt;</span> <span class="kwd">NativePtr</span><span class="opt">.</span>toVoidPtr<span class="opt">,</span><span class="kwc">N</span><span class="opt">)</span>
-    <span class="kwa">let</span> <span class="kwc">M</span> <span class="opt">=</span> <span class="kwd">Span</span><span class="opt">&lt;</span><span class="kwd">Vector256</span><span class="opt">&lt;</span><span class="kwb">float</span><span class="opt">&gt;&gt;(</span><span class="kwd">NativePtr</span><span class="opt">.</span>stackalloc<span class="opt">&lt;</span>byte<span class="opt">&gt;(</span>sizeof<span class="opt">&lt;</span><span class="kwd">Vector256</span><span class="opt">&lt;</span><span class="kwb">float</span><span class="opt">&gt;&gt; *</span> <span class="kwc">N</span><span class="opt">) |&gt;</span> <span class="kwd">NativePtr</span><span class="opt">.</span>toVoidPtr<span class="opt">,</span><span class="kwc">N</span><span class="opt">)</span>
+    <span class="kwa">let</span> <span class="kwc">P</span> <span class="opt">=</span> vecUnsafeAllocate <span class="kwc">N</span>
+    <span class="kwa">let</span> <span class="kwc">V</span> <span class="opt">=</span> vecUnsafeAllocate <span class="kwc">N</span>
+    <span class="kwa">let</span> <span class="kwc">M</span> <span class="opt">=</span> vecUnsafeAllocate <span class="kwc">N</span>
     <span class="kwc">initSystem P V M</span>
     energy <span class="kwc">P V M</span> <span class="opt">|&gt;</span> printfn <span class="str">&quot;%.9f&quot;</span>
     advance <span class="kwc">P V M DT repetitions</span>
@@ -168,7 +178,7 @@ Host Version: 5.0.0; Commit: cf258a14b7
 &lt;ServerGarbageCollection&gt;true&lt;/ServerGarbageCollection&gt;
 
 
-Tue, 08 Jun 2021 21:43:28 GMT
+Wed, 09 Jun 2021 04:01:38 GMT
 
 MAKE:
 cp nbody.fsharpcore-6.fsharpcore Program.fs
@@ -185,9 +195,9 @@ Build succeeded.
     0 Warning(s)
     0 Error(s)
 
-Time Elapsed 00:00:10.93
+Time Elapsed 00:00:11.12
 
-13.67s to complete and log all make actions
+13.42s to complete and log all make actions
 
 COMMAND LINE:
 /usr/bin/dotnet ./bin/Release/net5.0/ubuntu-x64/tmp.dll 50000000
