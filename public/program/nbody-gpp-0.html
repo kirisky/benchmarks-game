@@ -22,195 +22,240 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
       <h2>source code</h2>
     </div>
     <pre>
-<span class="slc">// The Computer Language Benchmarks Game</span>
-<span class="slc">// https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
-<span class="slc">//</span>
-<span class="slc">// Contributed by Andrei Simion</span>
-
+<span class="com">/* The Computer Language Benchmarks Game</span>
+<span class="com"> * https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="com"> *</span>
+<span class="com"> * contributed by Miles for C</span>
+<span class="com"> * Ported to C++ with std::array and compile-time loops by François-David Collin</span>
+<span class="com"> */</span>
 <span class="ppc">#include &lt;cstdio&gt;</span>
-<span class="ppc">#include &lt;cstdlib&gt;</span>
 <span class="ppc">#include &lt;array&gt;</span>
-<span class="ppc">#include &lt;cmath&gt;</span>
+<span class="ppc">#include &lt;immintrin.h&gt;</span>
 
-<span class="kwc">constexpr</span> <span class="kwb">double</span> pi = <span class="num">3.141592653589793</span>;
-<span class="kwc">constexpr</span> <span class="kwb">double</span> solar_mass = <span class="num">4</span> * pi * pi;
-<span class="kwc">constexpr</span> <span class="kwb">double</span> days_per_year = <span class="num">365.24</span>;
-<span class="kwc">constexpr</span> <span class="kwb">int</span> num_bodies = <span class="num">5</span>;
-<span class="kwc">constexpr</span> <span class="kwb">int</span> interactions = (num_bodies - <span class="num">1</span>) * num_bodies / <span class="num">2</span>;
+<span class="kwc">constexpr</span> <span class="kwb">double</span> PI = <span class="num">3.141592653589793</span>;
+<span class="kwc">constexpr</span> <span class="kwb">double</span> SOLAR_MASS = <span class="num">4</span> * PI * PI;
+<span class="kwc">constexpr</span> <span class="kwb">double</span> DAYS_PER_YEAR = <span class="num">365.24</span>;
 
-<span class="kwb">struct</span> Body
+<span class="kwc">constexpr</span> <span class="kwb">size_t</span> N = <span class="num">5</span>;
+
+<span class="slc">// Vector Code</span>
+<span class="kwa">using</span> Vf = __m256d;
+
+<span class="slc">// utilize vrsqrtps to compute an approximation of 1/sqrt(x) with float,</span>
+<span class="slc">// cast back to double and refine using a variation of</span>
+<span class="slc">// Goldschmidt’s algorithm to get &lt; 1e-9 error</span>
+<span class="kwb">static</span> <span class="kwc">inline</span> __m256d <span class="kwd">_mm256_rsqrt_pd</span>(__m256d s)
 {
-    <span class="kwb">double</span> x, y, z, vx, vy, vz, mass;
+    __m128 q = <span class="kwd">_mm256_cvtpd_ps</span>(s);
+    q = <span class="kwd">_mm_rsqrt_ps</span>(q);
+    __m256d x = <span class="kwd">_mm256_cvtps_pd</span>(q);
+    __m256d y = s * x * x;
+    __m256d a = <span class="kwd">_mm256_mul_pd</span>(y, <span class="kwd">_mm256_set1_pd</span>(<span class="num">0.375</span>));
+    a = <span class="kwd">_mm256_mul_pd</span>(a, y);
+    __m256d b = <span class="kwd">_mm256_mul_pd</span>(y, <span class="kwd">_mm256_set1_pd</span>(<span class="num">1.25</span>));
+    b = <span class="kwd">_mm256_sub_pd</span>(b, <span class="kwd">_mm256_set1_pd</span>(<span class="num">1.875</span>));
+    y = <span class="kwd">_mm256_sub_pd</span>(a, b);
+    x = <span class="kwd">_mm256_mul_pd</span>(x, y);
+    <span class="kwa">return</span> x;
+}
 
-    <span class="kwb">double</span> <span class="kwd">get_velocity_square_sum</span>()
-    {
-        <span class="kwa">return</span> vx * vx + vy * vy + vz * vz;
+<span class="kwc">template</span>&lt;<span class="kwb">size_t</span> n, <span class="kwb">size_t</span> pairs = n*(n-<span class="num">1</span>)/<span class="num">2</span>&gt;
+<span class="kwc">constexpr</span> std::array&lt;std::array&lt;<span class="kwb">size_t</span>,<span class="num">2</span>&gt;,pairs&gt; <span class="kwd">getpairs</span>() {
+    std::array&lt;std::array&lt;<span class="kwb">size_t</span>,<span class="num">2</span>&gt;,pairs&gt; listpairs{};
+    <span class="kwa">for</span>(<span class="kwb">size_t</span> i = <span class="num">0</span>, k = <span class="num">0</span>; i &lt; n; i++) 
+        <span class="kwa">for</span> (<span class="kwb">size_t</span> j = <span class="num">0</span>; j &lt; i; j++, k++)
+            listpairs[k] = std::array&lt;<span class="kwb">size_t</span>,<span class="num">2</span>&gt;{i,j};
+    <span class="kwa">return</span> listpairs;
+}
+
+<span class="kwc">constexpr auto</span> listpairs = getpairs&lt;N&gt;();
+<span class="kwc">constexpr</span> <span class="kwb">size_t</span> PAIRS = listpairs.<span class="kwd">size</span>();
+
+<span class="kwb">struct</span> NBodySystem {
+    std::array&lt;Vf,N&gt; p;
+    std::array&lt;Vf,N&gt; v;
+    std::array&lt;Vf,N&gt; m;
+    <span class="kwb">const</span> __m256d rt;
+
+    <span class="kwd">NBodySystem</span>(<span class="kwb">double</span> dt) : <span class="kwd">rt</span>(<span class="kwd">_mm256_set1_pd</span>(dt)) {
+
+        r[PAIRS] = <span class="kwd">_mm256_set1_pd</span>(<span class="num">1.0</span>);
+        r[PAIRS+<span class="num">1</span>] = <span class="kwd">_mm256_set1_pd</span>(<span class="num">1.0</span>);
+        r[PAIRS+<span class="num">2</span>] = <span class="kwd">_mm256_set1_pd</span>(<span class="num">1.0</span>);
+
+        <span class="slc">// sun</span>
+        m[<span class="num">0</span>] = <span class="kwd">_mm256_set1_pd</span>(SOLAR_MASS);
+        p[<span class="num">0</span>] = <span class="kwd">_mm256_set1_pd</span>(<span class="num">0.0</span>);
+        v[<span class="num">0</span>] = <span class="kwd">_mm256_set1_pd</span>(<span class="num">0.0</span>);
+
+        <span class="slc">// jupiter</span>
+        m[<span class="num">1</span>] = <span class="kwd">_mm256_set1_pd</span>(<span class="num">9.54791938424326609e-04</span> * SOLAR_MASS);
+        p[<span class="num">1</span>] = <span class="kwd">_mm256_setr_pd</span>(<span class="num">0.0</span>,
+                            <span class="num">4.84143144246472090e+00</span>,
+                            -<span class="num">1.16032004402742839e+00</span>,
+                            -<span class="num">1.03622044471123109e-01</span>);
+        v[<span class="num">1</span>] = <span class="kwd">_mm256_setr_pd</span>(<span class="num">0.0</span>,
+                            <span class="num">1.66007664274403694e-03</span> * DAYS_PER_YEAR,
+                            <span class="num">7.69901118419740425e-03</span> * DAYS_PER_YEAR,
+                            -<span class="num">6.90460016972063023e-05</span> * DAYS_PER_YEAR);
+
+        <span class="slc">// saturn</span>
+        m[<span class="num">2</span>] = <span class="kwd">_mm256_set1_pd</span>(<span class="num">2.85885980666130812e-04</span> * SOLAR_MASS);
+        p[<span class="num">2</span>] = <span class="kwd">_mm256_setr_pd</span>(<span class="num">0.0</span>,
+                            <span class="num">8.34336671824457987e+00</span>,
+                            <span class="num">4.12479856412430479e+00</span>,
+                            -<span class="num">4.03523417114321381e-01</span>);
+        v[<span class="num">2</span>] = <span class="kwd">_mm256_setr_pd</span>(<span class="num">0.0</span>,
+                            -<span class="num">2.76742510726862411e-03</span> * DAYS_PER_YEAR,
+                            <span class="num">4.99852801234917238e-03</span> * DAYS_PER_YEAR,
+                            <span class="num">2.30417297573763929e-05</span> * DAYS_PER_YEAR);
+
+        <span class="slc">// uranus</span>
+        m[<span class="num">3</span>] = <span class="kwd">_mm256_set1_pd</span>(<span class="num">4.36624404335156298e-05</span> * SOLAR_MASS);
+        p[<span class="num">3</span>] = <span class="kwd">_mm256_setr_pd</span>(<span class="num">0.0</span>,
+                            <span class="num">1.28943695621391310e+01</span>,
+                            -<span class="num">1.51111514016986312e+01</span>,
+                            -<span class="num">2.23307578892655734e-01</span>);
+        v[<span class="num">3</span>] = <span class="kwd">_mm256_setr_pd</span>(<span class="num">0.0</span>,
+                            <span class="num">2.96460137564761618e-03</span> * DAYS_PER_YEAR,
+                            <span class="num">2.37847173959480950e-03</span> * DAYS_PER_YEAR,
+                            -<span class="num">2.96589568540237556e-05</span> * DAYS_PER_YEAR);
+
+        <span class="slc">// neptune</span>
+        m[<span class="num">4</span>] = <span class="kwd">_mm256_set1_pd</span>(<span class="num">5.15138902046611451e-05</span> * SOLAR_MASS);
+        p[<span class="num">4</span>] = <span class="kwd">_mm256_setr_pd</span>(<span class="num">0.0</span>,
+                            <span class="num">1.53796971148509165e+01</span>,
+                            -<span class="num">2.59193146099879641e+01</span>,
+                            <span class="num">1.79258772950371181e-01</span>);
+        v[<span class="num">4</span>] = <span class="kwd">_mm256_setr_pd</span>(<span class="num">0.0</span>,
+                            <span class="num">2.68067772490389322e-03</span> * DAYS_PER_YEAR,
+                            <span class="num">1.62824170038242295e-03</span> * DAYS_PER_YEAR,
+                            -<span class="num">9.51592254519715870e-05</span> * DAYS_PER_YEAR);
+
+        __m256d o = <span class="kwd">_mm256_set1_pd</span>(<span class="num">0.0</span>);
+        <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">0</span>; i &lt; N; i++)
+        {
+            __m256d t = <span class="kwd">_mm256_mul_pd</span>(m[i], v[i]);
+            o = <span class="kwd">_mm256_add_pd</span>(o, t);
+        }
+        v[<span class="num">0</span>] = <span class="kwd">_mm256_mul_pd</span>(o, <span class="kwd">_mm256_set1_pd</span>(-<span class="num">1.0</span> / SOLAR_MASS));
+    }
+
+    std::array&lt;Vf,PAIRS+<span class="num">3</span>&gt; r;
+    <span class="kwd">alignas</span>(<span class="num">32</span>) std::array&lt;<span class="kwb">double</span>,PAIRS+<span class="num">3</span>&gt; w;
+
+
+    <span class="kwc">template</span>&lt;<span class="kwb">size_t</span> k = <span class="num">0</span>&gt; 
+    <span class="kwc">inline</span> <span class="kwb">void</span> <span class="kwd">KernelLoop0</span>() {
+        <span class="kwc">constexpr auto</span> i = listpairs[k][<span class="num">0</span>];
+        <span class="kwc">constexpr auto</span> j = listpairs[k][<span class="num">1</span>];
+        r[k] = <span class="kwd">_mm256_sub_pd</span>(p[i], p[j]);
+        <span class="kwa">if</span> <span class="kwc">constexpr</span> ((k + <span class="num">1</span>) &lt; PAIRS) KernelLoop0&lt;k+<span class="num">1</span>&gt;();
+    }
+
+    <span class="kwc">template</span>&lt;<span class="kwb">size_t</span> k = <span class="num">0</span>&gt;
+    <span class="kwc">inline</span> <span class="kwb">void</span> <span class="kwd">KernelLoop1</span>() {
+        __m256d x0 = <span class="kwd">_mm256_mul_pd</span>(r[k], r[k]);
+        __m256d x1 = <span class="kwd">_mm256_mul_pd</span>(r[k + <span class="num">1</span>], r[k + <span class="num">1</span>]);
+        __m256d x2 = <span class="kwd">_mm256_mul_pd</span>(r[k + <span class="num">2</span>], r[k + <span class="num">2</span>]);
+        __m256d x3 = <span class="kwd">_mm256_mul_pd</span>(r[k + <span class="num">3</span>], r[k + <span class="num">3</span>]);
+
+        __m256d t0 = <span class="kwd">_mm256_hadd_pd</span>(x0, x1);
+        __m256d t1 = <span class="kwd">_mm256_hadd_pd</span>(x2, x3);
+        __m256d y0 = <span class="kwd">_mm256_permute2f128_pd</span>(t0, t1, <span class="num">0x21</span>);
+        __m256d y1 = <span class="kwd">_mm256_blend_pd</span>(t0, t1, <span class="num">0</span>b1100);
+
+        __m256d z = <span class="kwd">_mm256_add_pd</span>(y0, y1);
+        z = <span class="kwd">_mm256_rsqrt_pd</span>(z);
+        <span class="kwd">_mm256_store_pd</span>(&amp;w[k], z);
+        <span class="kwa">if</span> <span class="kwc">constexpr</span> ((k + <span class="num">4</span>) &lt; PAIRS) KernelLoop1&lt;k+<span class="num">4</span>&gt;();
+    }
+
+    <span class="kwb">double</span> <span class="kwd">energy</span>() {
+        <span class="kwb">double</span> e = <span class="num">0.0</span>;
+
+        r[N] = <span class="kwd">_mm256_set1_pd</span>(<span class="num">0.0</span>);
+        r[N+<span class="num">1</span>] = <span class="kwd">_mm256_set1_pd</span>(<span class="num">0.0</span>);
+        r[N+<span class="num">2</span>] = <span class="kwd">_mm256_set1_pd</span>(<span class="num">0.0</span>);
+
+        <span class="kwa">for</span> (<span class="kwb">int</span> k = <span class="num">0</span>; k &lt; N; k++)
+            r[k] = <span class="kwd">_mm256_mul_pd</span>(v[k], v[k]);
+
+        <span class="kwa">for</span> (<span class="kwb">int</span> k = <span class="num">0</span>; k &lt; N; k += <span class="num">4</span>) {
+            __m256d t0 = <span class="kwd">_mm256_hadd_pd</span>(r[k  ], r[k+<span class="num">1</span>]);
+            __m256d t1 = <span class="kwd">_mm256_hadd_pd</span>(r[k+<span class="num">2</span>], r[k+<span class="num">3</span>]);
+            __m256d y0 = <span class="kwd">_mm256_permute2f128_pd</span>(t0, t1, <span class="num">0x21</span>);
+            __m256d y1 = <span class="kwd">_mm256_blend_pd</span>(t0, t1, <span class="num">0</span>b1100);
+
+            __m256d z = <span class="kwd">_mm256_add_pd</span>(y0, y1);
+            <span class="kwd">_mm256_store_pd</span>(&amp;w[k], z);
+        }
+
+        <span class="kwa">for</span> (<span class="kwb">int</span> k = <span class="num">0</span>; k &lt; N; k++)
+            e += <span class="num">0.5</span> * <span class="kwd">_mm256_cvtsd_f64</span>(m[k]) * w[k];
+
+        <span class="kwd">KernelLoop0</span>();
+        <span class="kwd">KernelLoop1</span>();
+
+        <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">1</span>, k = <span class="num">0</span>; i &lt; N; i++)
+            <span class="kwa">for</span> (<span class="kwb">int</span> j = <span class="num">0</span>; j &lt; i; j++, k++)
+                e -= <span class="kwd">_mm256_cvtsd_f64</span>(m[i]) * <span class="kwd">_mm256_cvtsd_f64</span>(m[j]) * w[k];
+
+        <span class="kwa">return</span> e;
+    }
+
+    <span class="kwc">template</span>&lt;<span class="kwb">size_t</span> k = <span class="num">0</span>&gt;
+    <span class="kwc">inline</span> <span class="kwb">void</span> <span class="kwd">AdvanceLoopInner0</span>() {
+        __m256d x = <span class="kwd">_mm256_load_pd</span>(&amp;w[k]);
+        __m256d y = <span class="kwd">_mm256_mul_pd</span>(x, x);
+        __m256d z = <span class="kwd">_mm256_mul_pd</span>(x, rt);
+        x = <span class="kwd">_mm256_mul_pd</span>(y, z);
+        <span class="kwd">_mm256_store_pd</span>(&amp;w[k], x);
+        <span class="kwa">if</span> <span class="kwc">constexpr</span> ((k + <span class="num">4</span>) &lt; PAIRS) AdvanceLoopInner0&lt;k+<span class="num">4</span>&gt;();
+    }
+
+    <span class="kwc">template</span>&lt;<span class="kwb">size_t</span> k = <span class="num">0</span>&gt;
+    <span class="kwc">inline</span> <span class="kwb">void</span> <span class="kwd">AdvanceLoopInner1</span>() {
+        <span class="kwc">constexpr</span> <span class="kwb">size_t</span> i = listpairs[k][<span class="num">0</span>];
+        <span class="kwc">constexpr</span> <span class="kwb">size_t</span> j = listpairs[k][<span class="num">1</span>];
+        __m256d t = <span class="kwd">_mm256_set1_pd</span>(w[k]);
+        t = <span class="kwd">_mm256_mul_pd</span>(r[k], t);
+        __m256d x = <span class="kwd">_mm256_mul_pd</span>(t, m[j]);
+        __m256d y = <span class="kwd">_mm256_mul_pd</span>(t, m[i]);
+
+        v[i] = <span class="kwd">_mm256_sub_pd</span>(v[i], x);
+        v[j] = <span class="kwd">_mm256_add_pd</span>(v[j], y);
+
+        <span class="kwa">if</span> <span class="kwc">constexpr</span> ((k + <span class="num">1</span>) &lt; PAIRS) AdvanceLoopInner1&lt;k+<span class="num">1</span>&gt;();
+    }
+
+
+    <span class="kwc">template</span>&lt;<span class="kwb">size_t</span> i = <span class="num">0</span>&gt;
+    <span class="kwc">inline</span> <span class="kwb">void</span> <span class="kwd">AdvanceLoopInner2</span>() {
+        __m256d t = <span class="kwd">_mm256_mul_pd</span>(v[i], rt);
+        p[i] = <span class="kwd">_mm256_add_pd</span>(p[i], t);
+
+        <span class="kwa">if</span> <span class="kwc">constexpr</span> ((i + <span class="num">1</span>) &lt; N) AdvanceLoopInner2&lt;i+<span class="num">1</span>&gt;();
+    }
+
+
+    <span class="kwc">inline</span> <span class="kwb">void</span> <span class="kwd">advance</span>() {
+        <span class="slc">// compute rsqrt of distance between each pair of bodies</span>
+        <span class="kwd">KernelLoop0</span>();
+        <span class="kwd">KernelLoop1</span>();
+
+        <span class="kwd">AdvanceLoopInner0</span>();
+        <span class="kwd">AdvanceLoopInner1</span>();
+        <span class="kwd">AdvanceLoopInner2</span>();
     }
 };
 
-
-<span class="kwc">class</span> NBodySystem
-{
-<span class="kwc">public</span>:
-
-    <span class="kwb">double</span> <span class="kwd">compute_energy</span>()
-    {
-        <span class="kwb">double</span> energy = <span class="num">0.0</span>;
-        <span class="kwa">for</span> (std::<span class="kwb">size_t</span> i = <span class="num">0</span>; i &lt; bodies.<span class="kwd">size</span>(); ++i)
-        {
-            energy += <span class="num">0.5</span> * bodies[i].mass * bodies[i].<span class="kwd">get_velocity_square_sum</span>();
-  
-            <span class="kwa">for</span> (std::<span class="kwb">size_t</span> j = i + <span class="num">1</span>; j &lt; bodies.<span class="kwd">size</span>(); ++j)
-            {
-                <span class="kwb">double</span> dx = bodies[i].x - bodies[j].x;
-                <span class="kwb">double</span> dy = bodies[i].y - bodies[j].y;
-                <span class="kwb">double</span> dz = bodies[i].z - bodies[j].z;
-                <span class="kwb">double</span> distance = std::<span class="kwd">sqrt</span>(dx * dx + dy * dy + dz * dz);
-
-                energy-= (bodies[i].mass * bodies[j].mass) / distance;
-            }
-        }
-        <span class="kwa">return</span> energy;
-    }
-   
-   <span class="kwb">void</span> <span class="kwd">advance</span>(<span class="kwb">const</span> std::<span class="kwb">size_t</span> n)
-   {
-       <span class="kwc">constexpr</span> <span class="kwb">double</span> dt = <span class="num">0.01</span>;
-      
-       <span class="kwb">double</span> dxs[interactions], dys[interactions], dzs[interactions];
-       <span class="kwb">double</span> magnitudes[interactions];
-
-       <span class="kwa">for</span> (std::<span class="kwb">size_t</span>  i = <span class="num">0</span>; i &lt; n; ++i)
-       {
-           <span class="kwa">for</span> (std::<span class="kwb">size_t</span> i = <span class="num">0</span>, k = <span class="num">0</span>; i &lt; bodies.<span class="kwd">size</span>(); ++i)
-           {
-               <span class="kwa">for</span> (std::<span class="kwb">size_t</span> j = i + <span class="num">1</span>; j &lt; bodies.<span class="kwd">size</span>(); ++j, ++k)
-               {
-                   dxs[k] = bodies[i].x - bodies[j].x;
-                   dys[k] = bodies[i].y - bodies[j].y;
-                   dzs[k] = bodies[i].z - bodies[j].z;
-
-                   <span class="kwb">const double</span> d_squared = dxs[k] * dxs[k] + dys[k] * dys[k] + dzs[k] * dzs[k];
-                   <span class="kwb">const double</span> distance = std::<span class="kwd">sqrt</span>(d_squared);
-				
-                   magnitudes[k] = dt / (d_squared * distance);
-                }
-            }
-
-            <span class="kwa">for</span> (std::<span class="kwb">size_t</span> i = <span class="num">0</span>, k = <span class="num">0</span>; i &lt; bodies.<span class="kwd">size</span>(); ++i)
-            {
-                <span class="kwa">for</span> (std::<span class="kwb">size_t</span> j = i + <span class="num">1</span>; j &lt; bodies.<span class="kwd">size</span>(); ++j, ++k)
-                {
-                    <span class="kwb">const double</span> mm1 = bodies[j].mass * magnitudes[k];
-                    <span class="kwb">const double</span> mm2 = bodies[i].mass * magnitudes[k];
- 
-                    bodies[i].vx -= dxs[k] * mm1;
-                    bodies[i].vy -= dys[k] * mm1;					
-                    bodies[i].vz -= dzs[k] * mm1;
- 
-                    bodies[j].vx += dxs[k] * mm2;
-                    bodies[j].vy += dys[k] * mm2;
-                    bodies[j].vz += dzs[k] * mm2;
-                }
-        
-<span class="ppc">#ifndef __clang__</span>
-                <span class="slc">// g++ gives 1-2% better performance </span>
-                <span class="slc">// if the update happens here</span>
-                bodies[i].x += dt * bodies[i].vx;
-                bodies[i].y += dt * bodies[i].vy;
-                bodies[i].z += dt * bodies[i].vz;
-<span class="ppc">#endif</span>
-            }
-            
-<span class="ppc">#ifdef __clang__</span>
-            <span class="kwa">for</span> (std::<span class="kwb">size_t</span> i = <span class="num">0</span>; i &lt; bodies.<span class="kwd">size</span>(); ++i)
-            {
-                bodies[i].x += dt * bodies[i].vx;
-                bodies[i].y += dt * bodies[i].vy;
-                bodies[i].z += dt * bodies[i].vz;
-            }
-<span class="ppc">#endif</span>
-       }
-    }
-
-<span class="kwc">private</span>:
-    std::array&lt;Body, num_bodies&gt; bodies = <span class="kwd">create_bodies</span>();
- 
-    <span class="kwc">constexpr</span> <span class="kwb">static double</span> <span class="kwd">compute_p</span>(<span class="kwb">double</span> Body::* member,
-                            <span class="kwb">const</span> std::array&lt;Body, num_bodies - <span class="num">1</span>&gt;&amp; bodies)
-    {
-        <span class="kwb">double</span> p = <span class="num">0.0</span>;
-        <span class="kwa">for</span> (<span class="kwb">size_t</span> i = <span class="num">0</span>; i &lt; bodies.<span class="kwd">size</span>(); ++i)
-        {
-            p += bodies[i].*member * bodies[i].mass;
-        }
-        <span class="kwa">return</span> p;
-    }
-
-    <span class="kwc">constexpr</span> <span class="kwb">static</span> std::array&lt;Body, num_bodies&gt; <span class="kwd">create_bodies</span>()
-    {
-        <span class="kwc">constexpr</span> Body jupiter = { .x    = <span class="num">4.84143144246472090e+00</span>,
-                                   .y    = -<span class="num">1.16032004402742839e+00</span>,
-                                   .z    = -<span class="num">1.03622044471123109e-01</span>,
-                                   .vx   = <span class="num">1.66007664274403694e-03</span> * days_per_year,
-                                   .vy   = <span class="num">7.69901118419740425e-03</span> * days_per_year,
-                                   .vz   = -<span class="num">6.90460016972063023e-05</span> * days_per_year,
-                                   .mass = <span class="num">9.54791938424326609e-04</span> * solar_mass };
-
-        <span class="kwc">constexpr</span> Body saturn  = { .x    = <span class="num">8.34336671824457987e+00</span>,
-                                   .y    = <span class="num">4.12479856412430479e+00</span>,
-                                   .z    = -<span class="num">4.03523417114321381e-01</span>,
-                                   .vx   = -<span class="num">2.76742510726862411e-03</span> * days_per_year,
-                                   .vy   = <span class="num">4.99852801234917238e-03</span> * days_per_year,
-                                   .vz   = <span class="num">2.30417297573763929e-05</span> * days_per_year,
-                                   .mass = <span class="num">2.85885980666130812e-04</span> * solar_mass };
-
-        <span class="kwc">constexpr</span> Body uranus  = { .x    = <span class="num">1.28943695621391310e+01</span>,
-                                   .y    = -<span class="num">1.51111514016986312e+01</span>,
-                                   .z    = -<span class="num">2.23307578892655734e-01</span>,
-                                   .vx   = <span class="num">2.96460137564761618e-03</span> * days_per_year,
-                                   .vy   = <span class="num">2.37847173959480950e-03</span> * days_per_year,
-                                   .vz   = -<span class="num">2.96589568540237556e-05</span> * days_per_year,
-                                   .mass = <span class="num">4.36624404335156298e-05</span> * solar_mass };
-
-        <span class="kwc">constexpr</span> Body neptune = { .x    = <span class="num">1.53796971148509165e+01</span>,
-                                   .y    = -<span class="num">2.59193146099879641e+01</span>,
-                                   .z    = <span class="num">1.79258772950371181e-01</span>,
-                                   .vx   = <span class="num">2.68067772490389322e-03</span> * days_per_year,
-                                   .vy   = <span class="num">1.62824170038242295e-03</span> * days_per_year,
-                                   .vz   = -<span class="num">9.51592254519715870e-05</span> * days_per_year,
-                                   .mass = <span class="num">5.15138902046611451e-05</span> * solar_mass };
-
-        <span class="kwc">constexpr</span> std::array&lt;Body, num_bodies - <span class="num">1</span>&gt; aux_bodies = { jupiter, saturn, uranus, neptune };
-
-        <span class="kwc">constexpr</span> <span class="kwb">double</span> px = <span class="kwd">compute_p</span>(&amp;Body::vx, aux_bodies);
-        <span class="kwc">constexpr</span> <span class="kwb">double</span> py = <span class="kwd">compute_p</span>(&amp;Body::vy, aux_bodies);
-        <span class="kwc">constexpr</span> <span class="kwb">double</span> pz = <span class="kwd">compute_p</span>(&amp;Body::vz, aux_bodies);
-        
-        <span class="kwc">constexpr</span> Body sun = { .x  = <span class="num">0</span>,
-                               .y  = <span class="num">0</span>,
-                               .z  = <span class="num">0</span>,
-                               .vx = -px / solar_mass,
-                               .vy = -py / solar_mass,
-                               .vz = -pz / solar_mass,
-                               .mass = solar_mass };
-
-        <span class="kwa">return</span> { sun, jupiter, saturn, uranus, neptune };
-    }   
-};
-
-
-<span class="kwb">int</span> <span class="kwd">main</span>(<span class="kwb">int</span> argc, <span class="kwb">char</span>** argv)
-{
-    std::<span class="kwb">size_t</span> n = <span class="kwd">atoi</span>(argv[<span class="num">1</span>]);
-
-    NBodySystem system;
-
-    <span class="kwd">printf</span>(<span class="str">&quot;%.9f</span><span class="esc">\n</span><span class="str">&quot;</span>, system.<span class="kwd">compute_energy</span>());
-
-    system.<span class="kwd">advance</span>(n);
-
-    <span class="kwd">printf</span>(<span class="str">&quot;%.9f</span><span class="esc">\n</span><span class="str">&quot;</span>, system.<span class="kwd">compute_energy</span>());
+<span class="kwb">int</span> <span class="kwd">main</span>(<span class="kwb">int</span> argc, <span class="kwb">char</span> *argv[]) {
+    <span class="kwb">int</span> n = <span class="kwd">atoi</span>(argv[<span class="num">1</span>]);
+    NBodySystem <span class="kwd">bodies</span>(<span class="num">0.01</span>);
+    <span class="kwd">printf</span>(<span class="str">&quot;%.9f</span><span class="esc">\n</span><span class="str">&quot;</span>, bodies.<span class="kwd">energy</span>());
+    <span class="kwa">for</span> (<span class="kwb">int</span> i=<span class="num">0</span>; i &lt; n; ++i) bodies.<span class="kwd">advance</span>();
+    <span class="kwd">printf</span>(<span class="str">&quot;%.9f</span><span class="esc">\n</span><span class="str">&quot;</span>, bodies.<span class="kwd">energy</span>());
 }
     </pre>
   </section>
@@ -224,14 +269,26 @@ NOTES:
 g++ (Ubuntu 10.3.0-1ubuntu1) 10.3.0
 
 
-Wed, 09 Jun 2021 17:02:43 GMT
+Wed, 16 Jun 2021 21:50:51 GMT
 
 MAKE:
 /usr/bin/g++ -c -pipe -O3 -fomit-frame-pointer -march=ivybridge  -std=c++17 -fno-math-errno nbody.gpp-0.c++ -o nbody.gpp-0.c++.o &amp;&amp;  \
         /usr/bin/g++ nbody.gpp-0.c++.o -o nbody.gpp-0.gpp_run  
+nbody.gpp-0.c++:51:20: warning: ignoring attributes on template argument ‘Vf’ {aka ‘__m256d’} [-Wignored-attributes]
+   51 |     std::array&lt;Vf,N&gt; p;
+      |                    ^
+nbody.gpp-0.c++:52:20: warning: ignoring attributes on template argument ‘Vf’ {aka ‘__m256d’} [-Wignored-attributes]
+   52 |     std::array&lt;Vf,N&gt; v;
+      |                    ^
+nbody.gpp-0.c++:53:20: warning: ignoring attributes on template argument ‘Vf’ {aka ‘__m256d’} [-Wignored-attributes]
+   53 |     std::array&lt;Vf,N&gt; m;
+      |                    ^
+nbody.gpp-0.c++:120:26: warning: ignoring attributes on template argument ‘Vf’ {aka ‘__m256d’} [-Wignored-attributes]
+  120 |     std::array&lt;Vf,PAIRS+3&gt; r;
+      |                          ^
 rm nbody.gpp-0.c++
 
-1.94s to complete and log all make actions
+0.69s to complete and log all make actions
 
 COMMAND LINE:
 ./nbody.gpp-0.gpp_run 50000000
