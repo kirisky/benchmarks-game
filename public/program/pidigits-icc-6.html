@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,follow,noarchive">
+
+<title>pidigits Intel C&nbsp;#6 program | Computer Language Benchmarks Game </title>
+<style><!--
+a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,header{margin:auto;width:92%}body{font:100% Droid Sans, Ubuntu, Verdana, sans-serif;margin:0;-webkit-text-size-adjust:100%}h3, h1, h2, li a{font-family:Ubuntu Mono,Consolas,Menlo,monospace}div,footer,header{max-width:31em}footer{padding:2.6em 0 0}h3{font-size:1.4em;font-weight:bold;margin:0;padding: .4em}h3, h3 a{color:white;background-color:#77216f}h3 small{font-size:0.64em}h1,h2{margin:1.5em 0 0}h1{font-size:1.4em;font-weight:normal}h2{font-size:1.2em}li{list-style-type:none;vertical-align:top}li a{display:block;font-size:1.2em;margin: .5em .5em 0;padding: .5em .5em .3em}ul{clear:left;margin:-0.3em 0 1.5em;padding-left:0;text-align:center}p{color:#333;line-height:1.4;margin: .3em 0 0}p a, a span{border-bottom: .1em solid #333;padding-bottom: .1em}.com,.slc{color:#888}.kwa{color:#066}.kwb{color:#900}.kwc{color:#050}.kwa,.kwb,.kwc{font-weight:bold}.dstr,.str,.sym,.num{color:#930}pre{color:#222;font-size:1em;overflow-wrap:break-word;white-space:pre-wrap;word-wrap:break-word}@media only screen and (min-width: 60em){article,footer,header{font-size:1.25em}}
+--></style>
+<link rel="shortcut icon" href="../favicon.ico">
+<header>
+  <h3><a href="https://benchmarksgame-team.pages.debian.net/benchmarksgame/index.html">The&nbsp;<small>Computer&nbsp;Language</small><br>Benchmarks&nbsp;Game</a></h3>
+</header>
+<article>
+  <div>
+    <h1>pidigits Intel C&nbsp;#6 program</h1>
+    <aside>
+      <p><a href="../description/pidigits.html#pidigits">description</a>
+    </aside>
+  </div>
+  <section>
+    <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="com">/* The Computer Language Benchmarks Game</span>
+<span class="com"> * https://benchmarksgame-team.pages.debian.net/benchmarksgame/index.html</span>
+<span class="com"> *</span>
+<span class="com"> * Contributed by James Wright </span>
+<span class="com"> * Derived from Lew Palm&apos;s C++ multi-threaded implementation</span>
+<span class="com"> */</span>
+
+<span class="ppc">#include &lt;stdatomic.h&gt;</span>
+<span class="ppc">#include &lt;stdbool.h&gt;</span>
+<span class="ppc">#include &lt;stdio.h&gt;</span>
+<span class="ppc">#include &lt;stdlib.h&gt;</span>
+<span class="ppc">#include &lt;threads.h&gt;</span>
+<span class="ppc">#include &lt;gmp.h&gt;</span>
+
+<span class="ppc">#define WAIT_WHILE(x) while (x) thrd_yield()</span>        <span class="slc">// Lets play nice...</span>
+<span class="ppc"></span><span class="slc">// #define WAIT_WHILE(x) while (x) (void)0          // Or not!!!</span>
+<span class="slc">// #define WAIT_WHILE(x) while (x) __asm(&quot;nop&quot;)</span>
+
+<span class="kwb">static</span> mpz_t q;
+<span class="kwb">static</span> mpz_t r;
+<span class="kwb">static</span> mpz_t t;
+
+<span class="kwb">static</span> <span class="kwc">volatile</span> <span class="kwb">unsigned</span> k;
+<span class="kwb">static</span> <span class="kwc">volatile</span> <span class="kwb">unsigned</span> doubleK;
+<span class="kwb">static</span> <span class="kwc">volatile</span> <span class="kwb">unsigned</span> qMultiplicator;
+<span class="kwb">static</span> <span class="kwc">volatile</span> <span class="kwb">unsigned</span> digit;
+
+<span class="kwb">static</span> <span class="kwc">volatile</span> atomic_bool finish;
+<span class="kwb">static</span> <span class="kwc">volatile</span> atomic_bool tCalculating;
+<span class="kwb">static</span> <span class="kwc">volatile</span> atomic_bool qCalculating;
+<span class="kwb">static</span> <span class="kwc">volatile</span> atomic_bool extractCalculating;
+
+<span class="kwb">static</span> thrd_t tMultiplierThread;
+<span class="kwb">static</span> thrd_t qMultiplierThread;
+<span class="kwb">static</span> thrd_t extractThread;
+
+<span class="kwc">typedef</span> <span class="kwb">struct</span> {
+    <span class="kwc">volatile</span> atomic_bool   *waitCond;
+    <span class="kwc">volatile</span> <span class="kwb">unsigned</span>      *multiplicator;
+    <span class="kwb">const</span> mpz_ptr           result;
+}Context;
+
+<span class="kwb">static const</span> Context tContext = { 
+    .waitCond       = &amp;tCalculating,
+    .multiplicator  = &amp;doubleK,
+    .result         = t,
+};
+
+<span class="kwb">static const</span> Context qContext = { 
+    .waitCond       = &amp;qCalculating,
+    .multiplicator  = &amp;qMultiplicator,
+    .result         = q,
+};
+
+<span class="kwb">static int</span>
+<span class="kwd">extractThreadFunc</span>(<span class="kwb">void</span> *arg) {
+    (<span class="kwb">void</span>) arg;
+
+    mpz_t tmp1, tmp2;
+    <span class="kwd">mpz_inits</span>(tmp1, tmp2, NULL);
+
+    <span class="kwa">while</span> (!finish) {
+        <span class="kwd">WAIT_WHILE</span>(!extractCalculating);
+        <span class="kwa">if</span> (finish)
+            <span class="kwa">return</span> <span class="num">0</span>;
+
+        <span class="kwd">mpz_mul_ui</span>(tmp1, q, <span class="num">3</span>);
+        <span class="kwd">mpz_add</span>(tmp1, tmp1, r);
+        <span class="kwd">mpz_tdiv_q</span>(tmp2, tmp1, t);
+        digit = <span class="kwd">mpz_get_ui</span>(tmp2);
+
+        extractCalculating = <span class="kwa">false</span>;
+    }
+
+    <span class="kwa">return</span> <span class="num">0</span>;
+}
+
+<span class="kwb">static int</span> 
+<span class="kwd">multiplierThreadFunc</span>(<span class="kwb">void</span> *arg) {
+    <span class="kwb">const</span>    Context       *ctx             = arg;
+    <span class="kwc">volatile</span> atomic_bool   *waitCond        = ctx-&gt;waitCond;
+    <span class="kwc">volatile</span> <span class="kwb">unsigned</span>      *multiplicator   = ctx-&gt;multiplicator;
+    <span class="kwb">const</span>    mpz_ptr        result          = ctx-&gt;result;
+
+    <span class="kwa">while</span> (!finish) {
+        <span class="kwd">WAIT_WHILE</span>(!*waitCond);
+        <span class="kwa">if</span> (finish) 
+            <span class="kwa">return</span> <span class="num">0</span>;
+
+        <span class="kwd">mpz_mul_ui</span>(result, result, *multiplicator);
+        *waitCond = <span class="kwa">false</span>;
+    }
+    <span class="kwa">return</span> <span class="num">0</span>;
+}
+
+<span class="kwb">int</span>
+<span class="kwd">main</span>(<span class="kwb">const int</span> argc, <span class="kwb">const char</span> *argv[]) {
+    <span class="kwa">if</span> (argc &lt; <span class="num">2</span>) {
+        <span class="kwd">printf</span>(<span class="str">&quot;Usage: pidigits num_digits</span><span class="esc">\n</span><span class="str">&quot;</span>);
+        <span class="kwa">return</span> <span class="num">0</span>;
+    }
+
+    <span class="kwb">const size_t</span> TOTAL_DIGITS = <span class="kwd">atol</span>(argv[<span class="num">1</span>]);
+
+    <span class="kwd">thrd_create</span>(&amp;tMultiplierThread,   (thrd_start_t) multiplierThreadFunc, (<span class="kwb">void</span> *) &amp;tContext);
+    <span class="kwd">thrd_create</span>(&amp;qMultiplierThread,   (thrd_start_t) multiplierThreadFunc, (<span class="kwb">void</span> *) &amp;qContext);
+    <span class="kwd">thrd_create</span>(&amp;extractThread, (thrd_start_t) extractThreadFunc, NULL);
+
+    <span class="kwd">mpz_init_set_ui</span>(q, <span class="num">1</span>);
+    <span class="kwd">mpz_init_set_ui</span>(t, <span class="num">1</span>);
+
+    mpz_t temp1, temp2;
+    <span class="kwd">mpz_inits</span>(r, temp1, temp2, NULL);
+
+    <span class="kwb">bool</span> tPrecalculation = <span class="kwa">false</span>;
+    <span class="kwb">size_t</span> nDigits = <span class="num">0</span>;
+    <span class="kwa">while</span> (nDigits &lt; TOTAL_DIGITS) {
+        <span class="kwb">size_t</span> i = <span class="num">0</span>;
+        <span class="kwa">while</span> ((i &lt; <span class="num">10</span>) &amp;&amp; (nDigits &lt; TOTAL_DIGITS)) {
+            <span class="kwa">if</span> (!tPrecalculation) {
+                doubleK = <span class="num">2</span> * ++k + <span class="num">1</span>;
+                tCalculating = <span class="kwa">true</span>;    <span class="slc">// Start thread calculation for &apos;t *= doubleK&apos;.</span>
+            } <span class="kwa">else</span>
+                tPrecalculation = <span class="kwa">false</span>;
+
+            <span class="kwd">WAIT_WHILE</span>(qCalculating);   <span class="slc">// Wait for &apos;q *= 10&apos; to finish (if it runs).</span>
+
+            <span class="kwd">mpz_add</span>(temp1, q, q);       <span class="slc">// Faster than mpz_mul_ui(temp1, q, 2)</span>
+
+            qMultiplicator = k;
+            qCalculating = <span class="kwa">true</span>;        <span class="slc">// Start thread calculation for &apos;q *= k&apos;.</span>
+
+            <span class="kwd">mpz_add</span>(temp1, temp1, r);
+            <span class="kwd">mpz_mul_ui</span>(r, temp1, doubleK);
+
+            <span class="kwd">WAIT_WHILE</span>(qCalculating);   <span class="slc">// Wait for &apos;q *= qMultiplicator&apos; to finish.</span>
+            <span class="kwd">WAIT_WHILE</span>(tCalculating);   <span class="slc">// Wait for &apos;t *= doubleK&apos; to finish (if it runs).</span>
+
+            <span class="kwa">if</span> (<span class="kwd">mpz_cmp</span>(q, r) &lt;= <span class="num">0</span>) {
+                extractCalculating = <span class="kwa">true</span>; <span class="slc">// Start thread calculation for &apos;digit = (q * 3 + r) / t&apos;.</span>
+
+                <span class="kwd">mpz_mul_ui</span>(temp1, q, <span class="num">4</span>);
+                <span class="kwd">mpz_add</span>(temp1, temp1, r);
+                <span class="kwd">mpz_tdiv_q</span>(temp2, temp1, t);
+                <span class="kwb">const unsigned</span> digit2 = <span class="kwd">mpz_get_ui</span>(temp2);
+
+                <span class="kwd">WAIT_WHILE</span>(extractCalculating); <span class="slc">// Wait for &apos;digit = (q * 3 + r) / t&apos; to finish.</span>
+
+                <span class="kwa">if</span> (digit == digit2) {
+                    qMultiplicator = <span class="num">10</span>;
+                    qCalculating = <span class="kwa">true</span>;    <span class="slc">// Start thread calculation for &apos;q *= 10&apos;.</span>
+
+                    <span class="kwd">putchar</span>(<span class="str">&apos;0&apos;</span> + digit);
+                    <span class="kwd">mpz_mul_ui</span>(temp1, t, digit);
+
+                    doubleK = <span class="num">2</span> * ++k + <span class="num">1</span>;
+                    tCalculating = <span class="kwa">true</span>;    <span class="slc">// Start thread calculation for &apos;t *= doubleK&apos;.</span>
+                    tPrecalculation = <span class="kwa">true</span>;
+
+                    <span class="kwd">mpz_sub</span>(temp1, r, temp1);
+                    <span class="kwd">mpz_mul_ui</span>(r, temp1, <span class="num">10</span>);
+
+                    ++i;
+                    ++nDigits;
+                }
+            }
+        }
+
+        <span class="kwd">printf</span>(<span class="str">&quot;</span><span class="esc">\t</span><span class="str">:%u</span><span class="esc">\n</span><span class="str">&quot;</span>, (<span class="kwb">unsigned int</span>) nDigits);
+    }
+
+    <span class="slc">// Stop threads and join...</span>
+    finish = <span class="kwa">true</span>;
+    extractCalculating = tCalculating = qCalculating = <span class="kwa">true</span>;
+    <span class="kwd">thrd_join</span>(tMultiplierThread, NULL);
+    <span class="kwd">thrd_join</span>(qMultiplierThread, NULL);
+    <span class="kwd">thrd_join</span>(extractThread, NULL);
+
+    <span class="kwa">return</span> <span class="num">0</span>;
+}
+    </pre>
+  </section>
+  <section>
+    <div>
+      <h2 id="log">notes, command-line, and program output</h2>
+    </div>
+    <pre>
+NOTES:
+64-bit Ubuntu quad core
+Intel(R) C Intel(R) 64 Compiler
+for applications running on Intel(R) 64,
+Version 19.1.3.304 Build 20200925_000000
+Copyright (C) 1985-2020 Intel Corporation.  All rights reserved.
+FOR NON-COMMERCIAL USE ONLY
+
+
+Wed, 23 Jun 2021 21:37:55 GMT
+
+MAKE:
+/opt/src/intel/bin/icc -pipe -Wall -O3 -fomit-frame-pointer -march=ivybridge  pidigits.icc-6.c -o pidigits.icc-6.icc_run -lgmp
+ld: /tmp/iccG968Pr.o: in function `main':
+pidigits.icc-6.c:(.text+0x6b): undefined reference to `thrd_create'
+ld: pidigits.icc-6.c:(.text+0x7f): undefined reference to `thrd_create'
+ld: pidigits.icc-6.c:(.text+0x90): undefined reference to `thrd_create'
+ld: pidigits.icc-6.c:(.text+0x23c): undefined reference to `thrd_join'
+ld: pidigits.icc-6.c:(.text+0x24a): undefined reference to `thrd_join'
+ld: pidigits.icc-6.c:(.text+0x258): undefined reference to `thrd_join'
+make: [/home/dunham/all-benchmarksgame/2000-benchmarksgame/nanobench/makefiles/u64q.programs.Makefile:79: pidigits.icc-6.icc_run] Error 1 (ignored)
+rm pidigits.icc-6.c
+
+2.23s to complete and log all make actions
+
+COMMAND LINE:
+./pidigits.icc-6.icc_run 2000
+
+MAKE ERROR 
+
+    </pre>
+  </section>
+</article>
+<footer>
+  <nav>
+    <ul>
+      <li><a href="../license.html"><span>3-Clause BSD License</span></a>
+    </ul>
+  </nav>
+</footer>
+
