@@ -28,10 +28,9 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="com"> direct transliteration of Greg Buchholz&apos;s C program</span>
 <span class="com"> contributed by Isaac Gouy, fix by David Turnbull</span>
 <span class="com"> dispatching to multiple cores by Patrick Stein</span>
-<span class="com"> writing out file in chunks not in bytes by Patrick Stein</span>
-<span class="com"> calculating only what&apos;s needed by Patrick Stein</span>
+<span class="com"> use SIMD operations by Patrick Stein </span>
+<span class="com"> use early break when in shallow waters by Patrick Stein</span>
 <span class="com"> */</span>
-
 
 <span class="kwa">import</span> Foundation
 <span class="ppc">#if os(Linux)</span>
@@ -39,87 +38,138 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="ppc">#endif</span>
 
 <span class="kwa">let</span> <span class="kwc">width</span><span class="opt">:</span> Int <span class="opt">=</span> <span class="kwd">Int</span><span class="opt">(</span>CommandLine<span class="opt">.</span>arguments<span class="opt">[</span><span class="num">1</span><span class="opt">])!</span>
-<span class="kwa">let</span> <span class="kwc">height</span> <span class="opt">=</span> <span class="kwc">width</span>
+<span class="kwa">let</span> <span class="kwc">height</span>      <span class="opt">=</span> <span class="kwc">width</span>
+<span class="kwa">let</span> <span class="kwc">iterations</span>  <span class="opt">=</span> <span class="num">50</span>
 
-<span class="kwa">let</span> <span class="kwc">iter</span> <span class="opt">=</span> <span class="num">50</span><span class="opt">,</span> limit <span class="opt">=</span> <span class="num">2.0</span>
-
-<span class="kwa">let</span> <span class="kwc">linecount</span>       <span class="opt">= (</span><span class="kwc">height</span> <span class="opt">+</span> <span class="num">2</span><span class="opt">) /</span> <span class="num">2</span>
+<span class="kwa">let</span> <span class="kwc">linecount</span>       <span class="opt">=</span> <span class="kwc">height</span>
 <span class="kwa">let</span> <span class="kwc">linesize</span>        <span class="opt">= (</span><span class="kwc">width</span> <span class="opt">+</span> <span class="num">7</span><span class="opt">) /</span> <span class="num">8</span>
 <span class="kwa">let</span> <span class="kwc">outputsize</span>      <span class="opt">=</span> <span class="kwc">linecount</span> <span class="opt">*</span> <span class="kwc">linesize</span>
 
-<span class="kwa">typealias</span> OutputLine <span class="opt">=</span> ContiguousArray<span class="opt">&lt;</span>UInt8<span class="opt">&gt;</span>
-<span class="kwa">var</span> <span class="kwc">outputbits</span><span class="opt">:</span>OutputLine <span class="opt">=</span> <span class="kwd">OutputLine</span><span class="opt">(</span>repeating<span class="opt">:</span><span class="num">0</span><span class="opt">,</span> count<span class="opt">:</span> <span class="kwc">outputsize</span><span class="opt">)</span>
+<span class="kwa">let</span> <span class="kwc">serialQueue</span>     <span class="opt">=</span> <span class="kwd">DispatchQueue</span><span class="opt">(</span>label<span class="opt">:</span> <span class="str">&quot;outputlinesaccess&quot;</span><span class="opt">)</span>
+<span class="kwa">let</span> <span class="kwc">serialGroup</span>     <span class="opt">=</span> <span class="kwd">DispatchGroup</span><span class="opt">()</span>
+<span class="kwa">var</span> <span class="kwc">originalAddress</span> <span class="opt">=</span> UnsafeMutableRawPointer<span class="opt">.</span><span class="kwd">allocate</span><span class="opt">(</span>byteCount<span class="opt">:</span> <span class="kwc">outputsize</span><span class="opt">,</span>
+                                                       alignment<span class="opt">:</span> <span class="num">1</span><span class="opt">)</span>
 
 <span class="kwa">let</span> <span class="kwc">height_d</span>        <span class="opt">=</span> <span class="kwd">Double</span><span class="opt">(</span><span class="kwc">height</span><span class="opt">)</span>
 <span class="kwa">let</span> <span class="kwc">twodivwidth</span>     <span class="opt">=</span> <span class="num">2.0</span> <span class="opt">/</span> <span class="kwd">Double</span><span class="opt">(</span><span class="kwc">width</span><span class="opt">)</span>
 <span class="kwa">let</span> <span class="kwc">dispatchGroup</span>   <span class="opt">=</span> <span class="kwd">DispatchGroup</span><span class="opt">()</span>
-<span class="kwa">var</span> <span class="kwc">counter</span>         <span class="opt">=</span> <span class="num">0</span>
-
-<span class="kwa">for</span> y <span class="kwa">in</span> <span class="num">0</span><span class="opt">..&lt;</span><span class="kwc">linecount</span>
-<span class="opt">{</span>
-    <span class="kwa">var</span> <span class="kwc">address</span> <span class="opt">=</span> <span class="kwc">counter</span>
-    <span class="kwc">counter</span> <span class="opt">+=</span> <span class="kwc">linesize</span>
-
-    <span class="kwc">dispatchGroup</span><span class="opt">.</span><span class="kwd">enter</span><span class="opt">()</span>
-    DispatchQueue<span class="opt">.</span><span class="kwd">global</span><span class="opt">().</span>async
-    <span class="opt">{</span>
-        <span class="kwa">var</span> <span class="kwc">Zr</span><span class="opt">,</span> Zi<span class="opt">,</span> Cr<span class="opt">,</span> Ci<span class="opt">,</span> Tr<span class="opt">,</span> Ti<span class="opt">:</span> Double
-        <span class="kwa">var</span> <span class="kwc">byte_acc</span><span class="opt">:</span>UInt8  <span class="opt">=</span> <span class="num">0</span>
-        <span class="kwa">var</span> <span class="kwc">bit_num</span> <span class="opt">=</span> <span class="num">0</span>
-        Ci <span class="opt">=</span> <span class="num">2.0</span><span class="opt">*</span><span class="kwd">Double</span><span class="opt">(</span>y<span class="opt">)/</span><span class="kwc">height_d</span> <span class="opt">-</span> <span class="num">1.0</span>
-
-        <span class="kwa">for</span> x <span class="kwa">in</span> <span class="num">0</span><span class="opt">..&lt;</span><span class="kwc">width</span>
-        <span class="opt">{</span>
-            <span class="kwc">Zr</span> <span class="opt">=</span> <span class="num">0.0</span><span class="opt">;</span> Zi <span class="opt">=</span> <span class="num">0.0</span><span class="opt">;</span> Tr <span class="opt">=</span> <span class="num">0.0</span><span class="opt">;</span> Ti <span class="opt">=</span> <span class="num">0.0</span>
-            Cr <span class="opt">=</span> <span class="kwc">twodivwidth</span><span class="opt">*</span><span class="kwd">Double</span><span class="opt">(</span>x<span class="opt">) -</span> <span class="num">1.5</span><span class="opt">;</span>
-
-            <span class="kwa">var</span> <span class="kwc">i</span> <span class="opt">=</span> <span class="num">0</span>
-            <span class="kwa">while</span> <span class="kwc">i</span> <span class="opt">&lt;</span> <span class="kwc">iter</span> <span class="opt">&amp;&amp; (</span>Tr<span class="opt">+</span>Ti <span class="opt">&lt;=</span> limit<span class="opt">*</span>limit<span class="opt">)</span>
-            <span class="opt">{</span>
-                <span class="kwc">i</span> <span class="opt">+=</span> <span class="num">1</span>
-                Zi <span class="opt">=</span> <span class="num">2.0</span><span class="opt">*</span><span class="kwc">Zr</span><span class="opt">*</span>Zi <span class="opt">+</span> Ci
-                <span class="kwc">Zr</span> <span class="opt">=</span> Tr <span class="opt">-</span> Ti <span class="opt">+</span> Cr
-                Tr <span class="opt">=</span> <span class="kwc">Zr</span> <span class="opt">*</span> <span class="kwc">Zr</span>
-                Ti <span class="opt">=</span> Zi <span class="opt">*</span> Zi
-            <span class="opt">}</span>
-
-            <span class="kwc">byte_acc</span> <span class="opt">&lt;&lt;=</span> <span class="num">1</span>
-            <span class="kwa">if</span> Tr<span class="opt">+</span>Ti <span class="opt">&lt;=</span> limit<span class="opt">*</span>limit <span class="opt">{</span> <span class="kwc">byte_acc</span> <span class="opt">|=</span> <span class="num">0x01</span> <span class="opt">}</span>
-
-            <span class="kwc">bit_num</span> <span class="opt">+=</span> <span class="num">1</span>
-
-            <span class="kwa">if</span> <span class="kwc">bit_num</span> <span class="opt">==</span> <span class="num">8</span> <span class="opt">{</span>
-                <span class="kwc">outputbits</span><span class="opt">[</span><span class="kwc">address</span><span class="opt">] =</span> <span class="kwc">byte_acc</span>
-                <span class="kwc">address</span> <span class="opt">+=</span> <span class="num">1</span>
-                <span class="kwc">byte_acc</span> <span class="opt">=</span> <span class="num">0</span>
-                <span class="kwc">bit_num</span> <span class="opt">=</span> <span class="num">0</span>
-            <span class="opt">}</span>
-        <span class="opt">}</span>
-        <span class="kwa">if</span> <span class="kwc">bit_num</span> <span class="opt">!=</span> <span class="num">0</span>
-        <span class="opt">{</span>
-             <span class="kwc">byte_acc</span> <span class="opt">&lt;&lt;= (</span><span class="num">8</span><span class="opt">-</span><span class="kwc">width</span><span class="opt">%</span><span class="num">8</span><span class="opt">)</span>
-             <span class="kwc">outputbits</span><span class="opt">[</span><span class="kwc">address</span><span class="opt">] =</span> <span class="kwc">byte_acc</span>
-        <span class="opt">}</span>
-
-        <span class="kwc">dispatchGroup</span><span class="opt">.</span><span class="kwd">leave</span><span class="opt">()</span>
-    <span class="opt">}</span>
-<span class="opt">}</span>
-<span class="kwc">dispatchGroup</span><span class="opt">.</span><span class="kwd">wait</span><span class="opt">()</span>
-
 
 <span class="kwa">let</span> <span class="kwc">stdout</span> <span class="opt">=</span> FileHandle<span class="opt">.</span>standardOutput
 
-<span class="kwc">stdout</span><span class="opt">.</span><span class="kwd">write</span><span class="opt">(</span><span class="str">&quot;P4</span><span class="esc">\n</span><span class="str"></span><span class="ipl">\(width) \(height)</span><span class="str"></span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">.</span><span class="kwd">data</span><span class="opt">(</span>using<span class="opt">:.</span>utf8<span class="opt">)!)</span>
-<span class="kwc">stdout</span><span class="opt">.</span><span class="kwd">write</span><span class="opt">(</span><span class="kwd">Data</span><span class="opt">(</span><span class="kwc">outputbits</span><span class="opt">))</span>
-
-<span class="kwc">counter</span> <span class="opt">=</span> <span class="kwc">height</span> <span class="opt">&amp;</span> <span class="num">1</span> <span class="opt">==</span> <span class="num">1</span> ? <span class="kwc">outputsize</span> <span class="opt">:</span> <span class="kwc">outputsize</span> <span class="opt">-</span> <span class="kwc">linesize</span>
-
-<span class="kwa">while</span> <span class="kwc">counter</span> <span class="opt">&gt;</span> <span class="kwc">linesize</span>
-<span class="opt">{</span>
-    <span class="kwc">counter</span> <span class="opt">-=</span> <span class="kwc">linesize</span>
-    <span class="kwa">let</span> <span class="kwc">data</span> <span class="opt">=</span> <span class="kwd">Data</span><span class="opt">(</span><span class="kwc">outputbits</span><span class="opt">[</span><span class="kwc">counter</span><span class="opt">..&lt;</span><span class="kwc">counter</span><span class="opt">+</span><span class="kwc">linesize</span><span class="opt">])</span>
-    <span class="kwc">stdout</span><span class="opt">.</span><span class="kwd">write</span><span class="opt">(</span><span class="kwc">data</span><span class="opt">)</span>
+<span class="kwc">serialGroup</span><span class="opt">.</span><span class="kwd">enter</span><span class="opt">()</span>
+<span class="kwc">serialQueue</span><span class="opt">.</span>async <span class="opt">{</span>
+    <span class="kwc">stdout</span><span class="opt">.</span><span class="kwd">write</span><span class="opt">(</span><span class="str">&quot;P4</span><span class="esc">\n</span><span class="str"></span><span class="ipl">\(width) \(height)</span><span class="str"></span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">.</span><span class="kwd">data</span><span class="opt">(</span>using<span class="opt">:.</span>utf8<span class="opt">)!)</span>
+    <span class="kwc">serialGroup</span><span class="opt">.</span><span class="kwd">leave</span><span class="opt">()</span>
 <span class="opt">}</span>
+<span class="kwa">let</span> <span class="kwc">startwritingoffset</span> <span class="opt">=</span> <span class="kwc">linecount</span> <span class="opt">/</span> <span class="num">100</span>
+
+&#64;<span class="kwd">inline</span><span class="opt">(</span>__always<span class="opt">)</span> <span class="kwa">func</span> <span class="kwd">oneiteration</span><span class="opt">(</span>Zr<span class="opt">:</span>inout SIMD8<span class="opt">&lt;</span>Double<span class="opt">&gt;,</span>Zi<span class="opt">:</span>inout SIMD8<span class="opt">&lt;</span>Double<span class="opt">&gt;,</span>
+                                    Cr<span class="opt">:</span>inout SIMD8<span class="opt">&lt;</span>Double<span class="opt">&gt;,</span>Ci<span class="opt">:</span>Double<span class="opt">,</span>
+                                    Tr<span class="opt">:</span>inout SIMD8<span class="opt">&lt;</span>Double<span class="opt">&gt;,</span>Ti<span class="opt">:</span>inout SIMD8<span class="opt">&lt;</span>Double<span class="opt">&gt;)</span>
+<span class="opt">{</span>
+    Zi <span class="opt">=</span> <span class="num">2.0</span> <span class="opt">*</span> Zr <span class="opt">*</span> Zi <span class="opt">+</span> Ci
+    Zr <span class="opt">=</span> Tr <span class="opt">-</span> Ti <span class="opt">+</span> Cr
+    Tr <span class="opt">=</span> Zr <span class="opt">*</span> Zr
+    Ti <span class="opt">=</span> Zi <span class="opt">*</span> Zi
+<span class="opt">}</span>
+
+&#64;<span class="kwd">inline</span><span class="opt">(</span>__always<span class="opt">)</span>
+<span class="kwa">func</span> <span class="kwd">mandelbrot</span><span class="opt">(</span>shallow<span class="opt">:</span>Bool<span class="opt">,</span>x<span class="opt">:</span>Int<span class="opt">,</span>Ci<span class="opt">:</span>Double<span class="opt">,</span><span class="kwc">twodivwidth</span><span class="opt">:</span>Double<span class="opt">) -&gt;</span> UInt8
+<span class="opt">{</span>
+    <span class="kwa">var</span> <span class="kwc">Zr</span><span class="opt">:</span>SIMD8<span class="opt">&lt;</span>Double<span class="opt">&gt; = .</span>zero
+    <span class="kwa">var</span> <span class="kwc">Zi</span><span class="opt">:</span>SIMD8<span class="opt">&lt;</span>Double<span class="opt">&gt; = .</span>zero
+    <span class="kwa">var</span> <span class="kwc">Tr</span><span class="opt">:</span>SIMD8<span class="opt">&lt;</span>Double<span class="opt">&gt; = .</span>zero
+    <span class="kwa">var</span> <span class="kwc">Ti</span><span class="opt">:</span>SIMD8<span class="opt">&lt;</span>Double<span class="opt">&gt; = .</span>zero
+    <span class="kwa">var</span> <span class="kwc">Cr</span><span class="opt">:</span>SIMD8<span class="opt">&lt;</span>Double<span class="opt">&gt; = .</span>zero
+
+    <span class="kwa">let</span> <span class="kwc">thresholds</span>  <span class="opt">=</span> SIMD8<span class="opt">&lt;</span>Double<span class="opt">&gt;(</span>repeating<span class="opt">:</span><span class="num">4.0</span><span class="opt">)</span>
+    <span class="kwa">let</span> <span class="kwc">isTrue</span>      <span class="opt">=</span> SIMDMask<span class="opt">&lt;</span>SIMD8<span class="opt">&lt;</span>Double<span class="opt">.</span>SIMDMaskScalar<span class="opt">&gt;&gt;(</span>repeating<span class="opt">:</span> <span class="kwb">true</span><span class="opt">)</span>
+    <span class="kwa">let</span> <span class="kwc">ramp</span><span class="opt">:</span>SIMD8<span class="opt">&lt;</span>Int64<span class="opt">&gt; = [</span><span class="num">128</span><span class="opt">,</span><span class="num">64</span><span class="opt">,</span><span class="num">32</span><span class="opt">,</span><span class="num">16</span><span class="opt">,</span><span class="num">8</span><span class="opt">,</span><span class="num">4</span><span class="opt">,</span><span class="num">2</span><span class="opt">,</span><span class="num">1</span><span class="opt">]</span>
+
+    <span class="kwa">var</span> <span class="kwc">cmpresult</span><span class="opt">:</span>SIMDMask<span class="opt">&lt;</span>SIMD8<span class="opt">&lt;</span>Double<span class="opt">.</span>SIMDMaskScalar<span class="opt">&gt;&gt;</span>
+
+    <span class="kwa">for</span> x2 <span class="kwa">in</span> <span class="num">0</span><span class="opt">..</span><span class="num">.7</span>
+    <span class="opt">{</span>
+        <span class="kwc">Cr</span><span class="opt">[</span>x2<span class="opt">] =</span> <span class="kwd">Double</span><span class="opt">(</span>x<span class="opt">+</span>x2<span class="opt">)</span>
+    <span class="opt">}</span>
+    <span class="kwc">Cr</span> <span class="opt">=</span> <span class="kwc">Cr</span> <span class="opt">*</span> <span class="kwc">twodivwidth</span> <span class="opt">-</span> <span class="num">1.5</span>
+
+    <span class="kwa">if</span> shallow
+    <span class="opt">{</span>
+        <span class="kwa">for</span> _ <span class="kwa">in</span> <span class="num">0</span><span class="opt">..&lt;</span><span class="kwc">iterations</span><span class="opt">/</span><span class="num">4</span>
+        <span class="opt">{</span>
+            <span class="kwa">for</span> _ <span class="kwa">in</span> <span class="num">0</span><span class="opt">..&lt;</span><span class="num">4</span>
+            <span class="opt">{</span>
+                <span class="kwd">oneiteration</span><span class="opt">(</span><span class="kwc">Zr</span><span class="opt">:&amp;</span><span class="kwc">Zr</span><span class="opt">,</span><span class="kwc">Zi</span><span class="opt">:&amp;</span><span class="kwc">Zi</span><span class="opt">,</span><span class="kwc">Cr</span><span class="opt">:&amp;</span><span class="kwc">Cr</span><span class="opt">,</span>Ci<span class="opt">:</span>Ci<span class="opt">,</span><span class="kwc">Tr</span><span class="opt">:&amp;</span><span class="kwc">Tr</span><span class="opt">,</span><span class="kwc">Ti</span><span class="opt">:&amp;</span><span class="kwc">Ti</span><span class="opt">)</span>
+            <span class="opt">}</span>
+            <span class="kwc">cmpresult</span> <span class="opt">=</span> <span class="kwc">Tr</span> <span class="opt">+</span> <span class="kwc">Ti</span> <span class="opt">.&gt;=</span> <span class="kwc">thresholds</span>
+
+            <span class="kwa">if</span> <span class="kwc">cmpresult</span> <span class="opt">==</span> <span class="kwc">isTrue</span>
+            <span class="opt">{</span>
+                <span class="kwa">return</span> <span class="num">0</span>
+            <span class="opt">}</span>
+        <span class="opt">}</span>
+        <span class="kwd">oneiteration</span><span class="opt">(</span><span class="kwc">Zr</span><span class="opt">:&amp;</span><span class="kwc">Zr</span><span class="opt">,</span><span class="kwc">Zi</span><span class="opt">:&amp;</span><span class="kwc">Zi</span><span class="opt">,</span><span class="kwc">Cr</span><span class="opt">:&amp;</span><span class="kwc">Cr</span><span class="opt">,</span>Ci<span class="opt">:</span>Ci<span class="opt">,</span><span class="kwc">Tr</span><span class="opt">:&amp;</span><span class="kwc">Tr</span><span class="opt">,</span><span class="kwc">Ti</span><span class="opt">:&amp;</span><span class="kwc">Ti</span><span class="opt">)</span>
+        <span class="kwd">oneiteration</span><span class="opt">(</span><span class="kwc">Zr</span><span class="opt">:&amp;</span><span class="kwc">Zr</span><span class="opt">,</span><span class="kwc">Zi</span><span class="opt">:&amp;</span><span class="kwc">Zi</span><span class="opt">,</span><span class="kwc">Cr</span><span class="opt">:&amp;</span><span class="kwc">Cr</span><span class="opt">,</span>Ci<span class="opt">:</span>Ci<span class="opt">,</span><span class="kwc">Tr</span><span class="opt">:&amp;</span><span class="kwc">Tr</span><span class="opt">,</span><span class="kwc">Ti</span><span class="opt">:&amp;</span><span class="kwc">Ti</span><span class="opt">)</span>
+    <span class="opt">}</span>
+    <span class="kwa">else</span>
+    <span class="opt">{</span>
+        <span class="kwa">for</span> _ <span class="kwa">in</span> <span class="num">0</span><span class="opt">..&lt;</span><span class="kwc">iterations</span>
+        <span class="opt">{</span>
+            <span class="kwd">oneiteration</span><span class="opt">(</span><span class="kwc">Zr</span><span class="opt">:&amp;</span><span class="kwc">Zr</span><span class="opt">,</span><span class="kwc">Zi</span><span class="opt">:&amp;</span><span class="kwc">Zi</span><span class="opt">,</span><span class="kwc">Cr</span><span class="opt">:&amp;</span><span class="kwc">Cr</span><span class="opt">,</span>Ci<span class="opt">:</span>Ci<span class="opt">,</span><span class="kwc">Tr</span><span class="opt">:&amp;</span><span class="kwc">Tr</span><span class="opt">,</span><span class="kwc">Ti</span><span class="opt">:&amp;</span><span class="kwc">Ti</span><span class="opt">)</span>
+        <span class="opt">}</span>
+    <span class="opt">}</span>
+
+
+    <span class="kwc">cmpresult</span> <span class="opt">=</span> <span class="kwc">Tr</span> <span class="opt">+</span> <span class="kwc">Ti</span> <span class="opt">.&lt;</span> <span class="kwc">thresholds</span>
+
+    <span class="kwa">let</span> <span class="kwc">reduced</span><span class="opt">:</span> SIMD8<span class="opt">&lt;</span>Int64<span class="opt">&gt; =</span> <span class="kwd">unsafeBitCast</span><span class="opt">(</span><span class="kwc">cmpresult</span><span class="opt">,</span>to<span class="opt">:</span> SIMD8<span class="opt">&lt;</span>Int64<span class="opt">&gt;.</span><span class="kwb">self</span><span class="opt">)</span>
+    <span class="kwa">let</span> <span class="kwc">summask</span><span class="opt">:</span> SIMD8<span class="opt">&lt;</span>Int64<span class="opt">&gt; =</span> <span class="kwc">ramp</span> <span class="opt">&amp;</span> <span class="kwc">reduced</span>
+    <span class="kwa">let</span> <span class="kwc">byte</span>  <span class="opt">=</span>   <span class="kwc">summask</span><span class="opt">[</span><span class="num">0</span><span class="opt">] +</span>
+                  <span class="kwc">summask</span><span class="opt">[</span><span class="num">1</span><span class="opt">] +</span>
+                  <span class="kwc">summask</span><span class="opt">[</span><span class="num">2</span><span class="opt">] +</span>
+                  <span class="kwc">summask</span><span class="opt">[</span><span class="num">3</span><span class="opt">] +</span>
+                  <span class="kwc">summask</span><span class="opt">[</span><span class="num">4</span><span class="opt">] +</span>
+                  <span class="kwc">summask</span><span class="opt">[</span><span class="num">5</span><span class="opt">] +</span>
+                  <span class="kwc">summask</span><span class="opt">[</span><span class="num">6</span><span class="opt">] +</span>
+                  <span class="kwc">summask</span><span class="opt">[</span><span class="num">7</span><span class="opt">]</span>
+
+    <span class="kwa">return</span> <span class="kwd">UInt8</span><span class="opt">(</span><span class="kwc">byte</span><span class="opt">)</span>
+<span class="opt">}</span>
+
+<span class="kwa">var</span> <span class="kwc">counter</span> <span class="opt">=</span> <span class="num">0</span>
+
+<span class="kwa">for</span> y <span class="kwa">in</span> <span class="num">0</span><span class="opt">..&lt;</span><span class="kwc">linecount</span>
+<span class="opt">{</span>
+    <span class="kwc">dispatchGroup</span><span class="opt">.</span><span class="kwd">enter</span><span class="opt">()</span>
+    DispatchQueue<span class="opt">.</span><span class="kwd">global</span><span class="opt">().</span>async
+    <span class="opt">{</span>
+        <span class="opt">[</span>y<span class="opt">,</span><span class="kwc">counter</span><span class="opt">]</span> <span class="kwa">in</span>
+
+        <span class="kwa">var</span> <span class="kwc">address</span> <span class="opt">=</span> <span class="kwc">originalAddress</span> <span class="opt">+</span> <span class="kwc">counter</span>
+
+        <span class="kwa">let</span> <span class="kwc">Ci</span> <span class="opt">= (</span><span class="kwd">Double</span><span class="opt">(</span><span class="num">2</span><span class="opt">*</span>y<span class="opt">)/</span><span class="kwc">height_d</span> <span class="opt">-</span> <span class="num">1.0</span><span class="opt">)</span>
+        <span class="kwa">var</span> <span class="kwc">shallow</span> <span class="opt">=</span> <span class="kwb">false</span>
+        <span class="kwa">for</span> x <span class="kwa">in</span> <span class="kwd">stride</span><span class="opt">(</span>from<span class="opt">:</span> <span class="num">0</span><span class="opt">,</span> to<span class="opt">:</span> <span class="kwc">width</span><span class="opt">,</span> by<span class="opt">:</span> <span class="num">8</span><span class="opt">)</span>
+        <span class="opt">{</span>
+            <span class="kwa">let</span> <span class="kwc">byte</span> <span class="opt">=</span> <span class="kwd">mandelbrot</span><span class="opt">(</span><span class="kwc">shallow</span><span class="opt">:</span><span class="kwc">shallow</span><span class="opt">,</span>
+                                    x<span class="opt">:</span> x<span class="opt">,</span>
+                                    <span class="kwc">Ci</span><span class="opt">:</span> <span class="kwc">Ci</span><span class="opt">,</span>
+                                    <span class="kwc">twodivwidth</span><span class="opt">:</span> <span class="kwc">twodivwidth</span><span class="opt">)</span>
+            <span class="kwc">address</span><span class="opt">.</span><span class="kwd">storeBytes</span><span class="opt">(</span>of<span class="opt">:</span> <span class="kwc">byte</span><span class="opt">,</span> <span class="kwb">as</span><span class="opt">:</span> UInt8<span class="opt">.</span><span class="kwb">self</span><span class="opt">)</span>
+            <span class="kwc">address</span> <span class="opt">+=</span> <span class="num">1</span>
+            <span class="kwc">shallow</span> <span class="opt">=</span> <span class="kwc">byte</span> <span class="opt">==</span> <span class="num">0</span>
+        <span class="opt">}</span>
+        <span class="kwc">dispatchGroup</span><span class="opt">.</span><span class="kwd">leave</span><span class="opt">()</span>
+    <span class="opt">}</span>
+    <span class="kwc">counter</span> <span class="opt">+=</span> <span class="kwc">linesize</span>
+<span class="opt">}</span>
+
+<span class="kwc">dispatchGroup</span><span class="opt">.</span><span class="kwd">wait</span><span class="opt">()</span>
+<span class="kwc">serialGroup</span><span class="opt">.</span><span class="kwd">wait</span><span class="opt">()</span>
+<span class="kwc">stdout</span><span class="opt">.</span><span class="kwd">write</span><span class="opt">(</span><span class="kwd">Data</span><span class="opt">(</span>bytesNoCopy<span class="opt">:</span> <span class="kwc">originalAddress</span><span class="opt">,</span>
+                        count<span class="opt">:</span> <span class="kwc">outputsize</span><span class="opt">,</span>
+                  deallocator<span class="opt">: .</span>none<span class="opt">))</span>
     </pre>
   </section>
   <section>
@@ -134,12 +184,12 @@ Target: x86_64-unknown-linux-gnu
 
 
 
-Wed, 23 Jun 2021 20:25:55 GMT
+Sun, 27 Jun 2021 18:45:54 GMT
 
 MAKE:
 /opt/src/swift-5.5-DEVELOPMENT-SNAPSHOT-2021-06-14/usr/bin/swiftc mandelbrot.swift-7.swift -Ounchecked  -o mandelbrot.swift-7.swift_run
 
-13.60s to complete and log all make actions
+11.48s to complete and log all make actions
 
 COMMAND LINE:
 ./mandelbrot.swift-7.swift_run 16000
