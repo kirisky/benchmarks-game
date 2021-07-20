@@ -23,107 +23,107 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
     </div>
     <pre>
 #lang racket/base
-(require racket/fixnum)
-(require racket/generator)
-(require racket/sequence)
-;;;
-;;; The Computer Language Benchmarks Game
-;;; https://salsa.debian.org/benchmarksgame-team/benchmarksgame/
+(<span class="kwa">require</span> racket/fixnum)
+(<span class="kwa">require</span> racket/generator)
+(<span class="kwa">require</span> racket/sequence)
+<span class="slc">;;;</span>
+<span class="slc">;;; The Computer Language Benchmarks Game</span>
+<span class="slc">;;; https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
 
-;;; contributed by Matthew Flatt, modified by
-;;; modified by James Bergstra
+<span class="slc">;;; contributed by Matthew Flatt, modified by</span>
+<span class="slc">;;; modified by James Bergstra</span>
 
-;;; Notes on the implementation: the strategy is to map the DNA letters to the
-;;; bytes 0, 1, 2, 3, and then create a hash function that is simply the
-;;; concatenation of these two-byte codes. This is handy because the slow part
-;;; of this test is building the hash table, and this hash function means that
-;;; we can take advantage of overlapping DNA sub-sequences to get a
-;;; constant-time hash function (that does not depend on the sequence length).
-;;;
-;;; The bottleneck in this code seems to be Racket&apos;s hash table. The time to
-;;; create the last hash table (for the len-18 string) seems to be about half
-;;; the runtime of the whole program.
+<span class="slc">;;; Notes on the implementation: the strategy is to map the DNA letters to the</span>
+<span class="slc">;;; bytes 0, 1, 2, 3, and then create a hash function that is simply the</span>
+<span class="slc">;;; concatenation of these two-byte codes. This is handy because the slow part</span>
+<span class="slc">;;; of this test is building the hash table, and this hash function means that</span>
+<span class="slc">;;; we can take advantage of overlapping DNA sub-sequences to get a</span>
+<span class="slc">;;; constant-time hash function (that does not depend on the sequence length).</span>
+<span class="slc">;;;</span>
+<span class="slc">;;; The bottleneck in this code seems to be Racket&apos;s hash table. The time to</span>
+<span class="slc">;;; create the last hash table (for the len-18 string) seems to be about half</span>
+<span class="slc">;;; the runtime of the whole program.</span>
 
-;; Map A-&gt;0, C-&gt;1, G-&gt;2 T-&gt;3 (and lowercase too)
-(define dna-&gt;num
-  (let ([tbl (make-bytes 256 255)])
-    (for ([ch (in-list (bytes-&gt;list #&quot;ACGTacgt&quot;))]
-          [ii (in-list &apos;(0 1 2 3 0 1 2 3))])
-      (bytes-set! tbl ch ii))
-    (lambda (ch) (bytes-ref tbl ch))))
+<span class="slc">;; Map A-&gt;0, C-&gt;1, G-&gt;2 T-&gt;3 (and lowercase too)</span>
+(<span class="kwa">define</span> dna-&gt;num
+  (<span class="kwa">let</span> ([tbl (<span class="kwa">make-bytes</span> <span class="num">256 255</span>)])
+    (<span class="kwa">for</span> ([ch (<span class="kwa">in-list</span> (<span class="kwa">bytes-</span>&gt;list #<span class="str">&quot;ACGTacgt&quot;</span>))]
+          [ii (<span class="kwa">in-list</span> &apos;(<span class="kwa">0</span> <span class="num">1 2 3 0 1 2 3</span>))])
+      (<span class="kwa">bytes-set</span>! tbl ch ii))
+    (<span class="kwa">lambda</span> (<span class="kwa">ch</span>) (<span class="kwa">bytes-ref</span> tbl ch))))
 
-;;; map a hash key back to a string (needed for printing)
-(define (unhash key len)
-  (let ([rval (make-string len)])
-    (sequence-fold
-      (lambda (key pos)
-        (string-set! rval pos (string-ref &quot;ACGT&quot; (bitwise-and key 3)))
-        (arithmetic-shift key -2))
+<span class="slc">;;; map a hash key back to a string (needed for printing)</span>
+(<span class="kwa">define</span> (<span class="kwa">unhash</span> key len)
+  (<span class="kwa">let</span> ([rval (<span class="kwa">make-string</span> len)])
+    (<span class="kwa">sequence-fold</span>
+      (<span class="kwa">lambda</span> (<span class="kwa">key</span> pos)
+        (<span class="kwa">string-set</span>! rval pos (<span class="kwa">string-ref</span> <span class="str">&quot;ACGT&quot;</span> (<span class="kwa">bitwise-and</span> key <span class="num">3</span>)))
+        (<span class="kwa">arithmetic-shift</span> key -<span class="num">2</span>))
       key
-      (in-range len))
+      (<span class="kwa">in-range</span> len))
     rval))
 
-;;; Ideally this would serve all-counts, but my attempt to do that
-;;; was horribly slow.
-(define (hashes keylen dna as-codes)
-  (generator ()
-    (let ([key 0] [ishift (* 2 keylen)] [thresh (sub1 keylen)])
-      (for
-        ([bb (in-bytes dna)]
-         [ii (in-range (bytes-length dna))])
-        (set! key (arithmetic-shift (+ key (arithmetic-shift (if as-codes bb (dna-&gt;num bb) ) ishift)) -2))
-        (if (&gt;= ii thresh) (yield key) #f))
+<span class="slc">;;; Ideally this would serve all-counts, but my attempt to do that</span>
+<span class="slc">;;; was horribly slow.</span>
+(<span class="kwa">define</span> (<span class="kwa">hashes</span> keylen dna as-codes)
+  (<span class="kwa">generator</span> ()
+    (<span class="kwa">let</span> ([key <span class="num">0</span>] [ishift (* <span class="num">2</span> keylen)] [thresh (<span class="kwa">sub1</span> keylen)])
+      (<span class="kwa">for</span>
+        ([bb (<span class="kwa">in-bytes</span> dna)]
+         [ii (<span class="kwa">in-range</span> (<span class="kwa">bytes-length</span> dna))])
+        (<span class="kwa">set</span>! key (<span class="kwa">arithmetic-shift</span> (+ key (<span class="kwa">arithmetic-shift</span> (<span class="kwa">if</span> as-codes bb (<span class="kwa">dna-</span>&gt;num bb) ) ishift)) -<span class="num">2</span>))
+        (<span class="kwa">if</span> (&gt;= ii thresh) (<span class="kwa">yield</span> key) #f))
       )))
 
-(define (all-counts keylen dna)
-  (let ([table (make-hasheq)]
-        [key 0]
-        [ishift (* 2 keylen)]
+(<span class="kwa">define</span> (<span class="kwa">all-counts</span> keylen dna)
+  (<span class="kwa">let</span> ([table (<span class="kwa">make-hasheq</span>)]
+        [key <span class="num">0</span>]
+        [ishift (* <span class="num">2</span> keylen)]
         )
-    (for
-      ([bb (in-bytes dna)]
-       [ii (in-range (bytes-length dna))])
-      (set! key (arithmetic-shift (+ key (arithmetic-shift bb ishift)) -2))
-      (if (&gt;= ii (- keylen 1)) (hash-set! table key (add1 (hash-ref table key 0))) #f)
+    (<span class="kwa">for</span>
+      ([bb (<span class="kwa">in-bytes</span> dna)]
+       [ii (<span class="kwa">in-range</span> (<span class="kwa">bytes-length</span> dna))])
+      (<span class="kwa">set</span>! key (<span class="kwa">arithmetic-shift</span> (+ key (<span class="kwa">arithmetic-shift</span> bb ishift)) -<span class="num">2</span>))
+      (<span class="kwa">if</span> (&gt;= ii (<span class="kwa">-</span> keylen <span class="num">1</span>)) (<span class="kwa">hash-set</span>! table key (<span class="kwa">add1</span> (<span class="kwa">hash-ref</span> table key <span class="num">0</span>))) #f)
       )
     table))
 
-(define (readbuf in foo)
-  (let ([s (open-output-bytes)])
-    ;; Skip to &quot;&gt;THREE ...&quot;
-    (regexp-match #rx#&quot;(?m:^&gt;THREE.*$)&quot; in)
-    ;; Copy everything but newlines
-    (for ([l (in-bytes-lines in)])
-      (write-bytes l s))
-    ;; Replace letters with numbers 0, 1, 2, 3
-    (let ([actg (get-output-bytes s)])
-      (for ([ii (in-range (bytes-length actg))])
-           (bytes-set! actg ii (foo (bytes-ref actg ii))))
+(<span class="kwa">define</span> (<span class="kwa">readbuf</span> in foo)
+  (<span class="kwa">let</span> ([s (<span class="kwa">open-output-bytes</span>)])
+    <span class="slc">;; Skip to &quot;&gt;THREE ...&quot;</span>
+    (<span class="kwa">regexp-match</span> #rx#<span class="str">&quot;(?m:^&gt;THREE.*$)&quot;</span> in)
+    <span class="slc">;; Copy everything but newlines</span>
+    (<span class="kwa">for</span> ([l (<span class="kwa">in-bytes-lines</span> in)])
+      (<span class="kwa">write-bytes</span> l s))
+    <span class="slc">;; Replace letters with numbers 0, 1, 2, 3</span>
+    (<span class="kwa">let</span> ([actg (<span class="kwa">get-output-bytes</span> s)])
+      (<span class="kwa">for</span> ([ii (<span class="kwa">in-range</span> (<span class="kwa">bytes-length</span> actg))])
+           (<span class="kwa">bytes-set</span>! actg ii (<span class="kwa">foo</span> (<span class="kwa">bytes-ref</span> actg ii))))
       actg)))
 
-(define (write-freqs table len)
-  (let* ([content (hash-map table cons)]
-         [total (exact-&gt;inexact (apply + (map cdr content)))])
-    (for ([a (sort content &gt; #:key cdr)])
-      (printf &quot;~a ~a\n&quot; 
-              (unhash (car a) len)
-              (real-&gt;decimal-string (* 100 (/ (cdr a) total)) 3)))))
+(<span class="kwa">define</span> (<span class="kwa">write-freqs</span> table len)
+  (<span class="kwa">let</span>* ([content (<span class="kwa">hash-map</span> table cons)]
+         [total (<span class="kwa">exact-</span>&gt;inexact (<span class="kwa">apply</span> + (<span class="kwa">map</span> cdr content)))])
+    (<span class="kwa">for</span> ([a (<span class="kwa">sort</span> content &gt; #:key cdr)])
+      (<span class="kwa">printf</span> <span class="str">&quot;~a ~a</span><span class="esc">\n</span><span class="str">&quot;</span> 
+              (<span class="kwa">unhash</span> (<span class="kwa">car</span> a) len)
+              (<span class="kwa">real-</span>&gt;decimal-string (* <span class="num">100</span> (/ (<span class="kwa">cdr</span> a) total)) <span class="num">3</span>)))))
 
-(define (write-one-freq table key)
-  (let ([cnt (hash-ref table ((hashes (bytes-length key) key #f)) 0)])
-    (printf &quot;~a\t~a\n&quot; cnt key)))
+(<span class="kwa">define</span> (<span class="kwa">write-one-freq</span> table key)
+  (<span class="kwa">let</span> ([cnt (<span class="kwa">hash-ref</span> table ((<span class="kwa">hashes</span> (<span class="kwa">bytes-length</span> key) key #f)) <span class="num">0</span>)])
+    (<span class="kwa">printf</span> <span class="str">&quot;~a</span><span class="esc">\t</span><span class="str">~a</span><span class="esc">\n</span><span class="str">&quot;</span> cnt key)))
 
-(define dna (readbuf (current-input-port) dna-&gt;num))
+(<span class="kwa">define</span> dna (<span class="kwa">readbuf</span> (<span class="kwa">current-input-port</span>) dna-&gt;num))
 
-(write-freqs (all-counts 1 dna) 1)
-(newline)
+(<span class="kwa">write-freqs</span> (<span class="kwa">all-counts</span> <span class="num">1</span> dna) <span class="num">1</span>)
+(<span class="kwa">newline</span>)
 
-(write-freqs (all-counts 2 dna) 2)
-(newline)
+(<span class="kwa">write-freqs</span> (<span class="kwa">all-counts</span> <span class="num">2</span> dna) <span class="num">2</span>)
+(<span class="kwa">newline</span>)
 
-;; Specific sequences:
-(for ([seq &apos;(#&quot;GGT&quot; #&quot;GGTA&quot; #&quot;GGTATT&quot; #&quot;GGTATTTTAATT&quot; #&quot;GGTATTTTAATTTATAGT&quot;)]) 
-  (write-one-freq (all-counts (bytes-length seq) dna) seq))
+<span class="slc">;; Specific sequences:</span>
+(<span class="kwa">for</span> ([seq &apos;(#<span class="str">&quot;GGT&quot;</span> #<span class="str">&quot;GGTA&quot;</span> #<span class="str">&quot;GGTATT&quot;</span> #<span class="str">&quot;GGTATTTTAATT&quot;</span> #<span class="str">&quot;GGTATTTTAATTTATAGT&quot;</span>)]) 
+  (<span class="kwa">write-one-freq</span> (<span class="kwa">all-counts</span> (<span class="kwa">bytes-length</span> seq) dna) seq))
     </pre>
   </section>
   <section>
@@ -133,18 +133,18 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
     <pre>
 NOTES:
 64-bit Ubuntu quad core
-Welcome to Racket v8.1 [bc].
+Welcome to Racket v8.2 [bc].
 
 
-Sat, 08 May 2021 19:46:18 GMT
+Tue, 20 Jul 2021 01:19:24 GMT
 
 MAKE:
-/opt/src/racket-8.1-bc/bin/raco make knucleotide.racketbc-4.racketbc
+/opt/src/racket-8.2-bc/bin/raco make knucleotide.racketbc-4.racketbc
 
-3.13s to complete and log all make actions
+2.55s to complete and log all make actions
 
 COMMAND LINE:
-/opt/src/racket-8.1-bc/bin/racket knucleotide.racketbc-4.racketbc 0 &lt; knucleotide-input25000000.txt
+/opt/src/racket-8.2-bc/bin/racket knucleotide.racketbc-4.racketbc 0 &lt; knucleotide-input25000000.txt
 
 PROGRAM OUTPUT:
 A 30.295

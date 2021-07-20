@@ -24,108 +24,108 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
     <pre>
 #lang racket/base
 
-;;; The Computer Language Benchmarks Game
-;;; https://salsa.debian.org/benchmarksgame-team/benchmarksgame/
+<span class="slc">;;; The Computer Language Benchmarks Game</span>
+<span class="slc">;;; https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
 
-;;; Derived from the Chicken variant by Sven Hartrumpf
-;;; contributed by Matthew Flatt
-;;; *reset*
-;;; improved by Phil Nguyen:
-;;; - use `cons` instead of struct `node`
-;;; - remove the confirmed unneccessary field `val`
-;;; - accumulate part of `check`
-;;; - use unsafe accessors and fixnum arithmetics
-;;; - clean up with `define` instead of nested `let`
-;;; - clean up with `for/sum` instead of `for/fold`
-;;; Parallelized by Gustavo Massaccesi, 2019
+<span class="slc">;;; Derived from the Chicken variant by Sven Hartrumpf</span>
+<span class="slc">;;; contributed by Matthew Flatt</span>
+<span class="slc">;;; *reset*</span>
+<span class="slc">;;; improved by Phil Nguyen:</span>
+<span class="slc">;;; - use `cons` instead of struct `node`</span>
+<span class="slc">;;; - remove the confirmed unneccessary field `val`</span>
+<span class="slc">;;; - accumulate part of `check`</span>
+<span class="slc">;;; - use unsafe accessors and fixnum arithmetics</span>
+<span class="slc">;;; - clean up with `define` instead of nested `let`</span>
+<span class="slc">;;; - clean up with `for/sum` instead of `for/fold`</span>
+<span class="slc">;;; Parallelized by Gustavo Massaccesi, 2019</span>
 
-(require racket/cmdline)
+(<span class="kwa">require</span> racket/cmdline)
 
-#;(struct node (left right))
-(define node cons)
-(require racket/place
-         (rename-in racket/unsafe/ops
+#<span class="slc">;(struct node (left right))</span>
+(<span class="kwa">define</span> node cons)
+(<span class="kwa">require</span> racket/place
+         (<span class="kwa">rename-in</span> racket/unsafe/ops
                     [unsafe-car node-left]
                     [unsafe-cdr node-right]
                     [unsafe-fx+ +]
                     [unsafe-fx- -]
                     [unsafe-fx= =]))
 
-(define (make d)
-  (if (= d 0)
-      (node #f #f)
-      (let ([d2 (- d 1)])
-        (node (make d2) (make d2)))))
+(<span class="kwa">define</span> (<span class="kwa">make</span> d)
+  (<span class="kwa">if</span> (= d <span class="num">0</span>)
+      (<span class="kwa">node</span> #f #f)
+      (<span class="kwa">let</span> ([d2 (<span class="kwa">-</span> d <span class="num">1</span>)])
+        (<span class="kwa">node</span> (<span class="kwa">make</span> d2) (<span class="kwa">make</span> d2)))))
 
-(define (check t)
-  (let sum ([t t] [acc 0])
-    (cond [(node-left t) (sum (node-right t) (sum (node-left t) (+ 1 acc)))]
-          [else          (+ 1 acc)])))
+(<span class="kwa">define</span> (<span class="kwa">check</span> t)
+  (<span class="kwa">let</span> sum ([t t] [acc <span class="num">0</span>])
+    (<span class="kwa">cond</span> [(<span class="kwa">node-left</span> t) (<span class="kwa">sum</span> (<span class="kwa">node-right</span> t) (<span class="kwa">sum</span> (<span class="kwa">node-left</span> t) (+ <span class="num">1</span> acc)))]
+          [else          (+ <span class="num">1</span> acc)])))
 
-(define (make-checking-place)
-  (place ch
-    (let loop ()
-    (define iterations (place-channel-get ch))
-    (define d (place-channel-get ch))
-    (define out (for/sum ([_ (in-range iterations)])
-                  (check (make d))))
-      (place-channel-put ch out)
-      (loop))))
+(<span class="kwa">define</span> (<span class="kwa">make-checking-place</span>)
+  (<span class="kwa">place</span> ch
+    (<span class="kwa">let</span> loop ()
+    (<span class="kwa">define</span> iterations (<span class="kwa">place-channel-get</span> ch))
+    (<span class="kwa">define</span> d (<span class="kwa">place-channel-get</span> ch))
+    (<span class="kwa">define</span> out (<span class="kwa">for</span>/sum ([_ (<span class="kwa">in-range</span> iterations)])
+                  (<span class="kwa">check</span> (<span class="kwa">make</span> d))))
+      (<span class="kwa">place-channel-put</span> ch out)
+      (<span class="kwa">loop</span>))))
 
-(module+ main
-  (define (main n)
-    (define min-depth 4)
-    (define max-depth (max (+ min-depth 2) n))
-    (define stretch-depth (+ max-depth 1))
+(<span class="kwa">module</span>+ main
+  (<span class="kwa">define</span> (<span class="kwa">main</span> n)
+    (<span class="kwa">define</span> min-depth <span class="num">4</span>)
+    (<span class="kwa">define</span> max-depth (<span class="kwa">max</span> (+ min-depth <span class="num">2</span>) n))
+    (<span class="kwa">define</span> stretch-depth (+ max-depth <span class="num">1</span>))
 
-    ;Select how to split the task
-    ;when n=21, we get:
-    ;steps = &apos;(2 2 2 2 1)
-    ;interval = &apos;((4 6) (8 10) (12 14) (16 18) (20))
-    ; the first is calculated in the main program, and the rest in places
-    (define total (+ (quotient (- max-depth min-depth) 2) 1))
-    (define cpu 4)
-    (define steps (append (for/list ([_ (in-range cpu)])
-                            (quotient total cpu))
-                          (list (remainder total cpu))))
-    (define intervals (let-values ([(rev-out total)
-                                    (for/fold ([rev-out &apos;()] [total min-depth]) ([v (in-list steps)])
-                                      (define next (+ total (* v 2)))
-                                      (values (cons (for/list ([ i (in-range total next 2)]) i)
+    <span class="slc">;Select how to split the task</span>
+    <span class="slc">;when n=21, we get:</span>
+    <span class="slc">;steps = &apos;(2 2 2 2 1)</span>
+    <span class="slc">;interval = &apos;((4 6) (8 10) (12 14) (16 18) (20))</span>
+    <span class="slc">; the first is calculated in the main program, and the rest in places</span>
+    (<span class="kwa">define</span> total (+ (<span class="kwa">quotient</span> (<span class="kwa">-</span> max-depth min-depth) <span class="num">2</span>) <span class="num">1</span>))
+    (<span class="kwa">define</span> cpu <span class="num">4</span>)
+    (<span class="kwa">define</span> steps (<span class="kwa">append</span> (<span class="kwa">for</span>/list ([_ (<span class="kwa">in-range</span> cpu)])
+                            (<span class="kwa">quotient</span> total cpu))
+                          (<span class="kwa">list</span> (<span class="kwa">remainder</span> total cpu))))
+    (<span class="kwa">define</span> intervals (<span class="kwa">let-values</span> ([(<span class="kwa">rev-out</span> total)
+                                    (<span class="kwa">for</span>/fold ([rev-out &apos;()] [total min-depth]) ([v (<span class="kwa">in-list</span> steps)])
+                                      (<span class="kwa">define</span> next (+ total (* v <span class="num">2</span>)))
+                                      (<span class="kwa">values</span> (<span class="kwa">cons</span> (<span class="kwa">for</span>/list ([ i (<span class="kwa">in-range</span> total next <span class="num">2</span>)]) i)
                                                     rev-out)
                                               next))])
-                        (reverse rev-out)))
+                        (<span class="kwa">reverse</span> rev-out)))
 
-    ; main part of the program
-    (printf &quot;stretch tree of depth ~a\t check: ~a\n&quot; stretch-depth (check (make stretch-depth)))
-    (define long-lived-tree (make max-depth))
-    (define chanells (for/list ([c (in-list (cdr intervals))])
-                       (define ch (make-checking-place))
-                       (for/list ([d (in-list c)])
-                         (define iterations (arithmetic-shift 1 (+ (- max-depth d) min-depth)))
-                         (place-channel-put ch iterations)
-                         (place-channel-put ch d)
-                         (list iterations d ch))))
-    (define chanellsx (cons (let ([c (car intervals)])
-                              (for/list ([d (in-list c)])
-                                (define iterations (arithmetic-shift 1 (+ (- max-depth d) min-depth)))
-                                (define r (for/sum ([_ (in-range iterations)])
-                                            (check (make d))))
-                                (list iterations d r)))
+    <span class="slc">; main part of the program</span>
+    (<span class="kwa">printf</span> <span class="str">&quot;stretch tree of depth ~a</span><span class="esc">\t</span> <span class="str">check: ~a</span><span class="esc">\n</span><span class="str">&quot;</span> stretch-depth (<span class="kwa">check</span> (<span class="kwa">make</span> stretch-depth)))
+    (<span class="kwa">define</span> long-lived-tree (<span class="kwa">make</span> max-depth))
+    (<span class="kwa">define</span> chanells (<span class="kwa">for</span>/list ([c (<span class="kwa">in-list</span> (<span class="kwa">cdr</span> intervals))])
+                       (<span class="kwa">define</span> ch (<span class="kwa">make-checking-place</span>))
+                       (<span class="kwa">for</span>/list ([d (<span class="kwa">in-list</span> c)])
+                         (<span class="kwa">define</span> iterations (<span class="kwa">arithmetic-shift</span> <span class="num">1</span> (+ (<span class="kwa">-</span> max-depth d) min-depth)))
+                         (<span class="kwa">place-channel-put</span> ch iterations)
+                         (<span class="kwa">place-channel-put</span> ch d)
+                         (<span class="kwa">list</span> iterations d ch))))
+    (<span class="kwa">define</span> chanellsx (<span class="kwa">cons</span> (<span class="kwa">let</span> ([c (<span class="kwa">car</span> intervals)])
+                              (<span class="kwa">for</span>/list ([d (<span class="kwa">in-list</span> c)])
+                                (<span class="kwa">define</span> iterations (<span class="kwa">arithmetic-shift</span> <span class="num">1</span> (+ (<span class="kwa">-</span> max-depth d) min-depth)))
+                                (<span class="kwa">define</span> r (<span class="kwa">for</span>/sum ([_ (<span class="kwa">in-range</span> iterations)])
+                                            (<span class="kwa">check</span> (<span class="kwa">make</span> d))))
+                                (<span class="kwa">list</span> iterations d r)))
                             chanells))
-    (for ([vs (in-list chanellsx)])
-      (for ([v (in-list vs)])
-        (printf &quot;~a\t trees of depth ~a\t check: ~a\n&quot;
-                (car v)
-                (cadr v)
-                (let ([r (caddr v)])
-                  (if (number? r)
+    (<span class="kwa">for</span> ([vs (<span class="kwa">in-list</span> chanellsx)])
+      (<span class="kwa">for</span> ([v (<span class="kwa">in-list</span> vs)])
+        (<span class="kwa">printf</span> <span class="str">&quot;~a</span><span class="esc">\t</span> <span class="str">trees of depth ~a</span><span class="esc">\t</span> <span class="str">check: ~a</span><span class="esc">\n</span><span class="str">&quot;</span>
+                (<span class="kwa">car</span> v)
+                (<span class="kwa">cadr</span> v)
+                (<span class="kwa">let</span> ([r (<span class="kwa">caddr</span> v)])
+                  (<span class="kwa">if</span> (<span class="kwa">number</span>? r)
                       r
-                      (place-channel-get r))))))
-    (printf &quot;long lived tree of depth ~a\t check: ~a\n&quot; max-depth (check long-lived-tree)))
+                      (<span class="kwa">place-channel-get</span> r))))))
+    (<span class="kwa">printf</span> <span class="str">&quot;long lived tree of depth ~a</span><span class="esc">\t</span> <span class="str">check: ~a</span><span class="esc">\n</span><span class="str">&quot;</span> max-depth (<span class="kwa">check</span> long-lived-tree)))
 
-  (command-line #:args (n) 
-                (main (string-&gt;number n)))
+  (<span class="kwa">command-line</span> #:args (<span class="kwa">n</span>) 
+                (<span class="kwa">main</span> (<span class="kwa">string-</span>&gt;number n)))
 )
     </pre>
   </section>
@@ -136,18 +136,18 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
     <pre>
 NOTES:
 64-bit Ubuntu quad core
-Welcome to Racket v8.1 [bc].
+Welcome to Racket v8.2 [bc].
 
 
-Sat, 08 May 2021 18:58:52 GMT
+Tue, 20 Jul 2021 00:33:20 GMT
 
 MAKE:
-/opt/src/racket-8.1-bc/bin/raco make binarytrees.racketbc-4.racketbc
+/opt/src/racket-8.2-bc/bin/raco make binarytrees.racketbc-4.racketbc
 
-0.71s to complete and log all make actions
+2.98s to complete and log all make actions
 
 COMMAND LINE:
-/opt/src/racket-8.1-bc/bin/racket binarytrees.racketbc-4.racketbc 21
+/opt/src/racket-8.2-bc/bin/racket binarytrees.racketbc-4.racketbc 21
 
 PROGRAM OUTPUT:
 stretch tree of depth 22	 check: 8388607
