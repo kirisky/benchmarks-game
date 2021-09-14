@@ -31,180 +31,180 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="com"> *</span>
 <span class="com"> */</span>
 
-<span class="kwa">import</span> java<span class="opt">.</span>util<span class="opt">.</span>concurrent<span class="opt">.</span>atomic<span class="opt">.</span>AtomicInteger<span class="opt">;</span>
+<span class="kwa">import</span> java.util.concurrent.atomic.AtomicInteger;
 
 <span class="kwa">public final class</span> fannkuchredux <span class="kwa">implements</span> Runnable
-<span class="opt">{</span>
-    <span class="kwa">private static final int</span> NCHUNKS <span class="opt">=</span> <span class="num">150</span><span class="opt">;</span>
-    <span class="kwa">private static       int</span> CHUNKSZ<span class="opt">;</span>
-    <span class="kwa">private static       int</span> NTASKS<span class="opt">;</span>
-    <span class="kwa">private static int</span> n<span class="opt">;</span>
-    <span class="kwa">private static int</span><span class="opt">[]</span> Fact<span class="opt">;</span>
-    <span class="kwa">private static int</span><span class="opt">[]</span> maxFlips<span class="opt">;</span>
-    <span class="kwa">private static int</span><span class="opt">[]</span> chkSums<span class="opt">;</span>
-    <span class="kwa">private static</span> AtomicInteger taskId<span class="opt">;</span>
+{
+    <span class="kwa">private static final</span> <span class="kwb">int</span> NCHUNKS = <span class="num">150</span>;
+    <span class="kwa">private static</span>       <span class="kwb">int</span> CHUNKSZ;
+    <span class="kwa">private static</span>       <span class="kwb">int</span> NTASKS;
+    <span class="kwa">private static</span> <span class="kwb">int</span> n;
+    <span class="kwa">private static</span> <span class="kwb">int</span>[] Fact;
+    <span class="kwa">private static</span> <span class="kwb">int</span>[] maxFlips;
+    <span class="kwa">private static</span> <span class="kwb">int</span>[] chkSums;
+    <span class="kwa">private static</span> AtomicInteger taskId;
     
-    <span class="kwa">int</span><span class="opt">[]</span> p<span class="opt">,</span> pp<span class="opt">,</span> count<span class="opt">;</span>
+    <span class="kwb">int</span>[] p, pp, count;
 
-    <span class="kwa">void</span> <span class="kwd">print</span><span class="opt">()</span>
-    <span class="opt">{</span>
-        <span class="kwa">for</span> <span class="opt">(</span> <span class="kwa">int</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> p<span class="opt">.</span>length<span class="opt">;</span> i<span class="opt">++ ) {</span>
-            System<span class="opt">.</span>out<span class="opt">.</span><span class="kwd">print</span><span class="opt">(</span> p<span class="opt">[</span>i<span class="opt">] +</span> <span class="num">1</span> <span class="opt">);</span>
-        <span class="opt">}</span>
-        System<span class="opt">.</span>out<span class="opt">.</span><span class="kwd">println</span><span class="opt">();</span>
-    <span class="opt">}</span>
+    <span class="kwb">void</span> <span class="kwd">print</span>()
+    {
+        <span class="kwa">for</span> ( <span class="kwb">int</span> i = <span class="num">0</span>; i &lt; p.length; i++ ) {
+            System.out.<span class="kwd">print</span>( p[i] + <span class="num">1</span> );
+        }
+        System.out.<span class="kwd">println</span>();
+    }
 
-    <span class="kwa">void</span> <span class="kwd">firstPermutation</span><span class="opt">(</span> <span class="kwa">int</span> idx <span class="opt">)</span>
-    <span class="opt">{</span>
-        <span class="kwa">for</span> <span class="opt">(</span> <span class="kwa">int</span> i<span class="opt">=</span><span class="num">0</span><span class="opt">;</span> i<span class="opt">&lt;</span>p<span class="opt">.</span>length<span class="opt">; ++</span>i <span class="opt">) {</span>
-           p<span class="opt">[</span>i<span class="opt">] =</span> i<span class="opt">;</span>
-        <span class="opt">}</span>
+    <span class="kwb">void</span> <span class="kwd">firstPermutation</span>( <span class="kwb">int</span> idx )
+    {
+        <span class="kwa">for</span> ( <span class="kwb">int</span> i=<span class="num">0</span>; i&lt;p.length; ++i ) {
+           p[i] = i;
+        }
 
-        <span class="kwa">for</span> <span class="opt">(</span> <span class="kwa">int</span> i<span class="opt">=</span>count<span class="opt">.</span>length<span class="opt">-</span><span class="num">1</span><span class="opt">;</span> i<span class="opt">&gt;</span><span class="num">0</span><span class="opt">; --</span>i <span class="opt">) {</span>
-            <span class="kwa">int</span> d <span class="opt">=</span> idx <span class="opt">/</span> Fact<span class="opt">[</span>i<span class="opt">];</span>
-            count<span class="opt">[</span>i<span class="opt">] =</span> d<span class="opt">;</span>
-            idx <span class="opt">=</span> idx <span class="opt">%</span> Fact<span class="opt">[</span>i<span class="opt">];</span>
+        <span class="kwa">for</span> ( <span class="kwb">int</span> i=count.length-<span class="num">1</span>; i&gt;<span class="num">0</span>; --i ) {
+            <span class="kwb">int</span> d = idx / Fact[i];
+            count[i] = d;
+            idx = idx % Fact[i];
 
-            System<span class="opt">.</span><span class="kwd">arraycopy</span><span class="opt">(</span> p<span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> pp<span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> i<span class="opt">+</span><span class="num">1</span> <span class="opt">);</span>
-            <span class="kwa">for</span> <span class="opt">(</span> <span class="kwa">int</span> j<span class="opt">=</span><span class="num">0</span><span class="opt">;</span> j<span class="opt">&lt;=</span>i<span class="opt">; ++</span>j <span class="opt">) {</span>
-                p<span class="opt">[</span>j<span class="opt">] =</span> j<span class="opt">+</span>d <span class="opt">&lt;=</span> i ? pp<span class="opt">[</span>j<span class="opt">+</span>d<span class="opt">] :</span> pp<span class="opt">[</span>j<span class="opt">+</span>d<span class="opt">-</span>i<span class="opt">-</span><span class="num">1</span><span class="opt">];</span>
-            <span class="opt">}</span>
-        <span class="opt">}</span>
-    <span class="opt">}</span>
+            System.<span class="kwd">arraycopy</span>( p, <span class="num">0</span>, pp, <span class="num">0</span>, i+<span class="num">1</span> );
+            <span class="kwa">for</span> ( <span class="kwb">int</span> j=<span class="num">0</span>; j&lt;=i; ++j ) {
+                p[j] = j+d &lt;= i ? pp[j+d] : pp[j+d-i-<span class="num">1</span>];
+            }
+        }
+    }
 
-    <span class="kwa">boolean</span> <span class="kwd">nextPermutation</span><span class="opt">()</span>
-    <span class="opt">{</span>
-        <span class="kwa">int</span> first <span class="opt">=</span> p<span class="opt">[</span><span class="num">1</span><span class="opt">];</span>
-        p<span class="opt">[</span><span class="num">1</span><span class="opt">] =</span> p<span class="opt">[</span><span class="num">0</span><span class="opt">];</span>
-        p<span class="opt">[</span><span class="num">0</span><span class="opt">] =</span> first<span class="opt">;</span>
+    <span class="kwb">boolean</span> <span class="kwd">nextPermutation</span>()
+    {
+        <span class="kwb">int</span> first = p[<span class="num">1</span>];
+        p[<span class="num">1</span>] = p[<span class="num">0</span>];
+        p[<span class="num">0</span>] = first;
         
-        <span class="kwa">int</span> i<span class="opt">=</span><span class="num">1</span><span class="opt">;</span> 
-        <span class="kwa">while</span> <span class="opt">( ++</span>count<span class="opt">[</span>i<span class="opt">] &gt;</span> i <span class="opt">) {</span>
-            count<span class="opt">[</span>i<span class="opt">++] =</span> <span class="num">0</span><span class="opt">;</span>
-            <span class="kwa">int</span> next <span class="opt">=</span> p<span class="opt">[</span><span class="num">0</span><span class="opt">] =</span> p<span class="opt">[</span><span class="num">1</span><span class="opt">];</span>
-            <span class="kwa">for</span> <span class="opt">(</span> <span class="kwa">int</span> j<span class="opt">=</span><span class="num">1</span><span class="opt">;</span> j<span class="opt">&lt;</span>i<span class="opt">; ++</span>j <span class="opt">) {</span>
-                p<span class="opt">[</span>j<span class="opt">] =</span> p<span class="opt">[</span>j<span class="opt">+</span><span class="num">1</span><span class="opt">];</span>
-            <span class="opt">}</span>
-            p<span class="opt">[</span>i<span class="opt">] =</span> first<span class="opt">;</span>
-            first <span class="opt">=</span> next<span class="opt">;</span>
-        <span class="opt">}</span>
-        <span class="kwa">return</span> <span class="kwb">true</span><span class="opt">;</span>
-    <span class="opt">}</span>
+        <span class="kwb">int</span> i=<span class="num">1</span>; 
+        <span class="kwa">while</span> ( ++count[i] &gt; i ) {
+            count[i++] = <span class="num">0</span>;
+            <span class="kwb">int</span> next = p[<span class="num">0</span>] = p[<span class="num">1</span>];
+            <span class="kwa">for</span> ( <span class="kwb">int</span> j=<span class="num">1</span>; j&lt;i; ++j ) {
+                p[j] = p[j+<span class="num">1</span>];
+            }
+            p[i] = first;
+            first = next;
+        }
+        <span class="kwa">return</span> true;
+    }
 
-    <span class="kwa">int</span> <span class="kwd">countFlips</span><span class="opt">()</span>
-    <span class="opt">{</span>
-        <span class="kwa">int</span> flips <span class="opt">=</span> <span class="num">1</span><span class="opt">;</span>
-	<span class="kwa">int</span> first <span class="opt">=</span> p<span class="opt">[</span><span class="num">0</span><span class="opt">];</span>
-        <span class="kwa">if</span> <span class="opt">(</span> p<span class="opt">[</span>first<span class="opt">] !=</span> <span class="num">0</span> <span class="opt">) {</span>
-            System<span class="opt">.</span><span class="kwd">arraycopy</span><span class="opt">(</span> p<span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> pp<span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> pp<span class="opt">.</span>length <span class="opt">);</span>
-            <span class="kwa">do</span> <span class="opt">{</span>
-                 <span class="opt">++</span>flips<span class="opt">;</span>
-                 <span class="kwa">for</span> <span class="opt">(</span> <span class="kwa">int</span> lo <span class="opt">=</span> <span class="num">1</span><span class="opt">,</span> hi <span class="opt">=</span> first <span class="opt">-</span> <span class="num">1</span><span class="opt">;</span> lo <span class="opt">&lt;</span> hi<span class="opt">; ++</span>lo<span class="opt">, --</span>hi <span class="opt">) {</span>
-                    <span class="kwa">int</span> t <span class="opt">=</span> pp<span class="opt">[</span>lo<span class="opt">];</span>
-                    pp<span class="opt">[</span>lo<span class="opt">] =</span> pp<span class="opt">[</span>hi<span class="opt">];</span>
-                    pp<span class="opt">[</span>hi<span class="opt">] =</span> t<span class="opt">;</span>
-                 <span class="opt">}</span>
-                 <span class="kwa">int</span> t <span class="opt">=</span> pp<span class="opt">[</span>first<span class="opt">];</span>
-                 pp<span class="opt">[</span>first<span class="opt">] =</span> first<span class="opt">;</span>
-                 first <span class="opt">=</span> t<span class="opt">;</span>
-            <span class="opt">}</span> <span class="kwa">while</span> <span class="opt">(</span> pp<span class="opt">[</span>first<span class="opt">] !=</span> <span class="num">0</span> <span class="opt">);</span>
-        <span class="opt">}</span>
-	<span class="kwa">return</span> flips<span class="opt">;</span>
-    <span class="opt">}</span>
+    <span class="kwb">int</span> <span class="kwd">countFlips</span>()
+    {
+        <span class="kwb">int</span> flips = <span class="num">1</span>;
+	<span class="kwb">int</span> first = p[<span class="num">0</span>];
+        <span class="kwa">if</span> ( p[first] != <span class="num">0</span> ) {
+            System.<span class="kwd">arraycopy</span>( p, <span class="num">0</span>, pp, <span class="num">0</span>, pp.length );
+            <span class="kwa">do</span> {
+                 ++flips;
+                 <span class="kwa">for</span> ( <span class="kwb">int</span> lo = <span class="num">1</span>, hi = first - <span class="num">1</span>; lo &lt; hi; ++lo, --hi ) {
+                    <span class="kwb">int</span> t = pp[lo];
+                    pp[lo] = pp[hi];
+                    pp[hi] = t;
+                 }
+                 <span class="kwb">int</span> t = pp[first];
+                 pp[first] = first;
+                 first = t;
+            } <span class="kwa">while</span> ( pp[first] != <span class="num">0</span> );
+        }
+	<span class="kwa">return</span> flips;
+    }
 
-    <span class="kwa">void</span> <span class="kwd">runTask</span><span class="opt">(</span> <span class="kwa">int</span> task <span class="opt">)</span>
-    <span class="opt">{</span>
-        <span class="kwa">int</span> idxMin <span class="opt">=</span> task<span class="opt">*</span>CHUNKSZ<span class="opt">;</span>
-        <span class="kwa">int</span> idxMax <span class="opt">=</span> Math<span class="opt">.</span><span class="kwd">min</span><span class="opt">(</span> Fact<span class="opt">[</span>n<span class="opt">],</span> idxMin<span class="opt">+</span>CHUNKSZ <span class="opt">);</span>
+    <span class="kwb">void</span> <span class="kwd">runTask</span>( <span class="kwb">int</span> task )
+    {
+        <span class="kwb">int</span> idxMin = task*CHUNKSZ;
+        <span class="kwb">int</span> idxMax = Math.<span class="kwd">min</span>( Fact[n], idxMin+CHUNKSZ );
 
-	<span class="kwd">firstPermutation</span><span class="opt">(</span> idxMin <span class="opt">);</span>
+	<span class="kwd">firstPermutation</span>( idxMin );
 
-        <span class="kwa">int</span> maxflips <span class="opt">=</span> <span class="num">1</span><span class="opt">;</span>
-        <span class="kwa">int</span> chksum <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
-        <span class="kwa">for</span> <span class="opt">(</span> <span class="kwa">int</span> i<span class="opt">=</span>idxMin<span class="opt">;; ) {</span>
+        <span class="kwb">int</span> maxflips = <span class="num">1</span>;
+        <span class="kwb">int</span> chksum = <span class="num">0</span>;
+        <span class="kwa">for</span> ( <span class="kwb">int</span> i=idxMin;; ) {
 
-            <span class="kwa">if</span> <span class="opt">(</span> p<span class="opt">[</span><span class="num">0</span><span class="opt">] !=</span> <span class="num">0</span> <span class="opt">) {</span>
-                <span class="kwa">int</span> flips <span class="opt">=</span> <span class="kwd">countFlips</span><span class="opt">();</span>
-                maxflips <span class="opt">=</span> Math<span class="opt">.</span><span class="kwd">max</span><span class="opt">(</span> maxflips<span class="opt">,</span> flips <span class="opt">);</span>
-		chksum <span class="opt">+=</span> i<span class="opt">%</span><span class="num">2</span> <span class="opt">==</span><span class="num">0</span> ? flips <span class="opt">: -</span>flips<span class="opt">;</span>
-            <span class="opt">}</span>
+            <span class="kwa">if</span> ( p[<span class="num">0</span>] != <span class="num">0</span> ) {
+                <span class="kwb">int</span> flips = <span class="kwd">countFlips</span>();
+                maxflips = Math.<span class="kwd">max</span>( maxflips, flips );
+		chksum += i%<span class="num">2</span> ==<span class="num">0</span> ? flips : -flips;
+            }
 
-	    <span class="kwa">if</span> <span class="opt">( ++</span>i <span class="opt">==</span> idxMax <span class="opt">) {</span>
-	        <span class="kwa">break</span><span class="opt">;</span>
-	    <span class="opt">}</span>
+	    <span class="kwa">if</span> ( ++i == idxMax ) {
+	        <span class="kwa">break</span>;
+	    }
 
-            <span class="kwd">nextPermutation</span><span class="opt">();</span>
-        <span class="opt">}</span>
-	maxFlips<span class="opt">[</span>task<span class="opt">] =</span> maxflips<span class="opt">;</span>
-	chkSums<span class="opt">[</span>task<span class="opt">]  =</span> chksum<span class="opt">;</span>
-    <span class="opt">}</span>
+            <span class="kwd">nextPermutation</span>();
+        }
+	maxFlips[task] = maxflips;
+	chkSums[task]  = chksum;
+    }
 
-    <span class="kwa">public void</span> <span class="kwd">run</span><span class="opt">()</span>
-    <span class="opt">{</span>
-        p     <span class="opt">=</span> <span class="kwa">new int</span><span class="opt">[</span>n<span class="opt">];</span>
-        pp    <span class="opt">=</span> <span class="kwa">new int</span><span class="opt">[</span>n<span class="opt">];</span>
-        count <span class="opt">=</span> <span class="kwa">new int</span><span class="opt">[</span>n<span class="opt">];</span>        
+    <span class="kwa">public</span> <span class="kwb">void</span> <span class="kwd">run</span>()
+    {
+        p     = <span class="kwa">new</span> <span class="kwb">int</span>[n];
+        pp    = <span class="kwa">new</span> <span class="kwb">int</span>[n];
+        count = <span class="kwa">new</span> <span class="kwb">int</span>[n];        
 
-        <span class="kwa">int</span> task<span class="opt">;</span>
-        <span class="kwa">while</span> <span class="opt">( (</span> task <span class="opt">=</span> taskId<span class="opt">.</span><span class="kwd">getAndIncrement</span><span class="opt">() ) &lt;</span> NTASKS <span class="opt">) {</span>
-	    <span class="kwd">runTask</span><span class="opt">(</span> task <span class="opt">);</span>
-        <span class="opt">}</span>
-    <span class="opt">}</span>
+        <span class="kwb">int</span> task;
+        <span class="kwa">while</span> ( ( task = taskId.<span class="kwd">getAndIncrement</span>() ) &lt; NTASKS ) {
+	    <span class="kwd">runTask</span>( task );
+        }
+    }
 
-    <span class="kwa">static void</span> <span class="kwd">printResult</span><span class="opt">(</span> <span class="kwa">int</span> n<span class="opt">,</span> <span class="kwa">int</span> res<span class="opt">,</span> <span class="kwa">int</span> chk <span class="opt">)</span>
-    <span class="opt">{</span>
-        System<span class="opt">.</span>out<span class="opt">.</span><span class="kwd">println</span><span class="opt">(</span> chk<span class="opt">+</span><span class="str">&quot;</span><span class="esc">\n</span><span class="str">Pfannkuchen(&quot;</span><span class="opt">+</span>n<span class="opt">+</span><span class="str">&quot;) = &quot;</span><span class="opt">+</span>res <span class="opt">);</span>
-    <span class="opt">}</span>
+    <span class="kwa">static</span> <span class="kwb">void</span> <span class="kwd">printResult</span>( <span class="kwb">int</span> n, <span class="kwb">int</span> res, <span class="kwb">int</span> chk )
+    {
+        System.out.<span class="kwd">println</span>( chk+<span class="str">&quot;</span><span class="esc">\n</span><span class="str">Pfannkuchen(&quot;</span>+n+<span class="str">&quot;) = &quot;</span>+res );
+    }
 
-    <span class="kwa">public static void</span> <span class="kwd">main</span><span class="opt">(</span> String<span class="opt">[]</span> args <span class="opt">)</span>
-    <span class="opt">{</span>        
-        n <span class="opt">=</span> args<span class="opt">.</span>length <span class="opt">&gt;</span> <span class="num">0</span> ? Integer<span class="opt">.</span><span class="kwd">parseInt</span><span class="opt">(</span> args<span class="opt">[</span><span class="num">0</span><span class="opt">] ) :</span> <span class="num">12</span><span class="opt">;</span>
-        <span class="kwa">if</span> <span class="opt">(</span> n <span class="opt">&lt;</span> <span class="num">0</span> <span class="opt">||</span> n <span class="opt">&gt;</span> <span class="num">12</span> <span class="opt">) {</span>         <span class="slc">// 13! won&apos;t fit into int</span>
-            <span class="kwd">printResult</span><span class="opt">(</span> n<span class="opt">, -</span><span class="num">1</span><span class="opt">, -</span><span class="num">1</span> <span class="opt">);</span>
-            <span class="kwa">return</span><span class="opt">;</span>
-        <span class="opt">}</span>
-        <span class="kwa">if</span> <span class="opt">(</span> n <span class="opt">&lt;=</span> <span class="num">1</span> <span class="opt">) {</span>
-            <span class="kwd">printResult</span><span class="opt">(</span> n<span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> <span class="num">0</span> <span class="opt">);</span>
-            <span class="kwa">return</span><span class="opt">;</span>
-        <span class="opt">}</span>
+    <span class="kwa">public static</span> <span class="kwb">void</span> <span class="kwd">main</span>( String[] args )
+    {        
+        n = args.length &gt; <span class="num">0</span> ? Integer.<span class="kwd">parseInt</span>( args[<span class="num">0</span>] ) : <span class="num">12</span>;
+        <span class="kwa">if</span> ( n &lt; <span class="num">0</span> || n &gt; <span class="num">12</span> ) {         <span class="slc">// 13! won&apos;t fit into int</span>
+            <span class="kwd">printResult</span>( n, -<span class="num">1</span>, -<span class="num">1</span> );
+            <span class="kwa">return</span>;
+        }
+        <span class="kwa">if</span> ( n &lt;= <span class="num">1</span> ) {
+            <span class="kwd">printResult</span>( n, <span class="num">0</span>, <span class="num">0</span> );
+            <span class="kwa">return</span>;
+        }
 
-        Fact <span class="opt">=</span> <span class="kwa">new int</span><span class="opt">[</span>n<span class="opt">+</span><span class="num">1</span><span class="opt">];</span>
-        Fact<span class="opt">[</span><span class="num">0</span><span class="opt">] =</span> <span class="num">1</span><span class="opt">;</span>
-        <span class="kwa">for</span> <span class="opt">(</span> <span class="kwa">int</span> i<span class="opt">=</span><span class="num">1</span><span class="opt">;</span> i<span class="opt">&lt;</span>Fact<span class="opt">.</span>length<span class="opt">; ++</span>i <span class="opt">) {</span>
-            Fact<span class="opt">[</span>i<span class="opt">] =</span> Fact<span class="opt">[</span>i<span class="opt">-</span><span class="num">1</span><span class="opt">] *</span> i<span class="opt">;</span>
-        <span class="opt">}</span>
+        Fact = <span class="kwa">new</span> <span class="kwb">int</span>[n+<span class="num">1</span>];
+        Fact[<span class="num">0</span>] = <span class="num">1</span>;
+        <span class="kwa">for</span> ( <span class="kwb">int</span> i=<span class="num">1</span>; i&lt;Fact.length; ++i ) {
+            Fact[i] = Fact[i-<span class="num">1</span>] * i;
+        }
         
-        CHUNKSZ <span class="opt">= (</span>Fact<span class="opt">[</span>n<span class="opt">] +</span> NCHUNKS <span class="opt">-</span> <span class="num">1</span><span class="opt">) /</span> NCHUNKS<span class="opt">;</span>
-	NTASKS <span class="opt">= (</span>Fact<span class="opt">[</span>n<span class="opt">] +</span> CHUNKSZ <span class="opt">-</span> <span class="num">1</span><span class="opt">) /</span> CHUNKSZ<span class="opt">;</span>
-        maxFlips <span class="opt">=</span> <span class="kwa">new int</span><span class="opt">[</span>NTASKS<span class="opt">];</span>
-        chkSums  <span class="opt">=</span> <span class="kwa">new int</span><span class="opt">[</span>NTASKS<span class="opt">];</span>
-        taskId <span class="opt">=</span> <span class="kwa">new</span> <span class="kwd">AtomicInteger</span><span class="opt">(</span><span class="num">0</span><span class="opt">);</span>
+        CHUNKSZ = (Fact[n] + NCHUNKS - <span class="num">1</span>) / NCHUNKS;
+	NTASKS = (Fact[n] + CHUNKSZ - <span class="num">1</span>) / CHUNKSZ;
+        maxFlips = <span class="kwa">new</span> <span class="kwb">int</span>[NTASKS];
+        chkSums  = <span class="kwa">new</span> <span class="kwb">int</span>[NTASKS];
+        taskId = <span class="kwa">new</span> <span class="kwd">AtomicInteger</span>(<span class="num">0</span>);
 
-        <span class="kwa">int</span> nthreads <span class="opt">=</span> <span class="num">1</span><span class="opt">;</span>
-        Thread<span class="opt">[]</span> threads <span class="opt">=</span> <span class="kwa">new</span> Thread<span class="opt">[</span>nthreads<span class="opt">];</span>
-        <span class="kwa">for</span> <span class="opt">(</span> <span class="kwa">int</span> i<span class="opt">=</span><span class="num">0</span><span class="opt">;</span> i<span class="opt">&lt;</span>nthreads<span class="opt">; ++</span>i <span class="opt">) {</span>
-            threads<span class="opt">[</span>i<span class="opt">] =</span> <span class="kwa">new</span> <span class="kwd">Thread</span><span class="opt">(</span> <span class="kwa">new</span> <span class="kwd">fannkuchredux</span><span class="opt">() );</span>
-            threads<span class="opt">[</span>i<span class="opt">].</span><span class="kwd">start</span><span class="opt">();</span>
-        <span class="opt">}</span>
-        <span class="kwa">for</span> <span class="opt">(</span> Thread t <span class="opt">:</span> threads <span class="opt">) {</span>
-            <span class="kwa">try</span> <span class="opt">{</span>
-                t<span class="opt">.</span><span class="kwd">join</span><span class="opt">();</span>
-            <span class="opt">}</span>
-            <span class="kwa">catch</span> <span class="opt">(</span> InterruptedException e <span class="opt">) {}</span>
-        <span class="opt">}</span>
+        <span class="kwb">int</span> nthreads = <span class="num">1</span>;
+        Thread[] threads = <span class="kwa">new</span> Thread[nthreads];
+        <span class="kwa">for</span> ( <span class="kwb">int</span> i=<span class="num">0</span>; i&lt;nthreads; ++i ) {
+            threads[i] = <span class="kwa">new</span> <span class="kwd">Thread</span>( <span class="kwa">new</span> <span class="kwd">fannkuchredux</span>() );
+            threads[i].<span class="kwd">start</span>();
+        }
+        <span class="kwa">for</span> ( Thread t : threads ) {
+            <span class="kwa">try</span> {
+                t.<span class="kwd">join</span>();
+            }
+            <span class="kwa">catch</span> ( InterruptedException e ) {}
+        }
         
-        <span class="kwa">int</span> res <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
-        <span class="kwa">for</span> <span class="opt">(</span> <span class="kwa">int</span> v <span class="opt">:</span> maxFlips <span class="opt">) {</span>
-            res <span class="opt">=</span> Math<span class="opt">.</span><span class="kwd">max</span><span class="opt">(</span> res<span class="opt">,</span> v <span class="opt">);</span>
-        <span class="opt">}</span>
-        <span class="kwa">int</span> chk <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
-        <span class="kwa">for</span> <span class="opt">(</span> <span class="kwa">int</span> v <span class="opt">:</span> chkSums <span class="opt">) {</span>
-            chk <span class="opt">+=</span> v<span class="opt">;</span>
-        <span class="opt">}</span>
+        <span class="kwb">int</span> res = <span class="num">0</span>;
+        <span class="kwa">for</span> ( <span class="kwb">int</span> v : maxFlips ) {
+            res = Math.<span class="kwd">max</span>( res, v );
+        }
+        <span class="kwb">int</span> chk = <span class="num">0</span>;
+        <span class="kwa">for</span> ( <span class="kwb">int</span> v : chkSums ) {
+            chk += v;
+        }
         
-        <span class="kwd">printResult</span><span class="opt">(</span> n<span class="opt">,</span> res<span class="opt">,</span> chk <span class="opt">);</span>
-    <span class="opt">}</span>
-<span class="opt">}</span>
+        <span class="kwd">printResult</span>( n, res, chk );
+    }
+}
     </pre>
   </section>
   <section>
@@ -214,21 +214,21 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
     <pre>
 NOTES:
 64-bit Ubuntu quad core
-openjdk 16 2021-03-16
-OpenJDK Runtime Environment (build 16+36-2231)
-OpenJDK 64-Bit Server VM (build 16+36-2231, mixed mode, sharing)
+openjdk 17 2021-09-14
+OpenJDK Runtime Environment (build 17+35-2724)
+OpenJDK 64-Bit Server VM (build 17+35-2724, mixed mode, sharing)
 
 
-Tue, 16 Mar 2021 18:40:08 GMT
+Tue, 14 Sep 2021 17:57:17 GMT
 
 MAKE:
 mv fannkuchredux.java-3.java fannkuchredux.java
-/opt/src/jdk-16/bin/javac -d . -cp . fannkuchredux.java
+/opt/src/jdk-17/bin/javac -d . -cp . fannkuchredux.java
 
-1.49s to complete and log all make actions
+1.70s to complete and log all make actions
 
 COMMAND LINE:
-/opt/src/jdk-16/bin/java  -cp . fannkuchredux 12
+/opt/src/jdk-17/bin/java  -cp . fannkuchredux 12
 
 PROGRAM OUTPUT:
 3968050

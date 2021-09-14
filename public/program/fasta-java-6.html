@@ -31,319 +31,319 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="com"> * modified by Mike</span>
 <span class="com"> */</span>
 
-<span class="kwa">import</span> java<span class="opt">.</span>io<span class="opt">.</span>IOException<span class="opt">;</span>
-<span class="kwa">import</span> java<span class="opt">.</span>io<span class="opt">.</span>OutputStream<span class="opt">;</span>
-<span class="kwa">import</span> java<span class="opt">.</span>util<span class="opt">.</span>concurrent<span class="opt">.</span>ArrayBlockingQueue<span class="opt">;</span>
-<span class="kwa">import</span> java<span class="opt">.</span>util<span class="opt">.</span>concurrent<span class="opt">.</span>BlockingQueue<span class="opt">;</span>
-<span class="kwa">import</span> java<span class="opt">.</span>util<span class="opt">.</span>concurrent<span class="opt">.</span>atomic<span class="opt">.</span>AtomicInteger<span class="opt">;</span>
+<span class="kwa">import</span> java.io.IOException;
+<span class="kwa">import</span> java.io.OutputStream;
+<span class="kwa">import</span> java.util.concurrent.ArrayBlockingQueue;
+<span class="kwa">import</span> java.util.concurrent.BlockingQueue;
+<span class="kwa">import</span> java.util.concurrent.atomic.AtomicInteger;
 
-<span class="kwa">public class</span> fasta <span class="opt">{</span>
+<span class="kwa">public class</span> fasta {
     <span class="com">/** Maximum length of the FASTA sequence lines. */</span>
-    <span class="kwa">private static final int</span> LINE_LENGTH <span class="opt">=</span> <span class="num">60</span><span class="opt">;</span>
+    <span class="kwa">private static final</span> <span class="kwb">int</span> LINE_LENGTH = <span class="num">60</span>;
 
     <span class="com">/** Maximum number of FASTA sequence lines that we process at one time. */</span>
-    <span class="kwa">private static final int</span> LINE_COUNT <span class="opt">=</span> <span class="num">1024</span><span class="opt">;</span>
+    <span class="kwa">private static final</span> <span class="kwb">int</span> LINE_COUNT = <span class="num">1024</span>;
 
     <span class="com">/** The threads that convert random numbers to nucleotide codes. */</span>
-    <span class="kwa">private static final</span> NucleotideSelector<span class="opt">[]</span> WORKERS <span class="opt">=</span> <span class="kwa">new</span> NucleotideSelector<span class="opt">[</span>
-        Math<span class="opt">.</span><span class="kwd">max</span><span class="opt">(</span>Runtime<span class="opt">.</span><span class="kwd">getRuntime</span><span class="opt">().</span><span class="kwd">availableProcessors</span><span class="opt">() -</span> <span class="num">1</span><span class="opt">,</span> <span class="num">1</span><span class="opt">)</span>
-    <span class="opt">];</span>
+    <span class="kwa">private static final</span> NucleotideSelector[] WORKERS = <span class="kwa">new</span> NucleotideSelector[
+        Math.<span class="kwd">max</span>(Runtime.<span class="kwd">getRuntime</span>().<span class="kwd">availableProcessors</span>() - <span class="num">1</span>, <span class="num">1</span>)
+    ];
 
-    <span class="kwa">private static final</span> AtomicInteger IN <span class="opt">=</span> <span class="kwa">new</span> <span class="kwd">AtomicInteger</span><span class="opt">();</span>
-    <span class="kwa">private static final</span> AtomicInteger OUT <span class="opt">=</span> <span class="kwa">new</span> <span class="kwd">AtomicInteger</span><span class="opt">();</span>
-    <span class="kwa">private static final int</span> BUFFERS_IN_PLAY <span class="opt">=</span> <span class="num">6</span><span class="opt">;</span>
+    <span class="kwa">private static final</span> AtomicInteger IN = <span class="kwa">new</span> <span class="kwd">AtomicInteger</span>();
+    <span class="kwa">private static final</span> AtomicInteger OUT = <span class="kwa">new</span> <span class="kwd">AtomicInteger</span>();
+    <span class="kwa">private static final</span> <span class="kwb">int</span> BUFFERS_IN_PLAY = <span class="num">6</span>;
 
-    <span class="kwa">public static void</span> <span class="kwd">main</span><span class="opt">(</span>String<span class="opt">[]</span> args<span class="opt">) {</span>
-        <span class="kwa">int</span> n <span class="opt">=</span> <span class="num">1000</span><span class="opt">;</span>
+    <span class="kwa">public static</span> <span class="kwb">void</span> <span class="kwd">main</span>(String[] args) {
+        <span class="kwb">int</span> n = <span class="num">1000</span>;
 
-        <span class="kwa">if</span> <span class="opt">(</span>args<span class="opt">.</span>length <span class="opt">&gt;</span> <span class="num">0</span><span class="opt">) {</span>
-            n <span class="opt">=</span> Integer<span class="opt">.</span><span class="kwd">parseInt</span><span class="opt">(</span>args<span class="opt">[</span><span class="num">0</span><span class="opt">]);</span>
-        <span class="opt">}</span>
-        <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">int</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> WORKERS<span class="opt">.</span>length<span class="opt">;</span> i<span class="opt">++) {</span>
-            WORKERS<span class="opt">[</span>i<span class="opt">] =</span> <span class="kwa">new</span> <span class="kwd">NucleotideSelector</span><span class="opt">();</span>
-            WORKERS<span class="opt">[</span>i<span class="opt">].</span><span class="kwd">setDaemon</span><span class="opt">(</span><span class="kwb">true</span><span class="opt">);</span>
-            WORKERS<span class="opt">[</span>i<span class="opt">].</span><span class="kwd">start</span><span class="opt">();</span>
-        <span class="opt">}</span>
-        <span class="kwa">try</span> <span class="opt">(</span>OutputStream writer <span class="opt">=</span> System<span class="opt">.</span>out<span class="opt">) {</span>
-            <span class="kwa">int</span> bufferSize <span class="opt">=</span> LINE_COUNT <span class="opt">*</span> LINE_LENGTH<span class="opt">;</span>
+        <span class="kwa">if</span> (args.length &gt; <span class="num">0</span>) {
+            n = Integer.<span class="kwd">parseInt</span>(args[<span class="num">0</span>]);
+        }
+        <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">0</span>; i &lt; WORKERS.length; i++) {
+            WORKERS[i] = <span class="kwa">new</span> <span class="kwd">NucleotideSelector</span>();
+            WORKERS[i].<span class="kwd">setDaemon</span>(true);
+            WORKERS[i].<span class="kwd">start</span>();
+        }
+        <span class="kwa">try</span> (OutputStream writer = System.out) {
+            <span class="kwb">int</span> bufferSize = LINE_COUNT * LINE_LENGTH;
 
-            <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">int</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> BUFFERS_IN_PLAY<span class="opt">;</span> i<span class="opt">++) {</span>
-                <span class="kwd">lineFillALU</span><span class="opt">(</span>
-                    <span class="kwa">new</span> <span class="kwd">AluBuffer</span><span class="opt">(</span>LINE_LENGTH<span class="opt">,</span> bufferSize<span class="opt">,</span> i <span class="opt">*</span> bufferSize<span class="opt">));</span>
-            <span class="opt">}</span>
-            <span class="kwd">speciesFillALU</span><span class="opt">(</span>writer<span class="opt">,</span> n <span class="opt">*</span> <span class="num">2</span><span class="opt">,</span> <span class="str">&quot;&gt;ONE Homo sapiens alu</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">);</span>
-            <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">int</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> BUFFERS_IN_PLAY<span class="opt">;</span> i<span class="opt">++) {</span>
-                <span class="kwd">writeBuffer</span><span class="opt">(</span>writer<span class="opt">);</span>
-                <span class="kwd">lineFillRandom</span><span class="opt">(</span><span class="kwa">new</span> <span class="kwd">IubBuffer</span><span class="opt">(</span>LINE_LENGTH<span class="opt">,</span> bufferSize<span class="opt">));</span>
-            <span class="opt">}</span>
-            <span class="kwd">speciesFillRandom</span><span class="opt">(</span>writer
-                    <span class="opt">,</span> n <span class="opt">*</span> <span class="num">3</span>
-                    <span class="opt">,</span> <span class="str">&quot;&gt;TWO IUB ambiguity codes</span><span class="esc">\n</span><span class="str">&quot;</span>
-                    <span class="opt">,</span> <span class="kwb">true</span><span class="opt">);</span>
-            <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">int</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> BUFFERS_IN_PLAY<span class="opt">;</span> i<span class="opt">++) {</span>
-                <span class="kwd">writeBuffer</span><span class="opt">(</span>writer<span class="opt">);</span>
-                <span class="kwd">lineFillRandom</span><span class="opt">(</span><span class="kwa">new</span> <span class="kwd">SapienBuffer</span><span class="opt">(</span>LINE_LENGTH<span class="opt">,</span> bufferSize<span class="opt">));</span>
-            <span class="opt">}</span>
-            <span class="kwd">speciesFillRandom</span><span class="opt">(</span>writer
-                    <span class="opt">,</span> n <span class="opt">*</span> <span class="num">5</span>
-                    <span class="opt">,</span> <span class="str">&quot;&gt;THREE Homo sapiens frequency</span><span class="esc">\n</span><span class="str">&quot;</span>
-                    <span class="opt">,</span> <span class="kwb">false</span><span class="opt">);</span>
-            <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">int</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> BUFFERS_IN_PLAY<span class="opt">;</span> i<span class="opt">++) {</span>
-                <span class="kwd">writeBuffer</span><span class="opt">(</span>writer<span class="opt">);</span>
-            <span class="opt">}</span>
-        <span class="opt">}</span> <span class="kwa">catch</span> <span class="opt">(</span>IOException ex<span class="opt">) {</span>
-            ex<span class="opt">.</span><span class="kwd">printStackTrace</span><span class="opt">();</span>
-        <span class="opt">}</span>
-     <span class="opt">}</span>
+            <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">0</span>; i &lt; BUFFERS_IN_PLAY; i++) {
+                <span class="kwd">lineFillALU</span>(
+                    <span class="kwa">new</span> <span class="kwd">AluBuffer</span>(LINE_LENGTH, bufferSize, i * bufferSize));
+            }
+            <span class="kwd">speciesFillALU</span>(writer, n * <span class="num">2</span>, <span class="str">&quot;&gt;ONE Homo sapiens alu</span><span class="esc">\n</span><span class="str">&quot;</span>);
+            <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">0</span>; i &lt; BUFFERS_IN_PLAY; i++) {
+                <span class="kwd">writeBuffer</span>(writer);
+                <span class="kwd">lineFillRandom</span>(<span class="kwa">new</span> <span class="kwd">IubBuffer</span>(LINE_LENGTH, bufferSize));
+            }
+            <span class="kwd">speciesFillRandom</span>(writer
+                    , n * <span class="num">3</span>
+                    , <span class="str">&quot;&gt;TWO IUB ambiguity codes</span><span class="esc">\n</span><span class="str">&quot;</span>
+                    , true);
+            <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">0</span>; i &lt; BUFFERS_IN_PLAY; i++) {
+                <span class="kwd">writeBuffer</span>(writer);
+                <span class="kwd">lineFillRandom</span>(<span class="kwa">new</span> <span class="kwd">SapienBuffer</span>(LINE_LENGTH, bufferSize));
+            }
+            <span class="kwd">speciesFillRandom</span>(writer
+                    , n * <span class="num">5</span>
+                    , <span class="str">&quot;&gt;THREE Homo sapiens frequency</span><span class="esc">\n</span><span class="str">&quot;</span>
+                    , false);
+            <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">0</span>; i &lt; BUFFERS_IN_PLAY; i++) {
+                <span class="kwd">writeBuffer</span>(writer);
+            }
+        } <span class="kwa">catch</span> (IOException ex) {
+            ex.<span class="kwd">printStackTrace</span>();
+        }
+     }
 
-    <span class="kwa">private static void</span> <span class="kwd">lineFillALU</span><span class="opt">(</span>AbstractBuffer buffer<span class="opt">) {</span>
-        WORKERS<span class="opt">[</span>OUT<span class="opt">.</span><span class="kwd">incrementAndGet</span><span class="opt">() %</span> WORKERS<span class="opt">.</span>length<span class="opt">].</span><span class="kwd">put</span><span class="opt">(</span>buffer<span class="opt">);</span>
-    <span class="opt">}</span>
+    <span class="kwa">private static</span> <span class="kwb">void</span> <span class="kwd">lineFillALU</span>(AbstractBuffer buffer) {
+        WORKERS[OUT.<span class="kwd">incrementAndGet</span>() % WORKERS.length].<span class="kwd">put</span>(buffer);
+    }
 
-    <span class="kwa">private static void</span> <span class="kwd">bufferFillALU</span><span class="opt">(</span>OutputStream writer
-            <span class="opt">,</span> <span class="kwa">int</span> buffers<span class="opt">)</span> <span class="kwa">throws</span> IOException <span class="opt">{</span>
-        <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">int</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> buffers<span class="opt">;</span> i<span class="opt">++) {</span>
-            AbstractBuffer buffer <span class="opt">=</span>
-                WORKERS<span class="opt">[</span>IN<span class="opt">.</span><span class="kwd">incrementAndGet</span><span class="opt">() %</span> WORKERS<span class="opt">.</span>length<span class="opt">].</span><span class="kwd">take</span><span class="opt">();</span>
-            writer<span class="opt">.</span><span class="kwd">write</span><span class="opt">(</span>buffer<span class="opt">.</span>nucleotides<span class="opt">);</span>
-            <span class="kwd">lineFillALU</span><span class="opt">(</span>buffer<span class="opt">);</span>
-        <span class="opt">}</span>
-    <span class="opt">}</span>
+    <span class="kwa">private static</span> <span class="kwb">void</span> <span class="kwd">bufferFillALU</span>(OutputStream writer
+            , <span class="kwb">int</span> buffers) <span class="kwa">throws</span> IOException {
+        <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">0</span>; i &lt; buffers; i++) {
+            AbstractBuffer buffer =
+                WORKERS[IN.<span class="kwd">incrementAndGet</span>() % WORKERS.length].<span class="kwd">take</span>();
+            writer.<span class="kwd">write</span>(buffer.nucleotides);
+            <span class="kwd">lineFillALU</span>(buffer);
+        }
+    }
 
-    <span class="kwa">private static void</span> <span class="kwd">speciesFillALU</span><span class="opt">(</span>OutputStream writer<span class="opt">,</span> <span class="kwa">int</span> nChars
-            <span class="opt">,</span> String name<span class="opt">)</span> <span class="kwa">throws</span> IOException <span class="opt">{</span>
-        <span class="kwa">int</span> bufferCount <span class="opt">=</span> nChars <span class="opt">/ (</span>LINE_COUNT <span class="opt">*</span> LINE_LENGTH<span class="opt">);</span>
-        <span class="kwa">int</span> charsLeftover <span class="opt">=</span> nChars <span class="opt">% (</span>LINE_COUNT <span class="opt">*</span> LINE_LENGTH<span class="opt">);</span>
+    <span class="kwa">private static</span> <span class="kwb">void</span> <span class="kwd">speciesFillALU</span>(OutputStream writer, <span class="kwb">int</span> nChars
+            , String name) <span class="kwa">throws</span> IOException {
+        <span class="kwb">int</span> bufferCount = nChars / (LINE_COUNT * LINE_LENGTH);
+        <span class="kwb">int</span> charsLeftover = nChars % (LINE_COUNT * LINE_LENGTH);
 
-        writer<span class="opt">.</span><span class="kwd">write</span><span class="opt">(</span>name<span class="opt">.</span><span class="kwd">getBytes</span><span class="opt">());</span>
-        <span class="kwd">bufferFillALU</span><span class="opt">(</span>writer<span class="opt">,</span> bufferCount <span class="opt">-</span> BUFFERS_IN_PLAY<span class="opt">);</span>
-        <span class="kwa">if</span> <span class="opt">(</span>charsLeftover <span class="opt">&gt;</span> <span class="num">0</span><span class="opt">) {</span>
-            <span class="kwd">writeBuffer</span><span class="opt">(</span>writer<span class="opt">);</span>
-            <span class="kwd">lineFillALU</span><span class="opt">(</span><span class="kwa">new</span> <span class="kwd">AluBuffer</span><span class="opt">(</span>LINE_LENGTH<span class="opt">,</span> charsLeftover<span class="opt">,</span>
-                nChars <span class="opt">-</span> charsLeftover<span class="opt">));</span>
-        <span class="opt">}</span>
-    <span class="opt">}</span>
+        writer.<span class="kwd">write</span>(name.<span class="kwd">getBytes</span>());
+        <span class="kwd">bufferFillALU</span>(writer, bufferCount - BUFFERS_IN_PLAY);
+        <span class="kwa">if</span> (charsLeftover &gt; <span class="num">0</span>) {
+            <span class="kwd">writeBuffer</span>(writer);
+            <span class="kwd">lineFillALU</span>(<span class="kwa">new</span> <span class="kwd">AluBuffer</span>(LINE_LENGTH, charsLeftover,
+                nChars - charsLeftover));
+        }
+    }
 
-    <span class="kwa">private static void</span> <span class="kwd">lineFillRandom</span><span class="opt">(</span>StochasticBuffer buffer<span class="opt">) {</span>
-        buffer<span class="opt">.</span><span class="kwd">fillRandoms</span><span class="opt">();</span>
-        WORKERS<span class="opt">[</span>OUT<span class="opt">.</span><span class="kwd">incrementAndGet</span><span class="opt">() %</span> WORKERS<span class="opt">.</span>length<span class="opt">].</span><span class="kwd">put</span><span class="opt">(</span>buffer<span class="opt">);</span>
-    <span class="opt">}</span>
+    <span class="kwa">private static</span> <span class="kwb">void</span> <span class="kwd">lineFillRandom</span>(StochasticBuffer buffer) {
+        buffer.<span class="kwd">fillRandoms</span>();
+        WORKERS[OUT.<span class="kwd">incrementAndGet</span>() % WORKERS.length].<span class="kwd">put</span>(buffer);
+    }
 
-    <span class="kwa">private static void</span> <span class="kwd">bufferFillRandom</span><span class="opt">(</span>OutputStream writer
-            <span class="opt">,</span> <span class="kwa">int</span> loops<span class="opt">)</span> <span class="kwa">throws</span> IOException <span class="opt">{</span>
-        <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">int</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> loops<span class="opt">;</span> i<span class="opt">++) {</span>
-            AbstractBuffer buffer <span class="opt">=</span>
-                WORKERS<span class="opt">[</span>IN<span class="opt">.</span><span class="kwd">incrementAndGet</span><span class="opt">() %</span> WORKERS<span class="opt">.</span>length<span class="opt">].</span><span class="kwd">take</span><span class="opt">();</span>
-            writer<span class="opt">.</span><span class="kwd">write</span><span class="opt">(</span>buffer<span class="opt">.</span>nucleotides<span class="opt">);</span>
-            <span class="kwd">lineFillRandom</span><span class="opt">((</span>StochasticBuffer<span class="opt">)</span> buffer<span class="opt">);</span>
-        <span class="opt">}</span>
-    <span class="opt">}</span>
+    <span class="kwa">private static</span> <span class="kwb">void</span> <span class="kwd">bufferFillRandom</span>(OutputStream writer
+            , <span class="kwb">int</span> loops) <span class="kwa">throws</span> IOException {
+        <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">0</span>; i &lt; loops; i++) {
+            AbstractBuffer buffer =
+                WORKERS[IN.<span class="kwd">incrementAndGet</span>() % WORKERS.length].<span class="kwd">take</span>();
+            writer.<span class="kwd">write</span>(buffer.nucleotides);
+            <span class="kwd">lineFillRandom</span>((StochasticBuffer) buffer);
+        }
+    }
 
-    <span class="kwa">private static void</span> <span class="kwd">speciesFillRandom</span><span class="opt">(</span>OutputStream writer
-            <span class="opt">,</span> <span class="kwa">int</span> nChars
-            <span class="opt">,</span> String name
-            <span class="opt">,</span> <span class="kwa">boolean</span> isIUB<span class="opt">)</span> <span class="kwa">throws</span> IOException <span class="opt">{</span>
-        <span class="kwa">int</span> bufferSize <span class="opt">=</span> LINE_COUNT <span class="opt">*</span> LINE_LENGTH<span class="opt">;</span>
-        <span class="kwa">int</span> bufferCount <span class="opt">=</span> nChars <span class="opt">/</span> bufferSize<span class="opt">;</span>
-        <span class="kwa">int</span> bufferLoops <span class="opt">=</span> bufferCount <span class="opt">-</span> BUFFERS_IN_PLAY<span class="opt">;</span>
-        <span class="kwa">int</span> charsLeftover <span class="opt">=</span> nChars <span class="opt">- (</span>bufferCount <span class="opt">*</span> bufferSize<span class="opt">);</span>
+    <span class="kwa">private static</span> <span class="kwb">void</span> <span class="kwd">speciesFillRandom</span>(OutputStream writer
+            , <span class="kwb">int</span> nChars
+            , String name
+            , <span class="kwb">boolean</span> isIUB) <span class="kwa">throws</span> IOException {
+        <span class="kwb">int</span> bufferSize = LINE_COUNT * LINE_LENGTH;
+        <span class="kwb">int</span> bufferCount = nChars / bufferSize;
+        <span class="kwb">int</span> bufferLoops = bufferCount - BUFFERS_IN_PLAY;
+        <span class="kwb">int</span> charsLeftover = nChars - (bufferCount * bufferSize);
 
-        writer<span class="opt">.</span><span class="kwd">write</span><span class="opt">(</span>name<span class="opt">.</span><span class="kwd">getBytes</span><span class="opt">());</span>
-        <span class="kwd">bufferFillRandom</span><span class="opt">(</span>writer<span class="opt">,</span> bufferLoops<span class="opt">);</span>
-        <span class="kwa">if</span> <span class="opt">(</span>charsLeftover <span class="opt">&gt;</span> <span class="num">0</span><span class="opt">) {</span>
-            <span class="kwd">writeBuffer</span><span class="opt">(</span>writer<span class="opt">);</span>    
-            <span class="kwd">lineFillRandom</span><span class="opt">(</span>isIUB
-                ? <span class="kwa">new</span> <span class="kwd">IubBuffer</span><span class="opt">(</span>LINE_LENGTH<span class="opt">,</span> charsLeftover<span class="opt">)</span>
-                <span class="opt">:</span> <span class="kwa">new</span> <span class="kwd">SapienBuffer</span><span class="opt">(</span>LINE_LENGTH<span class="opt">,</span> charsLeftover<span class="opt">)</span>
-            <span class="opt">);</span>
-        <span class="opt">}</span>
-    <span class="opt">}</span>
+        writer.<span class="kwd">write</span>(name.<span class="kwd">getBytes</span>());
+        <span class="kwd">bufferFillRandom</span>(writer, bufferLoops);
+        <span class="kwa">if</span> (charsLeftover &gt; <span class="num">0</span>) {
+            <span class="kwd">writeBuffer</span>(writer);    
+            <span class="kwd">lineFillRandom</span>(isIUB
+                ? <span class="kwa">new</span> <span class="kwd">IubBuffer</span>(LINE_LENGTH, charsLeftover)
+                : <span class="kwa">new</span> <span class="kwd">SapienBuffer</span>(LINE_LENGTH, charsLeftover)
+            );
+        }
+    }
 
-    <span class="kwa">private static void</span> <span class="kwd">writeBuffer</span><span class="opt">(</span>OutputStream writer<span class="opt">)</span> <span class="kwa">throws</span> IOException <span class="opt">{</span>
-        writer<span class="opt">.</span><span class="kwd">write</span><span class="opt">(</span>
-            WORKERS<span class="opt">[</span>IN<span class="opt">.</span><span class="kwd">incrementAndGet</span><span class="opt">() %</span> WORKERS<span class="opt">.</span>length<span class="opt">].</span><span class="kwd">take</span><span class="opt">().</span>nucleotides
-        <span class="opt">);</span>
-    <span class="opt">}</span>
+    <span class="kwa">private static</span> <span class="kwb">void</span> <span class="kwd">writeBuffer</span>(OutputStream writer) <span class="kwa">throws</span> IOException {
+        writer.<span class="kwd">write</span>(
+            WORKERS[IN.<span class="kwd">incrementAndGet</span>() % WORKERS.length].<span class="kwd">take</span>().nucleotides
+        );
+    }
 
-    <span class="kwa">private static class</span> NucleotideSelector <span class="kwa">extends</span> Thread <span class="opt">{</span>
-        <span class="kwa">private final</span> BlockingQueue<span class="opt">&lt;</span>AbstractBuffer<span class="opt">&gt;</span>
-            in <span class="opt">=</span> <span class="kwa">new</span> ArrayBlockingQueue<span class="opt">&lt;&gt;(</span>BUFFERS_IN_PLAY<span class="opt">);</span>
-        <span class="kwa">private final</span> BlockingQueue<span class="opt">&lt;</span>AbstractBuffer<span class="opt">&gt;</span> 
-            out <span class="opt">=</span> <span class="kwa">new</span> ArrayBlockingQueue<span class="opt">&lt;&gt;(</span>BUFFERS_IN_PLAY<span class="opt">);</span>
+    <span class="kwa">private static class</span> NucleotideSelector <span class="kwa">extends</span> Thread {
+        <span class="kwa">private final</span> BlockingQueue&lt;AbstractBuffer&gt;
+            <span class="kwa">in</span> = <span class="kwa">new</span> ArrayBlockingQueue&lt;&gt;(BUFFERS_IN_PLAY);
+        <span class="kwa">private final</span> BlockingQueue&lt;AbstractBuffer&gt; 
+            out = <span class="kwa">new</span> ArrayBlockingQueue&lt;&gt;(BUFFERS_IN_PLAY);
 
-        <span class="kwa">public void</span> <span class="kwd">put</span><span class="opt">(</span>AbstractBuffer line<span class="opt">) {</span>
-            <span class="kwa">try</span> <span class="opt">{</span>
-                in<span class="opt">.</span><span class="kwd">put</span><span class="opt">(</span>line<span class="opt">);</span>
-            <span class="opt">}</span> <span class="kwa">catch</span> <span class="opt">(</span>InterruptedException ex<span class="opt">) {</span>
-                ex<span class="opt">.</span><span class="kwd">printStackTrace</span><span class="opt">();</span>
-            <span class="opt">}</span>
-        <span class="opt">}</span>
+        <span class="kwa">public</span> <span class="kwb">void</span> <span class="kwd">put</span>(AbstractBuffer line) {
+            <span class="kwa">try</span> {
+                <span class="kwa">in</span>.<span class="kwd">put</span>(line);
+            } <span class="kwa">catch</span> (InterruptedException ex) {
+                ex.<span class="kwd">printStackTrace</span>();
+            }
+        }
 
         <span class="kwc">&#64;Override</span>
-        <span class="kwa">public void</span> <span class="kwd">run</span><span class="opt">() {</span>
-            <span class="kwa">try</span> <span class="opt">{</span>
-                <span class="kwa">for</span> <span class="opt">(;;) {</span>
-                    AbstractBuffer line<span class="opt">=</span> in<span class="opt">.</span><span class="kwd">take</span><span class="opt">();</span>
-                    line<span class="opt">.</span><span class="kwd">selectNucleotides</span><span class="opt">();</span>
-                    out<span class="opt">.</span><span class="kwd">put</span><span class="opt">(</span>line<span class="opt">);</span>
-                <span class="opt">}</span>
-            <span class="opt">}</span> <span class="kwa">catch</span> <span class="opt">(</span>InterruptedException ex<span class="opt">) {</span>
-                ex<span class="opt">.</span><span class="kwd">printStackTrace</span><span class="opt">();</span>
-            <span class="opt">}</span>
-        <span class="opt">}</span>
+        <span class="kwa">public</span> <span class="kwb">void</span> <span class="kwd">run</span>() {
+            <span class="kwa">try</span> {
+                <span class="kwa">for</span> (;;) {
+                    AbstractBuffer line= <span class="kwa">in</span>.<span class="kwd">take</span>();
+                    line.<span class="kwd">selectNucleotides</span>();
+                    out.<span class="kwd">put</span>(line);
+                }
+            } <span class="kwa">catch</span> (InterruptedException ex) {
+                ex.<span class="kwd">printStackTrace</span>();
+            }
+        }
 
-        <span class="kwa">public</span> AbstractBuffer <span class="kwd">take</span><span class="opt">() {</span>
-            <span class="kwa">try</span> <span class="opt">{</span>
-                <span class="kwa">return</span> out<span class="opt">.</span><span class="kwd">take</span><span class="opt">();</span>
-            <span class="opt">}</span> <span class="kwa">catch</span> <span class="opt">(</span>InterruptedException ex<span class="opt">) {</span>
-                ex<span class="opt">.</span><span class="kwd">printStackTrace</span><span class="opt">();</span>
-            <span class="opt">}</span>
-            <span class="kwa">return</span> <span class="kwb">null</span><span class="opt">;</span>
-        <span class="opt">}</span>
-    <span class="opt">}</span>
+        <span class="kwa">public</span> AbstractBuffer <span class="kwd">take</span>() {
+            <span class="kwa">try</span> {
+                <span class="kwa">return</span> out.<span class="kwd">take</span>();
+            } <span class="kwa">catch</span> (InterruptedException ex) {
+                ex.<span class="kwd">printStackTrace</span>();
+            }
+            <span class="kwa">return</span> null;
+        }
+    }
 
-    <span class="kwa">private abstract static class</span> AbstractBuffer <span class="opt">{</span>
-        <span class="kwa">protected final int</span> LINE_LENGTH<span class="opt">;</span>
-        <span class="kwa">protected final int</span> LINE_COUNT<span class="opt">;</span>
-        <span class="kwa">protected final byte</span><span class="opt">[]</span> nucleotides<span class="opt">;</span>
-        <span class="kwa">protected final int</span> CHARS_LEFTOVER<span class="opt">;</span>
+    <span class="kwa">private abstract static class</span> AbstractBuffer {
+        <span class="kwa">protected final</span> <span class="kwb">int</span> LINE_LENGTH;
+        <span class="kwa">protected final</span> <span class="kwb">int</span> LINE_COUNT;
+        <span class="kwa">protected final</span> <span class="kwb">byte</span>[] nucleotides;
+        <span class="kwa">protected final</span> <span class="kwb">int</span> CHARS_LEFTOVER;
 
-        <span class="kwd">AbstractBuffer</span><span class="opt">(</span><span class="kwa">int</span> lineLength<span class="opt">,</span> <span class="kwa">int</span> nChars<span class="opt">) {</span>
-            LINE_LENGTH <span class="opt">=</span> lineLength<span class="opt">;</span>
-            <span class="kwa">int</span> outputLineLength <span class="opt">=</span> lineLength <span class="opt">+</span> <span class="num">1</span><span class="opt">;</span>
-            LINE_COUNT <span class="opt">=</span> nChars <span class="opt">/</span> lineLength<span class="opt">;</span>
-            CHARS_LEFTOVER <span class="opt">=</span> nChars <span class="opt">%</span> lineLength<span class="opt">;</span>
-            <span class="kwa">int</span> nucleotidesSize
-                <span class="opt">=</span> nChars <span class="opt">+</span> LINE_COUNT <span class="opt">+ (</span>CHARS_LEFTOVER <span class="opt">==</span> <span class="num">0</span> ? <span class="num">0</span> <span class="opt">:</span> <span class="num">1</span><span class="opt">);</span>
-            <span class="kwa">int</span> lastNucleotide <span class="opt">=</span> nucleotidesSize <span class="opt">-</span> <span class="num">1</span><span class="opt">;</span>
+        <span class="kwd">AbstractBuffer</span>(<span class="kwb">int</span> lineLength, <span class="kwb">int</span> nChars) {
+            LINE_LENGTH = lineLength;
+            <span class="kwb">int</span> outputLineLength = lineLength + <span class="num">1</span>;
+            LINE_COUNT = nChars / lineLength;
+            CHARS_LEFTOVER = nChars % lineLength;
+            <span class="kwb">int</span> nucleotidesSize
+                = nChars + LINE_COUNT + (CHARS_LEFTOVER == <span class="num">0</span> ? <span class="num">0</span> : <span class="num">1</span>);
+            <span class="kwb">int</span> lastNucleotide = nucleotidesSize - <span class="num">1</span>;
 
-            nucleotides <span class="opt">=</span> <span class="kwa">new byte</span><span class="opt">[</span>nucleotidesSize<span class="opt">];</span>
-            <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">int</span> i <span class="opt">=</span> lineLength
-                    <span class="opt">;</span> i <span class="opt">&lt;</span> lastNucleotide
-                    <span class="opt">;</span> i <span class="opt">+=</span> outputLineLength<span class="opt">) {</span>
-                nucleotides<span class="opt">[</span>i<span class="opt">] =</span> <span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span><span class="opt">;</span>
-            <span class="opt">}</span>
-            nucleotides<span class="opt">[</span>nucleotides<span class="opt">.</span>length <span class="opt">-</span> <span class="num">1</span><span class="opt">] =</span> <span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span><span class="opt">;</span>
-        <span class="opt">}</span>
+            nucleotides = <span class="kwa">new</span> <span class="kwb">byte</span>[nucleotidesSize];
+            <span class="kwa">for</span> (<span class="kwb">int</span> i = lineLength
+                    ; i &lt; lastNucleotide
+                    ; i += outputLineLength) {
+                nucleotides[i] = <span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span>;
+            }
+            nucleotides[nucleotides.length - <span class="num">1</span>] = <span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span>;
+        }
 
-        <span class="kwa">abstract void</span> <span class="kwd">selectNucleotides</span><span class="opt">();</span>
-    <span class="opt">}</span>
+        <span class="kwa">abstract</span> <span class="kwb">void</span> <span class="kwd">selectNucleotides</span>();
+    }
 
-    <span class="kwa">private static class</span> AluBuffer <span class="kwa">extends</span> AbstractBuffer <span class="opt">{</span>
-        <span class="kwa">private static final</span> String ALU <span class="opt">=</span>
+    <span class="kwa">private static class</span> AluBuffer <span class="kwa">extends</span> AbstractBuffer {
+        <span class="kwa">private static final</span> String ALU =
             <span class="str">&quot;GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGG&quot;</span>
-            <span class="opt">+</span> <span class="str">&quot;GAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGA&quot;</span>
-            <span class="opt">+</span> <span class="str">&quot;CCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAAT&quot;</span>
-            <span class="opt">+</span> <span class="str">&quot;ACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCA&quot;</span>
-            <span class="opt">+</span> <span class="str">&quot;GCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGG&quot;</span>
-            <span class="opt">+</span> <span class="str">&quot;AGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCC&quot;</span>
-            <span class="opt">+</span> <span class="str">&quot;AGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA&quot;</span><span class="opt">;</span>
-        <span class="kwa">private static final int</span> ALU_LENGTH <span class="opt">=</span> ALU<span class="opt">.</span><span class="kwd">length</span><span class="opt">();</span>
+            + <span class="str">&quot;GAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGA&quot;</span>
+            + <span class="str">&quot;CCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAAT&quot;</span>
+            + <span class="str">&quot;ACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCA&quot;</span>
+            + <span class="str">&quot;GCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGG&quot;</span>
+            + <span class="str">&quot;AGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCC&quot;</span>
+            + <span class="str">&quot;AGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA&quot;</span>;
+        <span class="kwa">private static final</span> <span class="kwb">int</span> ALU_LENGTH = ALU.<span class="kwd">length</span>();
 
-        <span class="kwa">private final int</span> MAX_ALU_INDEX <span class="opt">=</span> ALU_LENGTH <span class="opt">-</span> LINE_LENGTH<span class="opt">;</span>
-        <span class="kwa">private final int</span> ALU_ADJUST <span class="opt">=</span> LINE_LENGTH <span class="opt">-</span> ALU_LENGTH<span class="opt">;</span>
-        <span class="kwa">private final int</span> nChars<span class="opt">;</span>
-        <span class="kwa">private int</span> charIndex<span class="opt">;</span>
-        <span class="kwa">private int</span> nucleotideIndex<span class="opt">;</span>
-        <span class="kwa">private final byte</span><span class="opt">[]</span> chars<span class="opt">;</span>
+        <span class="kwa">private final</span> <span class="kwb">int</span> MAX_ALU_INDEX = ALU_LENGTH - LINE_LENGTH;
+        <span class="kwa">private final</span> <span class="kwb">int</span> ALU_ADJUST = LINE_LENGTH - ALU_LENGTH;
+        <span class="kwa">private final</span> <span class="kwb">int</span> nChars;
+        <span class="kwa">private</span> <span class="kwb">int</span> charIndex;
+        <span class="kwa">private</span> <span class="kwb">int</span> nucleotideIndex;
+        <span class="kwa">private final</span> <span class="kwb">byte</span>[] chars;
 
-        <span class="kwa">public</span> <span class="kwd">AluBuffer</span><span class="opt">(</span><span class="kwa">int</span> lineLength<span class="opt">,</span> <span class="kwa">int</span> nChars<span class="opt">,</span> <span class="kwa">int</span> offset<span class="opt">) {</span>
-            <span class="kwa">super</span><span class="opt">(</span>lineLength<span class="opt">,</span> nChars<span class="opt">);</span>
-            <span class="kwa">this</span><span class="opt">.</span>nChars <span class="opt">=</span> nChars<span class="opt">;</span>
-            chars <span class="opt">= (</span>ALU <span class="opt">+</span> ALU<span class="opt">.</span><span class="kwd">substring</span><span class="opt">(</span><span class="num">0</span><span class="opt">,</span> LINE_LENGTH<span class="opt">)).</span><span class="kwd">getBytes</span><span class="opt">();</span>
-            charIndex <span class="opt">=</span> offset <span class="opt">%</span> ALU_LENGTH<span class="opt">;</span>
-        <span class="opt">}</span>
+        <span class="kwa">public</span> <span class="kwd">AluBuffer</span>(<span class="kwb">int</span> lineLength, <span class="kwb">int</span> nChars, <span class="kwb">int</span> offset) {
+            <span class="kwa">super</span>(lineLength, nChars);
+            <span class="kwa">this</span>.nChars = nChars;
+            chars = (ALU + ALU.<span class="kwd">substring</span>(<span class="num">0</span>, LINE_LENGTH)).<span class="kwd">getBytes</span>();
+            charIndex = offset % ALU_LENGTH;
+        }
 
         <span class="kwc">&#64;Override</span>
-        <span class="kwa">void</span> <span class="kwd">selectNucleotides</span><span class="opt">() {</span>
-            nucleotideIndex <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
-            <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">int</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> LINE_COUNT<span class="opt">;</span> i<span class="opt">++) {</span>
-                <span class="kwd">ALUFillLine</span><span class="opt">(</span>LINE_LENGTH<span class="opt">);</span>
-            <span class="opt">}</span>
-            <span class="kwa">if</span> <span class="opt">(</span>CHARS_LEFTOVER <span class="opt">&gt;</span> <span class="num">0</span><span class="opt">) {</span>
-                <span class="kwd">ALUFillLine</span><span class="opt">(</span>CHARS_LEFTOVER<span class="opt">);</span>
-            <span class="opt">}</span>
-            charIndex <span class="opt">+=</span> nChars <span class="opt">* (</span>BUFFERS_IN_PLAY <span class="opt">-</span> <span class="num">1</span><span class="opt">);</span>
-            charIndex <span class="opt">%=</span> ALU_LENGTH<span class="opt">;</span>
-        <span class="opt">}</span>
+        <span class="kwb">void</span> <span class="kwd">selectNucleotides</span>() {
+            nucleotideIndex = <span class="num">0</span>;
+            <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">0</span>; i &lt; LINE_COUNT; i++) {
+                <span class="kwd">ALUFillLine</span>(LINE_LENGTH);
+            }
+            <span class="kwa">if</span> (CHARS_LEFTOVER &gt; <span class="num">0</span>) {
+                <span class="kwd">ALUFillLine</span>(CHARS_LEFTOVER);
+            }
+            charIndex += nChars * (BUFFERS_IN_PLAY - <span class="num">1</span>);
+            charIndex %= ALU_LENGTH;
+        }
 
-        <span class="kwa">private void</span> <span class="kwd">ALUFillLine</span><span class="opt">(</span><span class="kwa">int</span> charCount<span class="opt">) {</span>
-            System<span class="opt">.</span><span class="kwd">arraycopy</span><span class="opt">(</span>chars
-                    <span class="opt">,</span> charIndex
-                    <span class="opt">,</span> nucleotides
-                    <span class="opt">,</span> nucleotideIndex
-                    <span class="opt">,</span> charCount<span class="opt">);</span>
-            charIndex <span class="opt">+=</span> charIndex <span class="opt">&lt;</span> MAX_ALU_INDEX ? charCount <span class="opt">:</span> ALU_ADJUST<span class="opt">;</span>
-            nucleotideIndex <span class="opt">+=</span> charCount <span class="opt">+</span> <span class="num">1</span><span class="opt">;</span>
-        <span class="opt">}</span>
-    <span class="opt">}</span>
+        <span class="kwa">private</span> <span class="kwb">void</span> <span class="kwd">ALUFillLine</span>(<span class="kwb">int</span> charCount) {
+            System.<span class="kwd">arraycopy</span>(chars
+                    , charIndex
+                    , nucleotides
+                    , nucleotideIndex
+                    , charCount);
+            charIndex += charIndex &lt; MAX_ALU_INDEX ? charCount : ALU_ADJUST;
+            nucleotideIndex += charCount + <span class="num">1</span>;
+        }
+    }
 
-    <span class="kwa">private static abstract class</span> StochasticBuffer <span class="kwa">extends</span> AbstractBuffer <span class="opt">{</span>
+    <span class="kwa">private static abstract class</span> StochasticBuffer <span class="kwa">extends</span> AbstractBuffer {
         <span class="slc">// LCG parameters</span>
-        <span class="kwa">private static final int</span> IM <span class="opt">=</span> <span class="num">139968</span><span class="opt">;</span>
-        <span class="kwa">private static final int</span> IA <span class="opt">=</span> <span class="num">3877</span><span class="opt">;</span>
-        <span class="kwa">private static final int</span> IC <span class="opt">=</span> <span class="num">29573</span><span class="opt">;</span>
-        <span class="kwa">private static final float</span> ONE_OVER_IM <span class="opt">=</span> <span class="num">1</span>f <span class="opt">/</span> IM<span class="opt">;</span>
+        <span class="kwa">private static final</span> <span class="kwb">int</span> IM = <span class="num">139968</span>;
+        <span class="kwa">private static final</span> <span class="kwb">int</span> IA = <span class="num">3877</span>;
+        <span class="kwa">private static final</span> <span class="kwb">int</span> IC = <span class="num">29573</span>;
+        <span class="kwa">private static final</span> <span class="kwb">float</span> ONE_OVER_IM = <span class="num">1</span>f / IM;
 
         <span class="com">/** The last LCG seed value. */</span>
-        <span class="kwa">private static int</span> last <span class="opt">=</span> <span class="num">42</span><span class="opt">;</span>
+        <span class="kwa">private static</span> <span class="kwb">int</span> last = <span class="num">42</span>;
 
-        <span class="kwa">protected final float</span><span class="opt">[]</span> randoms<span class="opt">;</span>
+        <span class="kwa">protected final</span> <span class="kwb">float</span>[] randoms;
 
-        <span class="kwa">protected</span> <span class="kwd">StochasticBuffer</span><span class="opt">(</span><span class="kwa">int</span> lineLength<span class="opt">,</span> <span class="kwa">int</span> nChars<span class="opt">) {</span>
-            <span class="kwa">super</span><span class="opt">(</span>lineLength<span class="opt">,</span> nChars<span class="opt">);</span>
-            randoms <span class="opt">=</span> <span class="kwa">new float</span><span class="opt">[</span>nChars<span class="opt">];</span>
-        <span class="opt">}</span>
+        <span class="kwa">protected</span> <span class="kwd">StochasticBuffer</span>(<span class="kwb">int</span> lineLength, <span class="kwb">int</span> nChars) {
+            <span class="kwa">super</span>(lineLength, nChars);
+            randoms = <span class="kwa">new</span> <span class="kwb">float</span>[nChars];
+        }
 
-        <span class="kwa">void</span> <span class="kwd">fillRandoms</span><span class="opt">() {</span>
-            <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">int</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> randoms<span class="opt">.</span>length<span class="opt">;</span> i<span class="opt">++) {</span>
-                last <span class="opt">= (</span>last <span class="opt">*</span> IA <span class="opt">+</span> IC<span class="opt">) %</span> IM<span class="opt">;</span>
-                randoms<span class="opt">[</span>i<span class="opt">] =</span> last <span class="opt">*</span> ONE_OVER_IM<span class="opt">;</span>
-            <span class="opt">}</span>
-        <span class="opt">}</span>
-    <span class="opt">}</span>
+        <span class="kwb">void</span> <span class="kwd">fillRandoms</span>() {
+            <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">0</span>; i &lt; randoms.length; i++) {
+                last = (last * IA + IC) % IM;
+                randoms[i] = last * ONE_OVER_IM;
+            }
+        }
+    }
 
-    <span class="kwa">private static final class</span> IubBuffer <span class="kwa">extends</span> StochasticBuffer <span class="opt">{</span>
-        <span class="kwa">private static final byte</span><span class="opt">[]</span> chars <span class="opt">=</span> <span class="kwa">new byte</span><span class="opt">[]{</span>
-            <span class="str">&apos;a&apos;</span><span class="opt">,</span> <span class="str">&apos;c&apos;</span><span class="opt">,</span> <span class="str">&apos;g&apos;</span><span class="opt">,</span> <span class="str">&apos;t&apos;</span><span class="opt">,</span>
-            <span class="str">&apos;B&apos;</span><span class="opt">,</span> <span class="str">&apos;D&apos;</span><span class="opt">,</span> <span class="str">&apos;H&apos;</span><span class="opt">,</span> <span class="str">&apos;K&apos;</span><span class="opt">,</span>
-            <span class="str">&apos;M&apos;</span><span class="opt">,</span> <span class="str">&apos;N&apos;</span><span class="opt">,</span> <span class="str">&apos;R&apos;</span><span class="opt">,</span> <span class="str">&apos;S&apos;</span><span class="opt">,</span>
-            <span class="str">&apos;V&apos;</span><span class="opt">,</span> <span class="str">&apos;W&apos;</span><span class="opt">,</span> <span class="str">&apos;Y&apos;</span><span class="opt">};</span>
-        <span class="kwa">private static final float</span><span class="opt">[]</span> probs <span class="opt">=</span> <span class="kwa">new float</span><span class="opt">[</span><span class="num">15</span><span class="opt">];</span>
-        <span class="kwa">static</span> <span class="opt">{</span>
-            <span class="kwa">double</span><span class="opt">[]</span> dblProbs <span class="opt">=</span> <span class="kwa">new double</span><span class="opt">[]{</span>
-                <span class="num">0.27</span><span class="opt">,</span> <span class="num">0.12</span><span class="opt">,</span> <span class="num">0.12</span><span class="opt">,</span> <span class="num">0.27</span><span class="opt">,</span>
-                <span class="num">0.02</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">,</span>
-                <span class="num">0.02</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">,</span>
-                <span class="num">0.02</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">,</span> <span class="num">0.02</span><span class="opt">};</span>
+    <span class="kwa">private static final class</span> IubBuffer <span class="kwa">extends</span> StochasticBuffer {
+        <span class="kwa">private static final</span> <span class="kwb">byte</span>[] chars = <span class="kwa">new</span> <span class="kwb">byte</span>[]{
+            <span class="str">&apos;a&apos;</span>, <span class="str">&apos;c&apos;</span>, <span class="str">&apos;g&apos;</span>, <span class="str">&apos;t&apos;</span>,
+            <span class="str">&apos;B&apos;</span>, <span class="str">&apos;D&apos;</span>, <span class="str">&apos;H&apos;</span>, <span class="str">&apos;K&apos;</span>,
+            <span class="str">&apos;M&apos;</span>, <span class="str">&apos;N&apos;</span>, <span class="str">&apos;R&apos;</span>, <span class="str">&apos;S&apos;</span>,
+            <span class="str">&apos;V&apos;</span>, <span class="str">&apos;W&apos;</span>, <span class="str">&apos;Y&apos;</span>};
+        <span class="kwa">private static final</span> <span class="kwb">float</span>[] probs = <span class="kwa">new</span> <span class="kwb">float</span>[<span class="num">15</span>];
+        <span class="kwa">static</span> {
+            <span class="kwb">double</span>[] dblProbs = <span class="kwa">new</span> <span class="kwb">double</span>[]{
+                <span class="num">0.27</span>, <span class="num">0.12</span>, <span class="num">0.12</span>, <span class="num">0.27</span>,
+                <span class="num">0.02</span>, <span class="num">0.02</span>, <span class="num">0.02</span>, <span class="num">0.02</span>,
+                <span class="num">0.02</span>, <span class="num">0.02</span>, <span class="num">0.02</span>, <span class="num">0.02</span>,
+                <span class="num">0.02</span>, <span class="num">0.02</span>, <span class="num">0.02</span>};
 
-            <span class="kwa">double</span> cp <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
-            <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">int</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> probs<span class="opt">.</span>length <span class="opt">-</span> <span class="num">1</span><span class="opt">;</span> i<span class="opt">++) {</span>
-                cp <span class="opt">+=</span> dblProbs<span class="opt">[</span>i<span class="opt">];</span>
-                probs<span class="opt">[</span>i<span class="opt">] = (</span><span class="kwa">float</span><span class="opt">)</span> cp<span class="opt">;</span>
-            <span class="opt">}</span>
-            probs<span class="opt">[</span>probs<span class="opt">.</span>length <span class="opt">-</span> <span class="num">1</span><span class="opt">] =</span> <span class="num">2</span><span class="opt">;</span>
-        <span class="opt">}</span>
+            <span class="kwb">double</span> cp = <span class="num">0</span>;
+            <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">0</span>; i &lt; probs.length - <span class="num">1</span>; i++) {
+                cp += dblProbs[i];
+                probs[i] = (<span class="kwb">float</span>) cp;
+            }
+            probs[probs.length - <span class="num">1</span>] = <span class="num">2</span>;
+        }
 
-        <span class="kwa">private final int</span> charsInFullLines<span class="opt">;</span>
+        <span class="kwa">private final</span> <span class="kwb">int</span> charsInFullLines;
 
-        <span class="kwd">IubBuffer</span><span class="opt">(</span><span class="kwa">int</span> lineLength<span class="opt">,</span> <span class="kwa">int</span> nChars<span class="opt">) {</span>
-            <span class="kwa">super</span><span class="opt">(</span>lineLength<span class="opt">,</span> nChars<span class="opt">);</span>
-            charsInFullLines <span class="opt">= (</span>nChars <span class="opt">/</span> lineLength<span class="opt">) *</span> lineLength<span class="opt">;</span>
-        <span class="opt">}</span>
+        <span class="kwd">IubBuffer</span>(<span class="kwb">int</span> lineLength, <span class="kwb">int</span> nChars) {
+            <span class="kwa">super</span>(lineLength, nChars);
+            charsInFullLines = (nChars / lineLength) * lineLength;
+        }
 
         <span class="kwc">&#64;Override</span>
-        <span class="kwa">void</span> <span class="kwd">selectNucleotides</span><span class="opt">() {</span>
-            <span class="kwa">int</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">,</span> j <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
-            <span class="kwa">for</span> <span class="opt">(;</span> i <span class="opt">&lt;</span> charsInFullLines<span class="opt">;</span> j<span class="opt">++) {</span>
-                <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">int</span> k <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> k <span class="opt">&lt;</span> LINE_LENGTH<span class="opt">;</span> k<span class="opt">++)</span>
-                    nucleotides<span class="opt">[</span>j<span class="opt">++] =</span> <span class="kwd">convert</span><span class="opt">(</span>randoms<span class="opt">[</span>i<span class="opt">++]);</span>
-            <span class="opt">}</span>
-            <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">int</span> k <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> k <span class="opt">&lt;</span> CHARS_LEFTOVER<span class="opt">;</span> k<span class="opt">++)</span>
-                nucleotides<span class="opt">[</span>j<span class="opt">++] =</span> <span class="kwd">convert</span><span class="opt">(</span>randoms<span class="opt">[</span>i<span class="opt">++]);</span>
-        <span class="opt">}</span>
+        <span class="kwb">void</span> <span class="kwd">selectNucleotides</span>() {
+            <span class="kwb">int</span> i = <span class="num">0</span>, j = <span class="num">0</span>;
+            <span class="kwa">for</span> (; i &lt; charsInFullLines; j++) {
+                <span class="kwa">for</span> (<span class="kwb">int</span> k = <span class="num">0</span>; k &lt; LINE_LENGTH; k++)
+                    nucleotides[j++] = <span class="kwd">convert</span>(randoms[i++]);
+            }
+            <span class="kwa">for</span> (<span class="kwb">int</span> k = <span class="num">0</span>; k &lt; CHARS_LEFTOVER; k++)
+                nucleotides[j++] = <span class="kwd">convert</span>(randoms[i++]);
+        }
 
-        <span class="kwa">private static byte</span> <span class="kwd">convert</span><span class="opt">(</span><span class="kwa">float</span> r<span class="opt">) {</span>
+        <span class="kwa">private static</span> <span class="kwb">byte</span> <span class="kwd">convert</span>(<span class="kwb">float</span> r) {
             <span class="com">/* A binary search is considerably slower than this sequential one.</span>
 <span class="com">             * A sequential search of the first four entries followed by a</span>
 <span class="com">             * binary search of the rest falls between the two, so is still</span>
@@ -363,57 +363,57 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="com">             * Explicitly unrolling the loop doesn&apos;t improve performance</span>
 <span class="com">             * noticeably.</span>
 <span class="com">             */</span>
-            <span class="kwa">int</span> m<span class="opt">;</span>
+            <span class="kwb">int</span> m;
             <span class="slc">//noinspection StatementWithEmptyBody</span>
-            <span class="kwa">for</span> <span class="opt">(</span>m <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> probs<span class="opt">[</span>m<span class="opt">] &lt;</span> r<span class="opt">;</span> m<span class="opt">++) {}</span>
-            <span class="kwa">return</span> chars<span class="opt">[</span>m<span class="opt">];</span>
-        <span class="opt">}</span>
-    <span class="opt">}</span>
+            <span class="kwa">for</span> (m = <span class="num">0</span>; probs[m] &lt; r; m++) {}
+            <span class="kwa">return</span> chars[m];
+        }
+    }
 
-    <span class="kwa">private static final class</span> SapienBuffer <span class="kwa">extends</span> StochasticBuffer <span class="opt">{</span>
-        <span class="kwa">private static final byte</span><span class="opt">[]</span> chars <span class="opt">=</span> <span class="kwa">new byte</span><span class="opt">[]{</span><span class="str">&apos;a&apos;</span><span class="opt">,</span> <span class="str">&apos;c&apos;</span><span class="opt">,</span> <span class="str">&apos;g&apos;</span><span class="opt">,</span> <span class="str">&apos;t&apos;</span><span class="opt">};</span>
-        <span class="kwa">private static final float</span><span class="opt">[]</span> probs <span class="opt">=</span> <span class="kwa">new float</span><span class="opt">[</span><span class="num">4</span><span class="opt">];</span>
-        <span class="kwa">static</span> <span class="opt">{</span>
-            <span class="kwa">double</span><span class="opt">[]</span> dblProbs <span class="opt">=</span> <span class="kwa">new double</span><span class="opt">[]{</span>
-                <span class="num">0.3029549426680</span><span class="opt">,</span>
-                <span class="num">0.1979883004921</span><span class="opt">,</span>
-                <span class="num">0.1975473066391</span><span class="opt">,</span>
-                <span class="num">0.3015094502008</span><span class="opt">};</span>
+    <span class="kwa">private static final class</span> SapienBuffer <span class="kwa">extends</span> StochasticBuffer {
+        <span class="kwa">private static final</span> <span class="kwb">byte</span>[] chars = <span class="kwa">new</span> <span class="kwb">byte</span>[]{<span class="str">&apos;a&apos;</span>, <span class="str">&apos;c&apos;</span>, <span class="str">&apos;g&apos;</span>, <span class="str">&apos;t&apos;</span>};
+        <span class="kwa">private static final</span> <span class="kwb">float</span>[] probs = <span class="kwa">new</span> <span class="kwb">float</span>[<span class="num">4</span>];
+        <span class="kwa">static</span> {
+            <span class="kwb">double</span>[] dblProbs = <span class="kwa">new</span> <span class="kwb">double</span>[]{
+                <span class="num">0.3029549426680</span>,
+                <span class="num">0.1979883004921</span>,
+                <span class="num">0.1975473066391</span>,
+                <span class="num">0.3015094502008</span>};
 
-            <span class="kwa">double</span> cp <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
-            <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">int</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> probs<span class="opt">.</span>length <span class="opt">-</span> <span class="num">1</span><span class="opt">;</span> i<span class="opt">++) {</span>
-                cp <span class="opt">+=</span> dblProbs<span class="opt">[</span>i<span class="opt">];</span>
-                probs<span class="opt">[</span>i<span class="opt">] = (</span><span class="kwa">float</span><span class="opt">)</span> cp<span class="opt">;</span>
-            <span class="opt">}</span>
-            probs<span class="opt">[</span>probs<span class="opt">.</span>length <span class="opt">-</span> <span class="num">1</span><span class="opt">] =</span> <span class="num">2</span><span class="opt">;</span>
-        <span class="opt">}</span>
+            <span class="kwb">double</span> cp = <span class="num">0</span>;
+            <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">0</span>; i &lt; probs.length - <span class="num">1</span>; i++) {
+                cp += dblProbs[i];
+                probs[i] = (<span class="kwb">float</span>) cp;
+            }
+            probs[probs.length - <span class="num">1</span>] = <span class="num">2</span>;
+        }
 
-        <span class="kwa">private final int</span> charsInFullLines<span class="opt">;</span>
+        <span class="kwa">private final</span> <span class="kwb">int</span> charsInFullLines;
 
-        <span class="kwd">SapienBuffer</span><span class="opt">(</span><span class="kwa">int</span> lineLength<span class="opt">,</span> <span class="kwa">int</span> nChars<span class="opt">) {</span>
-            <span class="kwa">super</span><span class="opt">(</span>lineLength<span class="opt">,</span> nChars<span class="opt">);</span>
-            charsInFullLines <span class="opt">= (</span>nChars <span class="opt">/</span> lineLength<span class="opt">) *</span> lineLength<span class="opt">;</span>
-        <span class="opt">}</span>
+        <span class="kwd">SapienBuffer</span>(<span class="kwb">int</span> lineLength, <span class="kwb">int</span> nChars) {
+            <span class="kwa">super</span>(lineLength, nChars);
+            charsInFullLines = (nChars / lineLength) * lineLength;
+        }
 
         <span class="kwc">&#64;Override</span>
-        <span class="kwa">void</span> <span class="kwd">selectNucleotides</span><span class="opt">() {</span>
-            <span class="kwa">int</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">,</span> j <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
-            <span class="kwa">for</span> <span class="opt">(;</span> i <span class="opt">&lt;</span> charsInFullLines<span class="opt">;</span> j<span class="opt">++) {</span>
-                <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">int</span> k <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> k <span class="opt">&lt;</span> LINE_LENGTH<span class="opt">;</span> k<span class="opt">++)</span>
-                    nucleotides<span class="opt">[</span>j<span class="opt">++] =</span> <span class="kwd">convert</span><span class="opt">(</span>randoms<span class="opt">[</span>i<span class="opt">++]);</span>
-            <span class="opt">}</span>
-            <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">int</span> k <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> k <span class="opt">&lt;</span> CHARS_LEFTOVER<span class="opt">;</span> k<span class="opt">++)</span>
-                nucleotides<span class="opt">[</span>j<span class="opt">++] =</span> <span class="kwd">convert</span><span class="opt">(</span>randoms<span class="opt">[</span>i<span class="opt">++]);</span>
-        <span class="opt">}</span>
+        <span class="kwb">void</span> <span class="kwd">selectNucleotides</span>() {
+            <span class="kwb">int</span> i = <span class="num">0</span>, j = <span class="num">0</span>;
+            <span class="kwa">for</span> (; i &lt; charsInFullLines; j++) {
+                <span class="kwa">for</span> (<span class="kwb">int</span> k = <span class="num">0</span>; k &lt; LINE_LENGTH; k++)
+                    nucleotides[j++] = <span class="kwd">convert</span>(randoms[i++]);
+            }
+            <span class="kwa">for</span> (<span class="kwb">int</span> k = <span class="num">0</span>; k &lt; CHARS_LEFTOVER; k++)
+                nucleotides[j++] = <span class="kwd">convert</span>(randoms[i++]);
+        }
 
-        <span class="kwa">private static byte</span> <span class="kwd">convert</span><span class="opt">(</span><span class="kwa">float</span> r<span class="opt">) {</span>
-            <span class="kwa">int</span> m<span class="opt">;</span>
+        <span class="kwa">private static</span> <span class="kwb">byte</span> <span class="kwd">convert</span>(<span class="kwb">float</span> r) {
+            <span class="kwb">int</span> m;
             <span class="slc">//noinspection StatementWithEmptyBody</span>
-            <span class="kwa">for</span> <span class="opt">(</span>m <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> probs<span class="opt">[</span>m<span class="opt">] &lt;</span> r<span class="opt">;</span> m<span class="opt">++) {}</span>
-            <span class="kwa">return</span> chars<span class="opt">[</span>m<span class="opt">];</span>
-        <span class="opt">}</span>
-    <span class="opt">}</span>
-<span class="opt">}</span>
+            <span class="kwa">for</span> (m = <span class="num">0</span>; probs[m] &lt; r; m++) {}
+            <span class="kwa">return</span> chars[m];
+        }
+    }
+}
     </pre>
   </section>
   <section>
@@ -423,21 +423,21 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
     <pre>
 NOTES:
 64-bit Ubuntu quad core
-openjdk 16 2021-03-16
-OpenJDK Runtime Environment (build 16+36-2231)
-OpenJDK 64-Bit Server VM (build 16+36-2231, mixed mode, sharing)
+openjdk 17 2021-09-14
+OpenJDK Runtime Environment (build 17+35-2724)
+OpenJDK 64-Bit Server VM (build 17+35-2724, mixed mode, sharing)
 
 
-Tue, 16 Mar 2021 18:46:33 GMT
+Tue, 14 Sep 2021 18:08:11 GMT
 
 MAKE:
 mv fasta.java-6.java fasta.java
-/opt/src/jdk-16/bin/javac -d . -cp . fasta.java
+/opt/src/jdk-17/bin/javac -d . -cp . fasta.java
 
-1.72s to complete and log all make actions
+1.83s to complete and log all make actions
 
 COMMAND LINE:
-/opt/src/jdk-16/bin/java  -cp . fasta 25000000
+/opt/src/jdk-17/bin/java  -cp . fasta 25000000
 
 (TRUNCATED) PROGRAM OUTPUT:
 &gt;ONE Homo sapiens alu
