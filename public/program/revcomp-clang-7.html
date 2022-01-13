@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,follow,noarchive">
+
+<title>reverse-complement C clang&nbsp;#7 program | Computer Language Benchmarks Game </title>
+<style><!--
+a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,header{margin:auto;width:92%}body{font:100% Droid Sans, Ubuntu, Verdana, sans-serif;margin:0;-webkit-text-size-adjust:100%}h3, h1, h2, li a{font-family:Ubuntu Mono,Consolas,Menlo,monospace}div,footer,header{max-width:31em}footer{padding:2.6em 0 0}h3{font-size:1.4em;font-weight:bold;margin:0;padding: .4em}h3, h3 a{color:white;background-color:#77216f}h3 small{font-size:0.64em}h1,h2{margin:1.5em 0 0}h1{font-size:1.4em;font-weight:normal}h2{font-size:1.2em}li{list-style-type:none;vertical-align:top}li a{display:block;font-size:1.2em;margin: .5em .5em 0;padding: .5em .5em .3em}ul{clear:left;margin:-0.3em 0 1.5em;padding-left:0;text-align:center}p{color:#333;line-height:1.4;margin: .3em 0 0}p a, a span{border-bottom: .1em solid #333;padding-bottom: .1em}.com,.slc{color:#888}.kwa{color:#066}.kwb{color:#900}.kwc{color:#050}.kwa,.kwb,.kwc{font-weight:bold}.dstr,.str,.sym,.num{color:#930}pre{color:#222;font-size:1em;overflow-wrap:break-word;white-space:pre-wrap;word-wrap:break-word}@media only screen and (min-width: 60em){article,footer,header{font-size:1.25em}}
+--></style>
+<link rel="shortcut icon" href="../favicon.ico">
+<header>
+  <h3><a href="https://benchmarksgame-team.pages.debian.net/benchmarksgame/index.html">The&nbsp;<small>22.01 Computer&nbsp;Language</small><br>Benchmarks&nbsp;Game</a></h3>
+</header>
+<article>
+  <div>
+    <h1>reverse-complement C clang&nbsp;#7 program</h1>
+    <aside>
+      <p><a href="../description/revcomp.html#revcomp">description</a>
+    </aside>
+  </div>
+  <section>
+    <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc">// The Computer Language Benchmarks Game</span>
+<span class="slc">// https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">//</span>
+<span class="slc">// Contributed by Jeremy Zerfas.</span>
+<span class="slc">// Copied the idea to use a lookup table for reverse complementing two</span>
+<span class="slc">// characters at a time from roman blog&apos;s C++ program.</span>
+
+<span class="slc">// This string/character array is used to convert characters into the</span>
+<span class="slc">// complementing character. There are also two smaller sixteen character</span>
+<span class="slc">// lookup tables in the reverse_Complement_And_Move_Span() function that are</span>
+<span class="slc">// used by its SSE code and those lookup tables should also be updated if this</span>
+<span class="slc">// table is changed.</span>
+<span class="slc">//</span>
+<span class="slc">// In order to allow the SSE code to be able to function with just two sixteen</span>
+<span class="slc">// character lookup tables, it performs lookups using only the lower five bits</span>
+<span class="slc">// of characters (this causes the values for the ASCII letters A to Z AND a to z</span>
+<span class="slc">// to change to 1 to 26). Note that some of the reverse complementing code also</span>
+<span class="slc">// requires newlines to remain unchanged when complemented which is why the</span>
+<span class="slc">// eleventh character is set to a newline. Since the lower five bits of the</span>
+<span class="slc">// newline character match those for the letters J and j, the lookup tables for</span>
+<span class="slc">// the SSE code have the complements for the letters J and j set to a newline</span>
+<span class="slc">// character and to be consistent, the same was done here. This currently isn&apos;t</span>
+<span class="slc">// a problem since the letters J and j aren&apos;t currently used but if that changes</span>
+<span class="slc">// in the future, then these tables and the SSE code will need to be updated.</span>
+<span class="ppc">#define COMPLEMENT_LOOKUP \</span>
+<span class="ppc"></span>  <span class="pps">&quot;</span>          <span class="esc">\n</span>                                                     <span class="pps">&quot;</span><span class="ppc">\</span>
+<span class="ppc"></span>  <span class="com">/*ABCDEFGHIJ KLMNOPQRSTUVWXYZ      abcdefghij klmnopqrstuvwxyz*/</span><span class="ppc">\</span>
+<span class="ppc"></span>  <span class="pps">&quot; TVGH  CD</span> <span class="esc">\n</span><span class="pps">M KN   YSAABW R       TVGH  CD</span> <span class="esc">\n</span><span class="pps">M KN   YSAABW R&quot;</span><span class="ppc"></span>
+
+<span class="slc">// This controls the size of reads from the input and is also used as the</span>
+<span class="slc">// initial sequence_Capacity.</span>
+<span class="ppc">#define READ_SIZE 65536</span>
+
+<span class="slc">// This defines how many characters (including the newline) a full line of input</span>
+<span class="slc">// should have.</span>
+<span class="ppc">#define LINE_LENGTH 61</span>
+
+<span class="slc">// While reverse complementing a sequence, the sequence is broken up into chunks</span>
+<span class="slc">// which can be processed in parallel on computers with multiple CPU cores.</span>
+<span class="slc">// LINES_PER_CHUNK will set the maximum amount of lines that are allowed in each</span>
+<span class="slc">// chunk and consequently the maximum size of each chunk will be equal to</span>
+<span class="slc">// LINES_PER_CHUNK*LINE_LENGTH bytes in size. Each thread will create an array</span>
+<span class="slc">// on the stack that is large enough to contain these chunks so LINES_PER_CHUNK</span>
+<span class="slc">// must be set small enough to allow this array to fit inside the stack. For</span>
+<span class="slc">// best performance, this value should probably be set so that the maximum chunk</span>
+<span class="slc">// size is somewhere between the L1 data cache size and</span>
+<span class="slc">// 1/(2*NUMBER_OF_CPU_CORES) of the last level cache size (assuming each CPU</span>
+<span class="slc">// core has its own L1 cache and the last level cache is shared between CPU</span>
+<span class="slc">// cores).</span>
+<span class="ppc">#define LINES_PER_CHUNK 8192</span>
+
+<span class="ppc">#include &lt;stdint.h&gt;</span>
+<span class="ppc">#include &lt;pthread.h&gt;</span>
+<span class="ppc">#include &lt;semaphore.h&gt;</span>
+<span class="ppc">#include &lt;immintrin.h&gt;</span>
+<span class="ppc">#include &lt;stdio.h&gt;</span>
+<span class="ppc">#include &lt;unistd.h&gt;</span>
+<span class="ppc">#include &lt;stdlib.h&gt;</span>
+<span class="ppc">#include &lt;string.h&gt;</span>
+
+<span class="slc">// uintptr_t should be the native integer type on most sane systems.</span>
+<span class="kwc">typedef</span> <span class="kwb">uintptr_t</span> uintnative_t;
+
+
+<span class="slc">// REVERSE_COMPLEMENT_LOOKUP will be used by the</span>
+<span class="slc">// reverse_Complement_And_Move_Span() function to help speed up reverse</span>
+<span class="slc">// complementing by allowing two characters to be reversed and complemented at</span>
+<span class="slc">// once.</span>
+<span class="kwb">uint16_t</span> REVERSE_COMPLEMENT_LOOKUP[<span class="num">65536</span>];
+
+
+<span class="slc">// Since sequences can be broken up into chunks that can be processed in</span>
+<span class="slc">// parallel by multiple threads, we need a few shared variables amongst the</span>
+<span class="slc">// threads to coordinate the processing. shared_Variables_Mutex is used to make</span>
+<span class="slc">// sure only one thread is reading/writing the other variables at a time.</span>
+<span class="slc">// sequence_Characters_Left_To_Process is self explanatory. Processing of the</span>
+<span class="slc">// sequence starts at the rear and proceeds to the header_Newline in front of</span>
+<span class="slc">// the sequence, front_Character_Of_Last_Assigned_Chunk</span>
+<span class="slc">// keeps track of this position</span>
+pthread_mutex_t shared_Variables_Mutex=PTHREAD_MUTEX_INITIALIZER;
+uintnative_t sequence_Characters_Left_To_Process;
+<span class="kwb">uint8_t</span> * front_Character_Of_Last_Assigned_Chunk;
+sem_t * semaphore_For_Signaling_Last_Assigned_Chunk_Written;
+
+
+<span class="slc">// Reverse complement and move a span of characters. The span to be reverse</span>
+<span class="slc">// complemented ends just before character_After_Src_Rear_Character and the</span>
+<span class="slc">// reverse complemented span is moved so that its first character will be at</span>
+<span class="slc">// dst_Front_Character. The size of the spans is span_Length characters long.</span>
+<span class="kwb">void</span> <span class="kwd">reverse_Complement_And_Move_Span</span>(<span class="kwb">uint8_t</span> * dst_Front_Character
+  , <span class="kwb">uint8_t</span> * character_After_Src_Rear_Character, uintnative_t span_Length){
+
+	<span class="slc">// The loops farther down below will simultaneously reverse complement and</span>
+	<span class="slc">// move either sixteen or two characters so consequently they can only</span>
+	<span class="slc">// properly handle even span_Lengths. If the span_Lengths are odd, then this</span>
+	<span class="slc">// if block below will do a single preliminary complement and move to make</span>
+	<span class="slc">// the remaining span_Lengths an even number that the last loop can handle.</span>
+	<span class="kwa">if</span>(span_Length%<span class="num">2</span>){
+		*dst_Front_Character++
+		  =COMPLEMENT_LOOKUP[*--character_After_Src_Rear_Character];
+		span_Length--;
+	}
+
+
+	<span class="slc">// If this program is compiled for an architecture that supports SSE 4.1,</span>
+	<span class="slc">// then this loop can use it to simultaneously reverse complement and move a</span>
+	<span class="slc">// sixteen character subspan at a time if the span_Length is at least that</span>
+	<span class="slc">// large.</span>
+	<span class="ppc">#ifdef __SSE4_1__</span>
+		<span class="kwa">for</span>(; span_Length&gt;=<span class="num">16</span>; span_Length-=<span class="num">16</span>, dst_Front_Character+=<span class="num">16</span>){
+
+			<span class="slc">// Load the subspan before character_After_Src_Rear_Character.</span>
+			__m128i subspan=<span class="kwd">_mm_lddqu_si128</span>(
+			  (__m128i *)(character_After_Src_Rear_Character-=<span class="num">16</span>));
+
+
+			<span class="slc">// Reverse the subspan.</span>
+			subspan=<span class="kwd">_mm_shuffle_epi8</span>(subspan,<span class="kwd">_mm_set_epi8</span>(
+			  <span class="num">0</span>, <span class="num">1</span>, <span class="num">2</span>, <span class="num">3</span>, <span class="num">4</span>, <span class="num">5</span>, <span class="num">6</span>, <span class="num">7</span>, <span class="num">8</span>, <span class="num">9</span>, <span class="num">10</span>, <span class="num">11</span>, <span class="num">12</span>, <span class="num">13</span>, <span class="num">14</span>, <span class="num">15</span>));
+
+
+			<span class="slc">// AND all the characters in the subspan with 0b11111 which will</span>
+			<span class="slc">// cause the values for the ASCII letters A to Z AND a to z to</span>
+			<span class="slc">// change to 1 to 26. This allows a smaller lookup table to be used</span>
+			<span class="slc">// which is useful here because we are going to be using 128 bit</span>
+			<span class="slc">// (e.g. sixteen eight bit characters) SSE registers as lookup</span>
+			<span class="slc">// tables which means we&apos;ll need to use at least two SSE registers,</span>
+			<span class="slc">// do two lookups, and then select the appropriate result to use.</span>
+			<span class="slc">// Larger lookup tables would require using more registers and doing</span>
+			<span class="slc">// more lookups which will result in slower code.</span>
+			subspan=<span class="kwd">_mm_and_si128</span>(subspan, <span class="kwd">_mm_set1_epi8</span>(<span class="num">0</span>b11111));
+
+
+			<span class="slc">// Now we load two sixteen character lookup tables into two SSE</span>
+			<span class="slc">// registers, lookup each character of the subspan in both lookup</span>
+			<span class="slc">// tables, and then figure out which lookup table has the correct</span>
+			<span class="slc">// complement for the character based on whether the character&apos;s</span>
+			<span class="slc">// lower five bits value was 0-15 or 16-31. Finally we write the</span>
+			<span class="slc">// reverse complemented subspan to dst_Front_Character.</span>
+			<span class="slc">//</span>
+			<span class="slc">// Note that if the below lookup tables are changed, then the</span>
+			<span class="slc">// COMPLEMENT_LOOKUP table up above should also be changed. It would</span>
+			<span class="slc">// also be a good idea to read the comment above the</span>
+			<span class="slc">// COMPLEMENT_LOOKUP table for why there is a newline in this lookup</span>
+			<span class="slc">// table and why it is set as the complement of the letter J.</span>
+			__m128i complements_For_0_To_15_Values
+			  =<span class="kwd">_mm_shuffle_epi8</span>(<span class="kwd">_mm_setr_epi8</span>(
+			  <span class="slc">//      A    B    C    D    E    F    G</span>
+			     <span class="num">0</span> , <span class="str">&apos;T&apos;</span>, <span class="str">&apos;V&apos;</span>, <span class="str">&apos;G&apos;</span>, <span class="str">&apos;H&apos;</span>,  <span class="num">0</span> ,  <span class="num">0</span> , <span class="str">&apos;C&apos;</span>
+			  <span class="slc">// H    I    J    K    L    M    N    O</span>
+			  , <span class="str">&apos;D&apos;</span>,  <span class="num">0</span> ,<span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span>, <span class="str">&apos;M&apos;</span>,  <span class="num">0</span> , <span class="str">&apos;K&apos;</span>, <span class="str">&apos;N&apos;</span>,  <span class="num">0</span>), subspan);
+			__m128i complements_For_16_To_31_Values
+			  =<span class="kwd">_mm_shuffle_epi8</span>(<span class="kwd">_mm_setr_epi8</span>(
+			  <span class="slc">// P    Q    R    S    T    U    V    W</span>
+			     <span class="num">0</span> ,  <span class="num">0</span> , <span class="str">&apos;Y&apos;</span>, <span class="str">&apos;S&apos;</span>, <span class="str">&apos;A&apos;</span>, <span class="str">&apos;A&apos;</span>, <span class="str">&apos;B&apos;</span>, <span class="str">&apos;W&apos;</span>
+			  <span class="slc">// X    Y    Z</span>
+			  ,  <span class="num">0</span> , <span class="str">&apos;R&apos;</span>,  <span class="num">0</span> ,  <span class="num">0</span> ,  <span class="num">0</span> ,  <span class="num">0</span> ,  <span class="num">0</span> ,  <span class="num">0</span>), subspan);
+			__m128i mask_To_Select_complements_For_16_To_31_Values
+			  =<span class="kwd">_mm_cmpgt_epi8</span>(subspan, <span class="kwd">_mm_set1_epi8</span>(<span class="num">15</span>));
+			<span class="kwd">_mm_storeu_si128</span>((__m128i *)dst_Front_Character
+			  , <span class="kwd">_mm_blendv_epi8</span>(complements_For_0_To_15_Values
+			  , complements_For_16_To_31_Values
+			  , mask_To_Select_complements_For_16_To_31_Values));
+		}
+	<span class="ppc">#endif</span>
+
+
+	<span class="slc">// Reverse complement and move any remaining characters and use the</span>
+	<span class="slc">// REVERSE_COMPLEMENT_LOOKUP table that was set up during startup to allow</span>
+	<span class="slc">// us to reverse complement two characters at a time. This is faster than</span>
+	<span class="slc">// just complementing and moving one character at a time and at least for</span>
+	<span class="slc">// some older architectures it isn&apos;t much slower than using the more complex</span>
+	<span class="slc">// SSE code above, this can really help out when compiling for architectures</span>
+	<span class="slc">// that don&apos;t support SSE 4.1.</span>
+	<span class="kwa">for</span>(; span_Length&gt;=<span class="num">2</span>; span_Length-=<span class="num">2</span>, dst_Front_Character+=<span class="num">2</span>)
+		*(<span class="kwb">uint16_t</span> *)dst_Front_Character=REVERSE_COMPLEMENT_LOOKUP[
+		  *(<span class="kwb">uint16_t</span> *)(character_After_Src_Rear_Character-=<span class="num">2</span>)];
+}
+
+
+<span class="slc">// Look for chunks to reverse complement and reverse complement and write them</span>
+<span class="slc">// in order until there are no more sequence_Characters_Left_To_Process.</span>
+<span class="kwb">void</span> * <span class="kwd">write_Reverse_Complements_Of_Chunks</span>(
+  <span class="kwb">void</span> * initial_Semaphore_For_Signaling_Chunk_Written){
+
+	sem_t * semaphore_For_Signaling_Chunk_Written
+	  =initial_Semaphore_For_Signaling_Chunk_Written;
+
+	<span class="slc">// Instead of doing an in-place reverse complement of the sequence, we</span>
+	<span class="slc">// instead write the reverse complement of a smaller chunk to chunk_To_Write</span>
+	<span class="slc">// and then we write chunk_To_Write after we finish reverse complementing</span>
+	<span class="slc">// the chunk and all prior chunks have been written. By writing/reading to/</span>
+	<span class="slc">// from chunk_To_Write, which should be mostly cached, we avoid having to</span>
+	<span class="slc">// do another write/read of the entire sequence to/from main memory.</span>
+	<span class="kwb">uint8_t</span> chunk_To_Write[LINES_PER_CHUNK*LINE_LENGTH];
+
+
+	<span class="slc">// Keep reverse complementing and writing chunks until there are no</span>
+	<span class="slc">// sequence_Characters_Left_To_Process.</span>
+	<span class="kwa">for</span>(;;){
+
+		<span class="kwd">pthread_mutex_lock</span>(&amp;shared_Variables_Mutex);
+
+			<span class="slc">// full_Line_Front_Span_Length is the number of nucleobases that</span>
+			<span class="slc">// show up on the last line of the chunk (and also the sequence).</span>
+			<span class="slc">// If the last line of the chunk is a non-full line, then</span>
+			<span class="slc">// full_Line_Rear_Span_Length is the number of nucleobases that</span>
+			<span class="slc">// would be required to be added to make it a full line, otherwise</span>
+			<span class="slc">// it will be zero if the last line is a full line.</span>
+			uintnative_t full_Line_Front_Span_Length
+			  =(sequence_Characters_Left_To_Process-<span class="num">1</span>)%LINE_LENGTH;
+			uintnative_t full_Line_Rear_Span_Length
+			  =LINE_LENGTH-<span class="num">1</span>-full_Line_Front_Span_Length;
+
+			<span class="slc">// Determine the chunk_Size we should use and the number of</span>
+			<span class="slc">// chunk_Characters_Left_To_Process. If there are no</span>
+			<span class="slc">// chunk_Characters_Left_To_Process, then exit the thread. Also</span>
+			<span class="slc">// update sequence_Characters_Left_To_Process so that the next</span>
+			<span class="slc">// thread looking for a chunk to work on knows the number of</span>
+			<span class="slc">// sequence_Characters_Left_To_Process.</span>
+			uintnative_t chunk_Size
+			  =sequence_Characters_Left_To_Process&gt;LINES_PER_CHUNK*LINE_LENGTH
+			  ? LINES_PER_CHUNK*LINE_LENGTH
+			  : sequence_Characters_Left_To_Process;
+			uintnative_t chunk_Characters_Left_To_Process=chunk_Size;
+			<span class="kwa">if</span>(!chunk_Characters_Left_To_Process){
+				<span class="kwd">pthread_mutex_unlock</span>(&amp;shared_Variables_Mutex);
+				<span class="kwa">return</span> NULL;
+			}
+			sequence_Characters_Left_To_Process-=chunk_Size;
+
+			<span class="slc">// Get a copy of the front_Character_Of_Last_Assigned_Chunk that we</span>
+			<span class="slc">// can use to keep track of the last_Processed_Chunk_Character. Also</span>
+			<span class="slc">// decrement front_Character_Of_Last_Assigned_Chunk by our</span>
+			<span class="slc">// chunk_Size so that the next thread looking for a chunk to work on</span>
+			<span class="slc">// will know to continue working from the front of our chunk.</span>
+			<span class="kwb">uint8_t</span> * last_Processed_Chunk_Character
+			  =front_Character_Of_Last_Assigned_Chunk;
+			front_Character_Of_Last_Assigned_Chunk-=chunk_Size;
+
+			<span class="slc">// Get a copy of semaphore_For_Signaling_Last_Assigned_Chunk_Written</span>
+			<span class="slc">// so that we know what semaphore_To_Wait_On_Before_Writing_Chunk.</span>
+			<span class="slc">// Also set semaphore_For_Signaling_Last_Assigned_Chunk_Written to</span>
+			<span class="slc">// our semaphore_For_Signaling_Chunk_Written so that the next thread</span>
+			<span class="slc">// looking for a chunk to work on knows what semaphore it should</span>
+			<span class="slc">// wait on before writing another chunk.</span>
+			sem_t * semaphore_To_Wait_On_Before_Writing_Chunk
+			  =semaphore_For_Signaling_Last_Assigned_Chunk_Written;
+			semaphore_For_Signaling_Last_Assigned_Chunk_Written
+			  =semaphore_For_Signaling_Chunk_Written;
+
+		<span class="kwd">pthread_mutex_unlock</span>(&amp;shared_Variables_Mutex);
+
+		<span class="kwb">uint8_t</span> * chunk_Pos=chunk_To_Write;
+
+
+		<span class="slc">// We now have all information we need to know and can start reverse</span>
+		<span class="slc">// complementing our chunk.</span>
+
+		<span class="slc">// First we check to see if we have an optimal size sequence that</span>
+		<span class="slc">// entirely consists of full lines (which will be the case when</span>
+		<span class="slc">// full_Line_Rear_Span_Length is zero). In this case we can just make a</span>
+		<span class="slc">// single call to reverse_Complement_And_Move_Span() and have it reverse</span>
+		<span class="slc">// complement the entire chunk. This does require the</span>
+		<span class="slc">// reverse_Complement_And_Move_Span() function to leave newlines</span>
+		<span class="slc">// unchanged when they are complemented though.</span>
+		<span class="kwa">if</span>(!full_Line_Rear_Span_Length){
+			<span class="kwd">reverse_Complement_And_Move_Span</span>(chunk_Pos
+			  , last_Processed_Chunk_Character
+			  , chunk_Characters_Left_To_Process);
+			chunk_Characters_Left_To_Process=<span class="num">0</span>;
+		}
+
+
+		<span class="slc">// This loop reverse complements and moves full lines and also knows how</span>
+		<span class="slc">// to skip over newlines as needed and then reinsert them at the</span>
+		<span class="slc">// appropriate positions. This loop does most of the reverse</span>
+		<span class="slc">// complementing work.</span>
+		<span class="kwa">for</span>(; chunk_Characters_Left_To_Process&gt;=LINE_LENGTH
+		  ; chunk_Characters_Left_To_Process-=LINE_LENGTH){
+
+			<span class="slc">// Reverse complement and move a full_Line_Front_Span_Length of</span>
+			<span class="slc">// nucleobases ending in front of the last_Processed_Chunk_Character</span>
+			<span class="slc">// to chunk_Pos (which will now be pointing at the postion for the</span>
+			<span class="slc">// first nucleobase of a line). Then chunk_Pos and</span>
+			<span class="slc">// last_Processed_Chunk_Character are incremented/decremented</span>
+			<span class="slc">// respectively by full_Line_Front_Span_Length and</span>
+			<span class="slc">// last_Processed_Chunk_Character is decremented by one more to skip</span>
+			<span class="slc">// over the newline in the preceding line.</span>
+			<span class="kwd">reverse_Complement_And_Move_Span</span>(chunk_Pos
+			  , last_Processed_Chunk_Character
+			  , full_Line_Front_Span_Length);
+			chunk_Pos+=full_Line_Front_Span_Length;
+			last_Processed_Chunk_Character-=full_Line_Front_Span_Length+<span class="num">1</span>;
+
+			<span class="slc">// Reverse complement and move a full_Line_Rear_Span_Length of</span>
+			<span class="slc">// nucleobases ending in front of the last_Processed_Chunk_Character</span>
+			<span class="slc">// (which will now be pointing at the newline after the last</span>
+			<span class="slc">// nucleobase of a line) to chunk_Pos. Then chunk_Pos and</span>
+			<span class="slc">// last_Processed_Chunk_Character are incremented/decremented</span>
+			<span class="slc">// respectively by full_Line_Rear_Span_Length.</span>
+			<span class="kwd">reverse_Complement_And_Move_Span</span>(chunk_Pos
+			  , last_Processed_Chunk_Character
+			  , full_Line_Rear_Span_Length);
+			chunk_Pos+=full_Line_Rear_Span_Length;
+			last_Processed_Chunk_Character-=full_Line_Rear_Span_Length;
+
+			<span class="slc">// Finally insert a newline at chunk_Pos and increment it because of</span>
+			<span class="slc">// the newline.</span>
+			*chunk_Pos++=<span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span>;
+		}
+
+
+		<span class="slc">// If chunk_Size isn&apos;t evenly divisible by LINE_LENGTH, then there will</span>
+		<span class="slc">// be one last partial line of chunk_Characters_Left_To_Process and the</span>
+		<span class="slc">// line will contain a full_Line_Front_Span_Length of nucelobases plus a</span>
+		<span class="slc">// preceding newline. Reverse complement and move that partial line here</span>
+		<span class="slc">// if necessary.</span>
+		<span class="kwa">if</span>(chunk_Characters_Left_To_Process)
+			<span class="kwd">reverse_Complement_And_Move_Span</span>(chunk_Pos
+			  , last_Processed_Chunk_Character
+			  , full_Line_Front_Span_Length+<span class="num">1</span>);
+
+
+		<span class="slc">// Before we can write the chunk_To_Write that we just finished reverse</span>
+		<span class="slc">// complementing, we need to wait for a signal from the</span>
+		<span class="slc">// semaphore_To_Wait_On_Before_Writing_Chunk so that we know the</span>
+		<span class="slc">// previous chunk (and all prior chunks) have been written first. Once</span>
+		<span class="slc">// that happens we can then write the chunk_To_Write. We then signal the</span>
+		<span class="slc">// semaphore_For_Signaling_Chunk_Written so that the thread processing</span>
+		<span class="slc">// the next chunk (if any) knows that it is OK for it to start writing.</span>
+		<span class="slc">// Finally we need to leave the semaphore_For_Signaling_Chunk_Written</span>
+		<span class="slc">// alone so that it can potentially be seen by another thread, we&apos;ll</span>
+		<span class="slc">// change our semaphore_For_Signaling_Chunk_Written (for the next</span>
+		<span class="slc">// potential chunk that this thread will process) to the now unused</span>
+		<span class="slc">// semaphore_To_Wait_On_Before_Writing_Chunk.</span>
+		<span class="kwd">sem_wait</span>(semaphore_To_Wait_On_Before_Writing_Chunk);
+		(<span class="kwb">void</span>)!<span class="kwd">write</span>(STDOUT_FILENO, chunk_To_Write, chunk_Size);
+		<span class="kwd">sem_post</span>(semaphore_For_Signaling_Chunk_Written);
+		semaphore_For_Signaling_Chunk_Written
+		  =semaphore_To_Wait_On_Before_Writing_Chunk;
+	}
+}
+
+
+<span class="kwb">void</span> <span class="kwd">write_Sequence_Reverse_Complement</span>(<span class="kwb">uint8_t</span> * sequence
+  , uintnative_t sequence_Size){
+	<span class="slc">// sequence will point at the &apos;&gt;&apos; in the header and sequence_Size is the</span>
+	<span class="slc">// amount of characters including the &apos;&gt;&apos; in the header and the last newline</span>
+	<span class="slc">// of the sequence.</span>
+
+	<span class="kwb">uint8_t</span> * header_Newline=<span class="kwd">memchr</span>(sequence, <span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span>, sequence_Size);
+
+
+	<span class="slc">// Write the header line including the header_Newline.</span>
+	(<span class="kwb">void</span>)!<span class="kwd">write</span>(STDOUT_FILENO, sequence, header_Newline-sequence+<span class="num">1</span>);
+
+
+	<span class="slc">// front_Character_Of_Last_Assigned_Chunk is initially set to point to the</span>
+	<span class="slc">// last newline of the sequence (if the sequence was one chunk larger, this</span>
+	<span class="slc">// is where the front of that chunk would have been).</span>
+	front_Character_Of_Last_Assigned_Chunk=sequence+sequence_Size-<span class="num">1</span>;
+
+	sequence_Characters_Left_To_Process
+	  =front_Character_Of_Last_Assigned_Chunk-header_Newline;
+
+
+	<span class="slc">// Figure out the number_Of_Threads_To_Use based on how many CPU cores are</span>
+	<span class="slc">// available. Note that using sysconf(_SC_NPROCESSORS_ONLN) will return the</span>
+	<span class="slc">// number of processors online on the system but not necessarily</span>
+	<span class="slc">// available to the process (if something like taskset is used). Using</span>
+	<span class="slc">// something like sched_getaffinity() with CPU_COUNT() would be more</span>
+	<span class="slc">// accurate on systems like Linux but is less portable.</span>
+	uintnative_t number_Of_Threads_To_Use
+	  =(uintnative_t)<span class="kwd">labs</span>(<span class="kwd">sysconf</span>(_SC_NPROCESSORS_ONLN));
+
+	pthread_t chunks_Processing_Threads[number_Of_Threads_To_Use];
+	sem_t chunk_Written_Semaphores[number_Of_Threads_To_Use+<span class="num">1</span>];
+
+	<span class="slc">// Initialize all the chunk_Written_Semaphores. Although no chunks have been</span>
+	<span class="slc">// written yet, the thread processing the first chunk (if any) will expect</span>
+	<span class="slc">// to see a chunk_Written_Semaphore signaling that all prior chunks have</span>
+	<span class="slc">// been written. To meet its expectations we pretend that a prior chunk has</span>
+	<span class="slc">// already been written by assigning the last chunk_Written_Semaphores to</span>
+	<span class="slc">// semaphore_For_Signaling_Last_Assigned_Chunk_Written and initializing it</span>
+	<span class="slc">// as already being signaled.</span>
+	<span class="kwa">for</span>(uintnative_t i=number_Of_Threads_To_Use+<span class="num">1</span>; i--&gt;<span class="num">0</span>;)
+		<span class="kwd">sem_init</span>(&amp;chunk_Written_Semaphores[i], <span class="num">0</span>, i/number_Of_Threads_To_Use);
+	semaphore_For_Signaling_Last_Assigned_Chunk_Written
+	  =&amp;chunk_Written_Semaphores[number_Of_Threads_To_Use];
+
+	<span class="slc">// Create number_Of_Threads_To_Use chunks_Processing_Threads and have them</span>
+	<span class="slc">// all write_Reverse_Complements_Of_Chunks.</span>
+	<span class="kwa">for</span>(uintnative_t i=number_Of_Threads_To_Use; i--&gt;<span class="num">0</span>;)
+		<span class="kwd">pthread_create</span>(&amp;chunks_Processing_Threads[i], NULL
+		  , write_Reverse_Complements_Of_Chunks, &amp;chunk_Written_Semaphores[i]);
+
+	<span class="slc">// Wait for all the chunks_Processing_Threads to finish writing the reverse</span>
+	<span class="slc">// complement of the sequence.</span>
+	<span class="kwa">for</span>(uintnative_t i=number_Of_Threads_To_Use; i--&gt;<span class="num">0</span>;)
+		<span class="kwd">pthread_join</span>(chunks_Processing_Threads[i], NULL);
+
+	<span class="slc">// Destroy all the chunk_Written_Semaphores.</span>
+	<span class="kwa">for</span>(uintnative_t i=number_Of_Threads_To_Use+<span class="num">1</span>; i--&gt;<span class="num">0</span>;)
+		<span class="kwd">sem_destroy</span>(&amp;chunk_Written_Semaphores[i]);
+}
+
+
+<span class="kwb">int</span> <span class="kwd">main</span>(<span class="kwb">void</span>){
+
+	<span class="slc">// We initialize the REVERSE_COMPLEMENT_LOOKUP table here but only fill in</span>
+	<span class="slc">// elements for characters that will be in the range of ASCII characters</span>
+	<span class="slc">// that we can expect to see in inputted data.</span>
+	<span class="kwa">for</span>(uintnative_t i=<span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span>; i&lt;<span class="kwa">sizeof</span>(COMPLEMENT_LOOKUP)-<span class="num">1</span>; i++)
+		<span class="kwa">for</span>(uintnative_t j=<span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span>; j&lt;<span class="kwa">sizeof</span>(COMPLEMENT_LOOKUP)-<span class="num">1</span>; j++)
+			REVERSE_COMPLEMENT_LOOKUP[i&lt;&lt;<span class="num">8</span> | j]
+			  =(<span class="kwb">uint16_t</span>)COMPLEMENT_LOOKUP[j]&lt;&lt;<span class="num">8</span>
+			  | (<span class="kwb">uint16_t</span>)COMPLEMENT_LOOKUP[i];
+
+
+	<span class="slc">// Allocate memory for the initial sequence (assuming there is one).</span>
+	uintnative_t sequence_Capacity=READ_SIZE, sequence_Size=<span class="num">0</span>;
+	<span class="kwb">uint8_t</span> * sequence=<span class="kwd">malloc</span>(sequence_Capacity);
+
+	<span class="slc">// Read in sequence data until we reach the end of the file or encounter an</span>
+	<span class="slc">// error.</span>
+	<span class="kwa">for</span>(uintnative_t bytes_Read
+	  ; (bytes_Read=<span class="kwd">read</span>(STDIN_FILENO, &amp;sequence[sequence_Size], READ_SIZE));){
+
+		<span class="slc">// Search the read in chunk of data for a &apos;&gt;&apos; to see if any sequences</span>
+		<span class="slc">// are being started.</span>
+		<span class="kwa">for</span>(<span class="kwb">uint8_t</span> * sequence_Start
+		  ; (sequence_Start=<span class="kwd">memchr</span>(&amp;sequence[sequence_Size], <span class="str">&apos;&gt;&apos;</span>, bytes_Read))
+		  ;){
+
+			<span class="slc">// Update the sequence_Size to reflect any data before the &apos;&gt;&apos; that</span>
+			<span class="slc">// was read in.</span>
+			uintnative_t number_Of_Preceding_Bytes
+			  =sequence_Start-&amp;sequence[sequence_Size];
+			sequence_Size+=number_Of_Preceding_Bytes;
+
+
+			<span class="slc">// If there is any data for the current sequence, then process it</span>
+			<span class="slc">// and update things for processing the next sequence.</span>
+			<span class="kwa">if</span>(sequence_Size){
+
+				<span class="slc">// Process the current sequence.</span>
+				<span class="kwd">write_Sequence_Reverse_Complement</span>(sequence, sequence_Size);
+
+				<span class="slc">// Copy the read-in &apos;&gt;&apos; and any data following it to the front</span>
+				<span class="slc">// of sequence.</span>
+				<span class="kwd">memmove</span>(sequence, sequence_Start
+				  , bytes_Read-number_Of_Preceding_Bytes);
+
+				<span class="slc">// Reset sequence_Size to 0 as we start processing the next</span>
+				<span class="slc">// sequence.</span>
+				sequence_Size=<span class="num">0</span>;
+			}
+
+
+			<span class="slc">// Update sequence_Size and bytes_Read to reflect the read in &apos;&gt;&apos;</span>
+			<span class="slc">// and any data that preceded it.</span>
+			sequence_Size++;
+			bytes_Read-=number_Of_Preceding_Bytes+<span class="num">1</span>;
+		}
+
+
+		<span class="slc">// Update sequence_Size to reflect the bytes that were read in.</span>
+		sequence_Size+=bytes_Read;
+
+		<span class="slc">// If there potentially isn&apos;t enough free space for all the data from</span>
+		<span class="slc">// the next read, then double the capacity of the sequence.</span>
+		<span class="kwa">if</span>(sequence_Size&gt;sequence_Capacity-READ_SIZE)
+			sequence=<span class="kwd">realloc</span>(sequence, sequence_Capacity*=<span class="num">2</span>);
+	}
+
+
+	<span class="slc">// If there is any data for a last sequence, process it.</span>
+	<span class="kwa">if</span>(sequence_Size)
+		<span class="kwd">write_Sequence_Reverse_Complement</span>(sequence, sequence_Size);
+
+	<span class="kwd">free</span>(sequence);
+}
+    </pre>
+  </section>
+  <section>
+    <div>
+      <h2 id="log">notes, command-line, and program output</h2>
+    </div>
+    <pre>
+NOTES:
+64-bit Ubuntu quad core
+Ubuntu clang version 13.0.0-2
+
+
+Thu, 13 Jan 2022 19:08:45 GMT
+
+MAKE:
+/usr/bin/clang -pipe -Wall -O3 -fomit-frame-pointer -march=ivybridge  revcomp.clang-7.c -o revcomp.clang-7.clang_run 
+rm revcomp.clang-7.c
+
+4.64s to complete and log all make actions
+
+COMMAND LINE:
+./revcomp.clang-7.clang_run 0 &lt; revcomp-input100000000.txt
+
+(TRUNCATED) PROGRAM OUTPUT:
+&gt;ONE Homo sapiens alu
+GGGATTACAGGCGTGAGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGC
+CCAGGCTGGAGTGCAGTGGCGCGATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAA
+GCGATTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCACCACGCCC
+GGCTAATTTTTGTATTTTTAGTAGAGACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCG
+AACTCCTGACCTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTACAGGCG
+TGAGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTG
+CAGTGGCGCGATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTGC
+CTCAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCACCACGCCCGGCTAATTTTTGT
+ATTTTTAGTAGAGACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAACTCCTGACCTC
+AGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTACAGGCGTGAGCCACCGCGC
+CCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCGCGATC
+TCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCAGCCTCCCGA
+GTAGCTGGGATTACAGGCGCGCGCCACCACGCCCGGCTAATTTTTGTATTTTTAGTAGAG
+ACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAACTCCTGACCTCAGGTGATCCGCCC
+GCCTCGGCCTCCCAAAGTGCTGGGATTACAGGCGTGAGCCACCGCGCCCGGCCTTTTTGA
+GACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCGCGATCTCGGCTCACTGCA
+ACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATTA
+CAGGCGCGCGCCACCACGCCCGGCTAATTTTTGTATTTTTAGTAGAGACGGGGTTTCACC
+ATGTTGGCCAGGCTGGTCTCGAACTCCTGACCTCAGGTGATCCGCCCGCCTCGGCCTCCC
+AAAGTGCTGGGATTACAGGCGTGAGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGC
+TCTGTCGCCCAGGCTGGAGTGCAGTGGCGCGATCTCGGCTCACTGCAACCTCCGCCTCCC
+GGGTTCAAGCGATTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCA
+CCACGCCCGGCTAATTTTTGTATTTTTAGTAGAGACGGGGTTTCACCATGTTGGCCAGGC
+TGGTCTCGAACTCCTGACCTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGAT
+TACAGGCGTGAGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGG
+CTGGAGTGCAGTGGCGCGATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGAT
+TCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCACCACGCCCGGCTA
+ATTTTTGTATTTTTAGTAGAGACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAACTC
+CTGACCTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTACAGGCGTGAGC
+CACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTG
+GCGCGATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCAG
+CCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCACCACGCCCGGCTAATTTTTGTATTTT
+TAGTAGAGACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAACTCCTGACCTCAGGTG
+ATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTACAGGCGTGAGCCACCGCGCCCGGC
+CTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCGCGATCTCGGC
+TCACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCAGCCTCCCGAGTAGC
+TGGGATTACAGGCGCGCGCCACCACGCCCGGCTAATTTTTGTATTTTTAGTAGAGACGGG
+GTTTCACCATGTTGGCCAGGCTGGTCTCGAACTCCTGACCTCAGGTGATCCGCCCGCCTC
+GGCCTCCCAAAGTGCTGGGATTACAGGCGTGAGCCACCGCGCCCGGCCTTTTTGAGACGG
+AGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCGCGATCTCGGCTCACTGCAACCTC
+CGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATTACAGGC
+GCGCGCCACCACGCCCGGCTAATTTTTGTATTTTTAGTAGAGACGGGGTTTCACCATGTT
+GGCCAGGCTGGTCTCGAACTCCTGACCTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAGT
+GCTGGGATTACAGGCGTGAGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGT
+CGCCCAGGCTGGAGTGCAGTGGCGCGATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTT
+CAAGCGATTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCACCACG
+CCCGGCTAATTTTTGTATTTTTAGTAGAGACGGGGTTTCACCATGTTGGCCAGGCTGGTC
+TCGAACTCCTGACCTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTACAG
+GCGTGAGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGGA
+GTGCAGTGGCGCGATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTCTCC
+TGCCTCAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCACCACGCCCGGCTAATTTT
+TGTATTTTTAGTAGAGACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAACTCCTGAC
+CTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTACAGGCGTGAGCCACCG
+CGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCGCG
+ATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCAGCCTCC
+CGAGTAGCTGGGATTACAGGCGCGCGCCACCACGCCCGGCTAATTTTTGTATTTTTAGTA
+GAGACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAACTCCTGACCTCAGGTGATCCG
+CCCGCCTCGGCCTCCCAAAGTGCTGGGATTACAGGCGTGAGCCACCGCGCCCGGCCTTTT
+TGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCGCGATCTCGGCTCACT
+GCAACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGA
+TTACAGGCGCGCGCCACCACGCCCGGCTAATTTTTGTATTTTTAGTAGAGACGGGGTTTC
+ACCATGTTGGCCAGGCTGGTCTCGAACTCCTGACCTCAGGTGATCCGCCCGCCTCGGCCT
+CCCAAAGTGCTGGGATTACAGGCGTGAGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCT
+CGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCGCGATCTCGGCTCACTGCAACCTCCGCCT
+CCCGGGTTCAAGCGATTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCG
+CCACCACGCCCGGCTAATTTTTGTATTTTTAGTAGAGACGGGGTTTCACCATGTTGGCCA
+GGCTGGTCTCGAACTCCTGACCTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGG
+GATTACAGGCGTGAGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCC
+AGGCTGGAGTGCAGTGGCGCGATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGC
+GATTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCACCACGCCCGG
+CTAATTTTTGTATTTTTAGTAGAGACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAA
+CTCCTGACCTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTACAGGCGTG
+AGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCA
+GTGGCGCGATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTGCCT
+CAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCACCACGCCCGGCTAATTTTTGTAT
+TTTTAGTAGAGACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAACTCCTGACCTCAG
+GTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTACAGGCGTGAGCCACCGCGCCC
+GGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCGCGATCTC
+GGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCAGCCTCCCGAGT
+AGCTGGGATTACAGGCGCGCGCCACCACGCCCGGCTAATTTTTGTATTTTTAGTAGAGAC
+GGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAACTCCTGACCTCAGGTGATCCGCCCGC
+CTCGGCCTCCCAAAGTGCTGGGATTACAGGCGTGAGCCACCGCGCCCGGCCTTTTTGAGA
+CGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCGCGATCTCGGCTCACTGCAAC
+CTCCGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATTACA
+GGCGCGCGCCACCACGCCCGGCTAATTTTTGTATTTTTAGTAGAGACGGGGTTTCACCAT
+GTTGGCCAGGCTGGTCTCGAACTCCTGACCTCAGGTGATCCGCCCGCCTCGGCCTCCCAA
+AGTGCTGGGATTACAGGCGTGAGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTC
+TGTCGCCCAGGCTGGAGTGCAGTGGCGCGATCTCGGCTCACTGCAACCTCCGCCTCCCGG
+GTTCAAGCGATTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCACC
+ACGCCCGGCTAATTTTTGTATTTTTAGTAGAGACGGGGTTTCACCATGTTGGCCAGGCTG
+GTCTCGAACTCCTGACCTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTA
+CAGGCGTGAGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCT
+GGAGTGCAGTGGCGCGATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTC
+TCCTGCCTCAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCACCACGCCCGGCTAAT
+TTTTGTATTTTTAGTAGAGACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAACTCCT
+GACCTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTACAGGCGTGAGCCA
+CCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGC
+GCGATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCAGCC
+TCCCGAGTAGCTGGGATTACAGGCGCGCGCCACCACGCCCGGCTAATTTTTGTATTTTTA
+GTAGAGACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAACTCCTGACCTCAGGTGAT
+CCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTACAGGCGTGAGCCACCGCGCCCGGCCT
+TTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCGCGATCTCGGCTC
+ACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCAGCCTCCCGAGTAGCTG
+GGATTACAGGCGCGCGCCACCACGCCCGGCTAATTTTTGTATTTTTAGTAGAGACGGGGT
+TTCACCATGTTGGCCAGGCTGGTCTCGAACTCCTGACCTCAGGTGATCCGCCCGCCTCGG
+CCTCCCAAAGTGCTGGGATTACAGGCGTGAGCCACCGCGCCCGGCCTTTTTGAGACGGAG
+TCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCGCGATCTCGGCTCACTGCAACCTCCG
+CCTCCCGGGTTCAAGCGATTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATTACAGGCGC
+GCGCCACCACGCCCGGCTAATTTTTGTATTTTTAGTAGAGACGGGGTTTCACCATGTTGG
+CCAGGCTGGTCTCGAACTCCTGACCTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGC
+TGGGATTACAGGCGTGAGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCG
+CCCAGGCTGGAGTGCAGTGGCGCGATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCA
+AGCGATTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCACCACGCC
+CGGCTAATTTTTGTATTTTTAGTAGAGACGGGGTTTCACCATGTTGGCCAGGCTGGTCTC
+GAACTCCTGACCTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTACAGGC
+GTGAGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGT
+GCAGTGGCGCGATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTG
+CCTCAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCACCACGCCCGGCTAATTTTTG
+TATTTTTAGTAGAGACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAACTCCTGACCT
+CAGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTACAGGCGTGAGCCACCGCG
+CCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCGCGAT
+CTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCAGCCTCCCG
+AGTAGCTGGGATTACAGGCGCGCGCCACCACGCCCGGCTAATTTTTGTATTTTTAGTAGA
+GACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAACTCCTGACCTCAGGTGATCCGCC
+CGCCTCGGCCTCCCAAAGTGCTGGGATTACAGGCGTGAGCCACCGCGCCCGGCCTTTTTG
+AGACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCGCGATCTCGGCTCACTGC
+AACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATT
+ACAGGCGCGCGCCACCACGCCCGGCTAATTTTTGTATTTTTAGTAGAGACGGGGTTTCAC
+CATGTTGGCCAGGCTGGTCTCGAACTCCTGACCTCAGGTGATCCGCCCGCCTCGGCCTCC
+CAAAGTGCTGGGATTACAGGCGTGAGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCG
+CTCTGTCGCCCAGGCTGGAGTGCAGTGGCGCGATCTCGGCTCACTGCAACCTCCGCCTCC
+CGGGTTCAAGCGATTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCC
+ACCACGCCCGGCTAATTTTTGTATTTTTAGTAGAGACGGGGTTTCACCATGTTGGCCAGG
+CTGGTCTCGAACTCCTGACCTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGA
+TTACAGGCGTGAGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAG
+GCTGGAGTGCAGTGGCGCGATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGA
+TTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCACCACGCCCGGCT
+AATTTTTGTATTTTTAGTAGAGACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAACT
+CCTGACCTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTACAGGCGTGAG
+CCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGT
+GGCGCGATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCA
+GCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCACCACGCCCGGCTAATTTTTGTATTT
+TTAGTAGAGACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAACTCCTGACCTCAGGT
+GATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTACAGGCGTGAGCCACCGCGCCCGG
+CCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCGCGATCTCGG
+CTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCAGCCTCCCGAGTAG
+CTGGGATTACAGGCGCGCGCCACCACGCCCGGCTAATTTTTGTATTTTTAGTAGAGACGG
+GGTTTCACCATGTTGGCCAGGCTGGTCTCGAACTCCTGACCTCAGGTGATCCGCCCGCCT
+CGGCCTCCCAAAGTGCTGGGATTACAGGCGTGAGCCACCGCGCCCGGCCTTTTTGAGACG
+GAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCGCGATCTCGGCTCACTGCAACCT
+CCGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATTACAGG
+CGCGCGCCACCACGCCCGGCTAATTTTTGTATTTTTAGTAGAGACGGGGTTTCACCATGT
+TGGCCAGGCTGGTCTCGAACTCCTGACCTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAG
+TGCTGGGATTACAGGCGTGAGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTG
+TCGCCCAGGCTGGAGTGCAGTGGCGCGATCTCGGCTCACTGCAACCTCCGCCTCCCGGGT
+TCAAGCGATTCTCCTGCCTCAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCACCAC
+GCCCGGCTAATTTTTGTATTTTTAGTAGAGACGGGGTTTCACCATGTTGGCCAGGCTGGT
+CTCGAACTCCTGACCTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTACA
+GGCGTGAGCCACCGCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGG
+AGTGCAGTGGCGCGATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTCTC
+CTGCCTCAGCCTCCCGAGTAGCTGGGATTACAGGCGCGCGCCACCACGCCCGGCTAATTT
+TTGTATTTTTAGTAGAGACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAACTCCTGA
+CCTCAGGTGATCCGCCCGCCTCGGCCTCCCAAAGTGCTGGGATTACAGGCGTGAGCCACC
+GCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCGC
+GATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCAGCCTC
+CCGAGTAGCTGGGATTACAGGCGCGCGCCACCACGCCCGGCTAATTTTTGTATTTTTAGT
+AGAGACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAACTCCTGACCTCAGGTGATCC
+GCCCGCCTCGGCCTCCCAAAGTGCTGGGATT    </pre>
+  </section>
+</article>
+<footer>
+  <nav>
+    <ul>
+      <li><a href="../license.html"><span>3-Clause BSD License</span></a>
+    </ul>
+  </nav>
+</footer>
+
