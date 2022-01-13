@@ -30,11 +30,11 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="slc">--</span>
 <span class="slc">-- 21 September 2008</span>
 
-<span class="kwa">local</span> gmp<span class="opt">,</span> aux <span class="opt">= {}, {}</span>
-require <span class="str">&quot;c-gmp&quot;</span> <span class="opt">(</span>gmp<span class="opt">,</span> aux<span class="opt">)</span>
-<span class="kwa">local</span> add<span class="opt">,</span> mul<span class="opt">,</span> div <span class="opt">=</span> gmp<span class="opt">.</span>mpz_add<span class="opt">,</span> gmp<span class="opt">.</span>mpz_mul_ui<span class="opt">,</span> gmp<span class="opt">.</span>mpz_fdiv_q
-<span class="kwa">local</span> addmul<span class="opt">,</span> submul <span class="opt">=</span> gmp<span class="opt">.</span>mpz_addmul_ui<span class="opt">,</span> gmp<span class="opt">.</span>mpz_submul_ui
-<span class="kwa">local</span> init<span class="opt">,</span> get<span class="opt">,</span> set <span class="opt">=</span> gmp<span class="opt">.</span>mpz_init_set_d<span class="opt">,</span> gmp<span class="opt">.</span>mpz_get_d<span class="opt">,</span> gmp<span class="opt">.</span>mpz_set
+<span class="kwa">local</span> gmp, aux = {}, {}
+require <span class="str">&quot;c-gmp&quot;</span> (gmp, aux)
+<span class="kwa">local</span> add, mul, div = gmp.mpz_add, gmp.mpz_mul_ui, gmp.mpz_fdiv_q
+<span class="kwa">local</span> addmul, submul = gmp.mpz_addmul_ui, gmp.mpz_submul_ui
+<span class="kwa">local</span> init, get, set = gmp.mpz_init_set_d, gmp.mpz_get_d, gmp.mpz_set
 
 <span class="slc">--</span>
 <span class="slc">-- Production:</span>
@@ -42,12 +42,12 @@ require <span class="str">&quot;c-gmp&quot;</span> <span class="opt">(</span>gmp
 <span class="slc">-- [m11 m12]     [m11 m12][k  4*k+2]</span>
 <span class="slc">-- [ 0  m22] &lt;-- [ 0  m22][0  2*k+1]</span>
 <span class="slc">--</span>
-<span class="kwa">local function</span> <span class="kwd">produce</span><span class="opt">(</span>m11<span class="opt">,</span> m12<span class="opt">,</span> m22<span class="opt">,</span> k<span class="opt">)</span>
-  <span class="kwa">local</span> p <span class="opt">=</span> <span class="num">2</span><span class="opt">*</span>k <span class="opt">+</span> <span class="num">1</span>
-  <span class="kwd">mul</span><span class="opt">(</span>m12<span class="opt">,</span> p<span class="opt">,</span> m12<span class="opt">)</span>
-  <span class="kwd">addmul</span><span class="opt">(</span>m12<span class="opt">,</span> m11<span class="opt">,</span> <span class="num">2</span><span class="opt">*</span>p<span class="opt">)</span>
-  <span class="kwd">mul</span><span class="opt">(</span>m11<span class="opt">,</span> k<span class="opt">,</span> m11<span class="opt">)</span>
-  <span class="kwd">mul</span><span class="opt">(</span>m22<span class="opt">,</span> p<span class="opt">,</span> m22<span class="opt">)</span>
+<span class="kwa">local function</span> <span class="kwd">produce</span>(m11, m12, m22, k)
+  <span class="kwa">local</span> p = <span class="num">2</span>*k + <span class="num">1</span>
+  <span class="kwd">mul</span>(m12, p, m12)
+  <span class="kwd">addmul</span>(m12, m11, <span class="num">2</span>*p)
+  <span class="kwd">mul</span>(m11, k, m11)
+  <span class="kwd">mul</span>(m22, p, m22)
 <span class="kwa">end</span>
 
 <span class="slc">--</span>
@@ -56,10 +56,10 @@ require <span class="str">&quot;c-gmp&quot;</span> <span class="opt">(</span>gmp
 <span class="slc">-- [m11 m12]     [10 -10*d][m11 m12]</span>
 <span class="slc">-- [ 0  m22] &lt;-- [ 0   1  ][ 0  m22]</span>
 <span class="slc">--</span>
-<span class="kwa">local function</span> <span class="kwd">extract</span><span class="opt">(</span>m11<span class="opt">,</span> m12<span class="opt">,</span> m22<span class="opt">,</span> d<span class="opt">)</span>
-  <span class="kwd">submul</span><span class="opt">(</span>m12<span class="opt">,</span> m22<span class="opt">,</span> d<span class="opt">)</span>
-  <span class="kwd">mul</span><span class="opt">(</span>m11<span class="opt">,</span> <span class="num">10</span><span class="opt">,</span> m11<span class="opt">)</span>
-  <span class="kwd">mul</span><span class="opt">(</span>m12<span class="opt">,</span> <span class="num">10</span><span class="opt">,</span> m12<span class="opt">)</span>
+<span class="kwa">local function</span> <span class="kwd">extract</span>(m11, m12, m22, d)
+  <span class="kwd">submul</span>(m12, m22, d)
+  <span class="kwd">mul</span>(m11, <span class="num">10</span>, m11)
+  <span class="kwd">mul</span>(m12, <span class="num">10</span>, m12)
 <span class="kwa">end</span>
 
 <span class="slc">--</span>
@@ -68,34 +68,34 @@ require <span class="str">&quot;c-gmp&quot;</span> <span class="opt">(</span>gmp
 <span class="slc">-- [p]   [m11 m12][d]</span>
 <span class="slc">-- [q] = [ 0  m22][1]</span>
 <span class="slc">--</span>
-<span class="kwa">local function</span> <span class="kwd">digit</span><span class="opt">(</span>m11<span class="opt">,</span> m12<span class="opt">,</span> m22<span class="opt">,</span> d<span class="opt">,</span> tmp<span class="opt">)</span>
-  <span class="kwd">set</span><span class="opt">(</span>tmp<span class="opt">,</span> m12<span class="opt">)</span>
-  <span class="kwd">addmul</span><span class="opt">(</span>tmp<span class="opt">,</span> m11<span class="opt">,</span> d<span class="opt">)</span>
-  <span class="kwd">div</span><span class="opt">(</span>tmp<span class="opt">,</span> m22<span class="opt">,</span> tmp<span class="opt">)</span>
-  <span class="kwa">return</span> <span class="kwd">get</span><span class="opt">(</span>tmp<span class="opt">)</span>
+<span class="kwa">local function</span> <span class="kwd">digit</span>(m11, m12, m22, d, tmp)
+  <span class="kwd">set</span>(tmp, m12)
+  <span class="kwd">addmul</span>(tmp, m11, d)
+  <span class="kwd">div</span>(tmp, m22, tmp)
+  <span class="kwa">return</span> <span class="kwd">get</span>(tmp)
 <span class="kwa">end</span>
 
 <span class="slc">-- Generate successive digits of PI.</span>
-<span class="kwa">local function</span> <span class="kwd">pidigits</span><span class="opt">(</span>N<span class="opt">)</span>
-  <span class="kwa">local</span> <span class="kwb">write</span> <span class="opt">=</span> io<span class="opt">.</span><span class="kwb">write</span>
-  <span class="kwa">local</span> m11<span class="opt">,</span> m12<span class="opt">,</span> m22<span class="opt">,</span> tmp <span class="opt">=</span> <span class="kwd">init</span><span class="opt">(</span><span class="num">1</span><span class="opt">),</span> <span class="kwd">init</span><span class="opt">(</span><span class="num">0</span><span class="opt">),</span> <span class="kwd">init</span><span class="opt">(</span><span class="num">1</span><span class="opt">),</span> <span class="kwd">init</span><span class="opt">(</span><span class="num">0</span><span class="opt">)</span>
-  <span class="kwa">local</span> k<span class="opt">,</span> i <span class="opt">=</span> <span class="num">1</span><span class="opt">,</span> <span class="num">0</span>
-  <span class="kwa">while</span> i <span class="opt">&lt;</span> N <span class="kwa">do</span>
-    <span class="kwa">local</span> d <span class="opt">=</span> <span class="kwd">digit</span><span class="opt">(</span>m11<span class="opt">,</span> m12<span class="opt">,</span> m22<span class="opt">,</span> <span class="num">3</span><span class="opt">,</span> tmp<span class="opt">)</span>
-    <span class="kwa">if</span> d <span class="opt">==</span> <span class="kwd">digit</span><span class="opt">(</span>m11<span class="opt">,</span> m12<span class="opt">,</span> m22<span class="opt">,</span> <span class="num">4</span><span class="opt">,</span> tmp<span class="opt">)</span> <span class="kwa">then</span>
-      <span class="kwb">write</span><span class="opt">(</span>d<span class="opt">)</span>
-      <span class="kwd">extract</span><span class="opt">(</span>m11<span class="opt">,</span> m12<span class="opt">,</span> m22<span class="opt">,</span> d<span class="opt">)</span>
-      i <span class="opt">=</span> i <span class="opt">+</span> <span class="num">1</span><span class="opt">;</span> <span class="kwa">if</span> i <span class="opt">%</span> <span class="num">10</span> <span class="opt">==</span> <span class="num">0</span> <span class="kwa">then</span> <span class="kwb">write</span><span class="opt">(</span><span class="str">&quot;</span><span class="esc">\t</span><span class="str">:&quot;</span><span class="opt">,</span> i<span class="opt">,</span> <span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">)</span> <span class="kwa">end</span>
+<span class="kwa">local function</span> <span class="kwd">pidigits</span>(N)
+  <span class="kwa">local</span> <span class="kwb">write</span> = io.<span class="kwb">write</span>
+  <span class="kwa">local</span> m11, m12, m22, tmp = <span class="kwd">init</span>(<span class="num">1</span>), <span class="kwd">init</span>(<span class="num">0</span>), <span class="kwd">init</span>(<span class="num">1</span>), <span class="kwd">init</span>(<span class="num">0</span>)
+  <span class="kwa">local</span> k, i = <span class="num">1</span>, <span class="num">0</span>
+  <span class="kwa">while</span> i &lt; N <span class="kwa">do</span>
+    <span class="kwa">local</span> d = <span class="kwd">digit</span>(m11, m12, m22, <span class="num">3</span>, tmp)
+    <span class="kwa">if</span> d == <span class="kwd">digit</span>(m11, m12, m22, <span class="num">4</span>, tmp) <span class="kwa">then</span>
+      <span class="kwb">write</span>(d)
+      <span class="kwd">extract</span>(m11, m12, m22, d)
+      i = i + <span class="num">1</span>; <span class="kwa">if</span> i % <span class="num">10</span> == <span class="num">0</span> <span class="kwa">then</span> <span class="kwb">write</span>(<span class="str">&quot;</span><span class="esc">\t</span><span class="str">:&quot;</span>, i, <span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span>) <span class="kwa">end</span>
     <span class="kwa">else</span>
-      <span class="kwd">produce</span><span class="opt">(</span>m11<span class="opt">,</span> m12<span class="opt">,</span> m22<span class="opt">,</span> k<span class="opt">)</span>
-      k <span class="opt">=</span> k <span class="opt">+</span> <span class="num">1</span>
+      <span class="kwd">produce</span>(m11, m12, m22, k)
+      k = k + <span class="num">1</span>
     <span class="kwa">end</span>
   <span class="kwa">end</span>
-  <span class="kwa">if</span> i <span class="opt">%</span> <span class="num">10</span> <span class="opt">~=</span> <span class="num">0</span> <span class="kwa">then</span> <span class="kwb">write</span><span class="opt">(</span><span class="kwb">string</span><span class="opt">.</span><span class="kwd">rep</span><span class="opt">(</span><span class="str">&quot; &quot;</span><span class="opt">,</span> <span class="num">10</span> <span class="opt">-</span> N <span class="opt">%</span> <span class="num">10</span><span class="opt">),</span> <span class="str">&quot;</span><span class="esc">\t</span><span class="str">:&quot;</span><span class="opt">,</span> N<span class="opt">,</span> <span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">)</span> <span class="kwa">end</span>
+  <span class="kwa">if</span> i % <span class="num">10</span> ~= <span class="num">0</span> <span class="kwa">then</span> <span class="kwb">write</span>(<span class="kwb">string</span>.<span class="kwd">rep</span>(<span class="str">&quot; &quot;</span>, <span class="num">10</span> - N % <span class="num">10</span>), <span class="str">&quot;</span><span class="esc">\t</span><span class="str">:&quot;</span>, N, <span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span>) <span class="kwa">end</span>
 <span class="kwa">end</span>
 
-<span class="kwa">local</span> N <span class="opt">=</span> <span class="kwb">tonumber</span><span class="opt">(</span>arg <span class="kwa">and</span> arg<span class="opt">[</span><span class="num">1</span><span class="opt">])</span> <span class="kwa">or</span> <span class="num">27</span>
-<span class="kwd">pidigits</span><span class="opt">(</span>N<span class="opt">)</span>
+<span class="kwa">local</span> N = <span class="kwb">tonumber</span>(arg <span class="kwa">and</span> arg[<span class="num">1</span>]) <span class="kwa">or</span> <span class="num">27</span>
+<span class="kwd">pidigits</span>(N)
 
     </pre>
   </section>
@@ -106,20 +106,20 @@ require <span class="str">&quot;c-gmp&quot;</span> <span class="opt">(</span>gmp
     <pre>
 NOTES:
 64-bit Ubuntu quad core
-Lua 5.4.2  Copyright (C) 1994-2020 Lua.org, PUC-Rio
+Lua 5.4.3  Copyright (C) 1994-2021 Lua.org, PUC-Rio
 
 
-Mon, 22 Feb 2021 00:25:23 GMT
+Sun, 09 Jan 2022 04:50:31 GMT
 
 COMMAND LINE:
-/opt/src/lua-5.4.2/bin/lua  pidigits.lua-7.lua 2000
+/opt/src/lua-5.4.3/install/bin/lua  pidigits.lua-7.lua 2000
 
 PROGRAM FAILED 
 
 
 PROGRAM OUTPUT:
 
-/opt/src/lua-5.4.2/bin/lua: pidigits.lua-7.lua:10: module 'c-gmp' not found:
+/opt/src/lua-5.4.3/install/bin/lua: pidigits.lua-7.lua:10: module 'c-gmp' not found:
 	no field package.preload['c-gmp']
 	no file '/usr/local/share/lua/5.4/c-gmp.lua'
 	no file '/usr/local/share/lua/5.4/c-gmp/init.lua'

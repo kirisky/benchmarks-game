@@ -36,243 +36,243 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="slc">-- - Processed 64 pixels at a time if width was a multiple of 64,</span>
 <span class="slc">--    thereby reducing writes to the bitmap.</span>
 
-<span class="kwd">import</span> GHC<span class="opt">.</span><span class="kwb">IO</span>
-<span class="kwd">import</span> GHC<span class="opt">.</span>Exts
-<span class="kwd">import</span> System<span class="opt">.</span>Environment
-<span class="kwd">import qualified</span> Data<span class="opt">.</span>ByteString<span class="opt">.</span>Char8 <span class="kwd">as</span> B
-<span class="kwd">import qualified</span> Data<span class="opt">.</span>ByteString<span class="opt">.</span>Unsafe <span class="kwd">as</span> B
-<span class="kwd">import</span> Control<span class="opt">.</span>Monad
+<span class="kwd">import</span> GHC.<span class="kwb">IO</span>
+<span class="kwd">import</span> GHC.Exts
+<span class="kwd">import</span> System.Environment
+<span class="kwd">import qualified</span> Data.ByteString.Char8 <span class="kwd">as</span> B
+<span class="kwd">import qualified</span> Data.ByteString.Unsafe <span class="kwd">as</span> B
+<span class="kwd">import</span> Control.Monad
 
 <span class="com">{-# INLINE vecNLE #-}</span>
-vecNLE <span class="opt">::</span> DoubleX24<span class="opt"># -&gt;</span> <span class="kwb">Double</span><span class="opt"># -&gt;</span> <span class="kwb">Int</span><span class="opt">#</span>
-vecNLE <span class="opt">(#</span> v0<span class="opt">,</span> v1<span class="opt">,</span> v2<span class="opt">,</span> v3 <span class="opt">#)</span> f
-  <span class="opt">=  ((</span>v00 <span class="opt">&gt;##</span> f<span class="opt">)</span>
-  `andI<span class="opt">#</span>` <span class="opt">(</span>v01 <span class="opt">&gt;##</span> f<span class="opt">)</span>
-  `andI<span class="opt">#</span>` <span class="opt">(</span>v10 <span class="opt">&gt;##</span> f<span class="opt">)</span>
-  `andI<span class="opt">#</span>` <span class="opt">(</span>v11 <span class="opt">&gt;##</span> f<span class="opt">)</span>
-  `andI<span class="opt">#</span>` <span class="opt">(</span>v20 <span class="opt">&gt;##</span> f<span class="opt">)</span>
-  `andI<span class="opt">#</span>` <span class="opt">(</span>v21 <span class="opt">&gt;##</span> f<span class="opt">)</span>
-  `andI<span class="opt">#</span>` <span class="opt">(</span>v30 <span class="opt">&gt;##</span> f<span class="opt">)</span>
-  `andI<span class="opt">#</span>` <span class="opt">(</span>v31 <span class="opt">&gt;##</span> f<span class="opt">))</span>
+vecNLE :: DoubleX24# -&gt; <span class="kwb">Double</span># -&gt; <span class="kwb">Int</span>#
+vecNLE (# v0, v1, v2, v3 #) f
+  =  ((v00 &gt;## f)
+  `andI#` (v01 &gt;## f)
+  `andI#` (v10 &gt;## f)
+  `andI#` (v11 &gt;## f)
+  `andI#` (v20 &gt;## f)
+  `andI#` (v21 &gt;## f)
+  `andI#` (v30 &gt;## f)
+  `andI#` (v31 &gt;## f))
   <span class="kwd">where</span>
-    <span class="opt">!(#</span> v00<span class="opt">,</span> v01 <span class="opt">#) =</span> unpackDoubleX2<span class="opt">#</span> v0
-    <span class="opt">!(#</span> v10<span class="opt">,</span> v11 <span class="opt">#) =</span> unpackDoubleX2<span class="opt">#</span> v1
-    <span class="opt">!(#</span> v20<span class="opt">,</span> v21 <span class="opt">#) =</span> unpackDoubleX2<span class="opt">#</span> v2
-    <span class="opt">!(#</span> v30<span class="opt">,</span> v31 <span class="opt">#) =</span> unpackDoubleX2<span class="opt">#</span> v3
+    !(# v00, v01 #) = unpackDoubleX2# v0
+    !(# v10, v11 #) = unpackDoubleX2# v1
+    !(# v20, v21 #) = unpackDoubleX2# v2
+    !(# v30, v31 #) = unpackDoubleX2# v3
 
 <span class="com">{-# INLINE pixelsGT #-}</span>
-pixelsGT <span class="opt">::</span> DoubleX24<span class="opt"># -&gt;</span> <span class="kwb">Double</span><span class="opt"># -&gt;</span> Word<span class="opt">#</span>
-pixelsGT <span class="opt">(#</span> v0<span class="opt">,</span> v1<span class="opt">,</span> v2<span class="opt">,</span> v3 <span class="opt">#)</span> f
-  <span class="opt">=     ((</span>int2Word<span class="opt"># (</span>v00 <span class="opt">&lt;=##</span> f<span class="opt">))</span> `uncheckedShiftL<span class="opt">#</span>` <span class="num">7</span><span class="opt">#)</span>
-  `<span class="kwa">or</span><span class="opt">#</span>` <span class="opt">((</span>int2Word<span class="opt"># (</span>v01 <span class="opt">&lt;=##</span> f<span class="opt">))</span> `uncheckedShiftL<span class="opt">#</span>` <span class="num">6</span><span class="opt">#)</span>
-  `<span class="kwa">or</span><span class="opt">#</span>` <span class="opt">((</span>int2Word<span class="opt"># (</span>v10 <span class="opt">&lt;=##</span> f<span class="opt">))</span> `uncheckedShiftL<span class="opt">#</span>` <span class="num">5</span><span class="opt">#)</span>
-  `<span class="kwa">or</span><span class="opt">#</span>` <span class="opt">((</span>int2Word<span class="opt"># (</span>v11 <span class="opt">&lt;=##</span> f<span class="opt">))</span> `uncheckedShiftL<span class="opt">#</span>` <span class="num">4</span><span class="opt">#)</span>
-  `<span class="kwa">or</span><span class="opt">#</span>` <span class="opt">((</span>int2Word<span class="opt"># (</span>v20 <span class="opt">&lt;=##</span> f<span class="opt">))</span> `uncheckedShiftL<span class="opt">#</span>` <span class="num">3</span><span class="opt">#)</span>
-  `<span class="kwa">or</span><span class="opt">#</span>` <span class="opt">((</span>int2Word<span class="opt"># (</span>v21 <span class="opt">&lt;=##</span> f<span class="opt">))</span> `uncheckedShiftL<span class="opt">#</span>` <span class="num">2</span><span class="opt">#)</span>
-  `<span class="kwa">or</span><span class="opt">#</span>` <span class="opt">((</span>int2Word<span class="opt"># (</span>v30 <span class="opt">&lt;=##</span> f<span class="opt">))</span> `uncheckedShiftL<span class="opt">#</span>` <span class="num">1</span><span class="opt">#)</span>
-  `<span class="kwa">or</span><span class="opt">#</span>` <span class="opt">((</span>int2Word<span class="opt"># (</span>v31 <span class="opt">&lt;=##</span> f<span class="opt">))</span> <span class="com">{- `uncheckedShiftL#` 0# -}</span><span class="opt">)</span>
+pixelsGT :: DoubleX24# -&gt; <span class="kwb">Double</span># -&gt; Word#
+pixelsGT (# v0, v1, v2, v3 #) f
+  =     ((int2Word# (v00 &lt;=## f)) `uncheckedShiftL#` <span class="num">7</span>#)
+  `<span class="kwa">or</span>#` ((int2Word# (v01 &lt;=## f)) `uncheckedShiftL#` <span class="num">6</span>#)
+  `<span class="kwa">or</span>#` ((int2Word# (v10 &lt;=## f)) `uncheckedShiftL#` <span class="num">5</span>#)
+  `<span class="kwa">or</span>#` ((int2Word# (v11 &lt;=## f)) `uncheckedShiftL#` <span class="num">4</span>#)
+  `<span class="kwa">or</span>#` ((int2Word# (v20 &lt;=## f)) `uncheckedShiftL#` <span class="num">3</span>#)
+  `<span class="kwa">or</span>#` ((int2Word# (v21 &lt;=## f)) `uncheckedShiftL#` <span class="num">2</span>#)
+  `<span class="kwa">or</span>#` ((int2Word# (v30 &lt;=## f)) `uncheckedShiftL#` <span class="num">1</span>#)
+  `<span class="kwa">or</span>#` ((int2Word# (v31 &lt;=## f)) <span class="com">{- `uncheckedShiftL#` 0# -}</span>)
   <span class="kwd">where</span>
-    <span class="opt">!(#</span> v00<span class="opt">,</span> v01 <span class="opt">#) =</span> unpackDoubleX2<span class="opt">#</span> v0
-    <span class="opt">!(#</span> v10<span class="opt">,</span> v11 <span class="opt">#) =</span> unpackDoubleX2<span class="opt">#</span> v1
-    <span class="opt">!(#</span> v20<span class="opt">,</span> v21 <span class="opt">#) =</span> unpackDoubleX2<span class="opt">#</span> v2
-    <span class="opt">!(#</span> v30<span class="opt">,</span> v31 <span class="opt">#) =</span> unpackDoubleX2<span class="opt">#</span> v3
+    !(# v00, v01 #) = unpackDoubleX2# v0
+    !(# v10, v11 #) = unpackDoubleX2# v1
+    !(# v20, v21 #) = unpackDoubleX2# v2
+    !(# v30, v31 #) = unpackDoubleX2# v3
 
 <span class="com">{-# INLINE calcSum #-}</span>
 calcSum
-  <span class="opt">::</span> DoubleX24<span class="opt">#</span>
-  <span class="opt">-&gt;</span> DoubleX2<span class="opt">#</span>
-  <span class="opt">-&gt; (#</span> DoubleX24<span class="opt">#,</span> DoubleX24<span class="opt">#,</span> DoubleX24<span class="opt"># #)</span>
-  <span class="opt">-&gt; (#</span> DoubleX24<span class="opt">#,</span> DoubleX24<span class="opt">#,</span> DoubleX24<span class="opt"># #)</span>
+  :: DoubleX24#
+  -&gt; DoubleX2#
+  -&gt; (# DoubleX24#, DoubleX24#, DoubleX24# #)
+  -&gt; (# DoubleX24#, DoubleX24#, DoubleX24# #)
 calcSum
-  <span class="opt">(#</span> initR0<span class="opt">,</span> initR1<span class="opt">,</span> initR2<span class="opt">,</span> initR3 <span class="opt">#)</span>
+  (# initR0, initR1, initR2, initR3 #)
   initI
-  <span class="opt">(# (#</span> r00<span class="opt">,</span> r10<span class="opt">,</span> r20<span class="opt">,</span> r30 <span class="opt">#)</span>
-  <span class="opt">,  (#</span> i00<span class="opt">,</span> i10<span class="opt">,</span> i20<span class="opt">,</span> i30 <span class="opt">#)</span>
-  <span class="opt">,  (#</span> _<span class="opt">,</span> _<span class="opt">,</span> _<span class="opt">,</span> _ <span class="opt">#) #)</span>
-  <span class="opt">= (# (#</span> r01<span class="opt">,</span> r11<span class="opt">,</span> r21<span class="opt">,</span> r31 <span class="opt">#)</span>
-    <span class="opt">,  (#</span> i01<span class="opt">,</span> i11<span class="opt">,</span> i21<span class="opt">,</span> i31 <span class="opt">#)</span>
-    <span class="opt">,  (#</span> sum01<span class="opt">,</span> sum11<span class="opt">,</span> sum21<span class="opt">,</span> sum31 <span class="opt">#) #)</span>
+  (# (# r00, r10, r20, r30 #)
+  ,  (# i00, i10, i20, i30 #)
+  ,  (# _, _, _, _ #) #)
+  = (# (# r01, r11, r21, r31 #)
+    ,  (# i01, i11, i21, i31 #)
+    ,  (# sum01, sum11, sum21, sum31 #) #)
   <span class="kwd">where</span>
-    r<span class="opt">&apos;</span><span class="num">0</span> <span class="opt">=</span> r00 `timesDoubleX2<span class="opt">#</span>` r00
-    i<span class="opt">&apos;</span><span class="num">0</span> <span class="opt">=</span> i00 `timesDoubleX2<span class="opt">#</span>` i00
-    ri0 <span class="opt">=</span> r00 `timesDoubleX2<span class="opt">#</span>` i00
-    sum01 <span class="opt">=</span> r<span class="opt">&apos;</span><span class="num">0</span> `plusDoubleX2<span class="opt">#</span>` i<span class="opt">&apos;</span><span class="num">0</span>
-    r01 <span class="opt">= (</span>r<span class="opt">&apos;</span><span class="num">0</span> `minusDoubleX2<span class="opt">#</span>` i<span class="opt">&apos;</span><span class="num">0</span><span class="opt">)</span> `plusDoubleX2<span class="opt">#</span>` initR0
-    i01 <span class="opt">= (</span>ri0 `plusDoubleX2<span class="opt">#</span>` ri0<span class="opt">)</span> `plusDoubleX2<span class="opt">#</span>` initI
+    r&apos;<span class="num">0</span> = r00 `timesDoubleX2#` r00
+    i&apos;<span class="num">0</span> = i00 `timesDoubleX2#` i00
+    ri0 = r00 `timesDoubleX2#` i00
+    sum01 = r&apos;<span class="num">0</span> `plusDoubleX2#` i&apos;<span class="num">0</span>
+    r01 = (r&apos;<span class="num">0</span> `minusDoubleX2#` i&apos;<span class="num">0</span>) `plusDoubleX2#` initR0
+    i01 = (ri0 `plusDoubleX2#` ri0) `plusDoubleX2#` initI
     
-    r<span class="opt">&apos;</span><span class="num">1</span> <span class="opt">=</span> r10 `timesDoubleX2<span class="opt">#</span>` r10
-    i<span class="opt">&apos;</span><span class="num">1</span> <span class="opt">=</span> i10 `timesDoubleX2<span class="opt">#</span>` i10
-    ri1 <span class="opt">=</span> r10 `timesDoubleX2<span class="opt">#</span>` i10
-    sum11 <span class="opt">=</span> r<span class="opt">&apos;</span><span class="num">1</span> `plusDoubleX2<span class="opt">#</span>` i<span class="opt">&apos;</span><span class="num">1</span>
-    r11 <span class="opt">= (</span>r<span class="opt">&apos;</span><span class="num">1</span> `minusDoubleX2<span class="opt">#</span>` i<span class="opt">&apos;</span><span class="num">1</span><span class="opt">)</span> `plusDoubleX2<span class="opt">#</span>` initR1
-    i11 <span class="opt">= (</span>ri1 `plusDoubleX2<span class="opt">#</span>` ri1<span class="opt">)</span> `plusDoubleX2<span class="opt">#</span>` initI
+    r&apos;<span class="num">1</span> = r10 `timesDoubleX2#` r10
+    i&apos;<span class="num">1</span> = i10 `timesDoubleX2#` i10
+    ri1 = r10 `timesDoubleX2#` i10
+    sum11 = r&apos;<span class="num">1</span> `plusDoubleX2#` i&apos;<span class="num">1</span>
+    r11 = (r&apos;<span class="num">1</span> `minusDoubleX2#` i&apos;<span class="num">1</span>) `plusDoubleX2#` initR1
+    i11 = (ri1 `plusDoubleX2#` ri1) `plusDoubleX2#` initI
     
-    r<span class="opt">&apos;</span><span class="num">2</span> <span class="opt">=</span> r20 `timesDoubleX2<span class="opt">#</span>` r20
-    i<span class="opt">&apos;</span><span class="num">2</span> <span class="opt">=</span> i20 `timesDoubleX2<span class="opt">#</span>` i20
-    ri2 <span class="opt">=</span> r20 `timesDoubleX2<span class="opt">#</span>` i20
-    sum21 <span class="opt">=</span> r<span class="opt">&apos;</span><span class="num">2</span> `plusDoubleX2<span class="opt">#</span>` i<span class="opt">&apos;</span><span class="num">2</span>
-    r21 <span class="opt">= (</span>r<span class="opt">&apos;</span><span class="num">2</span> `minusDoubleX2<span class="opt">#</span>` i<span class="opt">&apos;</span><span class="num">2</span><span class="opt">)</span> `plusDoubleX2<span class="opt">#</span>` initR2
-    i21 <span class="opt">= (</span>ri2 `plusDoubleX2<span class="opt">#</span>` ri2<span class="opt">)</span> `plusDoubleX2<span class="opt">#</span>` initI
+    r&apos;<span class="num">2</span> = r20 `timesDoubleX2#` r20
+    i&apos;<span class="num">2</span> = i20 `timesDoubleX2#` i20
+    ri2 = r20 `timesDoubleX2#` i20
+    sum21 = r&apos;<span class="num">2</span> `plusDoubleX2#` i&apos;<span class="num">2</span>
+    r21 = (r&apos;<span class="num">2</span> `minusDoubleX2#` i&apos;<span class="num">2</span>) `plusDoubleX2#` initR2
+    i21 = (ri2 `plusDoubleX2#` ri2) `plusDoubleX2#` initI
     
-    r<span class="opt">&apos;</span><span class="num">3</span> <span class="opt">=</span> r30 `timesDoubleX2<span class="opt">#</span>` r30
-    i<span class="opt">&apos;</span><span class="num">3</span> <span class="opt">=</span> i30 `timesDoubleX2<span class="opt">#</span>` i30
-    ri3 <span class="opt">=</span> r30 `timesDoubleX2<span class="opt">#</span>` i30
-    sum31 <span class="opt">=</span> r<span class="opt">&apos;</span><span class="num">3</span> `plusDoubleX2<span class="opt">#</span>` i<span class="opt">&apos;</span><span class="num">3</span>
-    r31 <span class="opt">= (</span>r<span class="opt">&apos;</span><span class="num">3</span> `minusDoubleX2<span class="opt">#</span>` i<span class="opt">&apos;</span><span class="num">3</span><span class="opt">)</span> `plusDoubleX2<span class="opt">#</span>` initR3
-    i31 <span class="opt">= (</span>ri3 `plusDoubleX2<span class="opt">#</span>` ri3<span class="opt">)</span> `plusDoubleX2<span class="opt">#</span>` initI
+    r&apos;<span class="num">3</span> = r30 `timesDoubleX2#` r30
+    i&apos;<span class="num">3</span> = i30 `timesDoubleX2#` i30
+    ri3 = r30 `timesDoubleX2#` i30
+    sum31 = r&apos;<span class="num">3</span> `plusDoubleX2#` i&apos;<span class="num">3</span>
+    r31 = (r&apos;<span class="num">3</span> `minusDoubleX2#` i&apos;<span class="num">3</span>) `plusDoubleX2#` initR3
+    i31 = (ri3 `plusDoubleX2#` ri3) `plusDoubleX2#` initI
 
-<span class="kwd">type</span> DoubleX24<span class="opt"># = (#</span> DoubleX2<span class="opt">#,</span> DoubleX2<span class="opt">#,</span> DoubleX2<span class="opt">#,</span> DoubleX2<span class="opt"># #)</span>
+<span class="kwd">type</span> DoubleX24# = (# DoubleX2#, DoubleX2#, DoubleX2#, DoubleX2# #)
     
 <span class="com">{-# INLINE mand8 #-}</span>
-mand8 <span class="opt">::</span> ByteArray<span class="opt"># -&gt;</span> <span class="kwb">Int</span><span class="opt"># -&gt;</span> DoubleX2<span class="opt"># -&gt;</span> Word<span class="opt">#</span>
-mand8 initRs indexR initI <span class="opt">=</span> go1 <span class="num">6</span><span class="opt"># (#</span> initR<span class="opt">,</span> i<span class="opt">,</span> initSum <span class="opt">#)</span> <span class="kwd">where</span>
-  go1 <span class="opt">::</span> <span class="kwb">Int</span><span class="opt"># -&gt; (#</span> DoubleX24<span class="opt">#,</span> DoubleX24<span class="opt">#,</span> DoubleX24<span class="opt"># #) -&gt;</span> Word<span class="opt">#</span>
-  go1 <span class="num">0</span><span class="opt">#</span> s <span class="opt">=</span>
-    <span class="kwd">let</span> <span class="opt">!(#</span> _<span class="opt">,</span> _<span class="opt">,</span> <span class="kwa">sum</span> <span class="opt">#) =</span> calcSum initR initI <span class="opt">(</span>calcSum initR initI s<span class="opt">)</span>
-    <span class="kwd">in</span> pixelsGT <span class="kwa">sum</span> <span class="num">4.0</span><span class="opt">##</span> <span class="slc">-- 0xff##</span>
-  go1 n s <span class="opt">=</span>
-    <span class="kwd">let</span> s<span class="opt">&apos;&#64;(!(#</span> _<span class="opt">,</span> _<span class="opt">,</span> <span class="kwa">sum</span> <span class="opt">#)) =</span> go2 <span class="num">8</span><span class="opt">#</span> s
-    <span class="kwd">in if</span> isTrue<span class="opt"># (</span>vecNLE <span class="kwa">sum</span> <span class="num">4.0</span><span class="opt">##)</span> <span class="kwd">then</span> <span class="num">0x00</span><span class="opt">##</span> <span class="kwd">else</span> go1 <span class="opt">(</span>n <span class="opt">-#</span> <span class="num">1</span><span class="opt">#)</span> s<span class="opt">&apos;</span>
+mand8 :: ByteArray# -&gt; <span class="kwb">Int</span># -&gt; DoubleX2# -&gt; Word#
+mand8 initRs indexR initI = go1 <span class="num">6</span># (# initR, i, initSum #) <span class="kwd">where</span>
+  go1 :: <span class="kwb">Int</span># -&gt; (# DoubleX24#, DoubleX24#, DoubleX24# #) -&gt; Word#
+  go1 <span class="num">0</span># s =
+    <span class="kwd">let</span> !(# _, _, <span class="kwa">sum</span> #) = calcSum initR initI (calcSum initR initI s)
+    <span class="kwd">in</span> pixelsGT <span class="kwa">sum</span> <span class="num">4.0</span>## <span class="slc">-- 0xff##</span>
+  go1 n s =
+    <span class="kwd">let</span> s&apos;&#64;(!(# _, _, <span class="kwa">sum</span> #)) = go2 <span class="num">8</span># s
+    <span class="kwd">in if</span> isTrue# (vecNLE <span class="kwa">sum</span> <span class="num">4.0</span>##) <span class="kwd">then</span> <span class="num">0x00</span>## <span class="kwd">else</span> go1 (n -# <span class="num">1</span>#) s&apos;
 
-  go2 <span class="num">0</span><span class="opt">#</span> s <span class="opt">=</span> s
-  go2 n s <span class="opt">=</span> go2 <span class="opt">(</span>n <span class="opt">-#</span> <span class="num">1</span><span class="opt">#) (</span>calcSum initR initI s<span class="opt">)</span>
+  go2 <span class="num">0</span># s = s
+  go2 n s = go2 (n -# <span class="num">1</span>#) (calcSum initR initI s)
 
-  i <span class="opt">= (#</span> initI<span class="opt">,</span> initI<span class="opt">,</span> initI<span class="opt">,</span> initI <span class="opt">#)</span>
-  initSum <span class="opt">=</span>
-    <span class="opt">(#</span> broadcastDoubleX2<span class="opt">#</span> <span class="num">0.0</span><span class="opt">##</span>
-    <span class="opt">,</span>  broadcastDoubleX2<span class="opt">#</span> <span class="num">0.0</span><span class="opt">##</span>
-    <span class="opt">,</span>  broadcastDoubleX2<span class="opt">#</span> <span class="num">0.0</span><span class="opt">##</span>
-    <span class="opt">,</span>  broadcastDoubleX2<span class="opt">#</span> <span class="num">0.0</span><span class="opt">##</span>
-    <span class="opt">#)</span>
+  i = (# initI, initI, initI, initI #)
+  initSum =
+    (# broadcastDoubleX2# <span class="num">0.0</span>##
+    ,  broadcastDoubleX2# <span class="num">0.0</span>##
+    ,  broadcastDoubleX2# <span class="num">0.0</span>##
+    ,  broadcastDoubleX2# <span class="num">0.0</span>##
+    #)
 
-  initR0 <span class="opt">=</span> indexDoubleX2Array<span class="opt">#</span> initRs indexR
-  initR1 <span class="opt">=</span> indexDoubleX2Array<span class="opt">#</span> initRs <span class="opt">(</span>indexR <span class="opt">+#</span> <span class="num">1</span><span class="opt">#)</span>
-  initR2 <span class="opt">=</span> indexDoubleX2Array<span class="opt">#</span> initRs <span class="opt">(</span>indexR <span class="opt">+#</span> <span class="num">2</span><span class="opt">#)</span>
-  initR3 <span class="opt">=</span> indexDoubleX2Array<span class="opt">#</span> initRs <span class="opt">(</span>indexR <span class="opt">+#</span> <span class="num">3</span><span class="opt">#)</span>
-  initR <span class="opt">= (#</span> initR0<span class="opt">,</span> initR1<span class="opt">,</span> initR2<span class="opt">,</span> initR3 <span class="opt">#)</span>
+  initR0 = indexDoubleX2Array# initRs indexR
+  initR1 = indexDoubleX2Array# initRs (indexR +# <span class="num">1</span>#)
+  initR2 = indexDoubleX2Array# initRs (indexR +# <span class="num">2</span>#)
+  initR3 = indexDoubleX2Array# initRs (indexR +# <span class="num">3</span>#)
+  initR = (# initR0, initR1, initR2, initR3 #)
 
 <span class="com">{-# INLINE mand64 #-}</span>
-mand64 <span class="opt">::</span> ByteArray<span class="opt"># -&gt;</span> <span class="kwb">Int</span><span class="opt"># -&gt;</span> DoubleX2<span class="opt"># -&gt;</span> Word<span class="opt">#</span>
-mand64 initRs indexR initI <span class="opt">=</span> go <span class="num">8</span><span class="opt">#</span> indexR <span class="num">0</span><span class="opt">##</span> <span class="kwd">where</span>
-  go <span class="num">0</span><span class="opt">#</span> _ pix64 <span class="opt">=</span> pix64
-  go n indexR pix64 <span class="opt">=</span> go
-    <span class="opt">(</span>n <span class="opt">-#</span> <span class="num">1</span><span class="opt">#)</span>
-    <span class="opt">(</span>indexR <span class="opt">+#</span> <span class="num">4</span><span class="opt">#)</span>
-    <span class="opt">((</span>pix64 `uncheckedShiftRL<span class="opt">#</span>` <span class="num">8</span><span class="opt">#)</span> `<span class="kwa">or</span><span class="opt">#</span>` <span class="opt">((</span>mand8 initRs indexR initI<span class="opt">)</span> `uncheckedShiftL<span class="opt">#</span>` <span class="num">56</span><span class="opt">#))</span>
+mand64 :: ByteArray# -&gt; <span class="kwb">Int</span># -&gt; DoubleX2# -&gt; Word#
+mand64 initRs indexR initI = go <span class="num">8</span># indexR <span class="num">0</span>## <span class="kwd">where</span>
+  go <span class="num">0</span># _ pix64 = pix64
+  go n indexR pix64 = go
+    (n -# <span class="num">1</span>#)
+    (indexR +# <span class="num">4</span>#)
+    ((pix64 `uncheckedShiftRL#` <span class="num">8</span>#) `<span class="kwa">or</span>#` ((mand8 initRs indexR initI) `uncheckedShiftL#` <span class="num">56</span>#))
 
-main <span class="opt">::</span> <span class="kwb">IO</span> <span class="opt">()</span>
-main <span class="opt">=</span> <span class="kwd">do</span>
-  xs <span class="opt">&lt;-</span> <span class="kwc">getArgs</span>
+main :: <span class="kwb">IO</span> ()
+main = <span class="kwd">do</span>
+  xs &lt;- <span class="kwc">getArgs</span>
   <span class="kwd">let</span>
-    widHt <span class="opt">=</span> <span class="kwd">case</span> xs <span class="kwd">of</span>
-      <span class="opt">(</span>x <span class="opt">:</span> _<span class="opt">) -&gt;</span> <span class="kwc">read</span> x
-      _ <span class="opt">-&gt;</span> <span class="num">16000</span>
-    widHt<span class="opt"># = (\(</span>I<span class="opt">#</span> x<span class="opt">) -&gt;</span> x<span class="opt">)</span> widHt
-    pixelLength<span class="opt"># =</span> widHt<span class="opt"># *# (</span>widHt<span class="opt">#</span> `uncheckedIShiftRA<span class="opt">#</span>` <span class="num">3</span><span class="opt">#)</span>
+    widHt = <span class="kwd">case</span> xs <span class="kwd">of</span>
+      (x : _) -&gt; <span class="kwc">read</span> x
+      _ -&gt; <span class="num">16000</span>
+    widHt# = (\(I# x) -&gt; x) widHt
+    pixelLength# = widHt# *# (widHt# `uncheckedIShiftRA#` <span class="num">3</span>#)
 
-  <span class="kwc">putStrLn</span> <span class="opt">(</span><span class="str">&quot;P4</span><span class="esc">\n</span><span class="str">&quot;</span> <span class="opt">++</span> <span class="kwc">show</span> widHt <span class="opt">++</span> <span class="str">&quot; &quot;</span> <span class="opt">++</span> <span class="kwc">show</span> widHt<span class="opt">)</span>
+  <span class="kwc">putStrLn</span> (<span class="str">&quot;P4</span><span class="esc">\n</span><span class="str">&quot;</span> ++ <span class="kwc">show</span> widHt ++ <span class="str">&quot; &quot;</span> ++ <span class="kwc">show</span> widHt)
 
-  pixels <span class="opt">&lt;-</span> <span class="kwc">join</span> <span class="opt">$</span> <span class="kwb">IO</span> <span class="opt">$ \</span>s <span class="opt">-&gt;</span>
-    <span class="kwd">case</span> newByteArray<span class="opt"># (</span><span class="num">8</span><span class="opt"># *#</span> widHt<span class="opt">#)</span> s <span class="kwd">of</span> <span class="opt">{ (#</span> s<span class="opt">,</span> r <span class="opt">#) -&gt;</span>
-    <span class="kwd">case</span> newByteArray<span class="opt"># (</span><span class="num">8</span><span class="opt"># *#</span> widHt<span class="opt">#)</span> s <span class="kwd">of</span> <span class="opt">{ (#</span> s<span class="opt">,</span> i <span class="opt">#) -&gt;</span>
-    <span class="kwd">case</span> <span class="num">2.0</span><span class="opt">## /##</span> int2Double<span class="opt">#</span> widHt<span class="opt">#</span> <span class="kwd">of</span> <span class="opt">{</span> a <span class="opt">-&gt;</span>
+  pixels &lt;- <span class="kwc">join</span> $ <span class="kwb">IO</span> $ \s -&gt;
+    <span class="kwd">case</span> newByteArray# (<span class="num">8</span># *# widHt#) s <span class="kwd">of</span> { (# s, r #) -&gt;
+    <span class="kwd">case</span> newByteArray# (<span class="num">8</span># *# widHt#) s <span class="kwd">of</span> { (# s, i #) -&gt;
+    <span class="kwd">case</span> <span class="num">2.0</span>## /## int2Double# widHt# <span class="kwd">of</span> { a -&gt;
     <span class="kwd">let</span>
       <span class="slc">-- go :: Int# -&gt; State# RealWorld -&gt; (# State# RealWorld, (# ByteArray#, ByteArray# #) #)</span>
       go xy s
-        | isTrue<span class="opt"># (</span>xy <span class="opt">&lt;#</span> widHt<span class="opt">#) =</span>
+        | isTrue# (xy &lt;# widHt#) =
           <span class="slc">-- case (\(IO x) -&gt; x) (print (D# (a *## int2Double# xy -## 1.5##))) s of { (# s, () #) -&gt;</span>
-          <span class="kwd">case</span> writeDoubleX2Array<span class="opt">#</span> r <span class="opt">(</span>xy `uncheckedIShiftRA<span class="opt">#</span>` <span class="num">1</span><span class="opt">#) ((</span>broadcastDoubleX2<span class="opt">#</span> a `timesDoubleX2<span class="opt">#</span>` packDoubleX2<span class="opt"># (#</span> int2Double<span class="opt">#</span> xy<span class="opt">,</span> int2Double<span class="opt"># (</span>xy <span class="opt">+#</span> <span class="num">1</span><span class="opt">#) #))</span> `minusDoubleX2<span class="opt">#</span>` broadcastDoubleX2<span class="opt">#</span> <span class="num">1.5</span><span class="opt">##)</span> s <span class="kwd">of</span> <span class="opt">{</span> s <span class="opt">-&gt;</span>
-          <span class="kwd">case</span> writeDoubleArray<span class="opt">#</span> i xy <span class="opt">(</span>a <span class="opt">*##</span> int2Double<span class="opt">#</span> xy <span class="opt">-##</span> <span class="num">1.0</span><span class="opt">##)</span> s <span class="kwd">of</span> <span class="opt">{</span> s <span class="opt">-&gt;</span>
-          <span class="kwd">case</span> writeDoubleArray<span class="opt">#</span> i <span class="opt">(</span>xy <span class="opt">+#</span> <span class="num">1</span><span class="opt">#) (</span>a <span class="opt">*##</span> int2Double<span class="opt"># (</span>xy <span class="opt">+#</span> <span class="num">1</span><span class="opt">#) -##</span> <span class="num">1.0</span><span class="opt">##)</span> s <span class="kwd">of</span> <span class="opt">{</span> s <span class="opt">-&gt;</span>
-          go <span class="opt">(</span>xy <span class="opt">+#</span> <span class="num">2</span><span class="opt">#)</span> s <span class="opt">}}}</span><span class="slc">--}</span>
-        | <span class="kwc">otherwise</span> <span class="opt">=</span>
-          <span class="kwd">case</span> unsafeFreezeByteArray<span class="opt">#</span> r s <span class="kwd">of</span> <span class="opt">{ (#</span> s<span class="opt">,</span> r <span class="opt">#) -&gt;</span>
-          <span class="kwd">case</span> unsafeFreezeByteArray<span class="opt">#</span> i s <span class="kwd">of</span> <span class="opt">{ (#</span> s<span class="opt">,</span> i <span class="opt">#) -&gt;</span>
-          <span class="opt">(#</span> s<span class="opt">, (#</span> r<span class="opt">,</span> i <span class="opt">#) #) }}</span>
-    <span class="kwd">in case</span> go <span class="num">0</span><span class="opt">#</span> s <span class="kwd">of</span> <span class="opt">{ (#</span> s<span class="opt">, (#</span> r0<span class="opt">,</span> i0 <span class="opt">#) #) -&gt;</span>
-    <span class="kwd">case</span> newAlignedPinnedByteArray<span class="opt">#</span> pixelLength<span class="opt">#</span> <span class="num">8</span><span class="opt">#</span> s <span class="kwd">of</span> <span class="opt">{ (#</span> s<span class="opt">,</span> pixels <span class="opt">#) -&gt;</span>
-    <span class="kwd">case</span> newMVar<span class="opt">#</span> s <span class="kwd">of</span> <span class="opt">{ (#</span> s<span class="opt">,</span> var <span class="opt">#) -&gt;</span>
-    <span class="kwd">case</span> putMVar<span class="opt">#</span> var <span class="num">0</span> s <span class="kwd">of</span> <span class="opt">{</span> s <span class="opt">-&gt;</span>
+          <span class="kwd">case</span> writeDoubleX2Array# r (xy `uncheckedIShiftRA#` <span class="num">1</span>#) ((broadcastDoubleX2# a `timesDoubleX2#` packDoubleX2# (# int2Double# xy, int2Double# (xy +# <span class="num">1</span>#) #)) `minusDoubleX2#` broadcastDoubleX2# <span class="num">1.5</span>##) s <span class="kwd">of</span> { s -&gt;
+          <span class="kwd">case</span> writeDoubleArray# i xy (a *## int2Double# xy -## <span class="num">1.0</span>##) s <span class="kwd">of</span> { s -&gt;
+          <span class="kwd">case</span> writeDoubleArray# i (xy +# <span class="num">1</span>#) (a *## int2Double# (xy +# <span class="num">1</span>#) -## <span class="num">1.0</span>##) s <span class="kwd">of</span> { s -&gt;
+          go (xy +# <span class="num">2</span>#) s }}}<span class="slc">--}</span>
+        | <span class="kwc">otherwise</span> =
+          <span class="kwd">case</span> unsafeFreezeByteArray# r s <span class="kwd">of</span> { (# s, r #) -&gt;
+          <span class="kwd">case</span> unsafeFreezeByteArray# i s <span class="kwd">of</span> { (# s, i #) -&gt;
+          (# s, (# r, i #) #) }}
+    <span class="kwd">in case</span> go <span class="num">0</span># s <span class="kwd">of</span> { (# s, (# r0, i0 #) #) -&gt;
+    <span class="kwd">case</span> newAlignedPinnedByteArray# pixelLength# <span class="num">8</span># s <span class="kwd">of</span> { (# s, pixels #) -&gt;
+    <span class="kwd">case</span> newMVar# s <span class="kwd">of</span> { (# s, var #) -&gt;
+    <span class="kwd">case</span> putMVar# var <span class="num">0</span> s <span class="kwd">of</span> { s -&gt;
     <span class="kwd">let</span>
-      chunkSize<span class="opt"># =</span> widHt<span class="opt">#</span> `uncheckedIShiftRA<span class="opt">#</span>` <span class="num">6</span><span class="opt">#</span> 
+      chunkSize# = widHt# `uncheckedIShiftRA#` <span class="num">6</span># 
       worker s
-        | isTrue<span class="opt"># (</span>notI<span class="opt"># (</span>widHt<span class="opt">#</span> `remInt<span class="opt">#</span>` <span class="num">64</span><span class="opt">#)) =</span>
-          <span class="kwd">case</span> newMVar<span class="opt">#</span> s <span class="kwd">of</span> <span class="opt">{ (#</span> s<span class="opt">,</span> thread <span class="opt">#) -&gt;</span>
-          <span class="kwd">case</span> fork<span class="opt"># (</span><span class="kwb">IO</span> <span class="opt">(\</span>s <span class="opt">-&gt;</span>
+        | isTrue# (notI# (widHt# `remInt#` <span class="num">64</span>#)) =
+          <span class="kwd">case</span> newMVar# s <span class="kwd">of</span> { (# s, thread #) -&gt;
+          <span class="kwd">case</span> fork# (<span class="kwb">IO</span> (\s -&gt;
             <span class="kwd">let</span>
-              go s <span class="opt">=</span> <span class="kwd">case</span> takeMVar<span class="opt">#</span> var s <span class="kwd">of</span>
-                <span class="opt">(#</span> s<span class="opt">,</span> I<span class="opt">#</span> val <span class="opt">#)</span>
-                  | isTrue<span class="opt"># (</span>val <span class="opt">&lt;#</span> widHt<span class="opt">#) -&gt;</span>
+              go s = <span class="kwd">case</span> takeMVar# var s <span class="kwd">of</span>
+                (# s, I# val #)
+                  | isTrue# (val &lt;# widHt#) -&gt;
                     <span class="kwd">let</span>
                       chunk
-                        | isTrue<span class="opt"># ((</span>widHt<span class="opt"># -#</span> val<span class="opt">) &lt;=#</span> chunkSize<span class="opt">#) =</span> widHt<span class="opt"># -#</span> val
-                        | <span class="kwc">otherwise</span> <span class="opt">=</span> chunkSize<span class="opt">#</span>
+                        | isTrue# ((widHt# -# val) &lt;=# chunkSize#) = widHt# -# val
+                        | <span class="kwc">otherwise</span> = chunkSize#
                     <span class="kwd">in</span>
                       <span class="slc">-- case (\(IO x) -&gt; x) (putStrLn (show (I# (val +# chunk), widHt))) s of { (# s, () #) -&gt;</span>
-                      <span class="kwd">case</span> putMVar<span class="opt">#</span> var <span class="opt">(</span>I<span class="opt"># (</span>val <span class="opt">+#</span> chunk<span class="opt">))</span> s <span class="kwd">of</span> <span class="opt">{</span> s <span class="opt">-&gt;</span>
+                      <span class="kwd">case</span> putMVar# var (I# (val +# chunk)) s <span class="kwd">of</span> { s -&gt;
                       <span class="kwd">let</span>
                         go1 y s
-                          | isTrue<span class="opt"># (</span>y <span class="opt">&lt;# (</span>val <span class="opt">+#</span> chunk<span class="opt">)) =</span> <span class="slc">-- case (\(IO x) -&gt; x) (putStrLn (show (D# (indexDoubleArray# i0 y)))) s of { (# s, () #) -&gt;</span>
+                          | isTrue# (y &lt;# (val +# chunk)) = <span class="slc">-- case (\(IO x) -&gt; x) (putStrLn (show (D# (indexDoubleArray# i0 y)))) s of { (# s, () #) -&gt;</span>
                             <span class="kwd">let</span> 
-                              init_i <span class="opt">=</span> broadcastDoubleX2<span class="opt"># (</span>indexDoubleArray<span class="opt">#</span> i0 y<span class="opt">)</span>
-                              rowstart <span class="opt">=</span> y <span class="opt">*# (</span>widHt<span class="opt">#</span> `uncheckedIShiftRA<span class="opt">#</span>` <span class="num">6</span><span class="opt">#)</span>
+                              init_i = broadcastDoubleX2# (indexDoubleArray# i0 y)
+                              rowstart = y *# (widHt# `uncheckedIShiftRA#` <span class="num">6</span>#)
                               go2 x s
-                                | isTrue<span class="opt"># (</span>x <span class="opt">&lt;#</span> widHt<span class="opt">#) =</span>
+                                | isTrue# (x &lt;# widHt#) =
                                   <span class="slc">-- case (\(IO x) y -&gt; x y) (putStrLn (show (D# (indexDoubleArray# r0 x)))) s of { (# s, () #) -&gt;</span>
-                                  <span class="kwd">case</span> writeWordArray<span class="opt">#</span> pixels <span class="opt">(</span>rowstart <span class="opt">+# (</span>x `uncheckedIShiftRA<span class="opt">#</span>` <span class="num">6</span><span class="opt">#)) (</span>mand64 r0 <span class="opt">(</span>x `uncheckedIShiftRA<span class="opt">#</span>` <span class="num">1</span><span class="opt">#)</span> init_i<span class="opt">)</span> s <span class="kwd">of</span> <span class="opt">{</span> s <span class="opt">-&gt;</span>
-                                  go2 <span class="opt">(</span>x <span class="opt">+#</span> <span class="num">64</span><span class="opt">#)</span> s <span class="opt">}</span> <span class="slc">-- }</span>
-                                | <span class="kwc">otherwise</span> <span class="opt">=</span> s
-                            <span class="kwd">in</span> go1 <span class="opt">(</span>y <span class="opt">+#</span> <span class="num">1</span><span class="opt">#) (</span>go2 <span class="num">0</span><span class="opt">#</span> s<span class="opt">)</span> <span class="slc">-- }</span>
-                          | <span class="kwc">otherwise</span> <span class="opt">=</span> s
-                      <span class="kwd">in</span> go <span class="opt">(</span>go1 val s<span class="opt">) }</span>
-                  | <span class="kwc">otherwise</span> <span class="opt">-&gt; (#</span> putMVar<span class="opt">#</span> thread <span class="opt">() (</span>putMVar<span class="opt">#</span> var <span class="opt">(</span>I<span class="opt">#</span> val<span class="opt">)</span> s<span class="opt">), () #)</span>
-            <span class="kwd">in</span> go s<span class="opt">))</span> s <span class="kwd">of</span>
-            <span class="opt">(#</span> s<span class="opt">,</span> _ <span class="opt">#) -&gt; (#</span> s<span class="opt">,</span> thread <span class="opt">#) }</span>
-        | <span class="kwc">otherwise</span> <span class="opt">=</span> 
-          <span class="kwd">case</span> newMVar<span class="opt">#</span> s <span class="kwd">of</span> <span class="opt">{ (#</span> s<span class="opt">,</span> thread <span class="opt">#) -&gt;</span>
-          <span class="kwd">case</span> fork<span class="opt"># (</span><span class="kwb">IO</span> <span class="opt">(\</span>s <span class="opt">-&gt;</span>
+                                  <span class="kwd">case</span> writeWordArray# pixels (rowstart +# (x `uncheckedIShiftRA#` <span class="num">6</span>#)) (mand64 r0 (x `uncheckedIShiftRA#` <span class="num">1</span>#) init_i) s <span class="kwd">of</span> { s -&gt;
+                                  go2 (x +# <span class="num">64</span>#) s } <span class="slc">-- }</span>
+                                | <span class="kwc">otherwise</span> = s
+                            <span class="kwd">in</span> go1 (y +# <span class="num">1</span>#) (go2 <span class="num">0</span># s) <span class="slc">-- }</span>
+                          | <span class="kwc">otherwise</span> = s
+                      <span class="kwd">in</span> go (go1 val s) }
+                  | <span class="kwc">otherwise</span> -&gt; (# putMVar# thread () (putMVar# var (I# val) s), () #)
+            <span class="kwd">in</span> go s)) s <span class="kwd">of</span>
+            (# s, _ #) -&gt; (# s, thread #) }
+        | <span class="kwc">otherwise</span> = 
+          <span class="kwd">case</span> newMVar# s <span class="kwd">of</span> { (# s, thread #) -&gt;
+          <span class="kwd">case</span> fork# (<span class="kwb">IO</span> (\s -&gt;
             <span class="kwd">let</span>
-              go s <span class="opt">=</span> <span class="kwd">case</span> takeMVar<span class="opt">#</span> var s <span class="kwd">of</span>
-                <span class="opt">(#</span> s<span class="opt">,</span> I<span class="opt">#</span> val <span class="opt">#)</span>
-                  | isTrue<span class="opt"># (</span>val <span class="opt">&lt;#</span> widHt<span class="opt">#) -&gt;</span>
+              go s = <span class="kwd">case</span> takeMVar# var s <span class="kwd">of</span>
+                (# s, I# val #)
+                  | isTrue# (val &lt;# widHt#) -&gt;
                     <span class="kwd">let</span>
                       chunk
-                        | isTrue<span class="opt"># ((</span>widHt<span class="opt"># -#</span> val<span class="opt">) &lt;=#</span> chunkSize<span class="opt">#) =</span> widHt<span class="opt"># -#</span> val
-                        | <span class="kwc">otherwise</span> <span class="opt">=</span> chunkSize<span class="opt">#</span>
+                        | isTrue# ((widHt# -# val) &lt;=# chunkSize#) = widHt# -# val
+                        | <span class="kwc">otherwise</span> = chunkSize#
                     <span class="kwd">in</span>
                       <span class="slc">-- case (\(IO x) -&gt; x) (putStrLn (show (I# (val +# chunk), widHt))) s of { (# s, () #) -&gt;</span>
-                      <span class="kwd">case</span> putMVar<span class="opt">#</span> var <span class="opt">(</span>I<span class="opt"># (</span>val <span class="opt">+#</span> chunk<span class="opt">))</span> s <span class="kwd">of</span> <span class="opt">{</span> s <span class="opt">-&gt;</span>
+                      <span class="kwd">case</span> putMVar# var (I# (val +# chunk)) s <span class="kwd">of</span> { s -&gt;
                       <span class="kwd">let</span>
                         go1 y s
-                          | isTrue<span class="opt"># (</span>y <span class="opt">&lt;# (</span>val <span class="opt">+#</span> chunk<span class="opt">)) =</span> <span class="slc">-- case (\(IO x) -&gt; x) (putStrLn (show (D# (indexDoubleArray# i0 y)))) s of { (# s, () #) -&gt;</span>
+                          | isTrue# (y &lt;# (val +# chunk)) = <span class="slc">-- case (\(IO x) -&gt; x) (putStrLn (show (D# (indexDoubleArray# i0 y)))) s of { (# s, () #) -&gt;</span>
                             <span class="kwd">let</span> 
-                              init_i <span class="opt">=</span> broadcastDoubleX2<span class="opt"># (</span>indexDoubleArray<span class="opt">#</span> i0 y<span class="opt">)</span>
-                              rowstart <span class="opt">=</span> y <span class="opt">*# (</span>widHt<span class="opt">#</span> `uncheckedIShiftRA<span class="opt">#</span>` <span class="num">3</span><span class="opt">#)</span>
+                              init_i = broadcastDoubleX2# (indexDoubleArray# i0 y)
+                              rowstart = y *# (widHt# `uncheckedIShiftRA#` <span class="num">3</span>#)
                               go2 x s
-                                | isTrue<span class="opt"># (</span>x <span class="opt">&lt;#</span> widHt<span class="opt">#) =</span>
+                                | isTrue# (x &lt;# widHt#) =
                                   <span class="slc">-- case (\(IO x) y -&gt; x y) (putStrLn (show (D# (indexDoubleArray# r0 x)))) s of { (# s, () #) -&gt;</span>
-                                  <span class="kwd">case</span> writeWord8Array<span class="opt">#</span> pixels <span class="opt">(</span>rowstart <span class="opt">+# (</span>x `uncheckedIShiftRA<span class="opt">#</span>` <span class="num">3</span><span class="opt">#)) (</span>mand8 r0 <span class="opt">(</span>x `uncheckedIShiftRA<span class="opt">#</span>` <span class="num">1</span><span class="opt">#)</span> init_i<span class="opt">)</span> s <span class="kwd">of</span> <span class="opt">{</span> s <span class="opt">-&gt;</span>
-                                  go2 <span class="opt">(</span>x <span class="opt">+#</span> <span class="num">8</span><span class="opt">#)</span> s <span class="opt">}</span> <span class="slc">-- }</span>
-                                | <span class="kwc">otherwise</span> <span class="opt">=</span> s
-                            <span class="kwd">in</span> go1 <span class="opt">(</span>y <span class="opt">+#</span> <span class="num">1</span><span class="opt">#) (</span>go2 <span class="num">0</span><span class="opt">#</span> s<span class="opt">)</span> <span class="slc">-- }</span>
-                          | <span class="kwc">otherwise</span> <span class="opt">=</span> s
-                      <span class="kwd">in</span> go <span class="opt">(</span>go1 val s<span class="opt">) }</span>
-                  | <span class="kwc">otherwise</span> <span class="opt">-&gt; (#</span> putMVar<span class="opt">#</span> thread <span class="opt">() (</span>putMVar<span class="opt">#</span> var <span class="opt">(</span>I<span class="opt">#</span> val<span class="opt">)</span> s<span class="opt">), () #)</span>
-            <span class="kwd">in</span> go s<span class="opt">))</span> s <span class="kwd">of</span>
-            <span class="opt">(#</span> s<span class="opt">,</span> _ <span class="opt">#) -&gt; (#</span> s<span class="opt">,</span> thread <span class="opt">#) }</span>
+                                  <span class="kwd">case</span> writeWord8Array# pixels (rowstart +# (x `uncheckedIShiftRA#` <span class="num">3</span>#)) (mand8 r0 (x `uncheckedIShiftRA#` <span class="num">1</span>#) init_i) s <span class="kwd">of</span> { s -&gt;
+                                  go2 (x +# <span class="num">8</span>#) s } <span class="slc">-- }</span>
+                                | <span class="kwc">otherwise</span> = s
+                            <span class="kwd">in</span> go1 (y +# <span class="num">1</span>#) (go2 <span class="num">0</span># s) <span class="slc">-- }</span>
+                          | <span class="kwc">otherwise</span> = s
+                      <span class="kwd">in</span> go (go1 val s) }
+                  | <span class="kwc">otherwise</span> -&gt; (# putMVar# thread () (putMVar# var (I# val) s), () #)
+            <span class="kwd">in</span> go s)) s <span class="kwd">of</span>
+            (# s, _ #) -&gt; (# s, thread #) }
     <span class="kwd">in</span>
-      <span class="kwd">case</span> worker s <span class="kwd">of</span> <span class="opt">{ (#</span> s<span class="opt">,</span> thread0 <span class="opt">#) -&gt;</span> 
-      <span class="kwd">case</span> worker s <span class="kwd">of</span> <span class="opt">{ (#</span> s<span class="opt">,</span> thread1 <span class="opt">#) -&gt;</span>
-      <span class="kwd">case</span> worker s <span class="kwd">of</span> <span class="opt">{ (#</span> s<span class="opt">,</span> thread2 <span class="opt">#) -&gt;</span>
-      <span class="kwd">case</span> worker s <span class="kwd">of</span> <span class="opt">{ (#</span> s<span class="opt">,</span> thread3 <span class="opt">#) -&gt;</span>
-      <span class="kwd">case</span> takeMVar<span class="opt">#</span> thread0 s <span class="kwd">of</span> <span class="opt">{ (#</span> s<span class="opt">, () #) -&gt;</span>
-      <span class="kwd">case</span> takeMVar<span class="opt">#</span> thread1 s <span class="kwd">of</span> <span class="opt">{ (#</span> s<span class="opt">, () #) -&gt;</span>
-      <span class="kwd">case</span> takeMVar<span class="opt">#</span> thread2 s <span class="kwd">of</span> <span class="opt">{ (#</span> s<span class="opt">, () #) -&gt;</span>
-      <span class="kwd">case</span> takeMVar<span class="opt">#</span> thread3 s <span class="kwd">of</span> <span class="opt">{ (#</span> s<span class="opt">, () #) -&gt;</span>
-      <span class="kwd">case</span> unsafeFreezeByteArray<span class="opt">#</span> pixels s <span class="kwd">of</span> <span class="opt">{ (#</span> s<span class="opt">,</span> pixels <span class="opt">#) -&gt;</span>
-      <span class="opt">(#</span> s<span class="opt">,</span> B<span class="opt">.</span>unsafePackAddressLen <span class="opt">(</span>I<span class="opt">#</span> pixelLength<span class="opt">#) (</span>byteArrayContents<span class="opt">#</span> pixels<span class="opt">) #) }</span>
-      <span class="opt">}}}}}}}}}}}}}}}</span>
-  B<span class="opt">.</span><span class="kwc">putStr</span> pixels
+      <span class="kwd">case</span> worker s <span class="kwd">of</span> { (# s, thread0 #) -&gt; 
+      <span class="kwd">case</span> worker s <span class="kwd">of</span> { (# s, thread1 #) -&gt;
+      <span class="kwd">case</span> worker s <span class="kwd">of</span> { (# s, thread2 #) -&gt;
+      <span class="kwd">case</span> worker s <span class="kwd">of</span> { (# s, thread3 #) -&gt;
+      <span class="kwd">case</span> takeMVar# thread0 s <span class="kwd">of</span> { (# s, () #) -&gt;
+      <span class="kwd">case</span> takeMVar# thread1 s <span class="kwd">of</span> { (# s, () #) -&gt;
+      <span class="kwd">case</span> takeMVar# thread2 s <span class="kwd">of</span> { (# s, () #) -&gt;
+      <span class="kwd">case</span> takeMVar# thread3 s <span class="kwd">of</span> { (# s, () #) -&gt;
+      <span class="kwd">case</span> unsafeFreezeByteArray# pixels s <span class="kwd">of</span> { (# s, pixels #) -&gt;
+      (# s, B.unsafePackAddressLen (I# pixelLength#) (byteArrayContents# pixels) #) }
+      }}}}}}}}}}}}}}}
+  B.<span class="kwc">putStr</span> pixels
     </pre>
   </section>
   <section>
@@ -283,27 +283,44 @@ main <span class="opt">=</span> <span class="kwd">do</span>
 NOTES:
 64-bit Ubuntu quad core
 The Glorious Glasgow Haskell Compilation System,
-version 9.0.1
+version 9.2.1
 
 
-Sun, 21 Feb 2021 00:32:12 GMT
+Wed, 12 Jan 2022 23:51:53 GMT
 
 MAKE:
 mv mandelbrot.ghc-3.ghc mandelbrot.ghc-3.hs
-/opt/src/ghc-9.0.1/bin/ghc --make -fllvm -O2 -XBangPatterns -threaded -rtsopts -XMagicHash -XUnboxedTuples mandelbrot.ghc-3.hs -o mandelbrot.ghc-3.ghc_run
+~/.ghcup/ghc/9.2.1/bin/ghc --make -fllvm -O2 -XBangPatterns -threaded -rtsopts -XMagicHash -XUnboxedTuples mandelbrot.ghc-3.hs -o mandelbrot.ghc-3.ghc_run
 [1 of 1] Compiling Main             ( mandelbrot.ghc-3.hs, mandelbrot.ghc-3.o )
-You are using an unsupported version of LLVM!
-Currently only 9 is supported. System LLVM version: 11.0.0
-We will try though...
-Linking mandelbrot.ghc-3.ghc_run ...
+
+mandelbrot.ghc-3.hs:230:107: error:
+    • Couldn't match expected type ‘Word8#’ with actual type ‘Word#’
+    • In the third argument of ‘writeWord8Array#’, namely
+        ‘(mand8 r0 (x `uncheckedIShiftRA#` 1#) init_i)’
+      In the expression:
+        writeWord8Array#
+          pixels (rowstart +# (x `uncheckedIShiftRA#` 3#))
+          (mand8 r0 (x `uncheckedIShiftRA#` 1#) init_i) s
+      In the expression:
+        case
+            writeWord8Array#
+              pixels (rowstart +# (x `uncheckedIShiftRA#` 3#))
+              (mand8 r0 (x `uncheckedIShiftRA#` 1#) init_i) s
+        of
+          s -&gt; go2 (x +# 8#) s
+    |
+230 |                                   case writeWord8Array# pixels (rowstart +# (x `uncheckedIShiftRA#` 3#)) (mand8 r0 (x `uncheckedIShiftRA#` 1#) init_i) s of { s -&gt;
+    |                                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+make: [/home/dunham/all-benchmarksgame/2000-benchmarksgame/nanobench/makefiles/u64q.programs.Makefile:243: mandelbrot.ghc-3.ghc_run] Error 1 (ignored)
 rm mandelbrot.ghc-3.hs
 
-10.25s to complete and log all make actions
+4.90s to complete and log all make actions
 
 COMMAND LINE:
-./mandelbrot.ghc-3.ghc_run +RTS -N4 -RTS 16000
+./mandelbrot.ghc-3.ghc_run +RTS -N4 -RTS 1000
 
-(BINARY) PROGRAM OUTPUT NOT SHOWN
+MAKE ERROR 
+
     </pre>
   </section>
 </article>

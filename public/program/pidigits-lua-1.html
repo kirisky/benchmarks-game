@@ -27,73 +27,73 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="slc">-- contributed by Mike Pall</span>
 <span class="slc">-- requires LGMP &quot;A GMP package for Lua 5.1&quot;</span>
 
-<span class="kwa">local</span> g<span class="opt">,</span> aux <span class="opt">= {}, {}</span>
-require<span class="str">&quot;c-gmp&quot;</span><span class="opt">(</span>g<span class="opt">,</span> aux<span class="opt">)</span>
-<span class="kwa">local</span> add<span class="opt">,</span> mul<span class="opt">,</span> div <span class="opt">=</span> g<span class="opt">.</span>mpz_add<span class="opt">,</span> g<span class="opt">.</span>mpz_mul_si<span class="opt">,</span> g<span class="opt">.</span>mpz_tdiv_q
-<span class="kwa">local</span> init<span class="opt">,</span> get <span class="opt">=</span> g<span class="opt">.</span>mpz_init_set_d<span class="opt">,</span> g<span class="opt">.</span>mpz_get_d
+<span class="kwa">local</span> g, aux = {}, {}
+require<span class="str">&quot;c-gmp&quot;</span>(g, aux)
+<span class="kwa">local</span> add, mul, div = g.mpz_add, g.mpz_mul_si, g.mpz_tdiv_q
+<span class="kwa">local</span> init, get = g.mpz_init_set_d, g.mpz_get_d
 
-<span class="kwa">local</span> q<span class="opt">,</span> r<span class="opt">,</span> s<span class="opt">,</span> t<span class="opt">,</span> u<span class="opt">,</span> v<span class="opt">,</span> w
+<span class="kwa">local</span> q, r, s, t, u, v, w
 
 <span class="slc">-- Compose matrix with numbers on the right.</span>
-<span class="kwa">local function</span> <span class="kwd">compose_r</span><span class="opt">(</span>bq<span class="opt">,</span> br<span class="opt">,</span> bs<span class="opt">,</span> bt<span class="opt">)</span>
-  <span class="kwd">mul</span><span class="opt">(</span>r<span class="opt">,</span> bs<span class="opt">,</span> u<span class="opt">)</span>
-  <span class="kwd">mul</span><span class="opt">(</span>r<span class="opt">,</span> bq<span class="opt">,</span> r<span class="opt">)</span>
-  <span class="kwd">mul</span><span class="opt">(</span>t<span class="opt">,</span> br<span class="opt">,</span> v<span class="opt">)</span>
-  <span class="kwd">add</span><span class="opt">(</span>r<span class="opt">,</span> v<span class="opt">,</span> r<span class="opt">)</span>
-  <span class="kwd">mul</span><span class="opt">(</span>t<span class="opt">,</span> bt<span class="opt">,</span> t<span class="opt">)</span>
-  <span class="kwd">add</span><span class="opt">(</span>t<span class="opt">,</span> u<span class="opt">,</span> t<span class="opt">)</span>
-  <span class="kwd">mul</span><span class="opt">(</span>s<span class="opt">,</span> bt<span class="opt">,</span> s<span class="opt">)</span>
-  <span class="kwd">mul</span><span class="opt">(</span>q<span class="opt">,</span> bs<span class="opt">,</span> u<span class="opt">)</span>
-  <span class="kwd">add</span><span class="opt">(</span>s<span class="opt">,</span> u<span class="opt">,</span> s<span class="opt">)</span>
-  <span class="kwd">mul</span><span class="opt">(</span>q<span class="opt">,</span> bq<span class="opt">,</span> q<span class="opt">)</span>
+<span class="kwa">local function</span> <span class="kwd">compose_r</span>(bq, br, bs, bt)
+  <span class="kwd">mul</span>(r, bs, u)
+  <span class="kwd">mul</span>(r, bq, r)
+  <span class="kwd">mul</span>(t, br, v)
+  <span class="kwd">add</span>(r, v, r)
+  <span class="kwd">mul</span>(t, bt, t)
+  <span class="kwd">add</span>(t, u, t)
+  <span class="kwd">mul</span>(s, bt, s)
+  <span class="kwd">mul</span>(q, bs, u)
+  <span class="kwd">add</span>(s, u, s)
+  <span class="kwd">mul</span>(q, bq, q)
 <span class="kwa">end</span>
 
 <span class="slc">-- Compose matrix with numbers on the left.</span>
-<span class="kwa">local function</span> <span class="kwd">compose_l</span><span class="opt">(</span>bq<span class="opt">,</span> br<span class="opt">,</span> bs<span class="opt">,</span> bt<span class="opt">)</span>
-  <span class="kwd">mul</span><span class="opt">(</span>r<span class="opt">,</span> bt<span class="opt">,</span> r<span class="opt">)</span>
-  <span class="kwd">mul</span><span class="opt">(</span>q<span class="opt">,</span> br<span class="opt">,</span> u<span class="opt">)</span>
-  <span class="kwd">add</span><span class="opt">(</span>r<span class="opt">,</span> u<span class="opt">,</span> r<span class="opt">)</span>
-  <span class="kwd">mul</span><span class="opt">(</span>t<span class="opt">,</span> bs<span class="opt">,</span> u<span class="opt">)</span>
-  <span class="kwd">mul</span><span class="opt">(</span>t<span class="opt">,</span> bt<span class="opt">,</span> t<span class="opt">)</span>
-  <span class="kwd">mul</span><span class="opt">(</span>s<span class="opt">,</span> br<span class="opt">,</span> v<span class="opt">)</span>
-  <span class="kwd">add</span><span class="opt">(</span>t<span class="opt">,</span> v<span class="opt">,</span> t<span class="opt">)</span>
-  <span class="kwd">mul</span><span class="opt">(</span>s<span class="opt">,</span> bq<span class="opt">,</span> s<span class="opt">)</span>
-  <span class="kwd">add</span><span class="opt">(</span>s<span class="opt">,</span> u<span class="opt">,</span> s<span class="opt">)</span>
-  <span class="kwd">mul</span><span class="opt">(</span>q<span class="opt">,</span> bq<span class="opt">,</span> q<span class="opt">)</span>
+<span class="kwa">local function</span> <span class="kwd">compose_l</span>(bq, br, bs, bt)
+  <span class="kwd">mul</span>(r, bt, r)
+  <span class="kwd">mul</span>(q, br, u)
+  <span class="kwd">add</span>(r, u, r)
+  <span class="kwd">mul</span>(t, bs, u)
+  <span class="kwd">mul</span>(t, bt, t)
+  <span class="kwd">mul</span>(s, br, v)
+  <span class="kwd">add</span>(t, v, t)
+  <span class="kwd">mul</span>(s, bq, s)
+  <span class="kwd">add</span>(s, u, s)
+  <span class="kwd">mul</span>(q, bq, q)
 <span class="kwa">end</span>
 
 <span class="slc">-- Extract one digit.</span>
-<span class="kwa">local function</span> <span class="kwd">extract</span><span class="opt">(</span>j<span class="opt">)</span>
-  <span class="kwd">mul</span><span class="opt">(</span>q<span class="opt">,</span> j<span class="opt">,</span> u<span class="opt">)</span>
-  <span class="kwd">add</span><span class="opt">(</span>u<span class="opt">,</span> r<span class="opt">,</span> u<span class="opt">)</span>
-  <span class="kwd">mul</span><span class="opt">(</span>s<span class="opt">,</span> j<span class="opt">,</span> v<span class="opt">)</span>
-  <span class="kwd">add</span><span class="opt">(</span>v<span class="opt">,</span> t<span class="opt">,</span> v<span class="opt">)</span>
-  <span class="kwa">return</span> <span class="kwd">get</span><span class="opt">(</span><span class="kwd">div</span><span class="opt">(</span>u<span class="opt">,</span> v<span class="opt">,</span> w<span class="opt">))</span>
+<span class="kwa">local function</span> <span class="kwd">extract</span>(j)
+  <span class="kwd">mul</span>(q, j, u)
+  <span class="kwd">add</span>(u, r, u)
+  <span class="kwd">mul</span>(s, j, v)
+  <span class="kwd">add</span>(v, t, v)
+  <span class="kwa">return</span> <span class="kwd">get</span>(<span class="kwd">div</span>(u, v, w))
 <span class="kwa">end</span>
 
 <span class="slc">-- Generate successive digits of PI.</span>
-<span class="kwa">local function</span> <span class="kwd">pidigits</span><span class="opt">(</span>N<span class="opt">)</span>
-  <span class="kwa">local</span> <span class="kwb">write</span> <span class="opt">=</span> io<span class="opt">.</span><span class="kwb">write</span>
-  <span class="kwa">local</span> k <span class="opt">=</span> <span class="num">1</span>
-  q<span class="opt">,</span> r<span class="opt">,</span> s<span class="opt">,</span> t <span class="opt">=</span> <span class="kwd">init</span><span class="opt">(</span><span class="num">1</span><span class="opt">),</span> <span class="kwd">init</span><span class="opt">(</span><span class="num">0</span><span class="opt">),</span> <span class="kwd">init</span><span class="opt">(</span><span class="num">0</span><span class="opt">),</span> <span class="kwd">init</span><span class="opt">(</span><span class="num">1</span><span class="opt">)</span>
-  u<span class="opt">,</span> v<span class="opt">,</span> w <span class="opt">=</span> <span class="kwd">init</span><span class="opt">(</span><span class="num">0</span><span class="opt">),</span> <span class="kwd">init</span><span class="opt">(</span><span class="num">0</span><span class="opt">),</span> <span class="kwd">init</span><span class="opt">(</span><span class="num">0</span><span class="opt">)</span>
-  <span class="kwa">local</span> i <span class="opt">=</span> <span class="num">0</span>
-  <span class="kwa">while</span> i <span class="opt">&lt;</span> N <span class="kwa">do</span>
-    <span class="kwa">local</span> y <span class="opt">=</span> <span class="kwd">extract</span><span class="opt">(</span><span class="num">3</span><span class="opt">)</span>
-    <span class="kwa">if</span> y <span class="opt">==</span> <span class="kwd">extract</span><span class="opt">(</span><span class="num">4</span><span class="opt">)</span> <span class="kwa">then</span>
-      <span class="kwb">write</span><span class="opt">(</span>y<span class="opt">)</span>
-      i <span class="opt">=</span> i <span class="opt">+</span> <span class="num">1</span><span class="opt">;</span> <span class="kwa">if</span> i <span class="opt">%</span> <span class="num">10</span> <span class="opt">==</span> <span class="num">0</span> <span class="kwa">then</span> <span class="kwb">write</span><span class="opt">(</span><span class="str">&quot;</span><span class="esc">\t</span><span class="str">:&quot;</span><span class="opt">,</span> i<span class="opt">,</span> <span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">)</span> <span class="kwa">end</span>
-      <span class="kwd">compose_r</span><span class="opt">(</span><span class="num">10</span><span class="opt">, -</span><span class="num">10</span><span class="opt">*</span>y<span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> <span class="num">1</span><span class="opt">)</span>
+<span class="kwa">local function</span> <span class="kwd">pidigits</span>(N)
+  <span class="kwa">local</span> <span class="kwb">write</span> = io.<span class="kwb">write</span>
+  <span class="kwa">local</span> k = <span class="num">1</span>
+  q, r, s, t = <span class="kwd">init</span>(<span class="num">1</span>), <span class="kwd">init</span>(<span class="num">0</span>), <span class="kwd">init</span>(<span class="num">0</span>), <span class="kwd">init</span>(<span class="num">1</span>)
+  u, v, w = <span class="kwd">init</span>(<span class="num">0</span>), <span class="kwd">init</span>(<span class="num">0</span>), <span class="kwd">init</span>(<span class="num">0</span>)
+  <span class="kwa">local</span> i = <span class="num">0</span>
+  <span class="kwa">while</span> i &lt; N <span class="kwa">do</span>
+    <span class="kwa">local</span> y = <span class="kwd">extract</span>(<span class="num">3</span>)
+    <span class="kwa">if</span> y == <span class="kwd">extract</span>(<span class="num">4</span>) <span class="kwa">then</span>
+      <span class="kwb">write</span>(y)
+      i = i + <span class="num">1</span>; <span class="kwa">if</span> i % <span class="num">10</span> == <span class="num">0</span> <span class="kwa">then</span> <span class="kwb">write</span>(<span class="str">&quot;</span><span class="esc">\t</span><span class="str">:&quot;</span>, i, <span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span>) <span class="kwa">end</span>
+      <span class="kwd">compose_r</span>(<span class="num">10</span>, -<span class="num">10</span>*y, <span class="num">0</span>, <span class="num">1</span>)
     <span class="kwa">else</span>
-      <span class="kwd">compose_l</span><span class="opt">(</span>k<span class="opt">,</span> <span class="num">4</span><span class="opt">*</span>k<span class="opt">+</span><span class="num">2</span><span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> <span class="num">2</span><span class="opt">*</span>k<span class="opt">+</span><span class="num">1</span><span class="opt">)</span>
-      k <span class="opt">=</span> k <span class="opt">+</span> <span class="num">1</span>
+      <span class="kwd">compose_l</span>(k, <span class="num">4</span>*k+<span class="num">2</span>, <span class="num">0</span>, <span class="num">2</span>*k+<span class="num">1</span>)
+      k = k + <span class="num">1</span>
     <span class="kwa">end</span>
   <span class="kwa">end</span>
-  <span class="kwa">if</span> i <span class="opt">%</span> <span class="num">10</span> <span class="opt">~=</span> <span class="num">0</span> <span class="kwa">then</span> <span class="kwb">write</span><span class="opt">(</span><span class="kwb">string</span><span class="opt">.</span><span class="kwd">rep</span><span class="opt">(</span><span class="str">&quot; &quot;</span><span class="opt">,</span> <span class="num">10</span> <span class="opt">-</span> N <span class="opt">%</span> <span class="num">10</span><span class="opt">),</span> <span class="str">&quot;</span><span class="esc">\t</span><span class="str">:&quot;</span><span class="opt">,</span> N<span class="opt">,</span> <span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">)</span> <span class="kwa">end</span>
+  <span class="kwa">if</span> i % <span class="num">10</span> ~= <span class="num">0</span> <span class="kwa">then</span> <span class="kwb">write</span>(<span class="kwb">string</span>.<span class="kwd">rep</span>(<span class="str">&quot; &quot;</span>, <span class="num">10</span> - N % <span class="num">10</span>), <span class="str">&quot;</span><span class="esc">\t</span><span class="str">:&quot;</span>, N, <span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span>) <span class="kwa">end</span>
 <span class="kwa">end</span>
 
-<span class="kwa">local</span> N <span class="opt">=</span> <span class="kwb">tonumber</span><span class="opt">(</span>arg <span class="kwa">and</span> arg<span class="opt">[</span><span class="num">1</span><span class="opt">])</span> <span class="kwa">or</span> <span class="num">27</span>
-<span class="kwd">pidigits</span><span class="opt">(</span>N<span class="opt">)</span>
+<span class="kwa">local</span> N = <span class="kwb">tonumber</span>(arg <span class="kwa">and</span> arg[<span class="num">1</span>]) <span class="kwa">or</span> <span class="num">27</span>
+<span class="kwd">pidigits</span>(N)
     </pre>
   </section>
   <section>
@@ -103,20 +103,20 @@ require<span class="str">&quot;c-gmp&quot;</span><span class="opt">(</span>g<spa
     <pre>
 NOTES:
 64-bit Ubuntu quad core
-Lua 5.4.2  Copyright (C) 1994-2020 Lua.org, PUC-Rio
+Lua 5.4.3  Copyright (C) 1994-2021 Lua.org, PUC-Rio
 
 
-Mon, 22 Feb 2021 00:25:21 GMT
+Sun, 09 Jan 2022 04:50:34 GMT
 
 COMMAND LINE:
-/opt/src/lua-5.4.2/bin/lua  pidigits.lua 2000
+/opt/src/lua-5.4.3/install/bin/lua  pidigits.lua 2000
 
 PROGRAM FAILED 
 
 
 PROGRAM OUTPUT:
 
-/opt/src/lua-5.4.2/bin/lua: pidigits.lua:7: module 'c-gmp' not found:
+/opt/src/lua-5.4.3/install/bin/lua: pidigits.lua:7: module 'c-gmp' not found:
 	no field package.preload['c-gmp']
 	no file '/usr/local/share/lua/5.4/c-gmp.lua'
 	no file '/usr/local/share/lua/5.4/c-gmp/init.lua'

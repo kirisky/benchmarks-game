@@ -37,180 +37,180 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="slc">--</span>
 
 <span class="kwd">import</span> Foreign
-<span class="kwd">import</span> Foreign<span class="opt">.</span>Storable
-<span class="kwd">import</span> Foreign<span class="opt">.</span>Marshal<span class="opt">.</span>Alloc
-<span class="kwd">import</span> Data<span class="opt">.</span>IORef
-<span class="kwd">import</span> Control<span class="opt">.</span>Monad
-<span class="kwd">import</span> System<span class="opt">.</span>Environment
-<span class="kwd">import</span> Text<span class="opt">.</span>Printf
-<span class="kwd">import</span> System<span class="opt">.</span><span class="kwb">IO</span><span class="opt">.</span>Unsafe
+<span class="kwd">import</span> Foreign.Storable
+<span class="kwd">import</span> Foreign.Marshal.Alloc
+<span class="kwd">import</span> Data.IORef
+<span class="kwd">import</span> Control.Monad
+<span class="kwd">import</span> System.Environment
+<span class="kwd">import</span> Text.Printf
+<span class="kwd">import</span> System.<span class="kwb">IO</span>.Unsafe
 
-main <span class="opt">=</span> <span class="kwd">do</span>
-    n <span class="opt">&lt;-</span> <span class="kwc">getArgs</span> <span class="opt">&gt;&gt;=</span> <span class="kwc">readIO</span><span class="opt">.</span><span class="kwc">head</span>
+main = <span class="kwd">do</span>
+    n &lt;- <span class="kwc">getArgs</span> &gt;&gt;= <span class="kwc">readIO</span>.<span class="kwc">head</span>
     initialize
     offset_momentum
-    energy <span class="num">0</span> planets <span class="opt">&gt;&gt;=</span> printf <span class="str">&quot;%.9f</span><span class="esc">\n</span><span class="str">&quot;</span>
-    replicateM_ n <span class="opt">(</span>advance planets<span class="opt">)</span>
-    energy <span class="num">0</span> planets <span class="opt">&gt;&gt;=</span> printf <span class="str">&quot;%.9f</span><span class="esc">\n</span><span class="str">&quot;</span>
+    energy <span class="num">0</span> planets &gt;&gt;= printf <span class="str">&quot;%.9f</span><span class="esc">\n</span><span class="str">&quot;</span>
+    replicateM_ n (advance planets)
+    energy <span class="num">0</span> planets &gt;&gt;= printf <span class="str">&quot;%.9f</span><span class="esc">\n</span><span class="str">&quot;</span>
 
-offset_momentum <span class="opt">=</span> <span class="kwd">do</span>
-    m <span class="opt">&lt;-</span> <span class="kwc">foldr</span> <span class="opt">(.+.) (</span>Vec <span class="num">0 0 0</span><span class="opt">)</span>
-             `<span class="kwc">fmap</span>` <span class="opt">(</span><span class="kwc">mapM</span> momentum
-                   <span class="opt">.</span> <span class="kwc">take</span> <span class="opt">(</span>nbodies <span class="opt">-</span> <span class="num">1</span><span class="opt">)</span>
-                   <span class="opt">.</span> <span class="kwc">iterate next</span> <span class="opt">$</span> <span class="kwc">next</span> planets<span class="opt">)</span>
+offset_momentum = <span class="kwd">do</span>
+    m &lt;- <span class="kwc">foldr</span> (.+.) (Vec <span class="num">0 0 0</span>)
+             `<span class="kwc">fmap</span>` (<span class="kwc">mapM</span> momentum
+                   . <span class="kwc">take</span> (nbodies - <span class="num">1</span>)
+                   . <span class="kwc">iterate next</span> $ <span class="kwc">next</span> planets)
 
-    setVec <span class="opt">(</span>vel planets<span class="opt">) $ (-</span><span class="num">1</span><span class="opt">/</span>solar_mass<span class="opt">) *.</span> m
+    setVec (vel planets) $ (-<span class="num">1</span>/solar_mass) *. m
   <span class="kwd">where</span>
-    momentum <span class="opt">!</span>p <span class="opt">=</span> <span class="kwc">liftM2</span> <span class="opt">(*.) (</span>mass p<span class="opt">) (</span>getVec <span class="opt">(</span>vel p<span class="opt">))</span>
+    momentum !p = <span class="kwc">liftM2</span> (*.) (mass p) (getVec (vel p))
 
-energy <span class="opt">::</span> <span class="kwb">Double</span> <span class="opt">-&gt;</span> Ptr <span class="kwb">Double</span> <span class="opt">-&gt;</span> <span class="kwb">IO Double</span>
-energy <span class="opt">!</span>e <span class="opt">!</span>p
-    | p <span class="opt">==</span> end <span class="opt">=</span> <span class="kwc">return</span> e
-    | <span class="kwc">otherwise</span>      <span class="opt">=</span> <span class="kwd">do</span>
-        p1 <span class="opt">&lt;-</span> getVec <span class="opt">(</span>pos p<span class="opt">)</span>
-        v1 <span class="opt">&lt;-</span> getVec <span class="opt">(</span>vel p<span class="opt">)</span>
-        m1 <span class="opt">&lt;-</span> mass p
-        e  <span class="opt">&lt;-</span> energy2 p1 m1 e p2
-        energy <span class="opt">(</span>e <span class="opt">+</span> <span class="num">0.5</span> <span class="opt">*</span> m1 <span class="opt">*</span> magnitude2 v1<span class="opt">)</span> p2
-    <span class="kwd">where</span> p2 <span class="opt">=</span> <span class="kwc">next</span> p
+energy :: <span class="kwb">Double</span> -&gt; Ptr <span class="kwb">Double</span> -&gt; <span class="kwb">IO Double</span>
+energy !e !p
+    | p == end = <span class="kwc">return</span> e
+    | <span class="kwc">otherwise</span>      = <span class="kwd">do</span>
+        p1 &lt;- getVec (pos p)
+        v1 &lt;- getVec (vel p)
+        m1 &lt;- mass p
+        e  &lt;- energy2 p1 m1 e p2
+        energy (e + <span class="num">0.5</span> * m1 * magnitude2 v1) p2
+    <span class="kwd">where</span> p2 = <span class="kwc">next</span> p
 
-energy2 <span class="opt">!</span>p1 <span class="opt">!</span>m1 <span class="opt">!</span>e <span class="opt">!</span>p
-    | p  <span class="opt">==</span> end <span class="opt">=</span> <span class="kwc">return</span> e
-    | <span class="kwc">otherwise</span> <span class="opt">=</span> <span class="kwd">do</span>
-        p2 <span class="opt">&lt;-</span> getVec <span class="opt">(</span>pos p<span class="opt">)</span>
-        v2 <span class="opt">&lt;-</span> getVec <span class="opt">(</span>vel p<span class="opt">)</span>
-        m2 <span class="opt">&lt;-</span> mass p
-        <span class="kwd">let</span> distance <span class="opt">=</span> <span class="kwc">sqrt</span> <span class="opt">.</span> magnitude2 <span class="opt">$</span> p1 <span class="opt">.-.</span> p2
-        energy2 p1 m1 <span class="opt">(</span>e <span class="opt">-</span> m1 <span class="opt">*</span> m2 <span class="opt">/</span> distance<span class="opt">) (</span><span class="kwc">next</span> p<span class="opt">)</span>
+energy2 !p1 !m1 !e !p
+    | p  == end = <span class="kwc">return</span> e
+    | <span class="kwc">otherwise</span> = <span class="kwd">do</span>
+        p2 &lt;- getVec (pos p)
+        v2 &lt;- getVec (vel p)
+        m2 &lt;- mass p
+        <span class="kwd">let</span> distance = <span class="kwc">sqrt</span> . magnitude2 $ p1 .-. p2
+        energy2 p1 m1 (e - m1 * m2 / distance) (<span class="kwc">next</span> p)
 
-advance <span class="opt">::</span> Ptr <span class="kwb">Double</span> <span class="opt">-&gt;</span> <span class="kwb">IO</span> <span class="opt">()</span>
-advance <span class="opt">!</span>p1 <span class="opt">=</span> <span class="kwc">when</span> <span class="opt">(</span>p1 <span class="opt">/=</span> end<span class="opt">) $</span> <span class="kwd">do</span>
-    pos1 <span class="opt">&lt;-</span> getVec <span class="opt">$</span> pos p1
-    m1   <span class="opt">&lt;-</span> mass p1
-    <span class="kwd">let</span> go <span class="opt">!</span>p2
-            | p2 <span class="opt">/=</span> end <span class="opt">=</span> <span class="kwd">do</span>
-                pos2 <span class="opt">&lt;-</span> getVec <span class="opt">(</span>pos p2<span class="opt">)</span>
-                m2   <span class="opt">&lt;-</span> mass p2
-                <span class="kwd">let</span> vel2       <span class="opt">=</span> vel p2
-                    difference <span class="opt">=</span> pos1 <span class="opt">.-.</span> pos2
-                    distance2  <span class="opt">=</span> magnitude2 difference
-                    distance   <span class="opt">=</span> <span class="kwc">sqrt</span> distance2
-                    <span class="kwc">magnitude</span>  <span class="opt">=</span> delta_t <span class="opt">/ (</span>distance2 <span class="opt">*</span> distance<span class="opt">)</span>
-                    mass_magn  <span class="opt">=</span> <span class="kwc">magnitude</span> <span class="opt">*.</span> difference
-                vel1 <span class="opt">-=</span> m2 <span class="opt">*.</span> mass_magn
-                vel2 <span class="opt">+=</span> m1 <span class="opt">*.</span> mass_magn
-                go <span class="opt">(</span><span class="kwc">next</span> p2<span class="opt">)</span>
+advance :: Ptr <span class="kwb">Double</span> -&gt; <span class="kwb">IO</span> ()
+advance !p1 = <span class="kwc">when</span> (p1 /= end) $ <span class="kwd">do</span>
+    pos1 &lt;- getVec $ pos p1
+    m1   &lt;- mass p1
+    <span class="kwd">let</span> go !p2
+            | p2 /= end = <span class="kwd">do</span>
+                pos2 &lt;- getVec (pos p2)
+                m2   &lt;- mass p2
+                <span class="kwd">let</span> vel2       = vel p2
+                    difference = pos1 .-. pos2
+                    distance2  = magnitude2 difference
+                    distance   = <span class="kwc">sqrt</span> distance2
+                    <span class="kwc">magnitude</span>  = delta_t / (distance2 * distance)
+                    mass_magn  = <span class="kwc">magnitude</span> *. difference
+                vel1 -= m2 *. mass_magn
+                vel2 += m1 *. mass_magn
+                go (<span class="kwc">next</span> p2)
 
-            | <span class="kwc">otherwise</span> <span class="opt">=</span> <span class="kwd">do</span>
-                v1 <span class="opt">&lt;-</span> getVec vel1
-                p1 <span class="opt">+=</span> delta_t <span class="opt">*.</span> v1
+            | <span class="kwc">otherwise</span> = <span class="kwd">do</span>
+                v1 &lt;- getVec vel1
+                p1 += delta_t *. v1
     go p2
     advance  p2
   <span class="kwd">where</span>
-    vel1 <span class="opt">=</span> vel p1
-    p2   <span class="opt">=</span> <span class="kwc">next</span> p1
+    vel1 = vel p1
+    p2   = <span class="kwc">next</span> p1
 
 <span class="slc">------------------------------------------------------------------------</span>
 
-planets <span class="opt">::</span> Ptr <span class="kwb">Double</span>
-planets <span class="opt">=</span> unsafePerformIO <span class="opt">$</span> mallocBytes <span class="opt">(</span><span class="num">7</span> <span class="opt">*</span> nbodies <span class="opt">*</span> <span class="num">8</span><span class="opt">)</span> <span class="slc">-- sizeOf double = 8</span>
+planets :: Ptr <span class="kwb">Double</span>
+planets = unsafePerformIO $ mallocBytes (<span class="num">7</span> * nbodies * <span class="num">8</span>) <span class="slc">-- sizeOf double = 8</span>
 
-nbodies <span class="opt">::</span> <span class="kwb">Int</span>
-nbodies <span class="opt">=</span> <span class="num">5</span>
+nbodies :: <span class="kwb">Int</span>
+nbodies = <span class="num">5</span>
 
-solar_mass<span class="opt">,</span> delta_t<span class="opt">,</span> days_per_year <span class="opt">::</span> <span class="kwb">Double</span>
-days_per_year <span class="opt">=</span> <span class="num">365.24</span>
-solar_mass    <span class="opt">=</span> <span class="num">4</span> <span class="opt">*</span> <span class="kwc">pi</span> <span class="opt">**</span> <span class="num">2</span><span class="opt">;</span>
-delta_t       <span class="opt">=</span> <span class="num">0.01</span>
+solar_mass, delta_t, days_per_year :: <span class="kwb">Double</span>
+days_per_year = <span class="num">365.24</span>
+solar_mass    = <span class="num">4</span> * <span class="kwc">pi</span> ** <span class="num">2</span>;
+delta_t       = <span class="num">0.01</span>
 
-initialize <span class="opt">=</span> <span class="kwc">mapM_</span> newPlanet planets
+initialize = <span class="kwc">mapM_</span> newPlanet planets
   <span class="kwd">where</span>
-   dp <span class="opt">=</span> days_per_year
-   planets <span class="opt">=</span>
-    <span class="opt">[</span><span class="num">0</span><span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> <span class="num">0</span><span class="opt">,</span>
-     <span class="num">0</span><span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> <span class="num">0</span><span class="opt">,</span>
-     <span class="num">1</span> <span class="opt">*</span> solar_mass<span class="opt">,</span>
-     <span class="num">4.84143144246472090e+00</span><span class="opt">,        (-</span><span class="num">1.16032004402742839e+00</span><span class="opt">), (-</span><span class="num">1.03622044471123109e-01</span><span class="opt">),</span>
-     <span class="num">1.66007664274403694e-03</span><span class="opt">*</span>dp<span class="opt">,</span>     <span class="num">7.69901118419740425e-03</span><span class="opt">*</span>dp<span class="opt">, (-</span><span class="num">6.90460016972063023e-05</span><span class="opt">)*</span>dp<span class="opt">,</span>
-     <span class="num">9.54791938424326609e-04</span> <span class="opt">*</span> solar_mass<span class="opt">,</span>
+   dp = days_per_year
+   planets =
+    [<span class="num">0</span>, <span class="num">0</span>, <span class="num">0</span>,
+     <span class="num">0</span>, <span class="num">0</span>, <span class="num">0</span>,
+     <span class="num">1</span> * solar_mass,
+     <span class="num">4.84143144246472090e+00</span>,        (-<span class="num">1.16032004402742839e+00</span>), (-<span class="num">1.03622044471123109e-01</span>),
+     <span class="num">1.66007664274403694e-03</span>*dp,     <span class="num">7.69901118419740425e-03</span>*dp, (-<span class="num">6.90460016972063023e-05</span>)*dp,
+     <span class="num">9.54791938424326609e-04</span> * solar_mass,
 
-     <span class="num">8.34336671824457987e+00</span><span class="opt">,</span>        <span class="num">4.12479856412430479e+00</span><span class="opt">,    (-</span><span class="num">4.03523417114321381e-01</span><span class="opt">),</span>
-     <span class="opt">(-</span><span class="num">2.76742510726862411e-03</span><span class="opt">)*</span>dp<span class="opt">,</span>  <span class="num">4.99852801234917238e-03</span><span class="opt">*</span>dp<span class="opt">,</span> <span class="num">2.30417297573763929e-05</span><span class="opt">*</span>dp<span class="opt">,</span>
-     <span class="num">2.85885980666130812e-04</span> <span class="opt">*</span> solar_mass<span class="opt">,</span>
+     <span class="num">8.34336671824457987e+00</span>,        <span class="num">4.12479856412430479e+00</span>,    (-<span class="num">4.03523417114321381e-01</span>),
+     (-<span class="num">2.76742510726862411e-03</span>)*dp,  <span class="num">4.99852801234917238e-03</span>*dp, <span class="num">2.30417297573763929e-05</span>*dp,
+     <span class="num">2.85885980666130812e-04</span> * solar_mass,
 
-     <span class="num">1.28943695621391310e+01</span><span class="opt">,        (-</span><span class="num">1.51111514016986312e+01</span><span class="opt">), (-</span><span class="num">2.23307578892655734e-01</span><span class="opt">),</span>
-     <span class="num">2.96460137564761618e-03</span><span class="opt">*</span>dp<span class="opt">,</span>     <span class="num">2.37847173959480950e-03</span><span class="opt">*</span>dp<span class="opt">, (-</span><span class="num">2.96589568540237556e-05</span><span class="opt">)*</span>dp<span class="opt">,</span>
-     <span class="num">4.36624404335156298e-05</span> <span class="opt">*</span> solar_mass<span class="opt">,</span>
+     <span class="num">1.28943695621391310e+01</span>,        (-<span class="num">1.51111514016986312e+01</span>), (-<span class="num">2.23307578892655734e-01</span>),
+     <span class="num">2.96460137564761618e-03</span>*dp,     <span class="num">2.37847173959480950e-03</span>*dp, (-<span class="num">2.96589568540237556e-05</span>)*dp,
+     <span class="num">4.36624404335156298e-05</span> * solar_mass,
 
-     <span class="num">1.53796971148509165e+01</span><span class="opt">,        (-</span><span class="num">2.59193146099879641e+01</span><span class="opt">),</span> <span class="num">1.79258772950371181e-01</span><span class="opt">,</span>
-     <span class="num">2.68067772490389322e-03</span><span class="opt">*</span>dp<span class="opt">,</span>     <span class="num">1.62824170038242295e-03</span><span class="opt">*</span>dp<span class="opt">, (-</span><span class="num">9.51592254519715870e-05</span><span class="opt">)*</span>dp<span class="opt">,</span>
-     <span class="num">5.15138902046611451e-05</span> <span class="opt">*</span> solar_mass
-    <span class="opt">]</span>
+     <span class="num">1.53796971148509165e+01</span>,        (-<span class="num">2.59193146099879641e+01</span>), <span class="num">1.79258772950371181e-01</span>,
+     <span class="num">2.68067772490389322e-03</span>*dp,     <span class="num">1.62824170038242295e-03</span>*dp, (-<span class="num">9.51592254519715870e-05</span>)*dp,
+     <span class="num">5.15138902046611451e-05</span> * solar_mass
+    ]
 
 <span class="slc">------------------------------------------------------------------------</span>
 <span class="slc">-- Support for 3 dimensional mutable vectors</span>
 
-<span class="kwd">data</span> Vector3 <span class="opt">=</span> Vec <span class="opt">!</span><span class="kwb">Double</span> <span class="opt">!</span><span class="kwb">Double</span> <span class="opt">!</span><span class="kwb">Double</span>
+<span class="kwd">data</span> Vector3 = Vec !<span class="kwb">Double</span> !<span class="kwb">Double</span> !<span class="kwb">Double</span>
 
-end <span class="opt">::</span> Ptr <span class="kwb">Double</span>
-end <span class="opt">=</span> inc planets <span class="opt">$</span> nbodies <span class="opt">*</span> <span class="num">7</span>
+end :: Ptr <span class="kwb">Double</span>
+end = inc planets $ nbodies * <span class="num">7</span>
 
-<span class="kwc">next</span>  <span class="opt">::</span> Ptr <span class="kwb">Double</span> <span class="opt">-&gt;</span> Ptr <span class="kwb">Double</span>
-<span class="kwc">next</span> p <span class="opt">=</span> inc p <span class="num">7</span>
+<span class="kwc">next</span>  :: Ptr <span class="kwb">Double</span> -&gt; Ptr <span class="kwb">Double</span>
+<span class="kwc">next</span> p = inc p <span class="num">7</span>
 
-cursor <span class="opt">::</span> IORef <span class="opt">(</span>Ptr <span class="kwb">Double</span><span class="opt">)</span>
-cursor <span class="opt">=</span> unsafePerformIO <span class="opt">$</span> newIORef planets
+cursor :: IORef (Ptr <span class="kwb">Double</span>)
+cursor = unsafePerformIO $ newIORef planets
 
-inc <span class="opt">::</span> Ptr <span class="kwb">Double</span> <span class="opt">-&gt;</span> <span class="kwb">Int</span> <span class="opt">-&gt;</span> Ptr <span class="kwb">Double</span>
-inc ptr n <span class="opt">=</span> plusPtr ptr <span class="opt">(</span>n <span class="opt">*</span> <span class="num">8</span><span class="opt">)</span>
+inc :: Ptr <span class="kwb">Double</span> -&gt; <span class="kwb">Int</span> -&gt; Ptr <span class="kwb">Double</span>
+inc ptr n = plusPtr ptr (n * <span class="num">8</span>)
 
-newPlanet <span class="opt">::</span> <span class="kwb">Double</span> <span class="opt">-&gt;</span> <span class="kwb">IO</span> <span class="opt">()</span>
-newPlanet <span class="opt">!</span>d <span class="opt">=</span> <span class="kwd">do</span>
-    ptr <span class="opt">&lt;-</span> readIORef cursor
+newPlanet :: <span class="kwb">Double</span> -&gt; <span class="kwb">IO</span> ()
+newPlanet !d = <span class="kwd">do</span>
+    ptr &lt;- readIORef cursor
     pokeElemOff ptr <span class="num">0</span> d
-    writeIORef cursor <span class="opt">(</span>inc ptr <span class="num">1</span><span class="opt">)</span>
+    writeIORef cursor (inc ptr <span class="num">1</span>)
 
-pos <span class="opt">::</span> Ptr <span class="kwb">Double</span> <span class="opt">-&gt;</span> Ptr <span class="kwb">Double</span>
-pos ptr <span class="opt">=</span> ptr
+pos :: Ptr <span class="kwb">Double</span> -&gt; Ptr <span class="kwb">Double</span>
+pos ptr = ptr
 
-vel <span class="opt">::</span> Ptr <span class="kwb">Double</span> <span class="opt">-&gt;</span> Ptr <span class="kwb">Double</span>
-vel ptr <span class="opt">=</span> inc ptr <span class="num">3</span>
+vel :: Ptr <span class="kwb">Double</span> -&gt; Ptr <span class="kwb">Double</span>
+vel ptr = inc ptr <span class="num">3</span>
 
-mass <span class="opt">::</span> Ptr <span class="kwb">Double</span> <span class="opt">-&gt;</span> <span class="kwb">IO Double</span>
-mass ptr <span class="opt">=</span> peekElemOff ptr <span class="num">6</span>
-
-<span class="slc">------------------------------------------------------------------------</span>
-
-<span class="opt">(</span>Vec x y z<span class="opt">) .+. (</span>Vec u v w<span class="opt">) =</span> Vec <span class="opt">(</span>x<span class="opt">+</span>u<span class="opt">) (</span>y<span class="opt">+</span>v<span class="opt">) (</span>z<span class="opt">+</span>w<span class="opt">)</span>
-
-<span class="opt">(</span>Vec x y z<span class="opt">) .-. (</span>Vec u v w<span class="opt">) =</span> Vec <span class="opt">(</span>x<span class="opt">-</span>u<span class="opt">) (</span>y<span class="opt">-</span>v<span class="opt">) (</span>z<span class="opt">-</span>w<span class="opt">)</span>
-
-k <span class="opt">*. (</span>Vec x y z<span class="opt">) =</span> Vec <span class="opt">(</span>k<span class="opt">*</span>x<span class="opt">) (</span>k<span class="opt">*</span>y<span class="opt">) (</span>k<span class="opt">*</span>z<span class="opt">)</span> <span class="slc">-- allocates</span>
-
-magnitude2 <span class="opt">(</span>Vec x y z<span class="opt">) =</span> x<span class="opt">*</span>x <span class="opt">+</span> y<span class="opt">*</span>y <span class="opt">+</span> z<span class="opt">*</span>z
+mass :: Ptr <span class="kwb">Double</span> -&gt; <span class="kwb">IO Double</span>
+mass ptr = peekElemOff ptr <span class="num">6</span>
 
 <span class="slc">------------------------------------------------------------------------</span>
 
-getVec <span class="opt">!</span>p <span class="opt">=</span> <span class="kwc">liftM3</span> Vec <span class="opt">(</span>peek p<span class="opt">) (</span>f <span class="num">1</span><span class="opt">) (</span>f <span class="num">2</span><span class="opt">)</span>
-    <span class="kwd">where</span> f <span class="opt">=</span> peekElemOff p
+(Vec x y z) .+. (Vec u v w) = Vec (x+u) (y+v) (z+w)
 
-setVec p <span class="opt">(</span>Vec x y z<span class="opt">)=</span> <span class="kwd">do</span>
+(Vec x y z) .-. (Vec u v w) = Vec (x-u) (y-v) (z-w)
+
+k *. (Vec x y z) = Vec (k*x) (k*y) (k*z) <span class="slc">-- allocates</span>
+
+magnitude2 (Vec x y z) = x*x + y*y + z*z
+
+<span class="slc">------------------------------------------------------------------------</span>
+
+getVec !p = <span class="kwc">liftM3</span> Vec (peek p) (f <span class="num">1</span>) (f <span class="num">2</span>)
+    <span class="kwd">where</span> f = peekElemOff p
+
+setVec p (Vec x y z)= <span class="kwd">do</span>
     poke        p   x
     pokeElemOff p <span class="num">1</span> y
     pokeElemOff p <span class="num">2</span> z
 
-<span class="kwd">infix</span> <span class="num">4</span> <span class="opt">+=</span>
-<span class="kwd">infix</span> <span class="num">4</span> <span class="opt">-=</span>
+<span class="kwd">infix</span> <span class="num">4</span> +=
+<span class="kwd">infix</span> <span class="num">4</span> -=
 
-v1 <span class="opt">+= (</span>Vec u v w<span class="opt">) =</span> <span class="kwd">do</span>
-    x <span class="opt">&lt;-</span> peek v1<span class="opt">;</span>          poke        v1   <span class="opt">(</span>x<span class="opt">+</span>u<span class="opt">)</span>
-    y <span class="opt">&lt;-</span> peekElemOff v1 <span class="num">1</span><span class="opt">;</span> pokeElemOff v1 <span class="num">1</span> <span class="opt">(</span>y<span class="opt">+</span>v<span class="opt">)</span>
-    z <span class="opt">&lt;-</span> peekElemOff v1 <span class="num">2</span><span class="opt">;</span> pokeElemOff v1 <span class="num">2</span> <span class="opt">(</span>z<span class="opt">+</span>w<span class="opt">)</span>
+v1 += (Vec u v w) = <span class="kwd">do</span>
+    x &lt;- peek v1;          poke        v1   (x+u)
+    y &lt;- peekElemOff v1 <span class="num">1</span>; pokeElemOff v1 <span class="num">1</span> (y+v)
+    z &lt;- peekElemOff v1 <span class="num">2</span>; pokeElemOff v1 <span class="num">2</span> (z+w)
 
-v1 <span class="opt">-= (</span>Vec u v w<span class="opt">)  =</span> <span class="kwd">do</span>
-    x <span class="opt">&lt;-</span> peek v1<span class="opt">;</span>          poke        v1   <span class="opt">(</span>x<span class="opt">-</span>u<span class="opt">)</span>
-    y <span class="opt">&lt;-</span> peekElemOff v1 <span class="num">1</span><span class="opt">;</span> pokeElemOff v1 <span class="num">1</span> <span class="opt">(</span>y<span class="opt">-</span>v<span class="opt">)</span>
-    z <span class="opt">&lt;-</span> peekElemOff v1 <span class="num">2</span><span class="opt">;</span> pokeElemOff v1 <span class="num">2</span> <span class="opt">(</span>z<span class="opt">-</span>w<span class="opt">)</span>
+v1 -= (Vec u v w)  = <span class="kwd">do</span>
+    x &lt;- peek v1;          poke        v1   (x-u)
+    y &lt;- peekElemOff v1 <span class="num">1</span>; pokeElemOff v1 <span class="num">1</span> (y-v)
+    z &lt;- peekElemOff v1 <span class="num">2</span>; pokeElemOff v1 <span class="num">2</span> (z-w)
     </pre>
   </section>
   <section>
@@ -221,22 +221,22 @@ v1 <span class="opt">-= (</span>Vec u v w<span class="opt">)  =</span> <span cla
 NOTES:
 64-bit Ubuntu quad core
 The Glorious Glasgow Haskell Compilation System,
-version 9.0.1
+version 9.2.1
 
 
-Sun, 21 Feb 2021 00:34:20 GMT
+Wed, 12 Jan 2022 23:53:04 GMT
 
 MAKE:
 mv nbody.ghc nbody.hs
-/opt/src/ghc-9.0.1/bin/ghc --make -fllvm -O2 -XBangPatterns -threaded -rtsopts  nbody.hs -o nbody.ghc_run
+~/.ghcup/ghc/9.2.1/bin/ghc --make -fllvm -O2 -XBangPatterns -threaded -rtsopts  nbody.hs -o nbody.ghc_run
 [1 of 1] Compiling Main             ( nbody.hs, nbody.o )
 You are using an unsupported version of LLVM!
-Currently only 9 is supported. System LLVM version: 11.0.0
+Currently only 9 to 13 is supported. System LLVM version: 13.0.0
 We will try though...
 Linking nbody.ghc_run ...
 rm nbody.hs
 
-9.73s to complete and log all make actions
+16.51s to complete and log all make actions
 
 COMMAND LINE:
 ./nbody.ghc_run +RTS -N4 -RTS 50000000

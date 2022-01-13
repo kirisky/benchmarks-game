@@ -29,39 +29,39 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 
 <span class="kwd">module</span> Main <span class="kwd">where</span>
 
-<span class="kwd">import</span> Data<span class="opt">.</span>Word
-<span class="kwd">import qualified</span> Data<span class="opt">.</span>Vector<span class="opt">.</span>Unboxed<span class="opt">.</span>Mutable <span class="kwd">as</span> M
-<span class="kwd">import qualified</span> Data<span class="opt">.</span>Vector<span class="opt">.</span>Unboxed <span class="kwd">as</span> V
-<span class="kwd">import qualified</span> Data<span class="opt">.</span>Vector<span class="opt">.</span>Storable<span class="opt">.</span>Mutable <span class="kwd">as</span> S
-<span class="kwd">import qualified</span> Data<span class="opt">.</span>ByteString <span class="kwd">as</span> B
-<span class="kwd">import qualified</span> Data<span class="opt">.</span>ByteString<span class="opt">.</span>Lazy<span class="opt">.</span>Char8 <span class="kwd">as</span> BL
-<span class="kwd">import</span> Control<span class="opt">.</span>Concurrent
-<span class="kwd">import</span> Control<span class="opt">.</span>Monad
-<span class="kwd">import</span> System<span class="opt">.</span><span class="kwb">IO</span>
-<span class="kwd">import</span> System<span class="opt">.</span><span class="kwb">IO</span><span class="opt">.</span>Unsafe <span class="opt">(</span>unsafePerformIO<span class="opt">)</span>
-<span class="kwd">import</span> Data<span class="opt">.</span><span class="kwb">Char</span>
-<span class="kwd">import</span> Data<span class="opt">.</span><span class="kwb">Maybe</span>
-<span class="kwd">import</span> Data<span class="opt">.</span>IORef
-<span class="kwd">import</span> System<span class="opt">.</span>Environment
-<span class="kwd">import</span> Data<span class="opt">.</span><span class="kwb">Int</span>
-<span class="kwd">import</span> Data<span class="opt">.</span>List
-<span class="kwd">import</span> GHC<span class="opt">.</span>Compact
+<span class="kwd">import</span> Data.Word
+<span class="kwd">import qualified</span> Data.Vector.Unboxed.Mutable <span class="kwd">as</span> M
+<span class="kwd">import qualified</span> Data.Vector.Unboxed <span class="kwd">as</span> V
+<span class="kwd">import qualified</span> Data.Vector.Storable.Mutable <span class="kwd">as</span> S
+<span class="kwd">import qualified</span> Data.ByteString <span class="kwd">as</span> B
+<span class="kwd">import qualified</span> Data.ByteString.Lazy.Char8 <span class="kwd">as</span> BL
+<span class="kwd">import</span> Control.Concurrent
+<span class="kwd">import</span> Control.Monad
+<span class="kwd">import</span> System.<span class="kwb">IO</span>
+<span class="kwd">import</span> System.<span class="kwb">IO</span>.Unsafe (unsafePerformIO)
+<span class="kwd">import</span> Data.<span class="kwb">Char</span>
+<span class="kwd">import</span> Data.<span class="kwb">Maybe</span>
+<span class="kwd">import</span> Data.IORef
+<span class="kwd">import</span> System.Environment
+<span class="kwd">import</span> Data.<span class="kwb">Int</span>
+<span class="kwd">import</span> Data.List
+<span class="kwd">import</span> GHC.Compact
 
 <span class="slc">-- First some constants</span>
 
-lineLength <span class="opt">::</span> <span class="kwb">Int</span>
-lineLength <span class="opt">=</span> <span class="num">60</span>
+lineLength :: <span class="kwb">Int</span>
+lineLength = <span class="num">60</span>
 
-workers <span class="opt">::</span> <span class="kwb">Int</span>
-workers <span class="opt">=</span> <span class="num">4</span>
+workers :: <span class="kwb">Int</span>
+workers = <span class="num">4</span>
 
-ia<span class="opt">,</span> ic<span class="opt">,</span> im <span class="opt">::</span> Word32
-ia <span class="opt">=</span> <span class="num">3877</span>
-ic <span class="opt">=</span> <span class="num">29573</span>
-im <span class="opt">=</span> <span class="num">139968</span>
+ia, ic, im :: Word32
+ia = <span class="num">3877</span>
+ic = <span class="num">29573</span>
+im = <span class="num">139968</span>
 
-alu <span class="opt">::</span> B<span class="opt">.</span>ByteString
-alu <span class="opt">=</span>
+alu :: B.ByteString
+alu =
   <span class="str">&quot;GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGG\</span>
 <span class="str">  \AGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGCGTGGTGG\</span>
 <span class="str">  \CGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAG\</span>
@@ -69,75 +69,75 @@ alu <span class="opt">=</span>
 
 <span class="slc">-- An mvar that is used to ensure that no two threads will print to stdout at</span>
 <span class="slc">-- the same time.</span>
-output <span class="opt">::</span> MVar <span class="opt">()</span>
-output <span class="opt">=</span> unsafePerformIO <span class="opt">(</span>newMVar <span class="opt">())</span>
+output :: MVar ()
+output = unsafePerformIO (newMVar ())
 
 <span class="slc">-- Firstly the repeated fasta</span>
 
 <span class="slc">-- Helper function that cuts a lazy bytestring into a list of equal size</span>
 <span class="slc">-- chunks.</span>
-toChunksOf <span class="opt">::</span> Int64 <span class="opt">-&gt;</span> BL<span class="opt">.</span>ByteString <span class="opt">-&gt; [</span>BL<span class="opt">.</span>ByteString<span class="opt">]</span>
-toChunksOf <span class="opt">!</span>n <span class="opt">=</span> <span class="kwc">unfoldr</span> <span class="opt">(</span>Just <span class="opt">.</span> BL<span class="opt">.</span><span class="kwc">splitAt</span> n<span class="opt">)</span>
+toChunksOf :: Int64 -&gt; BL.ByteString -&gt; [BL.ByteString]
+toChunksOf !n = <span class="kwc">unfoldr</span> (Just . BL.<span class="kwc">splitAt</span> n)
 
 <span class="slc">-- Find the smallest multiple of the alu that aligns with the line length.</span>
 <span class="slc">-- Then print that repeatedly. Finally, print the remainder.</span>
-printRepeatedFasta <span class="opt">::</span> <span class="kwb">Int</span> <span class="opt">-&gt;</span> <span class="kwb">Int</span> <span class="opt">-&gt;</span> B<span class="opt">.</span>ByteString <span class="opt">-&gt;</span> <span class="kwb">IO</span> <span class="opt">()</span>
-printRepeatedFasta <span class="opt">!</span>n <span class="opt">!</span>l <span class="opt">!</span>s <span class="opt">=</span> <span class="kwd">do</span>
-  replicateM_ q <span class="opt">(</span>B<span class="opt">.</span><span class="kwc">putStr</span> buffer<span class="opt">)</span>
-  B<span class="opt">.</span><span class="kwc">putStr</span> <span class="opt">$</span> B<span class="opt">.</span><span class="kwc">take</span> <span class="opt">(</span>r <span class="opt">+</span> r `<span class="kwc">quot</span>` lineLength<span class="opt">)</span> buffer
-  B<span class="opt">.</span><span class="kwc">putStr</span> <span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span>
+printRepeatedFasta :: <span class="kwb">Int</span> -&gt; <span class="kwb">Int</span> -&gt; B.ByteString -&gt; <span class="kwb">IO</span> ()
+printRepeatedFasta !n !l !s = <span class="kwd">do</span>
+  replicateM_ q (B.<span class="kwc">putStr</span> buffer)
+  B.<span class="kwc">putStr</span> $ B.<span class="kwc">take</span> (r + r `<span class="kwc">quot</span>` lineLength) buffer
+  B.<span class="kwc">putStr</span> <span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span>
   <span class="kwd">where</span>
-  m <span class="opt">=</span> l <span class="opt">*</span> <span class="kwc">gcd</span> l lineLength
-  <span class="opt">(</span>q<span class="opt">,</span>r<span class="opt">) =</span> n `<span class="kwc">quotRem</span>` <span class="opt">(</span>lineLength <span class="opt">*</span> m<span class="opt">)</span>
-  buffer <span class="opt">=</span> BL<span class="opt">.</span>toStrict
-    <span class="opt">$</span> BL<span class="opt">.</span><span class="kwc">unlines</span>
-    <span class="opt">$</span> <span class="kwc">take</span> m
-    <span class="opt">$</span> toChunksOf <span class="opt">(</span><span class="kwc">fromIntegral</span> lineLength<span class="opt">)</span>
-    <span class="opt">$</span> BL<span class="opt">.</span><span class="kwc">cycle</span>
-    <span class="opt">$</span> BL<span class="opt">.</span>fromStrict s
+  m = l * <span class="kwc">gcd</span> l lineLength
+  (q,r) = n `<span class="kwc">quotRem</span>` (lineLength * m)
+  buffer = BL.toStrict
+    $ BL.<span class="kwc">unlines</span>
+    $ <span class="kwc">take</span> m
+    $ toChunksOf (<span class="kwc">fromIntegral</span> lineLength)
+    $ BL.<span class="kwc">cycle</span>
+    $ BL.fromStrict s
 
 <span class="slc">-- Secondly the random fasta</span>
 
 <span class="slc">-- fill a vector with pseudorandom values from the LCG.</span>
-genSeeds <span class="opt">::</span> Word32 <span class="opt">-&gt;</span> M<span class="opt">.</span>IOVector Word32 <span class="opt">-&gt;</span> Word32 <span class="opt">-&gt;</span> <span class="kwb">IO</span> Word32
-genSeeds <span class="opt">!</span>bufferSize <span class="opt">!</span>v <span class="opt">!</span>s <span class="opt">=</span> go <span class="num">0</span> s <span class="kwd">where</span>
-  go <span class="opt">::</span> Word32 <span class="opt">-&gt;</span> Word32 <span class="opt">-&gt;</span> <span class="kwb">IO</span> Word32
-  go <span class="opt">!</span>n <span class="opt">!</span>s  
-    | n <span class="opt">&lt;</span> bufferSize <span class="opt">=</span> <span class="kwd">do</span>
-      M<span class="opt">.</span>unsafeWrite v <span class="opt">(</span><span class="kwc">fromIntegral</span> n<span class="opt">)</span> s<span class="opt">&apos;</span>
-      go <span class="opt">(</span>n <span class="opt">+</span> <span class="num">1</span><span class="opt">)</span> s<span class="opt">&apos;</span>
-    | <span class="kwc">otherwise</span> <span class="opt">=</span> <span class="kwc">return</span> s
+genSeeds :: Word32 -&gt; M.IOVector Word32 -&gt; Word32 -&gt; <span class="kwb">IO</span> Word32
+genSeeds !bufferSize !v !s = go <span class="num">0</span> s <span class="kwd">where</span>
+  go :: Word32 -&gt; Word32 -&gt; <span class="kwb">IO</span> Word32
+  go !n !s  
+    | n &lt; bufferSize = <span class="kwd">do</span>
+      M.unsafeWrite v (<span class="kwc">fromIntegral</span> n) s&apos;
+      go (n + <span class="num">1</span>) s&apos;
+    | <span class="kwc">otherwise</span> = <span class="kwc">return</span> s
     <span class="kwd">where</span>
       <span class="slc">-- This is the LCG formula</span>
-      <span class="opt">!</span>s<span class="opt">&apos; = (</span>ia <span class="opt">*</span> s <span class="opt">+</span> ic<span class="opt">)</span> `<span class="kwc">rem</span>` im
+      !s&apos; = (ia * s + ic) `<span class="kwc">rem</span>` im
 
 <span class="slc">-- The worker is designed to run in a separate thread. It first generates a</span>
 <span class="slc">-- block of random values, then it consumes that block. This is done repeatedly</span>
 <span class="slc">-- until no more characters need to be generated.</span>
 worker
-  <span class="opt">::</span> M<span class="opt">.</span>IOVector Word32
-  <span class="opt">-&gt;</span> S<span class="opt">.</span>IOVector Word8
-  <span class="opt">-&gt;</span> <span class="kwb">Int</span>
-  <span class="opt">-&gt;</span> V<span class="opt">.</span>Vector Word32
-  <span class="opt">-&gt;</span> V<span class="opt">.</span>Vector Word8
-  <span class="opt">-&gt;</span> MVar <span class="opt">(</span>Word32<span class="opt">,</span> MVar <span class="opt">())</span>
-  <span class="opt">-&gt;</span> IORef <span class="kwb">Int</span>
-  <span class="opt">-&gt;</span> <span class="kwb">IO</span> <span class="opt">()</span>
-worker <span class="opt">!</span>m <span class="opt">!</span>s <span class="opt">!</span>bufferSize <span class="opt">!</span>p0 <span class="opt">!</span>p1 <span class="opt">!</span>mvar <span class="opt">!</span>ref <span class="opt">=</span> <span class="kwd">do</span>
+  :: M.IOVector Word32
+  -&gt; S.IOVector Word8
+  -&gt; <span class="kwb">Int</span>
+  -&gt; V.Vector Word32
+  -&gt; V.Vector Word8
+  -&gt; MVar (Word32, MVar ())
+  -&gt; IORef <span class="kwb">Int</span>
+  -&gt; <span class="kwb">IO</span> ()
+worker !m !s !bufferSize !p0 !p1 !mvar !ref = <span class="kwd">do</span>
   <span class="slc">-- We freeze it unsafely here, but we expect it to be changed in the loop.</span>
-  v <span class="opt">&lt;-</span> V<span class="opt">.</span>unsafeFreeze m
+  v &lt;- V.unsafeFreeze m
   <span class="kwd">let</span>
-    loop <span class="opt">=</span> <span class="kwd">do</span>
+    loop = <span class="kwd">do</span>
       <span class="slc">-- Find out how many characters still need to be done.</span>
-      n <span class="opt">&lt;-</span> atomicModifyIORef<span class="opt">&apos;</span> ref <span class="opt">$ \</span>x <span class="opt">-&gt;</span>
-        <span class="kwd">if</span> x <span class="opt">&gt;</span> <span class="num">0</span>
-          <span class="kwd">then</span> <span class="opt">(</span><span class="kwc">max</span> <span class="num">0</span> <span class="opt">(</span>x <span class="opt">-</span> bufferSize<span class="opt">),</span> <span class="kwc">min</span> x bufferSize<span class="opt">)</span>
-          <span class="kwd">else</span> <span class="opt">(</span><span class="num">0</span><span class="opt">,</span> <span class="num">0</span><span class="opt">)</span>
-      <span class="kwc">when</span> <span class="opt">(</span>n <span class="opt">&gt;</span> <span class="num">0</span><span class="opt">) $</span> <span class="kwd">do</span>
-        <span class="kwc">next</span> <span class="opt">&lt;-</span> newEmptyMVar
-        <span class="opt">(</span>rnd<span class="opt">,</span> prev<span class="opt">) &lt;-</span> takeMVar mvar
-        rnd<span class="opt">&apos; &lt;-</span> genSeeds <span class="opt">(</span><span class="kwc">fromIntegral</span> n<span class="opt">)</span> m rnd
-        putMVar mvar <span class="opt">(</span>rnd<span class="opt">&apos;,</span> <span class="kwc">next</span><span class="opt">)</span>
+      n &lt;- atomicModifyIORef&apos; ref $ \x -&gt;
+        <span class="kwd">if</span> x &gt; <span class="num">0</span>
+          <span class="kwd">then</span> (<span class="kwc">max</span> <span class="num">0</span> (x - bufferSize), <span class="kwc">min</span> x bufferSize)
+          <span class="kwd">else</span> (<span class="num">0</span>, <span class="num">0</span>)
+      <span class="kwc">when</span> (n &gt; <span class="num">0</span>) $ <span class="kwd">do</span>
+        <span class="kwc">next</span> &lt;- newEmptyMVar
+        (rnd, prev) &lt;- takeMVar mvar
+        rnd&apos; &lt;- genSeeds (<span class="kwc">fromIntegral</span> n) m rnd
+        putMVar mvar (rnd&apos;, <span class="kwc">next</span>)
         consume n p0 p1 s v prev <span class="kwc">next</span>
         loop
   loop
@@ -145,105 +145,105 @@ worker <span class="opt">!</span>m <span class="opt">!</span>s <span class="opt"
 <span class="slc">-- Do the cumulative probability sampling and print the resulting string.</span>
 <span class="slc">-- It turns out that using two separate vectors for the lookup table is faster.</span>
 consume
-  <span class="opt">::</span> <span class="kwb">Int</span>
-  <span class="opt">-&gt;</span> V<span class="opt">.</span>Vector Word32
-  <span class="opt">-&gt;</span> V<span class="opt">.</span>Vector Word8
-  <span class="opt">-&gt;</span> S<span class="opt">.</span>IOVector Word8
-  <span class="opt">-&gt;</span> V<span class="opt">.</span>Vector Word32
-  <span class="opt">-&gt;</span> MVar <span class="opt">()</span>
-  <span class="opt">-&gt;</span> MVar <span class="opt">()</span>
-  <span class="opt">-&gt;</span> <span class="kwb">IO</span> <span class="opt">()</span>
-consume <span class="opt">!</span>bufferSize <span class="opt">!</span>p0 <span class="opt">!</span>p1 <span class="opt">!</span>s <span class="opt">!</span>v <span class="opt">!</span>prev <span class="opt">!</span><span class="kwc">next</span> <span class="opt">=</span> <span class="kwd">do</span>
+  :: <span class="kwb">Int</span>
+  -&gt; V.Vector Word32
+  -&gt; V.Vector Word8
+  -&gt; S.IOVector Word8
+  -&gt; V.Vector Word32
+  -&gt; MVar ()
+  -&gt; MVar ()
+  -&gt; <span class="kwb">IO</span> ()
+consume !bufferSize !p0 !p1 !s !v !prev !<span class="kwc">next</span> = <span class="kwd">do</span>
   loop lineLength <span class="num">0 0</span>
   takeMVar prev
-  S<span class="opt">.</span>unsafeWith s <span class="opt">$ \</span>ptr <span class="opt">-&gt;</span>
-    hPutBuf <span class="kwc">stdout</span> ptr <span class="opt">(</span>bufferSize <span class="opt">+</span> bufferSize `<span class="kwc">quot</span>` lineLength<span class="opt">)</span>
-  putMVar <span class="kwc">next</span> <span class="opt">()</span>
+  S.unsafeWith s $ \ptr -&gt;
+    hPutBuf <span class="kwc">stdout</span> ptr (bufferSize + bufferSize `<span class="kwc">quot</span>` lineLength)
+  putMVar <span class="kwc">next</span> ()
   <span class="kwd">where</span>
-    loop <span class="opt">::</span> <span class="kwb">Int</span> <span class="opt">-&gt;</span> <span class="kwb">Int</span> <span class="opt">-&gt;</span> <span class="kwb">Int</span> <span class="opt">-&gt;</span> <span class="kwb">IO</span> <span class="opt">()</span>
-    loop <span class="num">0</span> <span class="opt">!</span>si <span class="opt">!</span>vi <span class="opt">=</span> <span class="kwd">do</span>
-      S<span class="opt">.</span>unsafeWrite s si <span class="num">10</span>
-      loop lineLength <span class="opt">(</span>si <span class="opt">+</span> <span class="num">1</span><span class="opt">)</span> vi
-    loop <span class="opt">!</span>l <span class="opt">!</span>si <span class="opt">!</span>vi
+    loop :: <span class="kwb">Int</span> -&gt; <span class="kwb">Int</span> -&gt; <span class="kwb">Int</span> -&gt; <span class="kwb">IO</span> ()
+    loop <span class="num">0</span> !si !vi = <span class="kwd">do</span>
+      S.unsafeWrite s si <span class="num">10</span>
+      loop lineLength (si + <span class="num">1</span>) vi
+    loop !l !si !vi
       <span class="slc">-- | l == 0 = do</span>
       <span class="slc">--   S.unsafeWrite s si 10</span>
       <span class="slc">--   loop lineLength (si + 1) vi</span>
-      | vi <span class="opt">&lt;</span> bufferSize <span class="opt">=</span> <span class="kwd">do</span> 
-        S<span class="opt">.</span>unsafeWrite s si <span class="opt">(</span>lookupCumul <span class="opt">(</span>V<span class="opt">.</span>unsafeIndex v <span class="opt">(</span><span class="kwc">fromIntegral</span> vi<span class="opt">)))</span>
-        loop <span class="opt">(</span>l <span class="opt">-</span> <span class="num">1</span><span class="opt">) (</span>si <span class="opt">+</span> <span class="num">1</span><span class="opt">) (</span>vi <span class="opt">+</span> <span class="num">1</span><span class="opt">)</span>
-      | <span class="kwc">otherwise</span> <span class="opt">=</span> <span class="kwc">return</span> <span class="opt">()</span>
+      | vi &lt; bufferSize = <span class="kwd">do</span> 
+        S.unsafeWrite s si (lookupCumul (V.unsafeIndex v (<span class="kwc">fromIntegral</span> vi)))
+        loop (l - <span class="num">1</span>) (si + <span class="num">1</span>) (vi + <span class="num">1</span>)
+      | <span class="kwc">otherwise</span> = <span class="kwc">return</span> ()
 
-    lookupCumul <span class="opt">!</span>c <span class="opt">=</span> V<span class="opt">.</span>unsafeIndex p1 <span class="opt">(</span><span class="kwc">fromJust</span> <span class="opt">(</span>V<span class="opt">.</span><span class="kwc">findIndex</span> <span class="opt">(</span>c <span class="opt">&lt;=)</span> p0<span class="opt">))</span>
+    lookupCumul !c = V.unsafeIndex p1 (<span class="kwc">fromJust</span> (V.<span class="kwc">findIndex</span> (c &lt;=) p0))
 
 <span class="slc">-- Convert a list of characters with probabilities to a cumulative lookup</span>
 <span class="slc">-- table.</span>
-cumulativeProbabilities <span class="opt">:: [(</span><span class="kwb">Char</span><span class="opt">,</span> <span class="kwb">Float</span><span class="opt">)] -&gt;</span> V<span class="opt">.</span>Vector <span class="opt">(</span>Word32<span class="opt">,</span> Word8<span class="opt">)</span>
-cumulativeProbabilities <span class="opt">=</span> V<span class="opt">.</span><span class="kwc">unfoldr</span> uncons <span class="opt">. (\</span>x <span class="opt">-&gt; (</span><span class="num">0</span><span class="opt">,</span>x<span class="opt">))</span> <span class="kwd">where</span>
-  uncons <span class="opt">(</span>_   <span class="opt">, []) =</span> Nothing
-  uncons <span class="opt">(</span>prev<span class="opt">, ((</span>c<span class="opt">,</span>p<span class="opt">):</span>xs<span class="opt">)) =</span> <span class="kwd">let</span> p<span class="opt">&apos; =</span> p <span class="opt">+</span> prev <span class="kwd">in</span> Just
-    <span class="opt">((</span><span class="kwa">floor</span> <span class="opt">(</span><span class="kwc">fromIntegral</span> im <span class="opt">*</span> p<span class="opt">&apos;),</span> <span class="kwc">fromIntegral</span> <span class="opt">(</span><span class="kwc">ord</span> c<span class="opt">)), (</span>p<span class="opt">&apos;,</span> xs<span class="opt">))</span>
+cumulativeProbabilities :: [(<span class="kwb">Char</span>, <span class="kwb">Float</span>)] -&gt; V.Vector (Word32, Word8)
+cumulativeProbabilities = V.<span class="kwc">unfoldr</span> uncons . (\x -&gt; (<span class="num">0</span>,x)) <span class="kwd">where</span>
+  uncons (_   , []) = Nothing
+  uncons (prev, ((c,p):xs)) = <span class="kwd">let</span> p&apos; = p + prev <span class="kwd">in</span> Just
+    ((<span class="kwa">floor</span> (<span class="kwc">fromIntegral</span> im * p&apos;), <span class="kwc">fromIntegral</span> (<span class="kwc">ord</span> c)), (p&apos;, xs))
 
 printRandomFasta
-  <span class="opt">:: [</span>M<span class="opt">.</span>IOVector Word32<span class="opt">]</span>
-  <span class="opt">-&gt; [</span>S<span class="opt">.</span>IOVector Word8<span class="opt">]</span>
-  <span class="opt">-&gt;</span> <span class="kwb">Int</span>
-  <span class="opt">-&gt;</span> V<span class="opt">.</span>Vector Word32
-  <span class="opt">-&gt;</span> V<span class="opt">.</span>Vector Word8
-  <span class="opt">-&gt;</span> <span class="kwb">Int</span>
-  <span class="opt">-&gt;</span> Word32
-  <span class="opt">-&gt;</span> <span class="kwb">IO</span> Word32
-printRandomFasta <span class="opt">!</span>rndBuffers <span class="opt">!</span>outBuffers <span class="opt">!</span>bufferSize <span class="opt">!</span>p0 <span class="opt">!</span>p1 <span class="opt">!</span>n <span class="opt">!</span>s <span class="opt">=</span> <span class="kwd">do</span>
-  ref <span class="opt">&lt;-</span> newIORef n
-  prev <span class="opt">&lt;-</span> newMVar <span class="opt">()</span>
-  var <span class="opt">&lt;-</span> newMVar <span class="opt">(</span>s<span class="opt">,</span> prev<span class="opt">)</span>
-  <span class="kwc">mapM_</span> <span class="opt">(\(</span>rnd<span class="opt">,</span>out<span class="opt">) -&gt;</span> forkIO <span class="opt">(</span>worker rnd out bufferSize p0 p1 var ref<span class="opt">))</span>
-    <span class="opt">$</span> <span class="kwc">tail</span> <span class="opt">(</span><span class="kwc">zip</span> rndBuffers outBuffers<span class="opt">)</span>
+  :: [M.IOVector Word32]
+  -&gt; [S.IOVector Word8]
+  -&gt; <span class="kwb">Int</span>
+  -&gt; V.Vector Word32
+  -&gt; V.Vector Word8
+  -&gt; <span class="kwb">Int</span>
+  -&gt; Word32
+  -&gt; <span class="kwb">IO</span> Word32
+printRandomFasta !rndBuffers !outBuffers !bufferSize !p0 !p1 !n !s = <span class="kwd">do</span>
+  ref &lt;- newIORef n
+  prev &lt;- newMVar ()
+  var &lt;- newMVar (s, prev)
+  <span class="kwc">mapM_</span> (\(rnd,out) -&gt; forkIO (worker rnd out bufferSize p0 p1 var ref))
+    $ <span class="kwc">tail</span> (<span class="kwc">zip</span> rndBuffers outBuffers)
   <span class="slc">-- run one worker in this thread</span>
-  worker <span class="opt">(</span><span class="kwc">head</span> rndBuffers<span class="opt">) (</span><span class="kwc">head</span> outBuffers<span class="opt">)</span> bufferSize p0 p1 var ref
-  <span class="opt">(</span>s<span class="opt">&apos;,</span> prev<span class="opt">&apos;) &lt;-</span> takeMVar var
+  worker (<span class="kwc">head</span> rndBuffers) (<span class="kwc">head</span> outBuffers) bufferSize p0 p1 var ref
+  (s&apos;, prev&apos;) &lt;- takeMVar var
   <span class="slc">-- wait for the last worker to finish</span>
-  takeMVar prev<span class="opt">&apos;</span>
-  <span class="kwc">when</span> <span class="opt">(</span>n `<span class="kwc">rem</span>` lineLength <span class="opt">/=</span> <span class="num">0</span><span class="opt">) (</span><span class="kwc">putStrLn</span> <span class="str">&quot;&quot;</span><span class="opt">)</span>
-  <span class="kwc">return</span> s<span class="opt">&apos;</span>
+  takeMVar prev&apos;
+  <span class="kwc">when</span> (n `<span class="kwc">rem</span>` lineLength /= <span class="num">0</span>) (<span class="kwc">putStrLn</span> <span class="str">&quot;&quot;</span>)
+  <span class="kwc">return</span> s&apos;
 
-main <span class="opt">::</span> <span class="kwb">IO</span> <span class="opt">()</span>
-main <span class="opt">=</span> <span class="kwd">do</span>
-  n <span class="opt">&lt;-</span> <span class="kwc">readIO</span> <span class="opt">.</span> <span class="kwc">head</span> <span class="opt">=&lt;&lt;</span> <span class="kwc">getArgs</span>
+main :: <span class="kwb">IO</span> ()
+main = <span class="kwd">do</span>
+  n &lt;- <span class="kwc">readIO</span> . <span class="kwc">head</span> =&lt;&lt; <span class="kwc">getArgs</span>
 
   <span class="kwc">putStrLn</span> <span class="str">&quot;&gt;ONE Homo sapiens alu&quot;</span>
-  printRepeatedFasta <span class="opt">(</span><span class="num">2</span> <span class="opt">*</span> n<span class="opt">) (</span>B<span class="opt">.</span><span class="kwa">length</span> alu<span class="opt">)</span> alu 
+  printRepeatedFasta (<span class="num">2</span> * n) (B.<span class="kwa">length</span> alu) alu 
 
-  <span class="kwd">let</span> bufferSize <span class="opt">=</span> <span class="num">2</span>^<span class="num">10</span> <span class="opt">*</span> lineLength
+  <span class="kwd">let</span> bufferSize = <span class="num">2</span>^<span class="num">10</span> * lineLength
 
-  rndBuffers <span class="opt">&lt;-</span> replicateM workers <span class="opt">(</span>M<span class="opt">.</span>new bufferSize<span class="opt">)</span>
-  outBuffers <span class="opt">&lt;-</span> replicateM workers
-    <span class="opt">(</span>S<span class="opt">.</span>new <span class="opt">(</span>bufferSize <span class="opt">+</span> bufferSize `<span class="kwc">quot</span>` lineLength<span class="opt">))</span>
+  rndBuffers &lt;- replicateM workers (M.new bufferSize)
+  outBuffers &lt;- replicateM workers
+    (S.new (bufferSize + bufferSize `<span class="kwc">quot</span>` lineLength))
 
   <span class="kwd">let</span>
-    p0 <span class="opt">=</span> cumulativeProbabilities
-      <span class="opt">[(&apos;</span>a<span class="opt">&apos;,</span> <span class="num">0.27</span><span class="opt">), (&apos;</span>c<span class="opt">&apos;,</span> <span class="num">0.12</span><span class="opt">), (&apos;</span>g<span class="opt">&apos;,</span> <span class="num">0.12</span><span class="opt">), (&apos;</span>t<span class="opt">&apos;,</span> <span class="num">0.27</span><span class="opt">), (&apos;</span>B<span class="opt">&apos;,</span> <span class="num">0.02</span><span class="opt">),</span>
-       <span class="opt">(&apos;</span>D<span class="opt">&apos;,</span> <span class="num">0.02</span><span class="opt">), (&apos;</span>H<span class="opt">&apos;,</span> <span class="num">0.02</span><span class="opt">), (&apos;</span>K<span class="opt">&apos;,</span> <span class="num">0.02</span><span class="opt">), (&apos;</span>M<span class="opt">&apos;,</span> <span class="num">0.02</span><span class="opt">), (&apos;</span>N<span class="opt">&apos;,</span> <span class="num">0.02</span><span class="opt">),</span>
-       <span class="opt">(&apos;</span>R<span class="opt">&apos;,</span> <span class="num">0.02</span><span class="opt">), (&apos;</span>S<span class="opt">&apos;,</span> <span class="num">0.02</span><span class="opt">), (&apos;</span>V<span class="opt">&apos;,</span> <span class="num">0.02</span><span class="opt">), (&apos;</span>W<span class="opt">&apos;,</span> <span class="num">0.02</span><span class="opt">), (&apos;</span>Y<span class="opt">&apos;,</span> <span class="num">0.02</span><span class="opt">)]</span>
-    p00 <span class="opt">=</span> V<span class="opt">.</span><span class="kwc">map fst</span> p0
-    p01 <span class="opt">=</span> V<span class="opt">.</span><span class="kwc">map snd</span> p0
+    p0 = cumulativeProbabilities
+      [(&apos;a&apos;, <span class="num">0.27</span>), (&apos;c&apos;, <span class="num">0.12</span>), (&apos;g&apos;, <span class="num">0.12</span>), (&apos;t&apos;, <span class="num">0.27</span>), (&apos;B&apos;, <span class="num">0.02</span>),
+       (&apos;D&apos;, <span class="num">0.02</span>), (&apos;H&apos;, <span class="num">0.02</span>), (&apos;K&apos;, <span class="num">0.02</span>), (&apos;M&apos;, <span class="num">0.02</span>), (&apos;N&apos;, <span class="num">0.02</span>),
+       (&apos;R&apos;, <span class="num">0.02</span>), (&apos;S&apos;, <span class="num">0.02</span>), (&apos;V&apos;, <span class="num">0.02</span>), (&apos;W&apos;, <span class="num">0.02</span>), (&apos;Y&apos;, <span class="num">0.02</span>)]
+    p00 = V.<span class="kwc">map fst</span> p0
+    p01 = V.<span class="kwc">map snd</span> p0
     
   <span class="kwd">let</span>
-    p1 <span class="opt">=</span> cumulativeProbabilities
-      <span class="opt">[(&apos;</span>a<span class="opt">&apos;,</span> <span class="num">0.3029549426680</span><span class="opt">), (&apos;</span>c<span class="opt">&apos;,</span> <span class="num">0.1979883004921</span><span class="opt">),</span>
-       <span class="opt">(&apos;</span>g<span class="opt">&apos;,</span> <span class="num">0.1975473066391</span><span class="opt">), (&apos;</span>t<span class="opt">&apos;,</span> <span class="num">0.3015094502008</span><span class="opt">)]</span>
-    p10 <span class="opt">=</span> V<span class="opt">.</span><span class="kwc">map fst</span> p1
-    p11 <span class="opt">=</span> V<span class="opt">.</span><span class="kwc">map snd</span> p1
+    p1 = cumulativeProbabilities
+      [(&apos;a&apos;, <span class="num">0.3029549426680</span>), (&apos;c&apos;, <span class="num">0.1979883004921</span>),
+       (&apos;g&apos;, <span class="num">0.1975473066391</span>), (&apos;t&apos;, <span class="num">0.3015094502008</span>)]
+    p10 = V.<span class="kwc">map fst</span> p1
+    p11 = V.<span class="kwc">map snd</span> p1
 
-  compact <span class="opt">(</span>rndBuffers<span class="opt">,</span> p0<span class="opt">,</span> p1<span class="opt">)</span>
+  compact (rndBuffers, p0, p1)
   <span class="slc">-- outBuffers cannot be compacted because they are pinned</span>
 
   <span class="kwc">putStrLn</span> <span class="str">&quot;&gt;TWO IUB ambiguity codes&quot;</span>
-  s<span class="opt">&apos; &lt;-</span> printRandomFasta rndBuffers outBuffers bufferSize p00 p01 <span class="opt">(</span><span class="num">3</span> <span class="opt">*</span> n<span class="opt">)</span> <span class="num">42</span>
+  s&apos; &lt;- printRandomFasta rndBuffers outBuffers bufferSize p00 p01 (<span class="num">3</span> * n) <span class="num">42</span>
 
   <span class="kwc">putStrLn</span> <span class="str">&quot;&gt;THREE Homo sapiens frequency&quot;</span>
-  printRandomFasta rndBuffers outBuffers bufferSize p10 p11 <span class="opt">(</span><span class="num">5</span> <span class="opt">*</span> n<span class="opt">)</span> s<span class="opt">&apos;</span>
+  printRandomFasta rndBuffers outBuffers bufferSize p10 p11 (<span class="num">5</span> * n) s&apos;
 
-  <span class="kwc">return</span> <span class="opt">()</span>
+  <span class="kwc">return</span> ()
     </pre>
   </section>
   <section>
@@ -254,59 +254,196 @@ main <span class="opt">=</span> <span class="kwd">do</span>
 NOTES:
 64-bit Ubuntu quad core
 The Glorious Glasgow Haskell Compilation System,
-version 9.0.1
+version 9.2.1
 
 
-Sun, 21 Feb 2021 00:29:12 GMT
+Wed, 12 Jan 2022 23:43:51 GMT
 
 MAKE:
 mv fasta.ghc-5.ghc fasta.ghc-5.hs
-/opt/src/ghc-9.0.1/bin/ghc --make -fllvm -O2 -XBangPatterns -threaded -rtsopts -XStrict fasta.ghc-5.hs -o fasta.ghc-5.ghc_run
+~/.ghcup/ghc/9.2.1/bin/ghc --make -fllvm -O2 -XBangPatterns -threaded -rtsopts -XOverloadedStrings fasta.ghc-5.hs -o fasta.ghc-5.ghc_run
 [1 of 1] Compiling Main             ( fasta.ghc-5.hs, fasta.ghc-5.o )
-
-fasta.ghc-5.hs:41:3: error:
-    • Couldn't match type ‘[Char]’ with ‘B.ByteString’
-      Expected: B.ByteString
-        Actual: String
-    • In the expression:
-        &quot;GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGG\
-  \AGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGCGTGGTGG\
-  \CGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAG\
-  \TGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA&quot;
-      In an equation for ‘alu’:
-          alu
-            = &quot;GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGG\
-  \AGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGCGTGGTGG\
-  \CGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAG\
-  \TGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA&quot;
-   |
-41 |   &quot;GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGG\
-   |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^...
-
-fasta.ghc-5.hs:64:12: error:
-    • Couldn't match type ‘[Char]’ with ‘B.ByteString’
-      Expected: B.ByteString
-        Actual: String
-    • In the first argument of ‘B.putStr’, namely ‘&quot;\n&quot;’
-      In a stmt of a 'do' block: B.putStr &quot;\n&quot;
-      In the expression:
-        do replicateM_ q (B.putStr buffer)
-           B.putStr $ B.take (r + r `quot` lineLength) buffer
-           B.putStr &quot;\n&quot;
-   |
-64 |   B.putStr &quot;\n&quot;
-   |            ^^^^
-make: [/home/dunham/all-benchmarksgame/2000-benchmarksgame/nanobench/makefiles/u64q.programs.Makefile:243: fasta.ghc-5.ghc_run] Error 1 (ignored)
+You are using an unsupported version of LLVM!
+Currently only 9 to 13 is supported. System LLVM version: 13.0.0
+We will try though...
+Linking fasta.ghc-5.ghc_run ...
 rm fasta.ghc-5.hs
 
-5.34s to complete and log all make actions
+13.17s to complete and log all make actions
 
 COMMAND LINE:
-./fasta.ghc-5.ghc_run +RTS -N4 -RTS 250000
+./fasta.ghc-5.ghc_run +RTS -N4 -RTS 25000000
 
-MAKE ERROR 
-
-    </pre>
+(TRUNCATED) PROGRAM OUTPUT:
+&gt;ONE Homo sapiens alu
+GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGA
+TCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACT
+AAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAG
+GCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCG
+CCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAAGGCCGGGCGCGGT
+GGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCA
+GGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAA
+TTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAG
+AATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCA
+GCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAAGGCCGGGCGCGGTGGCTCACGCCTGT
+AATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGACC
+AGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGCGTG
+GTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACC
+CGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAG
+AGCGAGACTCCGTCTCAAAAAGGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTT
+TGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACA
+TGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCT
+GTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGG
+TTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGT
+CTCAAAAAGGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGG
+CGGGCGGATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCG
+TCTCTACTAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTA
+CTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCG
+AGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAAGGCCG
+GGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACC
+TGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAA
+TACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGA
+GGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACT
+GCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAAGGCCGGGCGCGGTGGCTC
+ACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGT
+TCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGC
+CGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCG
+CTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTG
+GGCGACAGAGCGAGACTCCGTCTCAAAAAGGCCGGGCGCGGTGGCTCACGCCTGTAATCC
+CAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGACCAGCCT
+GGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGCGTGGTGGC
+GCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGA
+GGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGA
+GACTCCGTCTCAAAAAGGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGA
+GGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTG
+AAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAAT
+CCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCA
+GTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAA
+AAAGGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGC
+GGATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCT
+ACTAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGG
+GAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATC
+GCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAAGGCCGGGCGC
+GGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGG
+TCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAA
+AAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAG
+GAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACT
+CCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAAGGCCGGGCGCGGTGGCTCACGCC
+TGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAG
+ACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGC
+GTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGA
+ACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGA
+CAGAGCGAGACTCCGTCTCAAAAAGGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCA
+CTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCA
+ACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCG
+CCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGG
+AGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTC
+CGTCTCAAAAAGGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCG
+AGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACC
+CCGTCTCTACTAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAG
+CTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAG
+CCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAAGG
+CCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATC
+ACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAA
+AAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGC
+TGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCC
+ACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAAGGCCGGGCGCGGTGG
+CTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGG
+AGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATT
+AGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAA
+TCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGC
+CTGGGCGACAGAGCGAGACTCCGTCTCAAAAAGGCCGGGCGCGGTGGCTCACGCCTGTAA
+TCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGACCAG
+CCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGCGTGGT
+GGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCG
+GGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAG
+CGAGACTCCGTCTCAAAAAGGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTG
+GGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATG
+GTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGT
+AATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTT
+GCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCT
+CAAAAAGGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCG
+GGCGGATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTC
+TCTACTAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACT
+CGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAG
+ATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAAGGCCGGG
+CGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTG
+AGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATA
+CAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGG
+CAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGC
+ACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAAGGCCGGGCGCGGTGGCTCAC
+GCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTC
+GAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCG
+GGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCT
+TGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGG
+CGACAGAGCGAGACTCCGTCTCAAAAAGGCCGGGCGCGGTGGCTCACGCCTGTAATCCCA
+GCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGG
+CCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGCGTGGTGGCGC
+GCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGG
+CGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGA
+CTCCGTCTCAAAAAGGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGG
+CCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAA
+ACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCC
+CAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGT
+GAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAA
+AGGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGG
+ATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTAC
+TAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGA
+GGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGC
+GCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAAGGCCGGGCGCGG
+TGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTC
+AGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAA
+ATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGA
+GAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCC
+AGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAAGGCCGGGCGCGGTGGCTCACGCCTG
+TAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGAC
+CAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGCGT
+GGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAAC
+CCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACA
+GAGCGAGACTCCGTCTCAAAAAGGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACT
+TTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAAC
+ATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCC
+TGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAG
+GTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCG
+TCTCAAAAAGGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAG
+GCGGGCGGATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCC
+GTCTCTACTAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCT
+ACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCC
+GAGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAAGGCC
+GGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCAC
+CTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAA
+ATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTG
+AGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCAC
+TGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAAGGCCGGGCGCGGTGGCT
+CACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAG
+TTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAG
+CCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATC
+GCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCT
+GGGCGACAGAGCGAGACTCCGTCTCAAAAAGGCCGGGCGCGGTGGCTCACGCCTGTAATC
+CCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGACCAGCC
+TGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGCGTGGTGG
+CGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGG
+AGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCG
+AGACTCCGTCTCAAAAAGGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGG
+AGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGT
+GAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAA
+TCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGC
+AGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCA
+AAAAGGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGG
+CGGATCACCTGAGGTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTC
+TACTAAAAATACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCG
+GGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGAT
+CGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAAGGCCGGGCG
+CGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAG
+GTCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACA
+AAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCA
+GGAGAATCGCTTGAACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCAC
+TCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAAGGCCGGGCGCGGTGGCTCACGC
+CTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGA
+GACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGG
+CGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTG
+AACCCGGGAGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCG
+ACAGAGCGAGACTCCGTCTCAAAAAGGCCGG    </pre>
   </section>
 </article>
 <footer>

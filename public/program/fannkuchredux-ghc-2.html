@@ -30,63 +30,63 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="com"></span>
 <span class="com">-}</span>
 
-<span class="kwd">import</span> System<span class="opt">.</span>Environment
-<span class="kwd">import qualified</span> Data<span class="opt">.</span>Vector<span class="opt">.</span>Unboxed <span class="kwd">as</span> V
-<span class="kwd">import qualified</span> Data<span class="opt">.</span>Vector<span class="opt">.</span>Unboxed<span class="opt">.</span>Mutable <span class="kwd">as</span> MV
-<span class="kwd">import qualified</span> Data<span class="opt">.</span>Vector<span class="opt">.</span>Generic<span class="opt">.</span>Mutable <span class="kwd">as</span> GMV
-<span class="kwd">import</span> Control<span class="opt">.</span>Monad <span class="opt">(</span><span class="kwc">unless</span><span class="opt">,</span> void<span class="opt">,</span> forM_<span class="opt">)</span>
-<span class="kwd">import</span> Control<span class="opt">.</span>Monad<span class="opt">.</span>ST
-<span class="kwd">import</span> Control<span class="opt">.</span>Parallel
-<span class="kwd">import</span> Control<span class="opt">.</span>Parallel<span class="opt">.</span>Strategies
-<span class="kwd">import</span> Data<span class="opt">.</span>STRef
+<span class="kwd">import</span> System.Environment
+<span class="kwd">import qualified</span> Data.Vector.Unboxed <span class="kwd">as</span> V
+<span class="kwd">import qualified</span> Data.Vector.Unboxed.Mutable <span class="kwd">as</span> MV
+<span class="kwd">import qualified</span> Data.Vector.Generic.Mutable <span class="kwd">as</span> GMV
+<span class="kwd">import</span> Control.Monad (<span class="kwc">unless</span>, void, forM_)
+<span class="kwd">import</span> Control.Monad.ST
+<span class="kwd">import</span> Control.Parallel
+<span class="kwd">import</span> Control.Parallel.Strategies
+<span class="kwd">import</span> Data.STRef
 
-flopST v flopCount <span class="opt">=</span> <span class="kwd">do</span>
-    h <span class="opt">&lt;-</span> MV<span class="opt">.</span>unsafeRead v <span class="num">0</span>
-    <span class="kwd">if</span> h <span class="opt">==</span> <span class="num">1</span> <span class="kwd">then</span> <span class="kwc">return</span> flopCount
+flopST v flopCount = <span class="kwd">do</span>
+    h &lt;- MV.unsafeRead v <span class="num">0</span>
+    <span class="kwd">if</span> h == <span class="num">1</span> <span class="kwd">then</span> <span class="kwc">return</span> flopCount
     <span class="kwd">else do</span>
-        GMV<span class="opt">.</span><span class="kwc">reverse</span> <span class="opt">$</span> MV<span class="opt">.</span>unsafeSlice <span class="num">0</span> h v
-        flopST v <span class="opt">(</span>flopCount <span class="opt">+</span> <span class="num">1</span><span class="opt">)</span>
+        GMV.<span class="kwc">reverse</span> $ MV.unsafeSlice <span class="num">0</span> h v
+        flopST v (flopCount + <span class="num">1</span>)
 
-countFlops <span class="opt">::</span> V<span class="opt">.</span>Vector <span class="kwb">Int</span> <span class="opt">-&gt;</span> <span class="kwb">Int</span>
-countFlops v <span class="opt">=</span> runST <span class="opt">$</span> <span class="kwd">do</span>
-    mv <span class="opt">&lt;-</span> V<span class="opt">.</span>thaw v
+countFlops :: V.Vector <span class="kwb">Int</span> -&gt; <span class="kwb">Int</span>
+countFlops v = runST $ <span class="kwd">do</span>
+    mv &lt;- V.thaw v
     flopST mv <span class="num">0</span>
 
-permut n <span class="opt">=</span> <span class="kwc">foldr</span> permConcat <span class="opt">[</span>V<span class="opt">.</span>fromList <span class="opt">[</span><span class="num">1</span><span class="opt">..</span>n<span class="opt">]] [</span><span class="num">5</span><span class="opt">..</span>n<span class="opt">]</span>
+permut n = <span class="kwc">foldr</span> permConcat [V.fromList [<span class="num">1</span>..n]] [<span class="num">5</span>..n]
 
-permConcat x lst <span class="opt">=</span> <span class="kwc">concat</span> <span class="opt">[</span><span class="kwc">take</span> x <span class="opt">$</span> <span class="kwc">iterate</span> <span class="opt">(</span>rotate x<span class="opt">)</span> l | l <span class="opt">&lt;-</span> lst<span class="opt">]</span>
+permConcat x lst = <span class="kwc">concat</span> [<span class="kwc">take</span> x $ <span class="kwc">iterate</span> (rotate x) l | l &lt;- lst]
 
-perm <span class="opt">::</span> <span class="kwb">Int</span> <span class="opt">-&gt;</span> V<span class="opt">.</span>Vector <span class="kwb">Int</span> <span class="opt">-&gt; [</span>V<span class="opt">.</span>Vector <span class="kwb">Int</span><span class="opt">]</span>
-perm x l <span class="opt">=</span> <span class="kwc">take</span> x <span class="opt">$</span> <span class="kwc">iterate</span> <span class="opt">(</span>rotate x<span class="opt">)</span> l
+perm :: <span class="kwb">Int</span> -&gt; V.Vector <span class="kwb">Int</span> -&gt; [V.Vector <span class="kwb">Int</span>]
+perm x l = <span class="kwc">take</span> x $ <span class="kwc">iterate</span> (rotate x) l
 
-rotate <span class="opt">::</span> <span class="kwb">Int</span> <span class="opt">-&gt;</span> V<span class="opt">.</span>Vector <span class="kwb">Int</span> <span class="opt">-&gt;</span> V<span class="opt">.</span>Vector <span class="kwb">Int</span>
-rotate <span class="num">1</span> xs <span class="opt">=</span> xs
-rotate n v <span class="opt">=</span> runST <span class="opt">$</span> <span class="kwd">do</span>
-    mv <span class="opt">&lt;-</span> V<span class="opt">.</span>thaw v
-    veryUnsafeV <span class="opt">&lt;-</span> V<span class="opt">.</span>unsafeThaw v
-    h <span class="opt">&lt;-</span> MV<span class="opt">.</span>unsafeRead mv <span class="num">0</span>
-    MV<span class="opt">.</span>unsafeCopy <span class="opt">(</span>MV<span class="opt">.</span>unsafeSlice <span class="num">0</span> <span class="opt">(</span>n<span class="opt">-</span><span class="num">1</span><span class="opt">)</span> mv<span class="opt">) (</span>MV<span class="opt">.</span>unsafeSlice <span class="num">1</span> <span class="opt">(</span>n<span class="opt">-</span><span class="num">1</span><span class="opt">)</span> veryUnsafeV<span class="opt">)</span>
-    MV<span class="opt">.</span>unsafeWrite mv <span class="opt">(</span>n<span class="opt">-</span><span class="num">1</span><span class="opt">)</span> h
-    V<span class="opt">.</span>unsafeFreeze mv
+rotate :: <span class="kwb">Int</span> -&gt; V.Vector <span class="kwb">Int</span> -&gt; V.Vector <span class="kwb">Int</span>
+rotate <span class="num">1</span> xs = xs
+rotate n v = runST $ <span class="kwd">do</span>
+    mv &lt;- V.thaw v
+    veryUnsafeV &lt;- V.unsafeThaw v
+    h &lt;- MV.unsafeRead mv <span class="num">0</span>
+    MV.unsafeCopy (MV.unsafeSlice <span class="num">0</span> (n-<span class="num">1</span>) mv) (MV.unsafeSlice <span class="num">1</span> (n-<span class="num">1</span>) veryUnsafeV)
+    MV.unsafeWrite mv (n-<span class="num">1</span>) h
+    V.unsafeFreeze mv
 
-calculateMaxAndChecksum <span class="opt">:: [</span><span class="kwb">Int</span><span class="opt">] -&gt; (</span><span class="kwb">Int</span><span class="opt">,</span> <span class="kwb">Int</span><span class="opt">)</span>
-calculateMaxAndChecksum <span class="opt">=</span> go <span class="num">0 0</span>
-    <span class="kwd">where</span> go <span class="opt">!</span>m <span class="opt">!</span>c <span class="opt">[] = (</span>m<span class="opt">,</span> c<span class="opt">)</span>
-          go <span class="opt">!</span>m <span class="opt">!</span>c <span class="opt">[</span>x<span class="opt">] = (</span><span class="kwc">max</span> m x<span class="opt">,</span> c <span class="opt">+</span> x<span class="opt">)</span>
-          go <span class="opt">!</span>m <span class="opt">!</span>c <span class="opt">(</span>x0<span class="opt">:</span>x1<span class="opt">:</span>xs<span class="opt">) =</span> go <span class="opt">(</span>max3 m x0 x1<span class="opt">) (</span>c <span class="opt">+</span> x0 <span class="opt">-</span> x1<span class="opt">)</span> xs
-          max3 <span class="opt">!</span>a <span class="opt">!</span>b <span class="opt">!</span>c <span class="opt">=</span> <span class="kwc">max</span> c <span class="opt">(</span><span class="kwc">max</span> a b<span class="opt">)</span>
+calculateMaxAndChecksum :: [<span class="kwb">Int</span>] -&gt; (<span class="kwb">Int</span>, <span class="kwb">Int</span>)
+calculateMaxAndChecksum = go <span class="num">0 0</span>
+    <span class="kwd">where</span> go !m !c [] = (m, c)
+          go !m !c [x] = (<span class="kwc">max</span> m x, c + x)
+          go !m !c (x0:x1:xs) = go (max3 m x0 x1) (c + x0 - x1) xs
+          max3 !a !b !c = <span class="kwc">max</span> c (<span class="kwc">max</span> a b)
 
-niceParallelMap <span class="opt">::</span> NFData b <span class="opt">=&gt;</span> <span class="kwb">Int</span> <span class="opt">-&gt; (</span>a <span class="opt">-&gt;</span> b<span class="opt">) -&gt; [</span>a<span class="opt">] -&gt; [</span>b<span class="opt">]</span>
-niceParallelMap bufferSize f xs <span class="opt">=</span> runEval <span class="opt">$</span> parBuffer bufferSize rdeepseq <span class="opt">$</span> <span class="kwc">map</span> f xs
+niceParallelMap :: NFData b =&gt; <span class="kwb">Int</span> -&gt; (a -&gt; b) -&gt; [a] -&gt; [b]
+niceParallelMap bufferSize f xs = runEval $ parBuffer bufferSize rdeepseq $ <span class="kwc">map</span> f xs
 
-main <span class="opt">::</span> <span class="kwb">IO</span> <span class="opt">()</span>
-main <span class="opt">=</span> <span class="kwd">do</span>
-   n <span class="opt">&lt;-</span> <span class="kwc">fmap</span> <span class="opt">(</span><span class="kwc">read</span> <span class="opt">.</span> <span class="kwc">head</span><span class="opt">)</span> <span class="kwc">getArgs</span>
-   <span class="kwd">let</span> permutations <span class="opt">=</span> permut n
-       flopCounts <span class="opt">=</span> <span class="kwc">concat</span> <span class="opt">$</span> niceParallelMap <span class="num">50</span>
-            <span class="opt">(</span><span class="kwc">map</span> countFlops <span class="opt">.</span> <span class="kwc">concatMap</span> <span class="opt">(</span>perm <span class="num">2</span><span class="opt">) .</span> <span class="kwc">concatMap</span> <span class="opt">(</span>perm <span class="num">3</span><span class="opt">) .</span> perm <span class="num">4</span><span class="opt">)</span> permutations
-       <span class="opt">(</span>mflops<span class="opt">,</span> checksum<span class="opt">) =</span> calculateMaxAndChecksum flopCounts
-   <span class="kwc">putStrLn</span> <span class="opt">$</span> <span class="kwc">show</span> checksum <span class="opt">++</span> <span class="str">&quot;</span><span class="esc">\n</span><span class="str">Pfannkuchen(&quot;</span> <span class="opt">++</span> <span class="kwc">show</span> n <span class="opt">++</span> <span class="str">&quot;) = &quot;</span> <span class="opt">++</span> <span class="kwc">show</span> mflops
+main :: <span class="kwb">IO</span> ()
+main = <span class="kwd">do</span>
+   n &lt;- <span class="kwc">fmap</span> (<span class="kwc">read</span> . <span class="kwc">head</span>) <span class="kwc">getArgs</span>
+   <span class="kwd">let</span> permutations = permut n
+       flopCounts = <span class="kwc">concat</span> $ niceParallelMap <span class="num">50</span>
+            (<span class="kwc">map</span> countFlops . <span class="kwc">concatMap</span> (perm <span class="num">2</span>) . <span class="kwc">concatMap</span> (perm <span class="num">3</span>) . perm <span class="num">4</span>) permutations
+       (mflops, checksum) = calculateMaxAndChecksum flopCounts
+   <span class="kwc">putStrLn</span> $ <span class="kwc">show</span> checksum ++ <span class="str">&quot;</span><span class="esc">\n</span><span class="str">Pfannkuchen(&quot;</span> ++ <span class="kwc">show</span> n ++ <span class="str">&quot;) = &quot;</span> ++ <span class="kwc">show</span> mflops
     </pre>
   </section>
   <section>
@@ -97,22 +97,22 @@ main <span class="opt">=</span> <span class="kwd">do</span>
 NOTES:
 64-bit Ubuntu quad core
 The Glorious Glasgow Haskell Compilation System,
-version 9.0.1
+version 9.2.1
 
 
-Sun, 21 Feb 2021 00:14:06 GMT
+Wed, 12 Jan 2022 23:34:41 GMT
 
 MAKE:
 mv fannkuchredux.ghc-2.ghc fannkuchredux.ghc-2.hs
-/opt/src/ghc-9.0.1/bin/ghc --make -fllvm -O2 -XBangPatterns -threaded -rtsopts -XScopedTypeVariables fannkuchredux.ghc-2.hs -o fannkuchredux.ghc-2.ghc_run
+~/.ghcup/ghc/9.2.1/bin/ghc --make -fllvm -O2 -XBangPatterns -threaded -rtsopts -XScopedTypeVariables fannkuchredux.ghc-2.hs -o fannkuchredux.ghc-2.ghc_run
 [1 of 1] Compiling Main             ( fannkuchredux.ghc-2.hs, fannkuchredux.ghc-2.o )
 You are using an unsupported version of LLVM!
-Currently only 9 is supported. System LLVM version: 11.0.0
+Currently only 9 to 13 is supported. System LLVM version: 13.0.0
 We will try though...
 Linking fannkuchredux.ghc-2.ghc_run ...
 rm fannkuchredux.ghc-2.hs
 
-11.60s to complete and log all make actions
+11.33s to complete and log all make actions
 
 COMMAND LINE:
 ./fannkuchredux.ghc-2.ghc_run +RTS -N4 -RTS 12

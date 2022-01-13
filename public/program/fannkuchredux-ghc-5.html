@@ -31,79 +31,79 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="com">    modified by Dmitry Ivanov</span>
 <span class="com">-}</span>
 
-<span class="kwd">import</span> Control<span class="opt">.</span>Monad <span class="opt">(</span>replicateM_<span class="opt">)</span>
-<span class="kwd">import</span> Control<span class="opt">.</span>Monad<span class="opt">.</span>ST
-<span class="kwd">import</span> Control<span class="opt">.</span>Parallel<span class="opt">.</span>Strategies
-<span class="kwd">import</span> Data<span class="opt">.</span>Bits <span class="opt">((.&amp;.))</span>
-<span class="kwd">import</span> Data<span class="opt">.</span>List <span class="opt">(</span><span class="kwc">foldl</span><span class="opt">&apos;)</span>
+<span class="kwd">import</span> Control.Monad (replicateM_)
+<span class="kwd">import</span> Control.Monad.ST
+<span class="kwd">import</span> Control.Parallel.Strategies
+<span class="kwd">import</span> Data.Bits ((.&amp;.))
+<span class="kwd">import</span> Data.List (<span class="kwc">foldl</span>&apos;)
 
-<span class="kwd">import qualified</span> Data<span class="opt">.</span>Vector<span class="opt">.</span>Unboxed<span class="opt">.</span>Mutable <span class="kwd">as</span> VM
-<span class="kwd">import qualified</span> Data<span class="opt">.</span>Vector<span class="opt">.</span>Generic<span class="opt">.</span>Mutable <span class="kwd">as</span> VG
-<span class="kwd">import qualified</span> Data<span class="opt">.</span>Vector<span class="opt">.</span>Unboxed <span class="kwd">as</span> V
+<span class="kwd">import qualified</span> Data.Vector.Unboxed.Mutable <span class="kwd">as</span> VM
+<span class="kwd">import qualified</span> Data.Vector.Generic.Mutable <span class="kwd">as</span> VG
+<span class="kwd">import qualified</span> Data.Vector.Unboxed <span class="kwd">as</span> V
 
-<span class="kwd">import</span> System<span class="opt">.</span>Environment
-<span class="kwd">import</span> Text<span class="opt">.</span>Printf
+<span class="kwd">import</span> System.Environment
+<span class="kwd">import</span> Text.Printf
 
-main <span class="opt">::</span> <span class="kwb">IO</span> <span class="opt">()</span>
-main <span class="opt">=</span> <span class="kwd">do</span>
-    n <span class="opt">&lt;-</span> <span class="kwc">fmap</span> <span class="opt">(</span><span class="kwc">read</span> <span class="opt">.</span> <span class="kwc">head</span><span class="opt">)</span> <span class="kwc">getArgs</span>
-    <span class="kwd">let</span> <span class="opt">(</span>checksum<span class="opt">,</span> maxflips<span class="opt">) =</span> reduce <span class="opt">$</span> parMap rdeepseq <span class="opt">(</span>fannkuch n<span class="opt">) [</span><span class="num">0</span> <span class="opt">.. (</span>n <span class="opt">-</span> <span class="num">1</span><span class="opt">)]</span>
+main :: <span class="kwb">IO</span> ()
+main = <span class="kwd">do</span>
+    n &lt;- <span class="kwc">fmap</span> (<span class="kwc">read</span> . <span class="kwc">head</span>) <span class="kwc">getArgs</span>
+    <span class="kwd">let</span> (checksum, maxflips) = reduce $ parMap rdeepseq (fannkuch n) [<span class="num">0</span> .. (n - <span class="num">1</span>)]
     printf <span class="str">&quot;</span><span class="ipl">%d</span><span class="str"></span><span class="esc">\n</span><span class="str">Pfannkuchen(</span><span class="ipl">%d</span><span class="str">) =</span> <span class="ipl">%d</span><span class="str"></span><span class="esc">\n</span><span class="str">&quot;</span> checksum n maxflips
 
-reduce <span class="opt">:: [(</span><span class="kwb">Int</span><span class="opt">,</span> <span class="kwb">Int</span><span class="opt">)] -&gt; (</span><span class="kwb">Int</span><span class="opt">,</span> <span class="kwb">Int</span><span class="opt">)</span>
-reduce <span class="opt">=</span> <span class="kwc">foldl</span><span class="opt">&apos; (\(!</span>c1<span class="opt">, !</span>f1<span class="opt">) (!</span>c2<span class="opt">, !</span>f2<span class="opt">) -&gt; (</span>c1 <span class="opt">+</span> c2<span class="opt">,</span> <span class="kwc">max</span> f1 f2<span class="opt">)) (</span><span class="num">0</span><span class="opt">,</span> <span class="num">0</span><span class="opt">)</span>
+reduce :: [(<span class="kwb">Int</span>, <span class="kwb">Int</span>)] -&gt; (<span class="kwb">Int</span>, <span class="kwb">Int</span>)
+reduce = <span class="kwc">foldl</span>&apos; (\(!c1, !f1) (!c2, !f2) -&gt; (c1 + c2, <span class="kwc">max</span> f1 f2)) (<span class="num">0</span>, <span class="num">0</span>)
 
-rotate mv <span class="opt">=</span> <span class="kwd">do</span>
-    <span class="opt">!</span>h <span class="opt">&lt;-</span> VM<span class="opt">.</span>unsafeRead mv <span class="num">0</span>
-    VM<span class="opt">.</span>unsafeMove <span class="opt">(</span>VM<span class="opt">.</span>unsafeInit mv<span class="opt">) (</span>VM<span class="opt">.</span>unsafeTail mv<span class="opt">)</span>
-    VM<span class="opt">.</span>unsafeWrite mv <span class="opt">(</span>VM<span class="opt">.</span><span class="kwa">length</span> mv <span class="opt">-</span> <span class="num">1</span><span class="opt">)</span> h
+rotate mv = <span class="kwd">do</span>
+    !h &lt;- VM.unsafeRead mv <span class="num">0</span>
+    VM.unsafeMove (VM.unsafeInit mv) (VM.unsafeTail mv)
+    VM.unsafeWrite mv (VM.<span class="kwa">length</span> mv - <span class="num">1</span>) h
 
-fannkuch <span class="opt">::</span> <span class="kwb">Int</span> <span class="opt">-&gt;</span> <span class="kwb">Int</span> <span class="opt">-&gt; (</span><span class="kwb">Int</span><span class="opt">,</span> <span class="kwb">Int</span><span class="opt">)</span>
-fannkuch n i <span class="opt">=</span> runST <span class="opt">$</span> <span class="kwd">do</span>
-    <span class="opt">!</span>perm <span class="opt">&lt;-</span> V<span class="opt">.</span>unsafeThaw <span class="opt">$</span> V<span class="opt">.</span>enumFromN <span class="num">1</span> n
-    replicateM_ i <span class="opt">$</span> rotate perm
-    <span class="opt">!</span>tperm <span class="opt">&lt;-</span> VG<span class="opt">.</span>new n
-    <span class="opt">!</span>cnt <span class="opt">&lt;-</span> VG<span class="opt">.</span><span class="kwc">replicate</span> n <span class="num">0</span>
-    <span class="kwd">let</span> loop <span class="opt">!</span>c <span class="opt">!</span>m <span class="opt">!</span>countdown <span class="opt">=</span> <span class="kwd">do</span>
+fannkuch :: <span class="kwb">Int</span> -&gt; <span class="kwb">Int</span> -&gt; (<span class="kwb">Int</span>, <span class="kwb">Int</span>)
+fannkuch n i = runST $ <span class="kwd">do</span>
+    !perm &lt;- V.unsafeThaw $ V.enumFromN <span class="num">1</span> n
+    replicateM_ i $ rotate perm
+    !tperm &lt;- VG.new n
+    !cnt &lt;- VG.<span class="kwc">replicate</span> n <span class="num">0</span>
+    <span class="kwd">let</span> loop !c !m !countdown = <span class="kwd">do</span>
             next_permutation perm n cnt
-            <span class="kwd">if</span> countdown <span class="opt">==</span> <span class="num">0</span>
-            <span class="kwd">then</span> <span class="kwc">return</span> <span class="opt">(</span>c<span class="opt">,</span> m<span class="opt">)</span>
+            <span class="kwd">if</span> countdown == <span class="num">0</span>
+            <span class="kwd">then</span> <span class="kwc">return</span> (c, m)
             <span class="kwd">else do</span>
-                VM<span class="opt">.</span>unsafeCopy tperm perm
-                <span class="kwd">let</span> count_flips <span class="opt">!</span>flips <span class="opt">=</span> <span class="kwd">do</span>
-                        f <span class="opt">&lt;-</span> VM<span class="opt">.</span>unsafeRead tperm <span class="num">0</span>
-                        <span class="kwd">if</span> f <span class="opt">==</span> <span class="num">1</span>
-                        <span class="kwd">then</span> loop <span class="opt">(</span>c <span class="opt">+</span> <span class="kwd">if</span> countdown <span class="opt">.&amp;.</span> <span class="num">1</span> <span class="opt">==</span> <span class="num">1</span> <span class="kwd">then</span> flips <span class="kwd">else</span> <span class="opt">-</span>flips<span class="opt">)</span>
-                                    <span class="opt">(</span><span class="kwc">max</span> m flips<span class="opt">)</span>
-                                    <span class="opt">(</span><span class="kwc">pred</span> countdown<span class="opt">)</span>
+                VM.unsafeCopy tperm perm
+                <span class="kwd">let</span> count_flips !flips = <span class="kwd">do</span>
+                        f &lt;- VM.unsafeRead tperm <span class="num">0</span>
+                        <span class="kwd">if</span> f == <span class="num">1</span>
+                        <span class="kwd">then</span> loop (c + <span class="kwd">if</span> countdown .&amp;. <span class="num">1</span> == <span class="num">1</span> <span class="kwd">then</span> flips <span class="kwd">else</span> -flips)
+                                    (<span class="kwc">max</span> m flips)
+                                    (<span class="kwc">pred</span> countdown)
                         <span class="kwd">else do</span>
-                            VG<span class="opt">.</span><span class="kwc">reverse</span> <span class="opt">$</span> VM<span class="opt">.</span>unsafeSlice <span class="num">0</span> f tperm
-                            count_flips <span class="opt">(</span>flips <span class="opt">+</span> <span class="num">1</span><span class="opt">)</span>
+                            VG.<span class="kwc">reverse</span> $ VM.unsafeSlice <span class="num">0</span> f tperm
+                            count_flips (flips + <span class="num">1</span>)
                 count_flips <span class="num">0</span>
-    loop <span class="num">0 0</span> <span class="opt">(</span><span class="kwc">product</span> <span class="opt">[</span><span class="num">1</span> <span class="opt">..</span> n <span class="opt">-</span> <span class="num">1</span><span class="opt">])</span>
+    loop <span class="num">0 0</span> (<span class="kwc">product</span> [<span class="num">1</span> .. n - <span class="num">1</span>])
 
-next_permutation <span class="opt">!</span>perm <span class="opt">!</span>n <span class="opt">!</span>cnt <span class="opt">=</span> loop <span class="num">1</span>
+next_permutation !perm !n !cnt = loop <span class="num">1</span>
     <span class="kwd">where</span>
-    loop <span class="opt">!</span>i
-        | i <span class="opt">&gt;=</span> n <span class="opt">=</span> done i
-        | <span class="kwc">otherwise</span> <span class="opt">=</span> <span class="kwd">do</span>
-            tmp <span class="opt">&lt;-</span> VM<span class="opt">.</span>unsafeRead perm <span class="num">0</span>
-            <span class="kwd">let</span> rotate<span class="opt">&apos;</span> j
-                    | j <span class="opt">&gt;=</span> i <span class="opt">=</span> VM<span class="opt">.</span>unsafeWrite perm i tmp
-                    | <span class="kwc">otherwise</span> <span class="opt">=</span> <span class="kwd">do</span>
-                        <span class="opt">!</span>v <span class="opt">&lt;-</span> VM<span class="opt">.</span>unsafeRead perm <span class="opt">(</span>j<span class="opt">+</span><span class="num">1</span><span class="opt">)</span>
-                        VM<span class="opt">.</span>unsafeWrite perm j v
-                        rotate<span class="opt">&apos; (</span>j<span class="opt">+</span><span class="num">1</span><span class="opt">)</span>
-            rotate<span class="opt">&apos;</span> <span class="num">0</span>
-            v <span class="opt">&lt;-</span> VM<span class="opt">.</span>unsafeRead cnt i
-            <span class="kwd">if</span> v <span class="opt">&gt;=</span> i
-            <span class="kwd">then</span> VM<span class="opt">.</span>unsafeWrite cnt i <span class="num">0</span> <span class="opt">&gt;&gt;</span> loop <span class="opt">(</span>i<span class="opt">+</span><span class="num">1</span><span class="opt">)</span>
+    loop !i
+        | i &gt;= n = done i
+        | <span class="kwc">otherwise</span> = <span class="kwd">do</span>
+            tmp &lt;- VM.unsafeRead perm <span class="num">0</span>
+            <span class="kwd">let</span> rotate&apos; j
+                    | j &gt;= i = VM.unsafeWrite perm i tmp
+                    | <span class="kwc">otherwise</span> = <span class="kwd">do</span>
+                        !v &lt;- VM.unsafeRead perm (j+<span class="num">1</span>)
+                        VM.unsafeWrite perm j v
+                        rotate&apos; (j+<span class="num">1</span>)
+            rotate&apos; <span class="num">0</span>
+            v &lt;- VM.unsafeRead cnt i
+            <span class="kwd">if</span> v &gt;= i
+            <span class="kwd">then</span> VM.unsafeWrite cnt i <span class="num">0</span> &gt;&gt; loop (i+<span class="num">1</span>)
             <span class="kwd">else</span> done i
-    done <span class="opt">!</span>i
-        | i <span class="opt">&gt;=</span> n <span class="opt">=</span> <span class="kwc">return</span> <span class="opt">()</span>
-        | <span class="kwc">otherwise</span> <span class="opt">=</span> <span class="kwd">do</span>
-            v <span class="opt">&lt;-</span> VM<span class="opt">.</span>unsafeRead cnt i
-            VM<span class="opt">.</span>unsafeWrite cnt i <span class="opt">(</span>v<span class="opt">+</span><span class="num">1</span><span class="opt">)</span>
+    done !i
+        | i &gt;= n = <span class="kwc">return</span> ()
+        | <span class="kwc">otherwise</span> = <span class="kwd">do</span>
+            v &lt;- VM.unsafeRead cnt i
+            VM.unsafeWrite cnt i (v+<span class="num">1</span>)
     </pre>
   </section>
   <section>
@@ -114,17 +114,17 @@ next_permutation <span class="opt">!</span>perm <span class="opt">!</span>n <spa
 NOTES:
 64-bit Ubuntu quad core
 The Glorious Glasgow Haskell Compilation System,
-version 9.0.1
+version 9.2.1
 
 
-Sun, 21 Feb 2021 00:15:31 GMT
+Wed, 12 Jan 2022 23:33:21 GMT
 
 MAKE:
 mv fannkuchredux.ghc-5.ghc fannkuchredux.ghc-5.hs
-/opt/src/ghc-9.0.1/bin/ghc --make -fllvm -O2 -XBangPatterns -threaded -rtsopts -XScopedTypeVariables fannkuchredux.ghc-5.hs -o fannkuchredux.ghc-5.ghc_run
+~/.ghcup/ghc/9.2.1/bin/ghc --make -fllvm -O2 -XBangPatterns -threaded -rtsopts -XScopedTypeVariables fannkuchredux.ghc-5.hs -o fannkuchredux.ghc-5.ghc_run
 [1 of 1] Compiling Main             ( fannkuchredux.ghc-5.hs, fannkuchredux.ghc-5.o )
 You are using an unsupported version of LLVM!
-Currently only 9 is supported. System LLVM version: 11.0.0
+Currently only 9 to 13 is supported. System LLVM version: 13.0.0
 We will try though...
 Linking fannkuchredux.ghc-5.ghc_run ...
 rm fannkuchredux.ghc-5.hs

@@ -30,77 +30,78 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="slc">-- Heavily inspired by contribution from Don Stewart</span>
 <span class="slc">-- Inlining improvements by Don Stewart.</span>
 <span class="slc">-- GHC 7.8.1 fix by Ersin Er</span>
+<span class="slc">-- GHC 9.0.1 fix by Artem Pelenitsyn</span>
 <span class="slc">--</span>
 
-<span class="kwd">import qualified</span> Data<span class="opt">.</span>ByteString<span class="opt">.</span>Char8 <span class="kwd">as</span> S
-<span class="kwd">import</span> Data<span class="opt">.</span>ByteString<span class="opt">.</span>Internal
-<span class="kwd">import</span> Data<span class="opt">.</span>ByteString<span class="opt">.</span>Unsafe
+<span class="kwd">import qualified</span> Data.ByteString.Char8 <span class="kwd">as</span> S
+<span class="kwd">import</span> Data.ByteString.Internal
+<span class="kwd">import</span> Data.ByteString.Unsafe
 <span class="kwd">import</span> Foreign
-<span class="kwd">import</span> Control<span class="opt">.</span>Arrow
-<span class="kwd">import</span> GHC<span class="opt">.</span>Base
-<span class="kwd">import</span> GHC<span class="opt">.</span>Ptr
-<span class="kwd">import</span> GHC<span class="opt">.</span><span class="kwb">IO</span>
+<span class="kwd">import</span> Control.Arrow
+<span class="kwd">import</span> GHC.Base
+<span class="kwd">import</span> GHC.Ptr
+<span class="kwd">import</span> GHC.<span class="kwb">IO</span>
 
-main <span class="opt">=</span> <span class="kwc">uncurry</span> proc <span class="opt">=&lt;&lt;</span> clines `<span class="kwc">fmap</span>` S<span class="opt">.</span><span class="kwc">getContents</span>
+main = <span class="kwc">uncurry</span> proc =&lt;&lt; clines `<span class="kwc">fmap</span>` S.<span class="kwc">getContents</span>
 
-proc <span class="opt">[]</span> _ <span class="opt">=</span> <span class="kwc">return</span> <span class="opt">()</span>
-proc <span class="opt">(</span>h<span class="opt">:</span>hs<span class="opt">) (</span>b<span class="opt">:</span>bs<span class="opt">) =</span> S<span class="opt">.</span><span class="kwc">putStrLn</span> h <span class="opt">&gt;&gt;</span> revcomp b <span class="opt">&gt;&gt;</span> writeFasta b <span class="opt">&gt;&gt;</span> proc hs bs
+proc [] _ = <span class="kwc">return</span> ()
+proc (h:hs) (b:bs) = S.<span class="kwc">putStrLn</span> h &gt;&gt; revcomp b &gt;&gt; writeFasta b &gt;&gt; proc hs bs
 
 writeFasta t
-    | S<span class="opt">.</span><span class="kwc">null</span> t  <span class="opt">=</span> <span class="kwc">return</span> <span class="opt">()</span>
-    | <span class="kwc">otherwise</span> <span class="opt">=</span> S<span class="opt">.</span><span class="kwc">putStrLn</span> l <span class="opt">&gt;&gt;</span> writeFasta r
-    <span class="kwd">where</span> <span class="opt">(</span>l<span class="opt">,</span>r<span class="opt">) =</span> S<span class="opt">.</span><span class="kwc">splitAt</span> <span class="num">60</span> t
+    | S.<span class="kwc">null</span> t  = <span class="kwc">return</span> ()
+    | <span class="kwc">otherwise</span> = S.<span class="kwc">putStrLn</span> l &gt;&gt; writeFasta r
+    <span class="kwd">where</span> (l,r) = S.<span class="kwc">splitAt</span> <span class="num">60</span> t
 
-clines <span class="opt">::</span> ByteString <span class="opt">-&gt; ([</span>ByteString<span class="opt">],[</span>ByteString<span class="opt">])</span>
-clines ps <span class="opt">=</span> clines<span class="opt">&apos;</span> ps <span class="opt">([],[])</span>
+clines :: ByteString -&gt; ([ByteString],[ByteString])
+clines ps = clines&apos; ps ([],[])
     <span class="kwd">where</span>
       <span class="com">{-# INLINE clines&apos; #-}</span>
-      clines<span class="opt">&apos;</span> ps <span class="kwc">accum</span><span class="opt">&#64;(</span>f<span class="opt">,</span>s<span class="opt">)</span>
-          | <span class="kwc">otherwise</span> <span class="opt">=</span> <span class="kwd">case</span> S<span class="opt">.</span><span class="kwc">elemIndex</span> <span class="opt">&apos;</span><span class="esc">\n</span><span class="opt">&apos;</span> ps <span class="kwd">of</span>
-                          Just n  <span class="opt">-&gt;</span> clines<span class="opt">&apos;&apos; (</span>S<span class="opt">.</span><span class="kwc">drop</span> <span class="opt">(</span>n<span class="opt">+</span><span class="num">1</span><span class="opt">)</span> ps<span class="opt">) (</span>f<span class="opt">++[</span>S<span class="opt">.</span><span class="kwc">take</span> n ps<span class="opt">],</span>s<span class="opt">)</span>
-      clines<span class="opt">&apos;&apos;</span> ps <span class="kwc">accum</span><span class="opt">&#64;(</span>f<span class="opt">,</span>s<span class="opt">)</span>
-          | <span class="kwc">otherwise</span> <span class="opt">=</span> <span class="kwd">case</span> S<span class="opt">.</span><span class="kwc">elemIndex</span> <span class="opt">&apos;&gt;&apos;</span> ps <span class="kwd">of</span>
-                      Nothing <span class="opt">-&gt; (</span>f<span class="opt">,</span>s<span class="opt">++[</span>S<span class="opt">.</span><span class="kwc">filter</span> <span class="opt">(/=&apos;</span><span class="esc">\n</span><span class="opt">&apos;)</span> ps<span class="opt">])</span>
-                      Just n  <span class="opt">-&gt;</span> clines<span class="opt">&apos; (</span>S<span class="opt">.</span><span class="kwc">drop</span> n ps<span class="opt">) (</span>f<span class="opt">,</span>s<span class="opt">++[</span>S<span class="opt">.</span><span class="kwc">filter</span> <span class="opt">(/=&apos;</span><span class="esc">\n</span><span class="opt">&apos;) .</span> S<span class="opt">.</span><span class="kwc">take</span> n <span class="opt">$</span> ps<span class="opt">])</span>
+      clines&apos; ps <span class="kwc">accum</span>&#64;(f,s)
+          | <span class="kwc">otherwise</span> = <span class="kwd">case</span> S.<span class="kwc">elemIndex</span> &apos;<span class="esc">\n</span>&apos; ps <span class="kwd">of</span>
+                          Just n  -&gt; clines&apos;&apos; (S.<span class="kwc">drop</span> (n+<span class="num">1</span>) ps) (f++[S.<span class="kwc">take</span> n ps],s)
+      clines&apos;&apos; ps <span class="kwc">accum</span>&#64;(f,s)
+          | <span class="kwc">otherwise</span> = <span class="kwd">case</span> S.<span class="kwc">elemIndex</span> &apos;&gt;&apos; ps <span class="kwd">of</span>
+                      Nothing -&gt; (f,s++[S.<span class="kwc">filter</span> (/=&apos;<span class="esc">\n</span>&apos;) ps])
+                      Just n  -&gt; clines&apos; (S.<span class="kwc">drop</span> n ps) (f,s++[S.<span class="kwc">filter</span> (/=&apos;<span class="esc">\n</span>&apos;) . S.<span class="kwc">take</span> n $ ps])
 
 <span class="com">{-# INLINE comps #-}</span>
-comps <span class="opt">=</span> <span class="kwc">map</span> <span class="opt">(</span><span class="kwc">ord</span> <span class="opt">***</span> c2w<span class="opt">) [</span>
-    <span class="opt">(&apos;</span>A<span class="opt">&apos; , &apos;</span>T<span class="opt">&apos;), ( &apos;</span>a<span class="opt">&apos; , &apos;</span>T<span class="opt">&apos;), ( &apos;</span>C<span class="opt">&apos; , &apos;</span>G<span class="opt">&apos;), ( &apos;</span>c<span class="opt">&apos; , &apos;</span>G<span class="opt">&apos;), ( &apos;</span>G<span class="opt">&apos; , &apos;</span>C<span class="opt">&apos;),</span>
-    <span class="opt">(&apos;</span>g<span class="opt">&apos; , &apos;</span>C<span class="opt">&apos;), ( &apos;</span>T<span class="opt">&apos; , &apos;</span>A<span class="opt">&apos;), ( &apos;</span>t<span class="opt">&apos; , &apos;</span>A<span class="opt">&apos;), ( &apos;</span>U<span class="opt">&apos; , &apos;</span>A<span class="opt">&apos;), ( &apos;</span>u<span class="opt">&apos; , &apos;</span>A<span class="opt">&apos;),</span>
-    <span class="opt">(&apos;</span>M<span class="opt">&apos; , &apos;</span>K<span class="opt">&apos;), ( &apos;</span>m<span class="opt">&apos; , &apos;</span>K<span class="opt">&apos;), ( &apos;</span>R<span class="opt">&apos; , &apos;</span>Y<span class="opt">&apos;), ( &apos;</span>r<span class="opt">&apos; , &apos;</span>Y<span class="opt">&apos;), ( &apos;</span>Y<span class="opt">&apos; , &apos;</span>R<span class="opt">&apos;),</span>
-    <span class="opt">(&apos;</span>y<span class="opt">&apos; , &apos;</span>R<span class="opt">&apos;), ( &apos;</span>K<span class="opt">&apos; , &apos;</span>M<span class="opt">&apos;), ( &apos;</span>k<span class="opt">&apos; , &apos;</span>M<span class="opt">&apos;), ( &apos;</span>V<span class="opt">&apos; , &apos;</span>B<span class="opt">&apos;), ( &apos;</span>v<span class="opt">&apos; , &apos;</span>B<span class="opt">&apos;),</span>
-    <span class="opt">(&apos;</span>H<span class="opt">&apos; , &apos;</span>D<span class="opt">&apos;), ( &apos;</span>h<span class="opt">&apos; , &apos;</span>D<span class="opt">&apos;), ( &apos;</span>D<span class="opt">&apos; , &apos;</span>H<span class="opt">&apos;), ( &apos;</span>d<span class="opt">&apos; , &apos;</span>H<span class="opt">&apos;), ( &apos;</span>B<span class="opt">&apos; , &apos;</span>V<span class="opt">&apos;), ( &apos;</span>b<span class="opt">&apos; , &apos;</span>V<span class="opt">&apos;)]</span>
+comps = <span class="kwc">map</span> (<span class="kwc">ord</span> *** c2w) [
+    (&apos;A&apos; , &apos;T&apos;), ( &apos;a&apos; , &apos;T&apos;), ( &apos;C&apos; , &apos;G&apos;), ( &apos;c&apos; , &apos;G&apos;), ( &apos;G&apos; , &apos;C&apos;),
+    (&apos;g&apos; , &apos;C&apos;), ( &apos;T&apos; , &apos;A&apos;), ( &apos;t&apos; , &apos;A&apos;), ( &apos;U&apos; , &apos;A&apos;), ( &apos;u&apos; , &apos;A&apos;),
+    (&apos;M&apos; , &apos;K&apos;), ( &apos;m&apos; , &apos;K&apos;), ( &apos;R&apos; , &apos;Y&apos;), ( &apos;r&apos; , &apos;Y&apos;), ( &apos;Y&apos; , &apos;R&apos;),
+    (&apos;y&apos; , &apos;R&apos;), ( &apos;K&apos; , &apos;M&apos;), ( &apos;k&apos; , &apos;M&apos;), ( &apos;V&apos; , &apos;B&apos;), ( &apos;v&apos; , &apos;B&apos;),
+    (&apos;H&apos; , &apos;D&apos;), ( &apos;h&apos; , &apos;D&apos;), ( &apos;D&apos; , &apos;H&apos;), ( &apos;d&apos; , &apos;H&apos;), ( &apos;B&apos; , &apos;V&apos;), ( &apos;b&apos; , &apos;V&apos;)]
 
-ca <span class="opt">::</span> Ptr Word8
-ca <span class="opt">=</span> inlinePerformIO <span class="opt">$</span> <span class="kwd">do</span>
-       a <span class="opt">&lt;-</span> mallocArray <span class="num">200</span>
-       <span class="kwc">mapM_</span> <span class="opt">(</span><span class="kwc">uncurry</span> <span class="opt">(</span>pokeByteOff a<span class="opt">)) $</span> <span class="kwc">zip</span> <span class="opt">[</span><span class="num">0</span><span class="opt">.</span><span class="num">.199</span><span class="opt">::</span><span class="kwb">Int</span><span class="opt">] [</span><span class="num">0</span><span class="opt">.</span><span class="num">.199</span><span class="opt">::</span>Word8<span class="opt">]</span>
-       <span class="kwc">mapM_</span> <span class="opt">(</span><span class="kwc">uncurry</span> <span class="opt">(</span>pokeByteOff a<span class="opt">))</span> comps
+ca :: Ptr Word8
+ca = unsafeDupablePerformIO $ <span class="kwd">do</span>
+       a &lt;- mallocArray <span class="num">200</span>
+       <span class="kwc">mapM_</span> (<span class="kwc">uncurry</span> (pokeByteOff a)) $ <span class="kwc">zip</span> [<span class="num">0</span>.<span class="num">.199</span>::<span class="kwb">Int</span>] [<span class="num">0</span>.<span class="num">.199</span>::Word8]
+       <span class="kwc">mapM_</span> (<span class="kwc">uncurry</span> (pokeByteOff a)) comps
        <span class="kwc">return</span> a
 
-comp <span class="opt">::</span> Word<span class="opt"># -&gt;</span> Word<span class="opt">#</span>
-comp c <span class="opt">=</span> rw8 ca <span class="opt">(</span>word2Int<span class="opt">#</span> c<span class="opt">)</span>
+comp :: Word# -&gt; Word#
+comp c = rw8 ca (word2Int# c)
 
-revcomp <span class="opt">(</span>PS fp s <span class="opt">(</span>I<span class="opt">#</span> l<span class="opt">)) =</span> withForeignPtr fp <span class="opt">$ \</span>p <span class="opt">-&gt;</span> rc <span class="opt">(</span>p `plusPtr` s<span class="opt">)</span> <span class="num">0</span><span class="opt"># (</span>l <span class="opt">-#</span> <span class="num">1</span><span class="opt">#)</span>
+revcomp (PS fp s (I# l)) = withForeignPtr fp $ \p -&gt; rc (p `plusPtr` s) <span class="num">0</span># (l -# <span class="num">1</span>#)
   <span class="kwd">where</span>
-    rc <span class="opt">::</span> Ptr Word8 <span class="opt">-&gt;</span> <span class="kwb">Int</span><span class="opt"># -&gt;</span> <span class="kwb">Int</span><span class="opt"># -&gt;</span> <span class="kwb">IO</span> <span class="opt">()</span>
-    rc p i j  <span class="opt">=</span> rc<span class="opt">&apos;</span> i j
+    rc :: Ptr Word8 -&gt; <span class="kwb">Int</span># -&gt; <span class="kwb">Int</span># -&gt; <span class="kwb">IO</span> ()
+    rc p i j  = rc&apos; i j
         <span class="kwd">where</span>
-          rc<span class="opt">&apos;</span> i j
-              | isTrue<span class="opt"># (</span>i <span class="opt">&lt;#</span> j<span class="opt">) =</span> <span class="kwd">do</span>
-                          <span class="kwd">let</span> x <span class="opt">=</span> rw8 p i
-                          ww8 p i <span class="opt">(</span>comp <span class="opt">(</span>rw8 p j<span class="opt">))</span>
-                          ww8 p j <span class="opt">(</span>comp x<span class="opt">)</span>
-                          rc<span class="opt">&apos; (</span>i <span class="opt">+#</span> <span class="num">1</span><span class="opt">#) (</span>j <span class="opt">-#</span> <span class="num">1</span><span class="opt">#)</span>
-              | isTrue<span class="opt"># (</span>i <span class="opt">==#</span> j<span class="opt">) =</span> ww8 p i <span class="opt">(</span>comp <span class="opt">(</span>rw8 p i<span class="opt">))</span>
-              | <span class="kwc">otherwise</span> <span class="opt">=</span>  <span class="kwc">return</span> <span class="opt">()</span>
+          rc&apos; i j
+              | isTrue# (i &lt;# j) = <span class="kwd">do</span>
+                          <span class="kwd">let</span> x = rw8 p i
+                          ww8 p i (comp (rw8 p j))
+                          ww8 p j (comp x)
+                          rc&apos; (i +# <span class="num">1</span>#) (j -# <span class="num">1</span>#)
+              | isTrue# (i ==# j) = ww8 p i (comp (rw8 p i))
+              | <span class="kwc">otherwise</span> =  <span class="kwc">return</span> ()
 
-rw8 <span class="opt">::</span> Ptr Word8 <span class="opt">-&gt;</span> <span class="kwb">Int</span><span class="opt"># -&gt;</span> Word<span class="opt">#</span>
-rw8 <span class="opt">(</span>Ptr a<span class="opt">)</span> i <span class="opt">=</span> <span class="kwd">case</span> readWord8OffAddr<span class="opt">#</span> a i realWorld<span class="opt">#</span>  <span class="kwd">of</span> <span class="opt">(#</span> _<span class="opt">,</span> x <span class="opt">#) -&gt;</span>  x
+rw8 :: Ptr Word8 -&gt; <span class="kwb">Int</span># -&gt; Word#
+rw8 (Ptr a) i = <span class="kwd">case</span> readWord8OffAddr# a i realWorld#  <span class="kwd">of</span> (# _, x #) -&gt;  x
 <span class="com">{-# INLINE rw8 #-}</span>
 
-ww8 <span class="opt">::</span> Ptr Word8 <span class="opt">-&gt;</span> <span class="kwb">Int</span><span class="opt"># -&gt;</span> Word<span class="opt"># -&gt;</span> <span class="kwb">IO</span> <span class="opt">()</span>
-ww8 <span class="opt">(</span>Ptr a<span class="opt">)</span> i x  <span class="opt">=</span> <span class="kwb">IO</span> <span class="opt">$ \</span>s <span class="opt">-&gt;</span> <span class="kwd">case</span> writeWord8OffAddr<span class="opt">#</span> a i x s <span class="kwd">of</span> s2 <span class="opt">-&gt; (#</span> s2<span class="opt">, () #)</span>
+ww8 :: Ptr Word8 -&gt; <span class="kwb">Int</span># -&gt; Word# -&gt; <span class="kwb">IO</span> ()
+ww8 (Ptr a) i x  = <span class="kwb">IO</span> $ \s -&gt; <span class="kwd">case</span> writeWord8OffAddr# a i x s <span class="kwd">of</span> s2 -&gt; (# s2, () #)
     </pre>
   </section>
   <section>
@@ -111,27 +112,39 @@ ww8 <span class="opt">(</span>Ptr a<span class="opt">)</span> i x  <span class="
 NOTES:
 64-bit Ubuntu quad core
 The Glorious Glasgow Haskell Compilation System,
-version 9.0.1
+version 9.2.1
 
 
-Sun, 21 Feb 2021 00:37:53 GMT
+Thu, 13 Jan 2022 00:07:08 GMT
 
 MAKE:
 mv revcomp.ghc-2.ghc revcomp.ghc-2.hs
-/opt/src/ghc-9.0.1/bin/ghc --make -fllvm -O2 -XBangPatterns -threaded -rtsopts -funfolding-use-threshold=32 -XMagicHash -XUnboxedTuples revcomp.ghc-2.hs -o revcomp.ghc-2.ghc_run
+~/.ghcup/ghc/9.2.1/bin/ghc --make -fllvm -O2 -XBangPatterns -threaded -rtsopts -funfolding-use-threshold=32 -XMagicHash -XUnboxedTuples revcomp.ghc-2.hs -o revcomp.ghc-2.ghc_run
 [1 of 1] Compiling Main             ( revcomp.ghc-2.hs, revcomp.ghc-2.o )
 
-revcomp.ghc-2.hs:51:6: error:
-    • Variable not in scope:
-        inlinePerformIO :: IO (Ptr b0) -&gt; Ptr Word8
-    • Perhaps you meant ‘unsafePerformIO’ (imported from GHC.IO)
+revcomp.ghc-2.hs:76:74: error:
+    • Couldn't match expected type ‘Word#’ with actual type ‘Word8#’
+    • In the expression: x
+      In a case alternative: (# _, x #) -&gt; x
+      In the expression:
+        case readWord8OffAddr# a i realWorld# of (# _, x #) -&gt; x
    |
-51 | ca = inlinePerformIO $ do
-   |      ^^^^^^^^^^^^^^^
+76 | rw8 (Ptr a) i = case readWord8OffAddr# a i realWorld#  of (# _, x #) -&gt;  x
+   |                                                                          ^
+
+revcomp.ghc-2.hs:80:59: error:
+    • Couldn't match expected type ‘Word8#’ with actual type ‘Word#’
+    • In the third argument of ‘writeWord8OffAddr#’, namely ‘x’
+      In the expression: writeWord8OffAddr# a i x s
+      In the expression:
+        case writeWord8OffAddr# a i x s of s2 -&gt; (# s2, () #)
+   |
+80 | ww8 (Ptr a) i x  = IO $ \s -&gt; case writeWord8OffAddr# a i x s of s2 -&gt; (# s2, () #)
+   |                                                           ^
 make: [/home/dunham/all-benchmarksgame/2000-benchmarksgame/nanobench/makefiles/u64q.programs.Makefile:243: revcomp.ghc-2.ghc_run] Error 1 (ignored)
 rm revcomp.ghc-2.hs
 
-4.93s to complete and log all make actions
+5.04s to complete and log all make actions
 
 COMMAND LINE:
 ./revcomp.ghc-2.ghc_run +RTS -N4 -RTS 0 &lt; revcomp-input250000.txt

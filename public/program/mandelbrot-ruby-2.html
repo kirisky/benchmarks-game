@@ -30,137 +30,137 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="slc">#  modified by Detlef Reichl</span>
 <span class="slc">#  modified by Joseph LaFata</span>
 
-PAD <span class="opt">=</span> <span class="str">&quot;</span><span class="esc">\\\\</span><span class="str">__MARSHAL_RECORD_SEPARATOR__//&quot;</span> <span class="slc"># silly, but works</span>
+PAD = <span class="str">&quot;</span><span class="esc">\\\\</span><span class="str">__MARSHAL_RECORD_SEPARATOR__//&quot;</span> <span class="slc"># silly, but works</span>
 
 <span class="kwa">class</span> Worker
   
   attr_reader <span class="kwc">:reader</span>
   
-  <span class="kwa">def</span> <span class="kwd">initialize</span><span class="opt">(</span>enum<span class="opt">,</span> index<span class="opt">,</span> total<span class="opt">, &amp;</span>block<span class="opt">)</span>
-    <span class="kwb">&#64;enum</span>             <span class="opt">=</span> enum
-    <span class="kwb">&#64;index</span>            <span class="opt">=</span> index
-    <span class="kwb">&#64;total</span>            <span class="opt">=</span> total
-    <span class="kwb">&#64;reader</span><span class="opt">,</span> <span class="kwb">&#64;writer</span>  <span class="opt">=</span> IO<span class="opt">.</span>pipe
+  <span class="kwa">def</span> <span class="kwd">initialize</span>(enum, index, total, &amp;block<span class="opt">)</span>
+    <span class="kwb">&#64;enum</span>             = enum
+    <span class="kwb">&#64;index</span>            = index
+    <span class="kwb">&#64;total</span>            = total
+    <span class="kwb">&#64;reader</span>, <span class="kwb">&#64;writer</span>  = IO.pipe
     
 
-      <span class="kwb">&#64;p</span> <span class="opt">=</span> Process<span class="opt">.</span>fork <span class="kwa">do</span>
-        <span class="kwb">&#64;reader</span><span class="opt">.</span>close
-        <span class="kwa">self</span><span class="opt">.</span><span class="kwd">execute</span><span class="opt">(&amp;</span>block<span class="opt">)</span>
-        <span class="kwb">&#64;writer</span><span class="opt">.</span>close
+      <span class="kwb">&#64;p</span> = Process.fork <span class="kwa">do</span>
+        <span class="kwb">&#64;reader</span>.close
+        <span class="kwa">self</span>.<span class="kwd">execute</span>(&amp;block<span class="opt">)</span>
+        <span class="kwb">&#64;writer</span>.close
       <span class="kwa">end</span>
       
-      <span class="kwb">&#64;writer</span><span class="opt">.</span>close
+      <span class="kwb">&#64;writer</span>.close
   <span class="kwa">end</span>
   
-  <span class="kwa">def</span> <span class="kwd">execute</span><span class="opt">(&amp;</span>block<span class="opt">)</span>
-    <span class="opt">(</span><span class="num">0</span> <span class="opt">...</span> <span class="kwb">&#64;enum</span><span class="opt">.</span>size<span class="opt">).</span><span class="kwd">step</span><span class="opt">(</span><span class="kwb">&#64;total</span><span class="opt">)</span> <span class="kwa">do</span> <span class="opt">|</span>bi<span class="opt">|</span>
-      idx <span class="opt">=</span> bi <span class="opt">+</span> <span class="kwb">&#64;index</span>
-      <span class="kwa">if</span> item <span class="opt">=</span> <span class="kwb">&#64;enum</span><span class="opt">[</span>idx<span class="opt">]</span>
-        res <span class="opt">=</span> <span class="kwa">yield</span><span class="opt">(</span>item<span class="opt">)</span>
-        <span class="kwb">&#64;writer</span><span class="opt">.</span><span class="kwd">write</span><span class="opt">(</span>Marshal<span class="opt">.</span><span class="kwd">dump</span><span class="opt">([</span>idx<span class="opt">,</span> res<span class="opt">]) +</span> PAD<span class="opt">)</span>
+  <span class="kwa">def</span> <span class="kwd">execute</span>(&amp;block<span class="opt">)</span>
+    (<span class="num">0</span> ... <span class="kwb">&#64;enum</span>.size<span class="opt">)</span>.<span class="kwd">step</span>(<span class="kwb">&#64;total</span><span class="opt">)</span> <span class="kwa">do</span> |bi|
+      idx = bi + <span class="kwb">&#64;index</span>
+      <span class="kwa">if</span> item = <span class="kwb">&#64;enum</span>[idx]
+        res = <span class="kwa">yield</span>(item<span class="opt">)</span>
+        <span class="kwb">&#64;writer</span>.<span class="kwd">write</span>(Marshal.<span class="kwd">dump</span>([idx, res]<span class="opt">)</span> + PAD<span class="opt">)</span>
       <span class="kwa">end</span>
     <span class="kwa">end</span>
     
-    <span class="kwb">&#64;writer</span><span class="opt">.</span><span class="kwd">write</span><span class="opt">(</span>Marshal<span class="opt">.</span><span class="kwd">dump</span><span class="opt">(</span><span class="kwc">:end</span><span class="opt">) +</span> PAD<span class="opt">)</span>
+    <span class="kwb">&#64;writer</span>.<span class="kwd">write</span>(Marshal.<span class="kwd">dump</span>(<span class="kwc">:end</span><span class="opt">)</span> + PAD<span class="opt">)</span>
   <span class="kwa">end</span>
 <span class="kwa">end</span>
 
-<span class="kwa">def</span> <span class="kwd">parallel_map</span><span class="opt">(</span>enum<span class="opt">,</span> worker_count <span class="opt">=</span> <span class="num">8</span><span class="opt">, &amp;</span>block<span class="opt">)</span>
-  count <span class="opt">= [</span>enum<span class="opt">.</span>size<span class="opt">,</span> worker_count<span class="opt">].</span>min
+<span class="kwa">def</span> <span class="kwd">parallel_map</span>(enum, worker_count = <span class="num">8</span>, &amp;block<span class="opt">)</span>
+  count = [enum.size, worker_count].min
   
-  Array<span class="opt">.</span><span class="kwd">new</span><span class="opt">(</span>enum<span class="opt">.</span>size<span class="opt">).</span>tap <span class="kwa">do</span> <span class="opt">|</span>res<span class="opt">|</span>  
-    workers <span class="opt">= (</span><span class="num">0</span> <span class="opt">...</span> count<span class="opt">).</span>map <span class="kwa">do</span> <span class="opt">|</span>idx<span class="opt">|</span>
-      Worker<span class="opt">.</span><span class="kwd">new</span><span class="opt">(</span>enum<span class="opt">,</span> idx<span class="opt">,</span> count<span class="opt">, &amp;</span>block<span class="opt">)</span>
+  Array.<span class="kwd">new</span>(enum.size<span class="opt">)</span>.tap <span class="kwa">do</span> |res|  
+    workers = (<span class="num">0</span> ... count<span class="opt">)</span>.map <span class="kwa">do</span> |idx|
+      Worker.<span class="kwd">new</span>(enum, idx, count, &amp;block<span class="opt">)</span>
     <span class="kwa">end</span>
   
-    ios <span class="opt">=</span> workers<span class="opt">.</span>map <span class="opt">{ |</span>w<span class="opt">|</span> w<span class="opt">.</span>reader <span class="opt">}</span>
+    ios = workers.map { |w| w.reader }
 
-    <span class="kwa">while</span> ios<span class="opt">.</span>size <span class="opt">&gt;</span> <span class="num">0</span> <span class="kwa">do</span>
-      sr<span class="opt">,</span> sw<span class="opt">,</span> se <span class="opt">=</span> IO<span class="opt">.</span><span class="kwd">select</span><span class="opt">(</span>ios<span class="opt">,</span> <span class="kwa">nil</span><span class="opt">,</span> <span class="kwa">nil</span><span class="opt">,</span> <span class="num">0.01</span><span class="opt">)</span>
+    <span class="kwa">while</span> ios.size &gt; <span class="num">0</span> <span class="kwa">do</span>
+      sr, sw, se = IO.<span class="kwd">select</span>(ios, <span class="kwa">nil</span>, <span class="kwa">nil</span>, <span class="num">0.01</span><span class="opt">)</span>
 
       <span class="kwa">if</span> sr
-        sr<span class="opt">.</span>each <span class="kwa">do</span> <span class="opt">|</span>io<span class="opt">|</span>
-          buf <span class="opt">=</span> <span class="str">&quot;&quot;</span>
+        sr.each <span class="kwa">do</span> |io|
+          buf = <span class="str">&quot;&quot;</span>
           
-          <span class="kwa">while</span> sbuf <span class="opt">=</span> io<span class="opt">.</span><span class="kwd">readpartial</span><span class="opt">(</span><span class="num">4096</span><span class="opt">)</span>
-            buf <span class="opt">+=</span> sbuf
-            <span class="kwa">break if</span> sbuf<span class="opt">.</span>size <span class="opt">&lt;</span> <span class="num">4096</span>
+          <span class="kwa">while</span> sbuf = io.<span class="kwd">readpartial</span>(<span class="num">4096</span><span class="opt">)</span>
+            buf += sbuf
+            <span class="kwa">break if</span> sbuf.size &lt; <span class="num">4096</span>
           <span class="kwa">end</span>
           
-          msgs <span class="opt">=</span> buf<span class="opt">.</span><span class="kwd">split</span><span class="opt">(</span>PAD<span class="opt">)</span>
+          msgs = buf.<span class="kwd">split</span>(PAD<span class="opt">)</span>
           
-          msgs<span class="opt">.</span>each <span class="kwa">do</span> <span class="opt">|</span>msg<span class="opt">|</span>
-            m <span class="opt">=</span> Marshal<span class="opt">.</span><span class="kwd">load</span><span class="opt">(</span>msg<span class="opt">)</span>
-            <span class="kwa">if</span> m <span class="opt">==</span> <span class="kwc">:end</span>
-              ios<span class="opt">.</span><span class="kwd">delete</span><span class="opt">(</span>io<span class="opt">)</span>
+          msgs.each <span class="kwa">do</span> |msg|
+            m = Marshal.<span class="kwd">load</span>(msg<span class="opt">)</span>
+            <span class="kwa">if</span> m == <span class="kwc">:end</span>
+              ios.<span class="kwd">delete</span>(io<span class="opt">)</span>
             <span class="kwa">else</span>
-              idx<span class="opt">,</span> content <span class="opt">=</span> m
-              res<span class="opt">[</span>idx<span class="opt">] =</span> content
+              idx, content = m
+              res[idx] = content
             <span class="kwa">end</span>
           <span class="kwa">end</span>
         <span class="kwa">end</span>
       <span class="kwa">end</span>      
     <span class="kwa">end</span>
     
-    Process<span class="opt">.</span>waitall
+    Process.waitall
   <span class="kwa">end</span>
 <span class="kwa">end</span>
 
-<span class="kwb">$size</span> <span class="opt">= (</span><span class="kwc">ARGV</span><span class="opt">[</span><span class="num">0</span><span class="opt">] ||</span> <span class="num">100</span><span class="opt">).</span>to_i
-csize <span class="opt">=</span> <span class="kwb">$size</span> <span class="opt">-</span> <span class="num">1</span>
+<span class="kwb">$size</span> = (<span class="kwc">ARGV</span>[<span class="num">0</span>] || <span class="num">100</span><span class="opt">)</span>.to_i
+csize = <span class="kwb">$size</span> - <span class="num">1</span>
 
 puts <span class="str">&quot;P4&quot;</span>
-puts <span class="str">&quot;#{$size} #{$size}&quot;</span>
+puts <span class="str">&quot;</span><span class="ipl">#{$size}</span> <span class="str"></span><span class="ipl">#{$size}</span><span class="str">&quot;</span>
 
-set <span class="opt">= (</span><span class="num">0</span> <span class="opt">...</span> <span class="kwb">$size</span><span class="opt">).</span>to_a
+set = (<span class="num">0</span> ... <span class="kwb">$size</span><span class="opt">)</span>.to_a
 
-results <span class="opt">=</span> <span class="kwd">parallel_map</span><span class="opt">(</span>set<span class="opt">,</span> <span class="num">8</span><span class="opt">)</span> <span class="kwa">do</span> <span class="opt">|</span>y<span class="opt">|</span>
-  res <span class="opt">=</span> <span class="str">&quot;&quot;</span>
+results = <span class="kwd">parallel_map</span>(set, <span class="num">8</span><span class="opt">)</span> <span class="kwa">do</span> |y|
+  res = <span class="str">&quot;&quot;</span>
   
-  byte_acc <span class="opt">=</span> <span class="num">0</span>
-  bit_num  <span class="opt">=</span> <span class="num">0</span>
+  byte_acc = <span class="num">0</span>
+  bit_num  = <span class="num">0</span>
   
-  ci <span class="opt">= (</span><span class="num">2.0</span> <span class="opt">*</span> y <span class="opt">/</span> <span class="kwb">$size</span><span class="opt">) -</span> <span class="num">1.0</span>
+  ci = (<span class="num">2.0</span> * y / <span class="kwb">$size</span><span class="opt">)</span> - <span class="num">1.0</span>
 
-  <span class="kwb">$size</span><span class="opt">.</span>times <span class="kwa">do</span> <span class="opt">|</span>x<span class="opt">|</span>
-    zrzr <span class="opt">=</span> zr <span class="opt">=</span> <span class="num">0.0</span>
-    zizi <span class="opt">=</span> zi <span class="opt">=</span> <span class="num">0.0</span>
-    cr <span class="opt">= (</span><span class="num">2.0</span> <span class="opt">*</span> x <span class="opt">/</span> <span class="kwb">$size</span><span class="opt">) -</span> <span class="num">1.5</span>
-    escape <span class="opt">=</span> <span class="num">0b1</span>
+  <span class="kwb">$size</span>.times <span class="kwa">do</span> |x|
+    zrzr = zr = <span class="num">0.0</span>
+    zizi = zi = <span class="num">0.0</span>
+    cr = (<span class="num">2.0</span> * x / <span class="kwb">$size</span><span class="opt">)</span> - <span class="num">1.5</span>
+    escape = <span class="num">0b1</span>
   
-    <span class="num">50</span><span class="opt">.</span>times <span class="kwa">do</span>
-      tr <span class="opt">=</span> zrzr <span class="opt">-</span> zizi <span class="opt">+</span> cr
-      ti <span class="opt">=</span> <span class="num">2.0</span> <span class="opt">*</span> zr <span class="opt">*</span> zi <span class="opt">+</span> ci
-      zr <span class="opt">=</span> tr
-      zi <span class="opt">=</span> ti
+    <span class="num">50</span>.times <span class="kwa">do</span>
+      tr = zrzr - zizi + cr
+      ti = <span class="num">2.0</span> * zr * zi + ci
+      zr = tr
+      zi = ti
       <span class="slc"># preserve recalculation</span>
-      zrzr <span class="opt">=</span> zr <span class="opt">*</span> zr
-      zizi <span class="opt">=</span> zi <span class="opt">*</span> zi
-      <span class="kwa">if</span> zrzr <span class="opt">+</span> zizi <span class="opt">&gt;</span> <span class="num">4.0</span>
-        escape <span class="opt">=</span> <span class="num">0b0</span>
+      zrzr = zr * zr
+      zizi = zi * zi
+      <span class="kwa">if</span> zrzr + zizi &gt; <span class="num">4.0</span>
+        escape = <span class="num">0b0</span>
         <span class="kwa">break</span>
       <span class="kwa">end</span>
     <span class="kwa">end</span>
   
-    byte_acc <span class="opt">= (</span>byte_acc <span class="opt">&lt;&lt;</span> <span class="num">1</span><span class="opt">) |</span> escape
-    bit_num  <span class="opt">+=</span> <span class="num">1</span>
+    byte_acc = (byte_acc &lt;&lt; <span class="num">1</span><span class="opt">)</span> | escape
+    bit_num  += <span class="num">1</span>
     
-    <span class="kwa">if</span> <span class="opt">(</span>bit_num <span class="opt">==</span> <span class="num">8</span><span class="opt">)</span>
-      res <span class="opt">+=</span> byte_acc<span class="opt">.</span>chr
-      byte_acc <span class="opt">=</span> <span class="num">0</span>
-      bit_num <span class="opt">=</span> <span class="num">0</span>
-    <span class="kwa">elsif</span> <span class="opt">(</span>x <span class="opt">==</span> csize<span class="opt">)</span>
-      byte_acc <span class="opt">&lt;&lt;= (</span><span class="num">8</span> <span class="opt">-</span> bit_num<span class="opt">)</span>
-      res <span class="opt">+=</span> byte_acc<span class="opt">.</span>chr
-      byte_acc <span class="opt">=</span> <span class="num">0</span>
-      bit_num <span class="opt">=</span> <span class="num">0</span>
+    <span class="kwa">if</span> (bit_num == <span class="num">8</span><span class="opt">)</span>
+      res += byte_acc.chr
+      byte_acc = <span class="num">0</span>
+      bit_num = <span class="num">0</span>
+    <span class="kwa">elsif</span> (x == csize<span class="opt">)</span>
+      byte_acc &lt;&lt;= (<span class="num">8</span> - bit_num<span class="opt">)</span>
+      res += byte_acc.chr
+      byte_acc = <span class="num">0</span>
+      bit_num = <span class="num">0</span>
     <span class="kwa">end</span>
   <span class="kwa">end</span>
 
   res
 <span class="kwa">end</span>
 
-print results<span class="opt">.</span>join
+print results.join
     </pre>
   </section>
   <section>
@@ -170,14 +170,14 @@ print results<span class="opt">.</span>join
     <pre>
 NOTES:
 64-bit Ubuntu quad core
-ruby 3.0.0p0 (2020-12-25 revision 95aff21468) [x86_64-linux]
---jit
+ruby 3.1.0p0 (2021-12-25 revision fb4df44d16) [x86_64-linux]
+--yjit
 
 
-Sun, 28 Feb 2021 05:16:32 GMT
+Fri, 07 Jan 2022 20:22:14 GMT
 
 COMMAND LINE:
-/opt/src/ruby-3.0.0/bin/ruby --jit -W0 mandelbrot.ruby-2.ruby 16000
+/opt/src/ruby-3.1.0/bin/ruby --yjit -W0 mandelbrot.ruby-2.ruby 16000
 
 (BINARY) PROGRAM OUTPUT NOT SHOWN
     </pre>

@@ -32,108 +32,108 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="com">  - additionally modified by Akira1364, March/April 2019</span>
 <span class="com">*)</span>
 
-<span class="kwa">program</span> BinaryTrees<span class="opt">;</span>
+<span class="kwa">program</span> BinaryTrees;
 
-<span class="kwa">uses</span> CMem<span class="opt">,</span> <span class="ppc">{$IFDEF UNIX}</span>CThreads<span class="opt">,</span><span class="ppc">{$ENDIF}</span> PooledMM<span class="opt">,</span> PasMP<span class="opt">;</span>
+<span class="kwa">uses</span> CMem, <span class="com">{$IFDEF UNIX}</span>CThreads,<span class="com">{$ENDIF}</span> PooledMM, PasMP;
 
 <span class="kwa">type</span>
-  TMemPool <span class="opt">=</span> PooledMM<span class="opt">.</span>TNonFreePooledMemManager<span class="opt">;</span>
+  TMemPool = PooledMM.TNonFreePooledMemManager;
 
-  TData <span class="opt">=</span> <span class="kwa">array of record</span>
-    Depth<span class="opt">,</span> Iterations<span class="opt">,</span> Check<span class="opt">:</span> Int32<span class="opt">;</span>
-  <span class="kwa">end</span><span class="opt">;</span>
+  TData = <span class="kwa">array of record</span>
+    Depth, Iterations, Check: Int32;
+  <span class="kwa">end</span>;
 
-  PNode <span class="opt">= ^</span>TNode<span class="opt">;</span>
+  PNode = ^TNode;
 
-  TNode <span class="opt">=</span> <span class="kwa">record</span>
-    Left<span class="opt">,</span> Right<span class="opt">:</span> PNode<span class="opt">;</span>
-    <span class="kwa">class function</span> <span class="kwd">CheckNode</span><span class="opt">(</span><span class="kwa">const</span> ANode<span class="opt">:</span> PNode<span class="opt">):</span> Int32<span class="opt">;</span> static<span class="opt">;</span> <span class="kwa">inline</span><span class="opt">;</span>
-    <span class="kwa">class function</span> <span class="kwd">MakeTree</span><span class="opt">(</span><span class="kwa">const</span> Depth<span class="opt">:</span> Int32<span class="opt">;</span> <span class="kwa">const</span> MP<span class="opt">:</span> TMemPool<span class="opt">):</span> PNode<span class="opt">;</span> static<span class="opt">;</span> <span class="kwa">inline</span><span class="opt">;</span>
-    <span class="kwa">class procedure</span> <span class="kwd">DoTrees</span><span class="opt">(</span><span class="kwa">const</span> Job<span class="opt">:</span> PPasMPJob<span class="opt">;</span>
-                            <span class="kwa">const</span> ThreadIndex<span class="opt">:</span> Int32<span class="opt">;</span>
-                            <span class="kwa">const</span> UserData<span class="opt">:</span> <span class="kwb">Pointer</span><span class="opt">;</span>
-                            <span class="kwa">const</span> FromIndex<span class="opt">,</span> ToIndex<span class="opt">:</span> PtrInt<span class="opt">);</span> static<span class="opt">;</span> <span class="kwa">inline</span><span class="opt">;</span>
-  <span class="kwa">end</span><span class="opt">;</span>
+  TNode = <span class="kwa">record</span>
+    Left, Right: PNode;
+    <span class="kwa">class function</span> <span class="kwd">CheckNode</span>(<span class="kwa">const</span> ANode: PNode): Int32; static; <span class="kwa">inline</span>;
+    <span class="kwa">class function</span> <span class="kwd">MakeTree</span>(<span class="kwa">const</span> Depth: Int32; <span class="kwa">const</span> MP: TMemPool): PNode; static; <span class="kwa">inline</span>;
+    <span class="kwa">class procedure</span> <span class="kwd">DoTrees</span>(<span class="kwa">const</span> Job: PPasMPJob;
+                            <span class="kwa">const</span> ThreadIndex: Int32;
+                            <span class="kwa">const</span> UserData: <span class="kwb">Pointer</span>;
+                            <span class="kwa">const</span> FromIndex, ToIndex: PtrInt); static; <span class="kwa">inline</span>;
+  <span class="kwa">end</span>;
 
   <span class="slc">// Simplified recursive check.</span>
-  <span class="kwa">class function</span> TNode<span class="opt">.</span><span class="kwd">CheckNode</span><span class="opt">(</span><span class="kwa">const</span> ANode<span class="opt">:</span> PNode<span class="opt">):</span> Int32<span class="opt">;</span>
+  <span class="kwa">class function</span> TNode.<span class="kwd">CheckNode</span>(<span class="kwa">const</span> ANode: PNode): Int32;
   <span class="kwa">begin</span>
-    <span class="kwa">with</span> ANode<span class="opt">^</span> <span class="kwa">do if</span> <span class="opt">(</span>Right <span class="opt">&lt;&gt;</span> <span class="kwa">nil</span><span class="opt">)</span> <span class="kwa">and</span> <span class="opt">(</span>Left <span class="opt">&lt;&gt;</span> <span class="kwa">nil</span><span class="opt">)</span> <span class="kwa">then</span>
-      <span class="kwd">Exit</span><span class="opt">(</span><span class="num">1</span> <span class="opt">+</span> <span class="kwd">CheckNode</span><span class="opt">(</span>Right<span class="opt">) +</span> <span class="kwd">CheckNode</span><span class="opt">(</span>Left<span class="opt">));</span>
-    Result <span class="opt">:=</span> <span class="num">1</span><span class="opt">;</span>
-  <span class="kwa">end</span><span class="opt">;</span>
+    <span class="kwc">with</span> ANode^ <span class="kwc">do if</span> (Right &lt;&gt; <span class="kwa">nil</span>) <span class="kwa">and</span> (Left &lt;&gt; <span class="kwa">nil</span>) <span class="kwc">then</span>
+      <span class="kwd">Exit</span>(<span class="num">1</span> + <span class="kwd">CheckNode</span>(Right) + <span class="kwd">CheckNode</span>(Left));
+    Result := <span class="num">1</span>;
+  <span class="kwa">end</span>;
 
   <span class="slc">// Make a tree recursively.</span>
-  <span class="kwa">class function</span> TNode<span class="opt">.</span><span class="kwd">MakeTree</span><span class="opt">(</span><span class="kwa">const</span> Depth<span class="opt">:</span> Int32<span class="opt">;</span> <span class="kwa">const</span> MP<span class="opt">:</span> TMemPool<span class="opt">):</span> PNode<span class="opt">;</span>
+  <span class="kwa">class function</span> TNode.<span class="kwd">MakeTree</span>(<span class="kwa">const</span> Depth: Int32; <span class="kwa">const</span> MP: TMemPool): PNode;
   <span class="kwa">begin</span>
-    Result <span class="opt">:=</span> MP<span class="opt">.</span><span class="kwd">NewItem</span><span class="opt">();</span>
-    <span class="kwa">with</span> Result<span class="opt">^</span> <span class="kwa">do begin</span> Right <span class="opt">:=</span> <span class="kwa">nil</span><span class="opt">;</span> Left <span class="opt">:=</span> <span class="kwa">nil</span><span class="opt">;</span> <span class="kwa">end</span><span class="opt">;</span>
-    <span class="kwa">if</span> Depth <span class="opt">&gt;</span> <span class="num">0</span> <span class="kwa">then with</span> Result<span class="opt">^</span> <span class="kwa">do begin</span>
-      Right <span class="opt">:=</span> <span class="kwd">MakeTree</span><span class="opt">(</span><span class="kwd">Pred</span><span class="opt">(</span>Depth<span class="opt">),</span> MP<span class="opt">);</span>
-      Left <span class="opt">:=</span> <span class="kwd">MakeTree</span><span class="opt">(</span><span class="kwd">Pred</span><span class="opt">(</span>Depth<span class="opt">),</span> MP<span class="opt">);</span>
-    <span class="kwa">end</span><span class="opt">;</span>
-  <span class="kwa">end</span><span class="opt">;</span>
+    Result := MP.<span class="kwd">NewItem</span>();
+    <span class="kwc">with</span> Result^ <span class="kwc">do</span> <span class="kwa">begin</span> Right := <span class="kwa">nil</span>; Left := <span class="kwa">nil</span>; <span class="kwa">end</span>;
+    <span class="kwc">if</span> Depth &gt; <span class="num">0</span> <span class="kwc">then with</span> Result^ <span class="kwc">do</span> <span class="kwa">begin</span>
+      Right := <span class="kwd">MakeTree</span>(<span class="kwd">Pred</span>(Depth), MP);
+      Left := <span class="kwd">MakeTree</span>(<span class="kwd">Pred</span>(Depth), MP);
+    <span class="kwa">end</span>;
+  <span class="kwa">end</span>;
 
 <span class="kwa">const</span>
-  MinDepth <span class="opt">=</span> <span class="num">4</span><span class="opt">;</span>
-  MaxDepth<span class="opt">:</span> PtrUInt <span class="opt">=</span> <span class="num">10</span><span class="opt">;</span>
+  MinDepth = <span class="num">4</span>;
+  MaxDepth: PtrUInt = <span class="num">10</span>;
 
   <span class="slc">// Make multiple trees.</span>
-  <span class="kwa">class procedure</span> TNode<span class="opt">.</span><span class="kwd">DoTrees</span><span class="opt">(</span><span class="kwa">const</span> Job<span class="opt">:</span> PPasMPJob<span class="opt">;</span>
-                                <span class="kwa">const</span> ThreadIndex<span class="opt">:</span> Int32<span class="opt">;</span>
-                                <span class="kwa">const</span> UserData<span class="opt">:</span> <span class="kwb">Pointer</span><span class="opt">;</span>
-                                <span class="kwa">const</span> FromIndex<span class="opt">,</span> ToIndex<span class="opt">:</span> PtrInt<span class="opt">);</span>
+  <span class="kwa">class procedure</span> TNode.<span class="kwd">DoTrees</span>(<span class="kwa">const</span> Job: PPasMPJob;
+                                <span class="kwa">const</span> ThreadIndex: Int32;
+                                <span class="kwa">const</span> UserData: <span class="kwb">Pointer</span>;
+                                <span class="kwa">const</span> FromIndex, ToIndex: PtrInt);
   <span class="kwa">var</span>
-    I<span class="opt">:</span> Int32<span class="opt">;</span>
-    IPool<span class="opt">:</span> TMemPool<span class="opt">;</span>
+    I: Int32;
+    IPool: TMemPool;
   <span class="kwa">begin</span>
-    <span class="kwa">with</span> <span class="kwd">TData</span><span class="opt">(</span>UserData<span class="opt">^)[</span>FromIndex<span class="opt">]</span> <span class="kwa">do begin</span>
-      Depth <span class="opt">:=</span> MinDepth <span class="opt">+</span> FromIndex <span class="opt">*</span> <span class="num">2</span><span class="opt">;</span>
-      Iterations <span class="opt">:=</span> <span class="num">1</span> <span class="kwa">shl</span> <span class="opt">(</span>MaxDepth <span class="opt">-</span> FromIndex <span class="opt">*</span> <span class="num">2</span><span class="opt">);</span>
-      Check <span class="opt">:=</span> <span class="num">0</span><span class="opt">;</span>
-      IPool <span class="opt">:=</span> TMemPool<span class="opt">.</span><span class="kwd">Create</span><span class="opt">(</span><span class="kwd">SizeOf</span><span class="opt">(</span>TNode<span class="opt">));</span>
-      <span class="kwa">for</span> I <span class="opt">:=</span> <span class="num">1</span> <span class="kwa">to</span> Iterations <span class="kwa">do begin</span>
-        Check <span class="opt">+=</span> <span class="kwd">CheckNode</span><span class="opt">(</span><span class="kwd">MakeTree</span><span class="opt">(</span>Depth<span class="opt">,</span> IPool<span class="opt">));</span>
-        IPool<span class="opt">.</span><span class="kwd">Clear</span><span class="opt">();</span>
-      <span class="kwa">end</span><span class="opt">;</span>
-      IPool<span class="opt">.</span><span class="kwd">Free</span><span class="opt">();</span>
-    <span class="kwa">end</span><span class="opt">;</span>
-  <span class="kwa">end</span><span class="opt">;</span>
+    <span class="kwc">with</span> <span class="kwd">TData</span>(UserData^)[FromIndex] <span class="kwc">do</span> <span class="kwa">begin</span>
+      Depth := MinDepth + FromIndex * <span class="num">2</span>;
+      Iterations := <span class="num">1</span> <span class="kwa">shl</span> (MaxDepth - FromIndex * <span class="num">2</span>);
+      Check := <span class="num">0</span>;
+      IPool := TMemPool.<span class="kwd">Create</span>(<span class="kwd">SizeOf</span>(TNode));
+      <span class="kwc">for</span> I := <span class="num">1</span> <span class="kwc">to</span> Iterations <span class="kwc">do</span> <span class="kwa">begin</span>
+        Check += <span class="kwd">CheckNode</span>(<span class="kwd">MakeTree</span>(Depth, IPool));
+        IPool.<span class="kwd">Clear</span>();
+      <span class="kwa">end</span>;
+      IPool.<span class="kwd">Free</span>();
+    <span class="kwa">end</span>;
+  <span class="kwa">end</span>;
 
 <span class="kwa">var</span>
-  I<span class="opt">:</span> PtrUInt<span class="opt">;</span>
-  IO<span class="opt">:</span> PText<span class="opt">;</span>
-  Tree<span class="opt">:</span> PNode<span class="opt">;</span>
-  Pool<span class="opt">:</span> TMemPool<span class="opt">;</span>
-  Data<span class="opt">:</span> TData<span class="opt">;</span>
+  I: PtrUInt;
+  IO: PText;
+  Tree: PNode;
+  Pool: TMemPool;
+  Data: TData;
 
 <span class="kwa">begin</span>
-  IO <span class="opt">:= &#64;</span>Output<span class="opt">;</span>
-  <span class="kwa">if</span> ParamCount <span class="opt">=</span> <span class="num">1</span> <span class="kwa">then</span> <span class="kwd">Val</span><span class="opt">(</span><span class="kwd">ParamStr</span><span class="opt">(</span><span class="num">1</span><span class="opt">),</span> MaxDepth<span class="opt">);</span>
-  <span class="kwa">if</span> MaxDepth <span class="opt">&lt;</span> MinDepth <span class="opt">+</span> <span class="num">2</span> <span class="kwa">then</span> MaxDepth <span class="opt">:=</span> MinDepth <span class="opt">+</span> <span class="num">2</span><span class="opt">;</span>
+  IO := &#64;Output;
+  <span class="kwc">if</span> ParamCount = <span class="num">1</span> <span class="kwc">then</span> <span class="kwd">Val</span>(<span class="kwd">ParamStr</span>(<span class="num">1</span>), MaxDepth);
+  <span class="kwc">if</span> MaxDepth &lt; MinDepth + <span class="num">2</span> <span class="kwc">then</span> MaxDepth := MinDepth + <span class="num">2</span>;
 
   <span class="slc">// Create and destroy a tree of depth MaxDepth + 1.</span>
-  Pool <span class="opt">:=</span> TMemPool<span class="opt">.</span><span class="kwd">Create</span><span class="opt">(</span><span class="kwd">SizeOf</span><span class="opt">(</span>TNode<span class="opt">));</span>
-  <span class="kwd">WriteLn</span><span class="opt">(</span>IO<span class="opt">^,</span> <span class="str">&apos;stretch tree of depth &apos;</span><span class="opt">,</span> <span class="kwd">Succ</span><span class="opt">(</span>MaxDepth<span class="opt">),</span> <span class="esc">#9</span><span class="str">&apos; check: &apos;</span><span class="opt">,</span>
-          TNode<span class="opt">.</span><span class="kwd">CheckNode</span><span class="opt">(</span>TNode<span class="opt">.</span><span class="kwd">MakeTree</span><span class="opt">(</span><span class="kwd">Succ</span><span class="opt">(</span>MaxDepth<span class="opt">),</span> Pool<span class="opt">)));</span>
-  Pool<span class="opt">.</span><span class="kwd">Clear</span><span class="opt">();</span>
+  Pool := TMemPool.<span class="kwd">Create</span>(<span class="kwd">SizeOf</span>(TNode));
+  <span class="kwd">WriteLn</span>(IO^, <span class="str">&apos;stretch tree of depth &apos;</span>, <span class="kwd">Succ</span>(MaxDepth), <span class="esc">#9</span><span class="str">&apos; check: &apos;</span>,
+          TNode.<span class="kwd">CheckNode</span>(TNode.<span class="kwd">MakeTree</span>(<span class="kwd">Succ</span>(MaxDepth), Pool)));
+  Pool.<span class="kwd">Clear</span>();
 
   <span class="slc">// Create a &quot;long lived&quot; tree of depth MaxDepth.</span>
-  Tree <span class="opt">:=</span> TNode<span class="opt">.</span><span class="kwd">MakeTree</span><span class="opt">(</span>MaxDepth<span class="opt">,</span> Pool<span class="opt">);</span>
+  Tree := TNode.<span class="kwd">MakeTree</span>(MaxDepth, Pool);
 
   <span class="slc">// While the tree stays live, create multiple trees. Local data is stored in the &quot;Data&quot; variable.</span>
-  <span class="kwd">SetLength</span><span class="opt">(</span>Data<span class="opt">, (</span>MaxDepth <span class="opt">-</span> MinDepth<span class="opt">)</span> <span class="kwa">div</span> <span class="num">2</span> <span class="opt">+</span> <span class="num">1</span><span class="opt">);</span>
-  <span class="kwa">with</span> TPasMP<span class="opt">.</span><span class="kwd">CreateGlobalInstance</span><span class="opt">()</span> <span class="kwa">do</span>
-    <span class="kwd">Invoke</span><span class="opt">(</span><span class="kwd">ParallelFor</span><span class="opt">(&#64;</span>Data<span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> <span class="kwd">High</span><span class="opt">(</span>Data<span class="opt">), &#64;</span>TNode<span class="opt">.</span>DoTrees<span class="opt">));</span>
+  <span class="kwd">SetLength</span>(Data, (MaxDepth - MinDepth) <span class="kwa">div</span> <span class="num">2</span> + <span class="num">1</span>);
+  <span class="kwc">with</span> TPasMP.<span class="kwd">CreateGlobalInstance</span>() <span class="kwc">do</span>
+    <span class="kwd">Invoke</span>(<span class="kwd">ParallelFor</span>(&#64;Data, <span class="num">0</span>, <span class="kwd">High</span>(Data), &#64;TNode.DoTrees));
 
   <span class="slc">// Display the results.</span>
-  <span class="kwa">for</span> I <span class="opt">:=</span> <span class="num">0</span> <span class="kwa">to</span> <span class="kwd">High</span><span class="opt">(</span>Data<span class="opt">)</span> <span class="kwa">do with</span> Data<span class="opt">[</span>I<span class="opt">]</span> <span class="kwa">do</span>
-    <span class="kwd">WriteLn</span><span class="opt">(</span>IO<span class="opt">^,</span> Iterations<span class="opt">,</span> <span class="esc">#9</span><span class="str">&apos; trees of depth &apos;</span><span class="opt">,</span> Depth<span class="opt">,</span> <span class="esc">#9</span><span class="str">&apos; check: &apos;</span><span class="opt">,</span> Check<span class="opt">);</span>
+  <span class="kwc">for</span> I := <span class="num">0</span> <span class="kwc">to</span> <span class="kwd">High</span>(Data) <span class="kwc">do with</span> Data[I] <span class="kwc">do</span>
+    <span class="kwd">WriteLn</span>(IO^, Iterations, <span class="esc">#9</span><span class="str">&apos; trees of depth &apos;</span>, Depth, <span class="esc">#9</span><span class="str">&apos; check: &apos;</span>, Check);
 
   <span class="slc">// Destroy the long lived tree.</span>
-  <span class="kwd">WriteLn</span><span class="opt">(</span>IO<span class="opt">^,</span> <span class="str">&apos;long lived tree of depth &apos;</span><span class="opt">,</span> MaxDepth<span class="opt">,</span> <span class="esc">#9</span><span class="str">&apos; check: &apos;</span><span class="opt">,</span> TNode<span class="opt">.</span><span class="kwd">CheckNode</span><span class="opt">(</span>Tree<span class="opt">));</span>
-  Pool<span class="opt">.</span><span class="kwd">Free</span><span class="opt">();</span>
-<span class="kwa">end</span><span class="opt">.</span>
+  <span class="kwd">WriteLn</span>(IO^, <span class="str">&apos;long lived tree of depth &apos;</span>, MaxDepth, <span class="esc">#9</span><span class="str">&apos; check: &apos;</span>, TNode.<span class="kwd">CheckNode</span>(Tree));
+  Pool.<span class="kwd">Free</span>();
+<span class="kwa">end</span>.
     </pre>
   </section>
   <section>
@@ -143,28 +143,27 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
     <pre>
 NOTES:
 64-bit Ubuntu quad core
-Free Pascal Compiler version 3.2.0 [2020/06/14] for x86_64
+Free Pascal Compiler version 3.2.2 [2021/05/16] for x86_64
 
 
-
-Fri, 23 Oct 2020 23:18:57 GMT
+Mon, 10 Jan 2022 02:03:33 GMT
 
 MAKE:
 mv binarytrees.fpascal-6.fpascal binarytrees.fpascal-6.pas
-/opt/src/fpc-3.2.0/bin/fpc -FuInclude/fpascal -XXs -O3 -Ci- -Cr- -g- -CpCOREAVX -CfAVX -Tlinux -Mdelphi -oFPASCAL_RUN binarytrees.fpascal-6.pas
-Free Pascal Compiler version 3.2.0 [2020/06/14] for x86_64
-Copyright (c) 1993-2020 by Florian Klaempfl and others
+/opt/src/fpc-3.2.2/bin/fpc -FuInclude/fpascal -XXs -O3 -Ci- -Cr- -g- -CpCOREAVX -CfAVX -Tlinux -Mdelphi -oFPASCAL_RUN binarytrees.fpascal-6.pas
+Free Pascal Compiler version 3.2.2 [2021/05/16] for x86_64
+Copyright (c) 1993-2021 by Florian Klaempfl and others
 Target OS: Linux for x86-64
 Compiling binarytrees.fpascal-6.pas
 binarytrees.fpascal-6.pas(103,5) Note: Call to subroutine &quot;function TPasMP.GetJobWorkerThread:TPasMPJobWorkerThread;&quot; marked as inline is not inlined
 binarytrees.fpascal-6.pas(103,5) Note: Call to subroutine &quot;procedure TPasMP.PushJob(const Job:PPasMPJob;const JobWorkerThread:TPasMPJobWorkerThread);&quot; marked as inline is not inlined
 Linking FPASCAL_RUN
-111 lines compiled, 1.3 sec
+111 lines compiled, 1.2 sec
 2 note(s) issued
 mv FPASCAL_RUN binarytrees.fpascal-6.fpascal_run
 rm binarytrees.fpascal-6.pas
 
-1.57s to complete and log all make actions
+1.53s to complete and log all make actions
 
 COMMAND LINE:
 ./binarytrees.fpascal-6.fpascal_run 21

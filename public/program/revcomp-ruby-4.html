@@ -27,73 +27,73 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="slc">#</span>
 <span class="slc"># Contributed by Aaron Tavistock</span>
 
-<span class="kwa">def</span> <span class="kwd">process_segment</span><span class="opt">(</span>segment<span class="opt">)</span>
-  <span class="opt">(</span>header<span class="opt">,</span> _<span class="opt">,</span> sequence<span class="opt">) =</span> segment<span class="opt">.</span><span class="kwd">partition</span><span class="opt">(</span><span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">)</span>
+<span class="kwa">def</span> <span class="kwd">process_segment</span>(segment<span class="opt">)</span>
+  (header, _, sequence<span class="opt">)</span> = segment.<span class="kwd">partition</span>(<span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">)</span>
 
-  sequence<span class="opt">.</span>delete<span class="opt">!(</span><span class="str">&quot;</span><span class="esc">\n\r</span> <span class="str">&gt;&quot;</span><span class="opt">)</span>
-  sequence<span class="opt">.</span>reverse<span class="opt">!</span>
-  sequence<span class="opt">.</span>tr<span class="opt">!(</span>
-    <span class="str">&apos;wsatugcyrkmbdhvnATUGCYRKMBDHVN&apos;</span><span class="opt">,</span>
+  sequence.delete!(<span class="str">&quot;</span><span class="esc">\n\r</span> <span class="str">&gt;&quot;</span><span class="opt">)</span>
+  sequence.reverse!
+  sequence.tr!(
+    <span class="str">&apos;wsatugcyrkmbdhvnATUGCYRKMBDHVN&apos;</span>,
     <span class="str">&apos;WSTAACGRYMKVHDBNTAACGRYMKVHDBN&apos;</span>
   <span class="opt">)</span>
 
-  sequence_length <span class="opt">=</span> sequence<span class="opt">.</span>length
-  results_size <span class="opt">=</span> sequence_length <span class="opt">+</span> sequence_length <span class="opt">/</span> <span class="num">60</span> <span class="opt">+</span> header<span class="opt">.</span>length <span class="opt">+</span> <span class="num">4</span>
-  results <span class="opt">=</span> String<span class="opt">.</span><span class="kwd">new</span><span class="opt">(</span><span class="str">&quot;&gt;#{header}</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span> capacity<span class="opt">:</span> results_size<span class="opt">)</span>
+  sequence_length = sequence.length
+  results_size = sequence_length + sequence_length / <span class="num">60</span> + header.length + <span class="num">4</span>
+  results = String.<span class="kwd">new</span>(<span class="str">&quot;&gt;</span><span class="ipl">#{header}</span><span class="str"></span><span class="esc">\n</span><span class="str">&quot;</span>, capacity: results_size<span class="opt">)</span>
 
-  idx <span class="opt">=</span> <span class="num">0</span>
-  <span class="kwa">while</span> idx <span class="opt">&lt;</span> sequence_length
-    results <span class="opt">&lt;&lt;</span> sequence<span class="opt">[</span>idx<span class="opt">,</span><span class="num">60</span><span class="opt">]</span>
-    results <span class="opt">&lt;&lt;</span> <span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span>
-    idx <span class="opt">+=</span> <span class="num">60</span>
+  idx = <span class="num">0</span>
+  <span class="kwa">while</span> idx &lt; sequence_length
+    results &lt;&lt; sequence[idx,<span class="num">60</span>]
+    results &lt;&lt; <span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span>
+    idx += <span class="num">60</span>
   <span class="kwa">end</span>
 
-  results<span class="opt">.</span>freeze
+  results.freeze
   results
 <span class="kwa">end</span>
 
-<span class="kwa">def</span> <span class="kwd">forking_worker</span><span class="opt">(</span>segment<span class="opt">)</span>
-  reader<span class="opt">,</span> writer <span class="opt">=</span> IO<span class="opt">.</span>pipe
+<span class="kwa">def</span> <span class="kwd">forking_worker</span>(segment<span class="opt">)</span>
+  reader, writer = IO.pipe
 
-  pid <span class="opt">=</span> Process<span class="opt">.</span>fork <span class="kwa">do</span>
+  pid = Process.fork <span class="kwa">do</span>
     <span class="kwa">begin</span>
-      reader<span class="opt">.</span>close
-      results <span class="opt">=</span> <span class="kwd">original_process_segment</span><span class="opt">(</span>segment<span class="opt">)</span>
-      writer<span class="opt">.</span><span class="kwd">write</span><span class="opt">(</span>results<span class="opt">)</span>
+      reader.close
+      results = <span class="kwd">original_process_segment</span>(segment<span class="opt">)</span>
+      writer.<span class="kwd">write</span>(results<span class="opt">)</span>
     <span class="kwa">ensure</span>
-      writer<span class="opt">.</span>close
+      writer.close
     <span class="kwa">end</span>
   <span class="kwa">end</span>
 
-  writer<span class="opt">.</span>close
+  writer.close
   <span class="kwa">begin</span>
-    results <span class="opt">=</span> reader<span class="opt">.</span>read
+    results = reader.read
   <span class="kwa">ensure</span>
-    reader<span class="opt">.</span>close
+    reader.close
   <span class="kwa">end</span>
-  Process<span class="opt">.</span><span class="kwd">waitpid</span><span class="opt">(</span>pid<span class="opt">)</span>
+  Process.<span class="kwd">waitpid</span>(pid<span class="opt">)</span>
 
   results
 <span class="kwa">end</span>
 
-<span class="kwa">if</span> <span class="kwc">RUBY_PLATFORM</span> <span class="opt">!=</span> <span class="str">&apos;java&apos;</span>
-  <span class="kwa">class</span> <span class="opt">&lt;&lt;</span> <span class="kwa">self</span>
-    alias_method <span class="kwc">:original_process_segment</span><span class="opt">,</span> <span class="kwc">:process_segment</span>
-    alias_method <span class="kwc">:process_segment</span><span class="opt">,</span> <span class="kwc">:forking_worker</span>
+<span class="kwa">if</span> <span class="kwc">RUBY_PLATFORM</span> != <span class="str">&apos;java&apos;</span>
+  <span class="kwa">class</span> &lt;&lt; <span class="kwa">self</span>
+    alias_method <span class="kwc">:original_process_segment</span>, <span class="kwc">:process_segment</span>
+    alias_method <span class="kwc">:process_segment</span>, <span class="kwc">:forking_worker</span>
   <span class="kwa">end</span>
 <span class="kwa">end</span>
 
-threads <span class="opt">= []</span>
-<span class="kwc">STDIN</span><span class="opt">.</span><span class="kwd">each_line</span><span class="opt">(</span><span class="str">&apos;&gt;&apos;</span><span class="opt">).</span>lazy<span class="opt">.</span>each <span class="kwa">do</span> <span class="opt">|</span>segment<span class="opt">|</span>
-  <span class="kwa">next if</span> segment<span class="opt">.</span>length <span class="opt">&lt;</span> <span class="num">2</span>
-  threads <span class="opt">&lt;&lt;</span> Thread<span class="opt">.</span>new <span class="kwa">do</span>
-    Thread<span class="opt">.</span>current<span class="opt">[</span><span class="kwc">:output</span><span class="opt">] =</span> <span class="kwd">process_segment</span><span class="opt">(</span>segment<span class="opt">)</span>
+threads = []
+<span class="kwc">STDIN</span>.<span class="kwd">each_line</span>(<span class="str">&apos;&gt;&apos;</span><span class="opt">)</span>.lazy.each <span class="kwa">do</span> |segment|
+  <span class="kwa">next if</span> segment.length &lt; <span class="num">2</span>
+  threads &lt;&lt; Thread.new <span class="kwa">do</span>
+    Thread.current[<span class="kwc">:output</span>] = <span class="kwd">process_segment</span>(segment<span class="opt">)</span>
   <span class="kwa">end</span>
 <span class="kwa">end</span>
-threads<span class="opt">.</span><span class="kwd">each</span><span class="opt">(&amp;</span><span class="kwc">:join</span><span class="opt">)</span>
+threads.<span class="kwd">each</span>(&amp;<span class="kwc">:join</span><span class="opt">)</span>
 
-threads<span class="opt">.</span>each <span class="kwa">do</span> <span class="opt">|</span>thread<span class="opt">|</span>
-  puts thread<span class="opt">[</span><span class="kwc">:output</span><span class="opt">]</span>
+threads.each <span class="kwa">do</span> |thread|
+  puts thread[<span class="kwc">:output</span>]
 <span class="kwa">end</span>
     </pre>
   </section>
@@ -104,14 +104,14 @@ threads<span class="opt">.</span>each <span class="kwa">do</span> <span class="o
     <pre>
 NOTES:
 64-bit Ubuntu quad core
-ruby 3.0.0p0 (2020-12-25 revision 95aff21468) [x86_64-linux]
---jit
+ruby 3.1.0p0 (2021-12-25 revision fb4df44d16) [x86_64-linux]
+--yjit
 
 
-Sun, 28 Feb 2021 06:48:22 GMT
+Fri, 07 Jan 2022 21:32:08 GMT
 
 COMMAND LINE:
-/opt/src/ruby-3.0.0/bin/ruby --jit -W0 revcomp.ruby-4.ruby 0 &lt; revcomp-input100000000.txt
+/opt/src/ruby-3.1.0/bin/ruby --yjit -W0 revcomp.ruby-4.ruby 0 &lt; revcomp-input100000000.txt
 
 (TRUNCATED) PROGRAM OUTPUT:
 &gt;ONE Homo sapiens alu

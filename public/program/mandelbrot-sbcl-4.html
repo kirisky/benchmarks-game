@@ -38,301 +38,301 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="slc">;;;   exacution time of the program.</span>
 
 
-<span class="opt">(</span><span class="kwa">setf</span> sb-ext<span class="opt">:*</span>efficiency-note-cost-threshold<span class="opt">*</span> <span class="num">1</span><span class="opt">)</span>
-<span class="opt">(</span><span class="kwa">setf</span> sb-ext<span class="opt">:*</span>efficiency-note-limit<span class="opt">*</span> <span class="num">8</span><span class="opt">)</span>
+(<span class="kwa">setf</span> sb-ext:*efficiency-note-cost-threshold* <span class="num">1</span>)
+(<span class="kwa">setf</span> sb-ext:*efficiency-note-limit* <span class="num">8</span>)
 
-<span class="opt">(</span><span class="kwa">setf</span> sb-ext<span class="opt">:*</span>inline-expansion-limit<span class="opt">*</span> <span class="num">1000</span><span class="opt">)</span>
-<span class="opt">(</span><span class="kwa">sb-int</span><span class="opt">:</span>set-floating-point-modes <span class="opt">:</span>traps <span class="opt">(</span><span class="kwa">list</span> <span class="opt">:</span>divide-by-zero<span class="opt">))</span>
+(<span class="kwa">setf</span> sb-ext:*inline-expansion-limit* <span class="num">1000</span>)
+(<span class="kwa">sb-int</span>:set-floating-point-modes :traps (<span class="kwa">list</span> :divide-by-zero))
 
-<span class="opt">(</span><span class="kwa">defpackage</span> <span class="opt">:</span>vops
-  <span class="opt">(:</span>use <span class="opt">:</span>cl<span class="opt">))</span>
+(<span class="kwa">defpackage</span> :vops
+  (:use :cl))
 
-<span class="opt">(</span><span class="kwa">in-package</span> <span class="opt">:</span>sb-vm<span class="opt">)</span>
-<span class="opt">(</span><span class="kwa">declaim</span> <span class="opt">(</span><span class="kwa">optimize</span> <span class="opt">(</span><span class="kwa">speed</span> <span class="num">3</span><span class="opt">) (</span><span class="kwa">safety</span> <span class="num">0</span><span class="opt">) (</span><span class="kwa">space</span> <span class="num">0</span><span class="opt">) (</span><span class="kwa">debug</span> <span class="num">0</span><span class="opt">)))</span>
+(<span class="kwa">in-package</span> :sb-vm)
+(<span class="kwa">declaim</span> (<span class="kwa">optimize</span> (<span class="kwa">speed</span> <span class="num">3</span>) (<span class="kwa">safety</span> <span class="num">0</span>) (<span class="kwa">space</span> <span class="num">0</span>) (<span class="kwa">debug</span> <span class="num">0</span>)))
 
-<span class="opt">(</span><span class="kwa">eval-when</span> <span class="opt">(:</span>load-toplevel <span class="opt">:</span>compile-toplevel <span class="opt">:</span>execute<span class="opt">)</span>
-  <span class="opt">#+</span>x86-64<span class="opt">(</span><span class="kwa">handler-bind</span> <span class="opt">((</span><span class="kwa">simple-error</span> <span class="opt">(</span><span class="kwa">lambda</span> <span class="opt">(</span><span class="kwa">condition</span><span class="opt">)</span>
+(<span class="kwa">eval-when</span> (:load-toplevel :compile-toplevel :execute)
+  #+x86-64(<span class="kwa">handler-bind</span> ((<span class="kwa">simple-error</span> (<span class="kwa">lambda</span> (<span class="kwa">condition</span>)
 					 condition
-					 <span class="opt">(</span><span class="kwa">invoke-restart</span> <span class="opt">&apos;</span>continue<span class="opt">))))</span>
+					 (<span class="kwa">invoke-restart</span> &apos;continue))))
           
-	    <span class="opt">(</span><span class="kwa">sb-c</span><span class="opt">::</span>defknown complex-double-float<span class="opt">/</span>sse-<span class="opt">* ((</span><span class="kwa">complex</span> double-float<span class="opt">)</span>
-							<span class="opt">(</span><span class="kwa">complex</span> double-float<span class="opt">))</span>
-		<span class="opt">(</span><span class="kwa">complex</span> double-float<span class="opt">))</span>
-	    <span class="opt">(</span><span class="kwa">sb-c</span><span class="opt">::</span>defknown cmple-movmskpd <span class="opt">((</span><span class="kwa">complex</span> double-float<span class="opt">)</span>
-					    <span class="opt">(</span><span class="kwa">complex</span> double-float<span class="opt">))</span>
-		<span class="opt">(</span><span class="kwa">unsigned-byte</span> <span class="num">32</span><span class="opt">))</span>
+	    (<span class="kwa">sb-c</span>::defknown complex-double-float/sse-* ((<span class="kwa">complex</span> double-float)
+							(<span class="kwa">complex</span> double-float))
+		(<span class="kwa">complex</span> double-float))
+	    (<span class="kwa">sb-c</span>::defknown cmple-movmskpd ((<span class="kwa">complex</span> double-float)
+					    (<span class="kwa">complex</span> double-float))
+		(<span class="kwa">unsigned-byte</span> <span class="num">32</span>))
 
-	    <span class="opt">(</span><span class="kwa">define-vop</span> <span class="opt">(</span><span class="kwa">complex-double-float</span><span class="opt">/</span>sse-<span class="opt">*)</span>
-	      <span class="opt">(:</span>policy <span class="opt">:</span>fast-safe<span class="opt">)</span>
-	      <span class="opt">(:</span>translate complex-double-float<span class="opt">/</span>sse-<span class="opt">*)</span>
-	      <span class="opt">(:</span>args <span class="opt">(</span><span class="kwa">x</span> <span class="opt">:</span>scs <span class="opt">(</span><span class="kwa">complex-double-reg</span><span class="opt">))</span>
-		     <span class="opt">(</span><span class="kwa">y</span> <span class="opt">:</span>scs <span class="opt">(</span><span class="kwa">complex-double-reg</span><span class="opt">)))</span>
-	      <span class="opt">(:</span>arg-types complex-double-float complex-double-float<span class="opt">)</span>
-	      <span class="opt">(:</span>results <span class="opt">(</span><span class="kwa">r</span> <span class="opt">:</span>scs <span class="opt">(</span><span class="kwa">complex-double-reg</span><span class="opt">)))</span>
-	      <span class="opt">(:</span>result-types complex-double-float<span class="opt">)</span>
-	      <span class="opt">(:</span>generator <span class="num">2</span>
-			  <span class="opt">(</span><span class="kwa">flet</span> <span class="opt">((</span><span class="kwa">get-constant</span> <span class="opt">(</span><span class="kwa">tn</span><span class="opt">)</span>
-				   <span class="opt">(</span><span class="kwa">register-inline-constant</span>
-				    <span class="opt">(</span><span class="kwa">tn-value</span> tn<span class="opt">))))</span>
-			    <span class="opt">(</span><span class="kwa">cond</span> <span class="opt">((</span><span class="kwa">location</span><span class="opt">=</span> x r<span class="opt">)</span>
-				   <span class="opt">(</span><span class="kwa">inst</span> mulpd x y<span class="opt">))</span>
-				  <span class="opt">((</span><span class="kwa">location</span><span class="opt">=</span> y r<span class="opt">)</span>
-				   <span class="opt">(</span><span class="kwa">inst</span> mulpd y x<span class="opt">))</span>
-				  <span class="opt">((</span><span class="kwa">not</span> <span class="opt">(</span><span class="kwa">location</span><span class="opt">=</span> r y<span class="opt">))</span>
-				   <span class="opt">(</span><span class="kwa">if</span> <span class="opt">(</span><span class="kwa">sc-is</span> x fp-complex-double-immediate<span class="opt">)</span>
-				       <span class="opt">(</span><span class="kwa">inst</span> movapd r <span class="opt">(</span><span class="kwa">get-constant</span> x<span class="opt">))</span>
-				       <span class="opt">(</span><span class="kwa">move</span> r x<span class="opt">))</span>
-				   <span class="opt">(</span><span class="kwa">inst</span> mulpd r y<span class="opt">))))))</span>
+	    (<span class="kwa">define-vop</span> (<span class="kwa">complex-double-float</span>/sse-*)
+	      (:policy :fast-safe)
+	      (:translate complex-double-float/sse-*)
+	      (:args (<span class="kwa">x</span> :scs (<span class="kwa">complex-double-reg</span>))
+		     (<span class="kwa">y</span> :scs (<span class="kwa">complex-double-reg</span>)))
+	      (:arg-types complex-double-float complex-double-float)
+	      (:results (<span class="kwa">r</span> :scs (<span class="kwa">complex-double-reg</span>)))
+	      (:result-types complex-double-float)
+	      (:generator <span class="num">2</span>
+			  (<span class="kwa">flet</span> ((<span class="kwa">get-constant</span> (<span class="kwa">tn</span>)
+				   (<span class="kwa">register-inline-constant</span>
+				    (<span class="kwa">tn-value</span> tn))))
+			    (<span class="kwa">cond</span> ((<span class="kwa">location</span>= x r)
+				   (<span class="kwa">inst</span> mulpd x y))
+				  ((<span class="kwa">location</span>= y r)
+				   (<span class="kwa">inst</span> mulpd y x))
+				  ((<span class="kwa">not</span> (<span class="kwa">location</span>= r y))
+				   (<span class="kwa">if</span> (<span class="kwa">sc-is</span> x fp-complex-double-immediate)
+				       (<span class="kwa">inst</span> movapd r (<span class="kwa">get-constant</span> x))
+				       (<span class="kwa">move</span> r x))
+				   (<span class="kwa">inst</span> mulpd r y))))))
 
-	    <span class="opt">(</span><span class="kwa">macrolet</span> <span class="opt">((</span><span class="kwa">generate</span> <span class="opt">(</span><span class="kwa">opinst</span> test movmsk constant-sc load-inst<span class="opt">)</span>
-			 <span class="opt">`(</span><span class="kwa">flet</span> <span class="opt">((</span><span class="kwa">get-constant</span> <span class="opt">(</span><span class="kwa">tn</span><span class="opt">)</span>
-				   <span class="opt">(</span><span class="kwa">register-inline-constant</span>
-				    <span class="opt">,&#64;(</span><span class="kwa">and</span> <span class="opt">(</span><span class="kwa">eq</span> constant-sc <span class="opt">&apos;</span>fp-single-immediate<span class="opt">)</span>
-					   <span class="opt">&apos;(:</span>aligned<span class="opt">))</span>
-				    <span class="opt">(</span><span class="kwa">tn-value</span> tn<span class="opt">))))</span>
-			    <span class="opt">(</span><span class="kwa">declare</span> <span class="opt">(</span><span class="kwa">ignorable</span> <span class="opt">#&apos;</span>get-constant<span class="opt">))</span>
-			    <span class="opt">(</span><span class="kwa">cond</span>
-			      <span class="opt">((</span><span class="kwa">location</span><span class="opt">=</span> x r<span class="opt">)</span>
-			       <span class="opt">(</span><span class="kwa">when</span> <span class="opt">(</span><span class="kwa">sc-is</span> y <span class="opt">,</span>constant-sc<span class="opt">)</span>
-				 <span class="opt">(</span><span class="kwa">setf</span> y <span class="opt">(</span><span class="kwa">get-constant</span> y<span class="opt">)))</span>
-			       <span class="opt">(</span><span class="kwa">inst</span> <span class="opt">,</span>opinst <span class="opt">,</span>test x y<span class="opt">)</span>
-			       <span class="opt">(</span><span class="kwa">inst</span> <span class="opt">,</span>movmsk r x<span class="opt">))</span>
-			      <span class="opt">((</span><span class="kwa">not</span> <span class="opt">(</span><span class="kwa">location</span><span class="opt">=</span> r y<span class="opt">))</span>
-			       <span class="opt">(</span><span class="kwa">if</span> <span class="opt">(</span><span class="kwa">sc-is</span> x <span class="opt">,</span>constant-sc<span class="opt">)</span>
-				   <span class="opt">(</span><span class="kwa">inst</span> <span class="opt">,</span>load-inst r <span class="opt">(</span><span class="kwa">get-constant</span> x<span class="opt">))</span>
-				   <span class="opt">(</span><span class="kwa">move</span> tmp x<span class="opt">))</span>
-			       <span class="opt">(</span><span class="kwa">when</span> <span class="opt">(</span><span class="kwa">sc-is</span> y <span class="opt">,</span>constant-sc<span class="opt">)</span>
-				 <span class="opt">(</span><span class="kwa">setf</span> y <span class="opt">(</span><span class="kwa">get-constant</span> y<span class="opt">)))</span>
-			       <span class="opt">(</span><span class="kwa">inst</span> <span class="opt">,</span>opinst <span class="opt">,</span>test tmp y<span class="opt">)</span>
-			       <span class="opt">(</span><span class="kwa">inst</span> <span class="opt">,</span>movmsk r tmp<span class="opt">))</span>
-			      <span class="opt">(</span><span class="kwa">t</span>
-			       <span class="opt">(</span><span class="kwa">if</span> <span class="opt">(</span><span class="kwa">sc-is</span> x <span class="opt">,</span>constant-sc<span class="opt">)</span>
-				   <span class="opt">(</span><span class="kwa">inst</span> <span class="opt">,</span>load-inst tmp <span class="opt">(</span><span class="kwa">get-constant</span> x<span class="opt">))</span>
-				   <span class="opt">(</span><span class="kwa">move</span> tmp x<span class="opt">))</span>
-			       <span class="opt">(</span><span class="kwa">when</span> <span class="opt">(</span><span class="kwa">sc-is</span> y <span class="opt">,</span>constant-sc<span class="opt">)</span>
-				 <span class="opt">(</span><span class="kwa">setf</span> y <span class="opt">(</span><span class="kwa">get-constant</span> y<span class="opt">)))</span>
-			       <span class="opt">(</span><span class="kwa">inst</span> <span class="opt">,</span>opinst <span class="opt">,</span>test tmp y<span class="opt">)</span>
-			       <span class="opt">(</span><span class="kwa">inst</span> <span class="opt">,</span>movmsk r tmp<span class="opt">)</span>
-			       <span class="opt">))))</span>
-		       <span class="opt">(</span><span class="kwa">frob</span> <span class="opt">(</span><span class="kwa">test</span> cdinst cdname cdcost<span class="opt">)</span>
-			 <span class="opt">`(</span><span class="kwa">progn</span>
-			    <span class="opt">(</span><span class="kwa">define-vop</span> <span class="opt">(,</span>cdname<span class="opt">)</span>
-			      <span class="opt">(:</span>translate <span class="opt">,</span>cdname<span class="opt">)</span>
-			      <span class="opt">(:</span>policy <span class="opt">:</span>fast-safe<span class="opt">)</span>
-			      <span class="opt">(:</span>args <span class="opt">(</span><span class="kwa">x</span> <span class="opt">:</span>scs <span class="opt">(</span><span class="kwa">complex-double-reg</span><span class="opt">))</span>
-				     <span class="opt">(</span><span class="kwa">y</span> <span class="opt">:</span>scs <span class="opt">(</span><span class="kwa">complex-double-reg</span><span class="opt">)))</span>
-			      <span class="opt">(:</span>arg-types complex-double-float
-					  complex-double-float<span class="opt">)</span>
-			      <span class="opt">(:</span>results <span class="opt">(</span><span class="kwa">r</span> <span class="opt">:</span>scs <span class="opt">(</span><span class="kwa">unsigned-reg</span><span class="opt">)))</span>
-			      <span class="opt">(:</span>result-types unsigned-num<span class="opt">)</span>
-			      <span class="opt">(:</span>temporary <span class="opt">(:</span>sc complex-double-reg<span class="opt">)</span> tmp<span class="opt">)</span>
-			      <span class="opt">(:</span>info<span class="opt">)</span>
-			      <span class="opt">(:</span>generator <span class="opt">,</span>cdcost
-					  <span class="opt">(</span><span class="kwa">generate</span> <span class="opt">,</span>cdinst <span class="opt">,</span>test movmskpd
+	    (<span class="kwa">macrolet</span> ((<span class="kwa">generate</span> (<span class="kwa">opinst</span> test movmsk constant-sc load-inst)
+			 `(<span class="kwa">flet</span> ((<span class="kwa">get-constant</span> (<span class="kwa">tn</span>)
+				   (<span class="kwa">register-inline-constant</span>
+				    ,&#64;(<span class="kwa">and</span> (<span class="kwa">eq</span> constant-sc &apos;fp-single-immediate)
+					   &apos;(:aligned))
+				    (<span class="kwa">tn-value</span> tn))))
+			    (<span class="kwa">declare</span> (<span class="kwa">ignorable</span> #&apos;get-constant))
+			    (<span class="kwa">cond</span>
+			      ((<span class="kwa">location</span>= x r)
+			       (<span class="kwa">when</span> (<span class="kwa">sc-is</span> y ,constant-sc)
+				 (<span class="kwa">setf</span> y (<span class="kwa">get-constant</span> y)))
+			       (<span class="kwa">inst</span> ,opinst ,test x y)
+			       (<span class="kwa">inst</span> ,movmsk r x))
+			      ((<span class="kwa">not</span> (<span class="kwa">location</span>= r y))
+			       (<span class="kwa">if</span> (<span class="kwa">sc-is</span> x ,constant-sc)
+				   (<span class="kwa">inst</span> ,load-inst r (<span class="kwa">get-constant</span> x))
+				   (<span class="kwa">move</span> tmp x))
+			       (<span class="kwa">when</span> (<span class="kwa">sc-is</span> y ,constant-sc)
+				 (<span class="kwa">setf</span> y (<span class="kwa">get-constant</span> y)))
+			       (<span class="kwa">inst</span> ,opinst ,test tmp y)
+			       (<span class="kwa">inst</span> ,movmsk r tmp))
+			      (<span class="kwa">t</span>
+			       (<span class="kwa">if</span> (<span class="kwa">sc-is</span> x ,constant-sc)
+				   (<span class="kwa">inst</span> ,load-inst tmp (<span class="kwa">get-constant</span> x))
+				   (<span class="kwa">move</span> tmp x))
+			       (<span class="kwa">when</span> (<span class="kwa">sc-is</span> y ,constant-sc)
+				 (<span class="kwa">setf</span> y (<span class="kwa">get-constant</span> y)))
+			       (<span class="kwa">inst</span> ,opinst ,test tmp y)
+			       (<span class="kwa">inst</span> ,movmsk r tmp)
+			       ))))
+		       (<span class="kwa">frob</span> (<span class="kwa">test</span> cdinst cdname cdcost)
+			 `(<span class="kwa">progn</span>
+			    (<span class="kwa">define-vop</span> (,cdname)
+			      (:translate ,cdname)
+			      (:policy :fast-safe)
+			      (:args (<span class="kwa">x</span> :scs (<span class="kwa">complex-double-reg</span>))
+				     (<span class="kwa">y</span> :scs (<span class="kwa">complex-double-reg</span>)))
+			      (:arg-types complex-double-float
+					  complex-double-float)
+			      (:results (<span class="kwa">r</span> :scs (<span class="kwa">unsigned-reg</span>)))
+			      (:result-types unsigned-num)
+			      (:temporary (:sc complex-double-reg) tmp)
+			      (:info)
+			      (:generator ,cdcost
+					  (<span class="kwa">generate</span> ,cdinst ,test movmskpd
 						    fp-complex-double-immediate
-						    movapd<span class="opt">))))))</span>
-	      <span class="opt">(</span><span class="kwa">frob</span> <span class="opt">:</span>le cmppd cmple-movmskpd <span class="num">3</span><span class="opt">)))</span>
+						    movapd))))))
+	      (<span class="kwa">frob</span> :le cmppd cmple-movmskpd <span class="num">3</span>)))
 
-  <span class="opt">#+</span>x86-64<span class="opt">(</span><span class="kwa">declaim</span> <span class="opt">(</span><span class="kwa">inline</span> complex-double-float<span class="opt">/</span>sse-<span class="opt">*))</span>
-  <span class="opt">#+</span>x86-64<span class="opt">(</span><span class="kwa">declaim</span> <span class="opt">(</span><span class="kwa">inline</span> cmple-movmskpd<span class="opt">))</span>
-  <span class="opt">(</span><span class="kwa">declaim</span> <span class="opt">(</span><span class="kwa">inline</span> vops<span class="opt">::</span>calc-row vops<span class="opt">::</span>main<span class="opt">))</span>
-  <span class="opt">#+</span>x86-64<span class="opt">(</span><span class="kwa">declaim</span> <span class="opt">(</span><span class="kwa">inline</span> vops<span class="opt">::</span>complex-double-float<span class="opt">/</span>sse-<span class="opt">*))</span>
-  <span class="opt">#+</span>x86-64<span class="opt">(</span><span class="kwa">declaim</span> <span class="opt">(</span><span class="kwa">inline</span> vops<span class="opt">::</span>cmple-movmskpd<span class="opt">)))</span>
+  #+x86-64(<span class="kwa">declaim</span> (<span class="kwa">inline</span> complex-double-float/sse-*))
+  #+x86-64(<span class="kwa">declaim</span> (<span class="kwa">inline</span> cmple-movmskpd))
+  (<span class="kwa">declaim</span> (<span class="kwa">inline</span> vops::calc-row vops::main))
+  #+x86-64(<span class="kwa">declaim</span> (<span class="kwa">inline</span> vops::complex-double-float/sse-*))
+  #+x86-64(<span class="kwa">declaim</span> (<span class="kwa">inline</span> vops::cmple-movmskpd)))
 
-<span class="opt">#+</span>x86-64<span class="opt">(</span><span class="kwa">defun</span> <span class="kwb">vops</span><span class="opt">::</span>complex-double-float<span class="opt">/</span>sse-<span class="opt">* (</span><span class="kwa">numbera</span> numberb<span class="opt">)</span>
-	    <span class="opt">(</span><span class="kwa">declare</span> <span class="opt">(</span><span class="kwa">type</span> <span class="opt">(</span><span class="kwa">complex</span> double-float<span class="opt">)</span> numbera numberb<span class="opt">)</span>
-		     <span class="opt">(</span><span class="kwa">optimize</span> <span class="opt">(</span><span class="kwa">speed</span> <span class="num">3</span><span class="opt">) (</span><span class="kwa">safety</span> <span class="num">0</span><span class="opt">) (</span><span class="kwa">space</span> <span class="num">0</span><span class="opt">) (</span><span class="kwa">debug</span> <span class="num">0</span><span class="opt">)))</span>
-	    <span class="opt">(</span><span class="kwa">complex-double-float</span><span class="opt">/</span>sse-<span class="opt">*</span> numbera numberb<span class="opt">))</span>
+#+x86-64(<span class="kwa">defun</span> vops::complex-double-float/sse-* (<span class="kwa">numbera</span> numberb)
+	    (<span class="kwa">declare</span> (<span class="kwa">type</span> (<span class="kwa">complex</span> double-float) numbera numberb)
+		     (<span class="kwa">optimize</span> (<span class="kwa">speed</span> <span class="num">3</span>) (<span class="kwa">safety</span> <span class="num">0</span>) (<span class="kwa">space</span> <span class="num">0</span>) (<span class="kwa">debug</span> <span class="num">0</span>)))
+	    (<span class="kwa">complex-double-float</span>/sse-* numbera numberb))
 
-<span class="opt">#+</span>x86-64<span class="opt">(</span><span class="kwa">defun</span> <span class="kwb">vops</span><span class="opt">::</span>cmple-movmskpd <span class="opt">(</span><span class="kwa">numbera</span> numberb<span class="opt">)</span>
-	    <span class="opt">(</span><span class="kwa">declare</span> <span class="opt">(</span><span class="kwa">type</span> <span class="opt">(</span><span class="kwa">complex</span> double-float<span class="opt">)</span> numbera numberb<span class="opt">)</span>
-		     <span class="opt">(</span><span class="kwa">optimize</span> <span class="opt">(</span><span class="kwa">speed</span> <span class="num">3</span><span class="opt">) (</span><span class="kwa">safety</span> <span class="num">0</span><span class="opt">) (</span><span class="kwa">space</span> <span class="num">0</span><span class="opt">) (</span><span class="kwa">debug</span> <span class="num">0</span><span class="opt">)))</span>
-	    <span class="opt">(</span><span class="kwa">cmple-movmskpd</span> numbera numberb<span class="opt">))</span>
+#+x86-64(<span class="kwa">defun</span> vops::cmple-movmskpd (<span class="kwa">numbera</span> numberb)
+	    (<span class="kwa">declare</span> (<span class="kwa">type</span> (<span class="kwa">complex</span> double-float) numbera numberb)
+		     (<span class="kwa">optimize</span> (<span class="kwa">speed</span> <span class="num">3</span>) (<span class="kwa">safety</span> <span class="num">0</span>) (<span class="kwa">space</span> <span class="num">0</span>) (<span class="kwa">debug</span> <span class="num">0</span>)))
+	    (<span class="kwa">cmple-movmskpd</span> numbera numberb))
 
-<span class="opt">(</span><span class="kwa">in-package</span> <span class="opt">:</span>vops<span class="opt">)</span>
-<span class="opt">(</span><span class="kwa">declaim</span> <span class="opt">(</span><span class="kwa">optimize</span> <span class="opt">(</span><span class="kwa">speed</span> <span class="num">3</span><span class="opt">) (</span><span class="kwa">safety</span> <span class="num">0</span><span class="opt">) (</span><span class="kwa">space</span> <span class="num">0</span><span class="opt">) (</span><span class="kwa">debug</span> <span class="num">0</span><span class="opt">)))</span>
-<span class="opt">(</span><span class="kwa">eval-when</span> <span class="opt">(:</span>load-toplevel <span class="opt">:</span>compile-toplevel <span class="opt">:</span>execute<span class="opt">)</span>
-  <span class="opt">(</span><span class="kwa">defmacro</span> cbyte <span class="opt">(</span><span class="kwa">form</span><span class="opt">)</span>
-    <span class="opt">(</span><span class="kwa">cond</span> <span class="opt">((</span><span class="kwa">stringp</span> form<span class="opt">)</span>
-	   <span class="opt">(</span><span class="kwa">map</span> <span class="opt">&apos;(</span><span class="kwa">simple-array</span> <span class="opt">(</span><span class="kwa">unsigned-byte</span> <span class="num">8</span><span class="opt">) (*)) #&apos;</span>char-code form<span class="opt">))</span>
-	  <span class="opt">((</span><span class="kwa">characterp</span> form<span class="opt">)</span>
-	   <span class="opt">(</span><span class="kwa">char-code</span> form<span class="opt">))</span>
-	  <span class="opt">((</span><span class="kwa">listp</span> form<span class="opt">)</span>
-	   <span class="opt">`(</span><span class="kwa">map</span> <span class="opt">&apos;(</span><span class="kwa">simple-array</span> <span class="opt">(</span><span class="kwa">unsigned-byte</span> <span class="num">8</span><span class="opt">) (*)) #&apos;</span>char-code <span class="opt">,</span>form<span class="opt">))</span>
-	  <span class="opt">)))</span>
+(<span class="kwa">in-package</span> :vops)
+(<span class="kwa">declaim</span> (<span class="kwa">optimize</span> (<span class="kwa">speed</span> <span class="num">3</span>) (<span class="kwa">safety</span> <span class="num">0</span>) (<span class="kwa">space</span> <span class="num">0</span>) (<span class="kwa">debug</span> <span class="num">0</span>)))
+(<span class="kwa">eval-when</span> (:load-toplevel :compile-toplevel :execute)
+  (<span class="kwa">defmacro</span> cbyte (<span class="kwa">form</span>)
+    (<span class="kwa">cond</span> ((<span class="kwa">stringp</span> form)
+	   (<span class="kwa">map</span> &apos;(<span class="kwa">simple-array</span> (<span class="kwa">unsigned-byte</span> <span class="num">8</span>) (*)) #&apos;char-code form))
+	  ((<span class="kwa">characterp</span> form)
+	   (<span class="kwa">char-code</span> form))
+	  ((<span class="kwa">listp</span> form)
+	   `(<span class="kwa">map</span> &apos;(<span class="kwa">simple-array</span> (<span class="kwa">unsigned-byte</span> <span class="num">8</span>) (*)) #&apos;char-code ,form))
+	  )))
 
-<span class="opt">(</span><span class="kwa">defconstant</span> <span class="opt">+</span>zero<span class="opt">+ (</span><span class="kwa">complex</span> <span class="num">0.0</span>d0 <span class="num">0.0</span>d0<span class="opt">))</span>
-<span class="opt">(</span><span class="kwa">defconstant</span> <span class="opt">+</span>four<span class="opt">+ (</span><span class="kwa">complex</span> <span class="num">4.0</span>d0 <span class="num">4.0</span>d0<span class="opt">))</span>
-<span class="opt">(</span><span class="kwa">defconstant</span> <span class="opt">+</span>workers<span class="opt">+</span> <span class="num">8</span><span class="opt">)</span>
+(<span class="kwa">defconstant</span> +zero+ (<span class="kwa">complex</span> <span class="num">0.0</span>d0 <span class="num">0.0</span>d0))
+(<span class="kwa">defconstant</span> +four+ (<span class="kwa">complex</span> <span class="num">4.0</span>d0 <span class="num">4.0</span>d0))
+(<span class="kwa">defconstant</span> +workers+ <span class="num">8</span>)
 
-<span class="opt">#+</span>x86-64<span class="opt">(</span><span class="kwa">defmacro</span> escapes? <span class="opt">(</span><span class="kwa">n</span> two-pixels  crv civ<span class="opt">)</span>
-	  <span class="opt">(</span><span class="kwa">let</span> <span class="opt">((</span><span class="kwa">escaped</span> <span class="opt">(</span><span class="kwa">gensym</span> <span class="str">&quot;escaped&quot;</span><span class="opt">))</span>
-		<span class="opt">(</span><span class="kwa">temp</span> <span class="opt">(</span><span class="kwa">gensym</span> <span class="str">&quot;temp&quot;</span><span class="opt">))</span>
-		<span class="opt">(</span><span class="kwa">temp2</span> <span class="opt">(</span><span class="kwa">gensym</span> <span class="str">&quot;temp2&quot;</span><span class="opt">))</span>
-		<span class="opt">(</span><span class="kwa">zrv</span> <span class="opt">(</span><span class="kwa">gensym</span><span class="opt">))</span>
-		<span class="opt">(</span><span class="kwa">ziv</span> <span class="opt">(</span><span class="kwa">gensym</span><span class="opt">))</span>
-		<span class="opt">(</span><span class="kwa">trv</span> <span class="opt">(</span><span class="kwa">gensym</span><span class="opt">))</span>
-		<span class="opt">(</span><span class="kwa">tiv</span> <span class="opt">(</span><span class="kwa">gensym</span><span class="opt">)))</span>
-	    <span class="opt">`(</span><span class="kwa">let</span> <span class="opt">((,</span>zrv vops<span class="opt">::+</span>zero<span class="opt">+)</span>
-		   <span class="opt">(,</span>ziv vops<span class="opt">::+</span>zero<span class="opt">+)</span>
-		   <span class="opt">(,</span>trv vops<span class="opt">::+</span>zero<span class="opt">+)</span>
-		   <span class="opt">(,</span>tiv vops<span class="opt">::+</span>zero<span class="opt">+))</span>
-	       <span class="opt">(</span><span class="kwa">block</span> <span class="opt">,</span>escaped 
-		 <span class="opt">,&#64;(</span><span class="kwa">nreverse</span> <span class="opt">(</span><span class="kwa">loop</span> for i of-type fixnum from <span class="num">0</span> below n
+#+x86-64(<span class="kwa">defmacro</span> escapes? (<span class="kwa">n</span> two-pixels  crv civ)
+	  (<span class="kwa">let</span> ((<span class="kwa">escaped</span> (<span class="kwa">gensym</span> <span class="str">&quot;escaped&quot;</span>))
+		(<span class="kwa">temp</span> (<span class="kwa">gensym</span> <span class="str">&quot;temp&quot;</span>))
+		(<span class="kwa">temp2</span> (<span class="kwa">gensym</span> <span class="str">&quot;temp2&quot;</span>))
+		(<span class="kwa">zrv</span> (<span class="kwa">gensym</span>))
+		(<span class="kwa">ziv</span> (<span class="kwa">gensym</span>))
+		(<span class="kwa">trv</span> (<span class="kwa">gensym</span>))
+		(<span class="kwa">tiv</span> (<span class="kwa">gensym</span>)))
+	    `(<span class="kwa">let</span> ((,zrv vops::+zero+)
+		   (,ziv vops::+zero+)
+		   (,trv vops::+zero+)
+		   (,tiv vops::+zero+))
+	       (<span class="kwa">block</span> ,escaped 
+		 ,&#64;(<span class="kwa">nreverse</span> (<span class="kwa">loop</span> for i of-type fixnum from <span class="num">0</span> below n
 				collecting	   
-				<span class="opt">`(</span><span class="kwa">progn</span>
-				   <span class="opt">(</span><span class="kwa">let</span><span class="opt">* ((,</span>temp <span class="opt">(</span><span class="kwa">complex-double-float</span><span class="opt">/</span>sse-<span class="opt">*</span>
-						  <span class="opt">,</span>zrv <span class="opt">,</span>ziv<span class="opt">)))</span>
-				     <span class="opt">(</span><span class="kwa">setf</span> <span class="opt">,</span>zrv <span class="opt">(+ (</span><span class="kwa">-</span> <span class="opt">,</span>trv <span class="opt">,</span>tiv<span class="opt">) ,</span>crv<span class="opt">))</span>
-				     <span class="opt">(</span><span class="kwa">setf</span> <span class="opt">,</span>trv <span class="opt">(</span><span class="kwa">complex-double-float</span><span class="opt">/</span>sse-<span class="opt">*</span>
-						 <span class="opt">,</span>zrv <span class="opt">,</span>zrv<span class="opt">))</span>
-				     <span class="opt">(</span><span class="kwa">setf</span> <span class="opt">,</span>ziv <span class="opt">(+ ,</span>temp <span class="opt">,</span>temp <span class="opt">,</span>civ<span class="opt">))</span>
-				     <span class="opt">(</span><span class="kwa">setf</span> <span class="opt">,</span>tiv <span class="opt">(</span><span class="kwa">complex-double-float</span><span class="opt">/</span>sse-<span class="opt">*</span>
-						 <span class="opt">,</span>ziv <span class="opt">,</span>ziv<span class="opt">)))</span>
-				   <span class="opt">(</span><span class="kwa">let</span> <span class="opt">((,</span>temp2 <span class="opt">(+ ,</span>trv <span class="opt">,</span>tiv<span class="opt">)))</span>
-				     <span class="opt">(</span><span class="kwa">setf</span> <span class="opt">,</span>two-pixels <span class="opt">(</span><span class="kwa">cmple-movmskpd</span>
-							<span class="opt">,</span>temp2 <span class="opt">,</span>vops<span class="opt">::+</span>four<span class="opt">+)))</span>
-				   <span class="opt">(</span><span class="kwa">when</span> <span class="opt">(= ,</span>two-pixels <span class="num">0</span><span class="opt">)</span>
-				     <span class="opt">(</span><span class="kwa">return-from</span> <span class="opt">,</span>escaped<span class="opt">)))))))))</span>
+				`(<span class="kwa">progn</span>
+				   (<span class="kwa">let</span>* ((,temp (<span class="kwa">complex-double-float</span>/sse-*
+						  ,zrv ,ziv)))
+				     (<span class="kwa">setf</span> ,zrv (+ (<span class="kwa">-</span> ,trv ,tiv) ,crv))
+				     (<span class="kwa">setf</span> ,trv (<span class="kwa">complex-double-float</span>/sse-*
+						 ,zrv ,zrv))
+				     (<span class="kwa">setf</span> ,ziv (+ ,temp ,temp ,civ))
+				     (<span class="kwa">setf</span> ,tiv (<span class="kwa">complex-double-float</span>/sse-*
+						 ,ziv ,ziv)))
+				   (<span class="kwa">let</span> ((,temp2 (+ ,trv ,tiv)))
+				     (<span class="kwa">setf</span> ,two-pixels (<span class="kwa">cmple-movmskpd</span>
+							,temp2 ,vops::+four+)))
+				   (<span class="kwa">when</span> (= ,two-pixels <span class="num">0</span>)
+				     (<span class="kwa">return-from</span> ,escaped)))))))))
 
-<span class="opt">#+</span>x86<span class="opt">(</span><span class="kwa">defmacro</span> escapes? <span class="opt">(</span><span class="kwa">n</span> two-pixels crv civ<span class="opt">)</span>
-       <span class="opt">(</span><span class="kwa">let</span> <span class="opt">((</span><span class="kwa">escaped</span> <span class="opt">(</span><span class="kwa">gensym</span> <span class="str">&quot;escaped&quot;</span><span class="opt">))</span>
-	     <span class="opt">(</span><span class="kwa">zrv1</span> <span class="opt">(</span><span class="kwa">gensym</span><span class="opt">))</span> 
-	     <span class="opt">(</span><span class="kwa">zrv2</span> <span class="opt">(</span><span class="kwa">gensym</span><span class="opt">))</span>
-	     <span class="opt">(</span><span class="kwa">ziv1</span> <span class="opt">(</span><span class="kwa">gensym</span><span class="opt">))</span>
-	     <span class="opt">(</span><span class="kwa">ziv2</span> <span class="opt">(</span><span class="kwa">gensym</span><span class="opt">))</span>
-	     <span class="opt">(</span><span class="kwa">trv1</span> <span class="opt">(</span><span class="kwa">gensym</span><span class="opt">))</span>
-	     <span class="opt">(</span><span class="kwa">trv2</span> <span class="opt">(</span><span class="kwa">gensym</span><span class="opt">))</span>
-	     <span class="opt">(</span><span class="kwa">tiv1</span> <span class="opt">(</span><span class="kwa">gensym</span><span class="opt">))</span>
-	     <span class="opt">(</span><span class="kwa">tiv2</span> <span class="opt">(</span><span class="kwa">gensym</span><span class="opt">))</span>
-	     <span class="opt">(</span><span class="kwa">crv1</span> <span class="opt">(</span><span class="kwa">gensym</span><span class="opt">))</span>
-	     <span class="opt">(</span><span class="kwa">crv2</span> <span class="opt">(</span><span class="kwa">gensym</span><span class="opt">))</span>
-	     <span class="opt">(</span><span class="kwa">civ1</span> <span class="opt">(</span><span class="kwa">gensym</span><span class="opt">))</span>
-	     <span class="opt">(</span><span class="kwa">civ2</span> <span class="opt">(</span><span class="kwa">gensym</span><span class="opt">))</span>
-	     <span class="opt">(</span><span class="kwa">temp</span> <span class="opt">(</span><span class="kwa">gensym</span><span class="opt">))</span>
-	     <span class="opt">(</span><span class="kwa">temp2</span> <span class="opt">(</span><span class="kwa">gensym</span><span class="opt">)))</span>
-	 <span class="opt">`(</span><span class="kwa">let</span> <span class="opt">((,</span>zrv1 <span class="num">0.0</span>d0<span class="opt">)</span>
-		<span class="opt">(,</span>zrv2 <span class="num">0.0</span>d0<span class="opt">)</span>
-		<span class="opt">(,</span>ziv1 <span class="num">0.0</span>d0<span class="opt">)</span>
-		<span class="opt">(,</span>ziv2 <span class="num">0.0</span>d0<span class="opt">)</span>
-		<span class="opt">(,</span>trv1 <span class="num">0.0</span>d0<span class="opt">)</span>
-		<span class="opt">(,</span>trv2 <span class="num">0.0</span>d0<span class="opt">)</span>
-		<span class="opt">(,</span>tiv1 <span class="num">0.0</span>d0<span class="opt">)</span>
-		<span class="opt">(,</span>tiv2 <span class="num">0.0</span>d0<span class="opt">)</span>
-		<span class="opt">(,</span>crv1 <span class="opt">(</span><span class="kwa">realpart</span> <span class="opt">,</span>crv<span class="opt">))</span>
-		<span class="opt">(,</span>crv2 <span class="opt">(</span><span class="kwa">imagpart</span> <span class="opt">,</span>crv<span class="opt">))</span>
-		<span class="opt">(,</span>civ1 <span class="opt">(</span><span class="kwa">realpart</span> <span class="opt">,</span>civ<span class="opt">))</span>
-		<span class="opt">(,</span>civ2 <span class="opt">(</span><span class="kwa">imagpart</span> <span class="opt">,</span>civ<span class="opt">)))</span>
-	    <span class="opt">(</span><span class="kwa">declare</span> <span class="opt">(</span><span class="kwa">type</span> double-float
-			   <span class="opt">,</span>zrv1 <span class="opt">,</span>zrv2 <span class="opt">,</span>ziv1
-			   <span class="opt">,</span>ziv2 <span class="opt">,</span>trv1 <span class="opt">,</span>trv2
-			   <span class="opt">,</span>tiv1 <span class="opt">,</span>tiv2 <span class="opt">,</span>crv1
-			   <span class="opt">,</span>crv2 <span class="opt">,</span>civ1 <span class="opt">,</span>civ2<span class="opt">))</span>
-	    <span class="opt">(</span><span class="kwa">setf</span> <span class="opt">,</span>two-pixels <span class="num">3</span><span class="opt">)</span>
-	    <span class="opt">(</span><span class="kwa">block</span> <span class="opt">,</span>escaped
-	      <span class="opt">,&#64;(</span><span class="kwa">nreverse</span> <span class="opt">(</span><span class="kwa">loop</span> for i from <span class="num">0</span> below n
+#+x86(<span class="kwa">defmacro</span> escapes? (<span class="kwa">n</span> two-pixels crv civ)
+       (<span class="kwa">let</span> ((<span class="kwa">escaped</span> (<span class="kwa">gensym</span> <span class="str">&quot;escaped&quot;</span>))
+	     (<span class="kwa">zrv1</span> (<span class="kwa">gensym</span>)) 
+	     (<span class="kwa">zrv2</span> (<span class="kwa">gensym</span>))
+	     (<span class="kwa">ziv1</span> (<span class="kwa">gensym</span>))
+	     (<span class="kwa">ziv2</span> (<span class="kwa">gensym</span>))
+	     (<span class="kwa">trv1</span> (<span class="kwa">gensym</span>))
+	     (<span class="kwa">trv2</span> (<span class="kwa">gensym</span>))
+	     (<span class="kwa">tiv1</span> (<span class="kwa">gensym</span>))
+	     (<span class="kwa">tiv2</span> (<span class="kwa">gensym</span>))
+	     (<span class="kwa">crv1</span> (<span class="kwa">gensym</span>))
+	     (<span class="kwa">crv2</span> (<span class="kwa">gensym</span>))
+	     (<span class="kwa">civ1</span> (<span class="kwa">gensym</span>))
+	     (<span class="kwa">civ2</span> (<span class="kwa">gensym</span>))
+	     (<span class="kwa">temp</span> (<span class="kwa">gensym</span>))
+	     (<span class="kwa">temp2</span> (<span class="kwa">gensym</span>)))
+	 `(<span class="kwa">let</span> ((,zrv1 <span class="num">0.0</span>d0)
+		(,zrv2 <span class="num">0.0</span>d0)
+		(,ziv1 <span class="num">0.0</span>d0)
+		(,ziv2 <span class="num">0.0</span>d0)
+		(,trv1 <span class="num">0.0</span>d0)
+		(,trv2 <span class="num">0.0</span>d0)
+		(,tiv1 <span class="num">0.0</span>d0)
+		(,tiv2 <span class="num">0.0</span>d0)
+		(,crv1 (<span class="kwa">realpart</span> ,crv))
+		(,crv2 (<span class="kwa">imagpart</span> ,crv))
+		(,civ1 (<span class="kwa">realpart</span> ,civ))
+		(,civ2 (<span class="kwa">imagpart</span> ,civ)))
+	    (<span class="kwa">declare</span> (<span class="kwa">type</span> double-float
+			   ,zrv1 ,zrv2 ,ziv1
+			   ,ziv2 ,trv1 ,trv2
+			   ,tiv1 ,tiv2 ,crv1
+			   ,crv2 ,civ1 ,civ2))
+	    (<span class="kwa">setf</span> ,two-pixels <span class="num">3</span>)
+	    (<span class="kwa">block</span> ,escaped
+	      ,&#64;(<span class="kwa">nreverse</span> (<span class="kwa">loop</span> for i from <span class="num">0</span> below n
 			     collecting
-			     <span class="opt">`(</span><span class="kwa">progn</span> 
-				<span class="opt">(</span><span class="kwa">let</span> <span class="opt">((,</span>temp <span class="opt">(* ,</span>zrv1 <span class="opt">,</span>ziv1<span class="opt">)))</span>
-				  <span class="opt">(</span><span class="kwa">setf</span> <span class="opt">,</span>zrv1 <span class="opt">(+ (</span><span class="kwa">-</span> <span class="opt">,</span>trv1 <span class="opt">,</span>tiv1<span class="opt">) ,</span>crv1<span class="opt">))</span>
-				  <span class="opt">(</span><span class="kwa">setf</span> <span class="opt">,</span>trv1 <span class="opt">(* ,</span>zrv1 <span class="opt">,</span>zrv1<span class="opt">))</span>
-				  <span class="opt">(</span><span class="kwa">setf</span> <span class="opt">,</span>ziv1 <span class="opt">(+ ,</span>temp <span class="opt">,</span>temp <span class="opt">,</span>civ1<span class="opt">))</span>
-				  <span class="opt">(</span><span class="kwa">setf</span> <span class="opt">,</span>tiv1 <span class="opt">(* ,</span>ziv1 <span class="opt">,</span>ziv1<span class="opt">)))</span>
-				<span class="opt">(</span><span class="kwa">let</span> <span class="opt">((,</span>temp2 <span class="opt">(+ ,</span>trv1 <span class="opt">,</span>tiv1<span class="opt">)))</span>
-				  <span class="opt">(</span><span class="kwa">when</span> <span class="opt">(&gt; ,</span>temp2 <span class="num">4.0</span>d0<span class="opt">)</span>
-				    <span class="opt">(</span><span class="kwa">setf</span> <span class="opt">,</span>two-pixels <span class="opt">(</span><span class="kwa">logxor</span> <span class="opt">,</span>two-pixels <span class="num">1</span><span class="opt">))</span>
-				    <span class="opt">(</span><span class="kwa">return-from</span> <span class="opt">,</span>escaped<span class="opt">)))))))</span>
-	    <span class="opt">(</span><span class="kwa">block</span> <span class="opt">,</span>escaped
-	      <span class="opt">,&#64;(</span><span class="kwa">nreverse</span> <span class="opt">(</span><span class="kwa">loop</span> for i from <span class="num">0</span> below n
+			     `(<span class="kwa">progn</span> 
+				(<span class="kwa">let</span> ((,temp (* ,zrv1 ,ziv1)))
+				  (<span class="kwa">setf</span> ,zrv1 (+ (<span class="kwa">-</span> ,trv1 ,tiv1) ,crv1))
+				  (<span class="kwa">setf</span> ,trv1 (* ,zrv1 ,zrv1))
+				  (<span class="kwa">setf</span> ,ziv1 (+ ,temp ,temp ,civ1))
+				  (<span class="kwa">setf</span> ,tiv1 (* ,ziv1 ,ziv1)))
+				(<span class="kwa">let</span> ((,temp2 (+ ,trv1 ,tiv1)))
+				  (<span class="kwa">when</span> (&gt; ,temp2 <span class="num">4.0</span>d0)
+				    (<span class="kwa">setf</span> ,two-pixels (<span class="kwa">logxor</span> ,two-pixels <span class="num">1</span>))
+				    (<span class="kwa">return-from</span> ,escaped)))))))
+	    (<span class="kwa">block</span> ,escaped
+	      ,&#64;(<span class="kwa">nreverse</span> (<span class="kwa">loop</span> for i from <span class="num">0</span> below n
 			     collecting
-			     <span class="opt">`(</span><span class="kwa">progn</span> 
-				<span class="opt">(</span><span class="kwa">let</span> <span class="opt">((,</span>temp <span class="opt">(* ,</span>zrv2 <span class="opt">,</span>ziv2<span class="opt">)))</span>
-				  <span class="opt">(</span><span class="kwa">setf</span> <span class="opt">,</span>zrv2 <span class="opt">(+ (</span><span class="kwa">-</span> <span class="opt">,</span>trv2 <span class="opt">,</span>tiv2<span class="opt">) ,</span>crv2<span class="opt">))</span>
-				  <span class="opt">(</span><span class="kwa">setf</span> <span class="opt">,</span>trv2 <span class="opt">(* ,</span>zrv2 <span class="opt">,</span>zrv2<span class="opt">))</span>
-				  <span class="opt">(</span><span class="kwa">setf</span> <span class="opt">,</span>ziv2 <span class="opt">(+ ,</span>temp <span class="opt">,</span>temp <span class="opt">,</span>civ2<span class="opt">))</span>
-				  <span class="opt">(</span><span class="kwa">setf</span> <span class="opt">,</span>tiv2 <span class="opt">(* ,</span>ziv2 <span class="opt">,</span>ziv2<span class="opt">)))</span>
-				<span class="opt">(</span><span class="kwa">let</span> <span class="opt">((,</span>temp2 <span class="opt">(+ ,</span>trv2 <span class="opt">,</span>tiv2<span class="opt">)))</span>
-				  <span class="opt">(</span><span class="kwa">when</span> <span class="opt">(&gt; ,</span>temp2 <span class="num">4.0</span>d0<span class="opt">)</span>
-				    <span class="opt">(</span><span class="kwa">setf</span> <span class="opt">,</span>two-pixels <span class="opt">(</span><span class="kwa">logxor</span> <span class="opt">,</span>two-pixels <span class="num">2</span><span class="opt">))</span>
-				    <span class="opt">(</span><span class="kwa">return-from</span> <span class="opt">,</span>escaped<span class="opt">))))))))))</span>
+			     `(<span class="kwa">progn</span> 
+				(<span class="kwa">let</span> ((,temp (* ,zrv2 ,ziv2)))
+				  (<span class="kwa">setf</span> ,zrv2 (+ (<span class="kwa">-</span> ,trv2 ,tiv2) ,crv2))
+				  (<span class="kwa">setf</span> ,trv2 (* ,zrv2 ,zrv2))
+				  (<span class="kwa">setf</span> ,ziv2 (+ ,temp ,temp ,civ2))
+				  (<span class="kwa">setf</span> ,tiv2 (* ,ziv2 ,ziv2)))
+				(<span class="kwa">let</span> ((,temp2 (+ ,trv2 ,tiv2)))
+				  (<span class="kwa">when</span> (&gt; ,temp2 <span class="num">4.0</span>d0)
+				    (<span class="kwa">setf</span> ,two-pixels (<span class="kwa">logxor</span> ,two-pixels <span class="num">2</span>))
+				    (<span class="kwa">return-from</span> ,escaped))))))))))
 
-<span class="opt">(</span><span class="kwa">defun</span> <span class="kwb">vops</span><span class="opt">::</span>calc-row <span class="opt">(</span><span class="kwa">y</span> n bitmap bytes-per-row crvs inverse-h<span class="opt">)</span>
-  <span class="opt">(</span><span class="kwa">declare</span> <span class="opt">(</span><span class="kwa">optimize</span> <span class="opt">(</span><span class="kwa">speed</span> <span class="num">3</span><span class="opt">) (</span><span class="kwa">safety</span> <span class="num">0</span><span class="opt">) (</span><span class="kwa">space</span> <span class="num">0</span><span class="opt">) (</span><span class="kwa">debug</span> <span class="num">0</span><span class="opt">)))</span>
-  <span class="opt">(</span><span class="kwa">declare</span> <span class="opt">(</span><span class="kwa">type</span> fixnum y n bytes-per-row<span class="opt">)</span>
-	   <span class="opt">(</span><span class="kwa">type</span> double-float inverse-h<span class="opt">)</span>
-	   <span class="opt">(</span><span class="kwa">type</span> <span class="opt">(</span><span class="kwa">simple-array</span> <span class="opt">(</span><span class="kwa">unsigned-byte</span> <span class="num">8</span><span class="opt">) (*))</span> bitmap<span class="opt">)</span>
-	   <span class="opt">(</span><span class="kwa">type</span> <span class="opt">(</span><span class="kwa">simple-array</span> <span class="opt">(</span><span class="kwa">complex</span> double-float<span class="opt">) (*))</span> crvs<span class="opt">))</span>
-  <span class="opt">(</span><span class="kwa">let</span> <span class="opt">((</span><span class="kwa">index</span> <span class="opt">(</span><span class="kwa">the</span> fixnum <span class="opt">(*</span> bytes-per-row y<span class="opt">)))</span>
-	<span class="opt">(</span><span class="kwa">civ-init</span> <span class="opt">(</span><span class="kwa">complex</span>
-		   <span class="opt">(</span><span class="kwa">the</span> double-float <span class="opt">(</span><span class="kwa">-</span> <span class="opt">(*</span> y inverse-h<span class="opt">)</span> <span class="num">1.0</span>d0<span class="opt">))</span>
-		   <span class="opt">(</span><span class="kwa">the</span> double-float <span class="opt">(</span><span class="kwa">-</span> <span class="opt">(*</span> y inverse-h<span class="opt">)</span> <span class="num">1.0</span>d0<span class="opt">))))</span>
-	<span class="opt">(</span><span class="kwa">bit</span> <span class="num">0</span><span class="opt">)</span>
-	<span class="opt">(</span><span class="kwa">code</span> <span class="num">0</span><span class="opt">))</span>
-    <span class="opt">(</span><span class="kwa">declare</span> <span class="opt">(</span><span class="kwa">type</span> fixnum index bit<span class="opt">)</span>
-	     <span class="opt">(</span><span class="kwa">type</span> <span class="opt">(</span><span class="kwa">unsigned-byte</span> <span class="num">8</span><span class="opt">)</span> code<span class="opt">))</span>
-    <span class="opt">(</span><span class="kwa">loop</span> for x of-type fixnum from <span class="num">0</span> below n by <span class="num">2</span>
+(<span class="kwa">defun</span> vops::calc-row (<span class="kwa">y</span> n bitmap bytes-per-row crvs inverse-h)
+  (<span class="kwa">declare</span> (<span class="kwa">optimize</span> (<span class="kwa">speed</span> <span class="num">3</span>) (<span class="kwa">safety</span> <span class="num">0</span>) (<span class="kwa">space</span> <span class="num">0</span>) (<span class="kwa">debug</span> <span class="num">0</span>)))
+  (<span class="kwa">declare</span> (<span class="kwa">type</span> fixnum y n bytes-per-row)
+	   (<span class="kwa">type</span> double-float inverse-h)
+	   (<span class="kwa">type</span> (<span class="kwa">simple-array</span> (<span class="kwa">unsigned-byte</span> <span class="num">8</span>) (*)) bitmap)
+	   (<span class="kwa">type</span> (<span class="kwa">simple-array</span> (<span class="kwa">complex</span> double-float) (*)) crvs))
+  (<span class="kwa">let</span> ((<span class="kwa">index</span> (<span class="kwa">the</span> fixnum (* bytes-per-row y)))
+	(<span class="kwa">civ-init</span> (<span class="kwa">complex</span>
+		   (<span class="kwa">the</span> double-float (<span class="kwa">-</span> (* y inverse-h) <span class="num">1.0</span>d0))
+		   (<span class="kwa">the</span> double-float (<span class="kwa">-</span> (* y inverse-h) <span class="num">1.0</span>d0))))
+	(<span class="kwa">bit</span> <span class="num">0</span>)
+	(<span class="kwa">code</span> <span class="num">0</span>))
+    (<span class="kwa">declare</span> (<span class="kwa">type</span> fixnum index bit)
+	     (<span class="kwa">type</span> (<span class="kwa">unsigned-byte</span> <span class="num">8</span>) code))
+    (<span class="kwa">loop</span> for x of-type fixnum from <span class="num">0</span> below n by <span class="num">2</span>
        do
-       <span class="opt">(</span><span class="kwa">let</span> <span class="opt">((</span><span class="kwa">two-pixels</span> <span class="num">3</span><span class="opt">))</span>
-	 <span class="opt">(</span><span class="kwa">let</span> <span class="opt">((</span><span class="kwa">crv</span> <span class="opt">(</span><span class="kwa">aref</span> crvs <span class="opt">(</span><span class="kwa">ash</span> x -<span class="num">1</span><span class="opt">)))</span>
-	       <span class="opt">(</span><span class="kwa">civ</span> civ-init<span class="opt">))</span>
-	   <span class="opt">(</span><span class="kwa">declare</span> <span class="opt">(</span><span class="kwa">type</span> <span class="opt">(</span><span class="kwa">complex</span> double-float<span class="opt">)</span> crv civ<span class="opt">)</span>
-		    <span class="opt">(</span><span class="kwa">type</span> fixnum two-pixels<span class="opt">))</span>
-	   <span class="opt">(</span><span class="kwa">escapes</span>? <span class="num">50</span> two-pixels crv civ<span class="opt">))</span>
-	 <span class="opt">(</span><span class="kwa">setf</span> code <span class="opt">(</span><span class="kwa">logior</span> <span class="opt">(</span><span class="kwa">ash</span> code <span class="num">2</span><span class="opt">)</span> two-pixels<span class="opt">))</span>
-	 <span class="opt">(</span><span class="kwa">when</span> <span class="opt">(= (</span><span class="kwa">incf</span> bit<span class="opt">)</span> <span class="num">4</span><span class="opt">)</span>
-	   <span class="opt">(</span><span class="kwa">setf</span> <span class="opt">(</span><span class="kwa">aref</span> bitmap index<span class="opt">)</span> code
+       (<span class="kwa">let</span> ((<span class="kwa">two-pixels</span> <span class="num">3</span>))
+	 (<span class="kwa">let</span> ((<span class="kwa">crv</span> (<span class="kwa">aref</span> crvs (<span class="kwa">ash</span> x -<span class="num">1</span>)))
+	       (<span class="kwa">civ</span> civ-init))
+	   (<span class="kwa">declare</span> (<span class="kwa">type</span> (<span class="kwa">complex</span> double-float) crv civ)
+		    (<span class="kwa">type</span> fixnum two-pixels))
+	   (<span class="kwa">escapes</span>? <span class="num">50</span> two-pixels crv civ))
+	 (<span class="kwa">setf</span> code (<span class="kwa">logior</span> (<span class="kwa">ash</span> code <span class="num">2</span>) two-pixels))
+	 (<span class="kwa">when</span> (= (<span class="kwa">incf</span> bit) <span class="num">4</span>)
+	   (<span class="kwa">setf</span> (<span class="kwa">aref</span> bitmap index) code
 		 bit <span class="num">0</span>
-		 code <span class="num">0</span><span class="opt">)</span>
-	   <span class="opt">(</span><span class="kwa">incf</span> index<span class="opt">))))</span>
-    <span class="opt">(</span><span class="kwa">values</span><span class="opt">)))</span>
+		 code <span class="num">0</span>)
+	   (<span class="kwa">incf</span> index))))
+    (<span class="kwa">values</span>)))
 
-  <span class="opt">(</span><span class="kwa">defun</span> <span class="kwb">vops</span><span class="opt">::</span>main <span class="opt">()</span>
-    <span class="opt">(</span><span class="kwa">let</span><span class="opt">* ((</span><span class="kwa">args</span> sb-ext<span class="opt">:*</span>posix-argv<span class="opt">*)</span>
-	   <span class="opt">(</span><span class="kwa">n</span> <span class="opt">(</span><span class="kwa">parse-integer</span> <span class="opt">(</span><span class="kwa">or</span> <span class="opt">(</span><span class="kwa">second</span> args<span class="opt">)</span> <span class="str">&quot;16000&quot;</span><span class="opt">)))</span>
-	   <span class="opt">(</span><span class="kwa">bytes-per-row</span> <span class="opt">(</span><span class="kwa">ash</span> <span class="opt">(</span><span class="kwa">the</span> fixnum <span class="opt">(+</span> n <span class="num">7</span><span class="opt">))</span> -<span class="num">3</span><span class="opt">))</span>
-	   <span class="opt">(</span><span class="kwa">inverse-w</span> <span class="opt">(/</span> <span class="num">2.0</span>d0 <span class="opt">(</span><span class="kwa">the</span> fixnum <span class="opt">(</span><span class="kwa">ash</span> bytes-per-row <span class="num">3</span><span class="opt">))))</span>
-	   <span class="opt">(</span><span class="kwa">inverse-h</span> <span class="opt">(/</span> <span class="num">2.0</span>d0 <span class="opt">(</span><span class="kwa">the</span> fixnum n<span class="opt">)))</span>
-	   <span class="opt">(</span><span class="kwa">crvs</span>
-	     <span class="opt">(</span><span class="kwa">make-array</span> <span class="opt">(</span><span class="kwa">ash</span> n -<span class="num">1</span><span class="opt">) :</span>element-type <span class="opt">&apos;(</span><span class="kwa">complex</span> double-float<span class="opt">))))</span>
-      <span class="opt">(</span><span class="kwa">declare</span> <span class="opt">(</span><span class="kwa">type</span> fixnum n bytes-per-row<span class="opt">)</span>
-	       <span class="opt">(</span><span class="kwa">type</span> double-float inverse-h inverse-w<span class="opt">)</span>
-	       <span class="opt">(</span><span class="kwa">type</span> <span class="opt">(</span><span class="kwa">simple-array</span> <span class="opt">(</span><span class="kwa">complex</span> double-float<span class="opt">) (*))</span> crvs<span class="opt">))</span>
-      <span class="opt">(</span><span class="kwa">let</span> <span class="opt">((</span><span class="kwa">bitmap</span>
-	     <span class="opt">(</span><span class="kwa">make-array</span> <span class="opt">(*</span> bytes-per-row n<span class="opt">)</span>
-			 <span class="opt">:</span>initial-element <span class="num">0</span>
-			 <span class="opt">:</span>element-type <span class="opt">&apos;(</span><span class="kwa">unsigned-byte</span> <span class="num">8</span><span class="opt">))))</span>
-	<span class="opt">(</span><span class="kwa">declare</span> <span class="opt">(</span><span class="kwa">type</span> <span class="opt">(</span><span class="kwa">simple-array</span> <span class="opt">(</span><span class="kwa">unsigned-byte</span> <span class="num">8</span><span class="opt">) (*))</span> bitmap<span class="opt">))</span>
-	<span class="opt">(</span><span class="kwa">loop</span> for i of-type fixnum from <span class="num">0</span> below n by <span class="num">2</span> 
-	   do <span class="opt">(</span><span class="kwa">setf</span> <span class="opt">(</span><span class="kwa">aref</span> crvs <span class="opt">(</span><span class="kwa">ash</span> i -<span class="num">1</span><span class="opt">))</span>
-		    <span class="opt">(</span><span class="kwa">complex</span> <span class="opt">(</span><span class="kwa">-</span> <span class="opt">(* (+</span> i <span class="num">1.0</span>d0<span class="opt">)</span> inverse-w<span class="opt">)</span> <span class="num">1.5</span>d0<span class="opt">)</span>
-			     <span class="opt">(</span><span class="kwa">-</span> <span class="opt">(*</span> i inverse-w<span class="opt">)</span> <span class="num">1.5</span>d0<span class="opt">))))</span>
-      	<span class="opt">#</span>-sb-thread
-	<span class="opt">(</span><span class="kwa">loop</span> for y of-type from <span class="num">0</span> below n
-	   do <span class="opt">(</span><span class="kwa">calc-row</span> y n bitmap bytes-per-row crvs inverse-h<span class="opt">))</span>
-	<span class="opt">#+</span>sb-thread <span class="slc">;; threaded inner loop changed to inderleaved from block</span>
-	<span class="opt">(</span><span class="kwa">mapcar</span> <span class="opt">#&apos;</span>sb-thread<span class="opt">:</span>join-thread
-		<span class="opt">(</span><span class="kwa">loop</span> for i of-type fixnum from <span class="num">0</span> below <span class="opt">+</span>workers<span class="opt">+</span>
-		      collecting <span class="opt">(</span><span class="kwa">sb-thread</span><span class="opt">:</span>make-thread
-				  <span class="opt">(</span><span class="kwa">let</span> <span class="opt">((</span><span class="kwa">i</span> i<span class="opt">))</span>
-				    <span class="opt">(</span><span class="kwa">lambda</span> <span class="opt">()</span>
-				      <span class="opt">(</span><span class="kwa">loop</span> for y of-type fixnum
-					    from i below n by <span class="opt">+</span>workers<span class="opt">+</span>
-					    do <span class="opt">(</span><span class="kwa">calc-row</span> y n
+  (<span class="kwa">defun</span> vops::main ()
+    (<span class="kwa">let</span>* ((<span class="kwa">args</span> sb-ext:*posix-argv*)
+	   (<span class="kwa">n</span> (<span class="kwa">parse-integer</span> (<span class="kwa">or</span> (<span class="kwa">second</span> args) <span class="str">&quot;16000&quot;</span>)))
+	   (<span class="kwa">bytes-per-row</span> (<span class="kwa">ash</span> (<span class="kwa">the</span> fixnum (+ n <span class="num">7</span>)) -<span class="num">3</span>))
+	   (<span class="kwa">inverse-w</span> (/ <span class="num">2.0</span>d0 (<span class="kwa">the</span> fixnum (<span class="kwa">ash</span> bytes-per-row <span class="num">3</span>))))
+	   (<span class="kwa">inverse-h</span> (/ <span class="num">2.0</span>d0 (<span class="kwa">the</span> fixnum n)))
+	   (<span class="kwa">crvs</span>
+	     (<span class="kwa">make-array</span> (<span class="kwa">ash</span> n -<span class="num">1</span>) :element-type &apos;(<span class="kwa">complex</span> double-float))))
+      (<span class="kwa">declare</span> (<span class="kwa">type</span> fixnum n bytes-per-row)
+	       (<span class="kwa">type</span> double-float inverse-h inverse-w)
+	       (<span class="kwa">type</span> (<span class="kwa">simple-array</span> (<span class="kwa">complex</span> double-float) (*)) crvs))
+      (<span class="kwa">let</span> ((<span class="kwa">bitmap</span>
+	     (<span class="kwa">make-array</span> (* bytes-per-row n)
+			 :initial-element <span class="num">0</span>
+			 :element-type &apos;(<span class="kwa">unsigned-byte</span> <span class="num">8</span>))))
+	(<span class="kwa">declare</span> (<span class="kwa">type</span> (<span class="kwa">simple-array</span> (<span class="kwa">unsigned-byte</span> <span class="num">8</span>) (*)) bitmap))
+	(<span class="kwa">loop</span> for i of-type fixnum from <span class="num">0</span> below n by <span class="num">2</span> 
+	   do (<span class="kwa">setf</span> (<span class="kwa">aref</span> crvs (<span class="kwa">ash</span> i -<span class="num">1</span>))
+		    (<span class="kwa">complex</span> (<span class="kwa">-</span> (* (+ i <span class="num">1.0</span>d0) inverse-w) <span class="num">1.5</span>d0)
+			     (<span class="kwa">-</span> (* i inverse-w) <span class="num">1.5</span>d0))))
+      	#-sb-thread
+	(<span class="kwa">loop</span> for y of-type from <span class="num">0</span> below n
+	   do (<span class="kwa">calc-row</span> y n bitmap bytes-per-row crvs inverse-h))
+	#+sb-thread <span class="slc">;; threaded inner loop changed to inderleaved from block</span>
+	(<span class="kwa">mapcar</span> #&apos;sb-thread:join-thread
+		(<span class="kwa">loop</span> for i of-type fixnum from <span class="num">0</span> below +workers+
+		      collecting (<span class="kwa">sb-thread</span>:make-thread
+				  (<span class="kwa">let</span> ((<span class="kwa">i</span> i))
+				    (<span class="kwa">lambda</span> ()
+				      (<span class="kwa">loop</span> for y of-type fixnum
+					    from i below n by +workers+
+					    do (<span class="kwa">calc-row</span> y n
 							 bitmap bytes-per-row
-							 crvs inverse-h<span class="opt">)))))))</span>
-	<span class="opt">(</span><span class="kwa">with-open-file</span> <span class="opt">(</span><span class="kwa">stream</span> <span class="opt">#</span>p<span class="str">&quot;/dev/stdout&quot;</span>
-				<span class="opt">:</span>direction <span class="opt">:</span>output
-				<span class="opt">:</span>if-exists <span class="opt">:</span>append
-				<span class="opt">:</span>element-type <span class="opt">&apos;(</span><span class="kwa">unsigned-byte</span> <span class="num">8</span><span class="opt">))</span>
-	  <span class="opt">(</span><span class="kwa">write-sequence</span> <span class="opt">(</span><span class="kwa">cbyte</span> <span class="opt">(</span><span class="kwa">format</span> nil <span class="str">&quot;P4~%~d ~d~%&quot;</span> n n<span class="opt">))</span> stream<span class="opt">)</span>
-	  <span class="opt">(</span><span class="kwa">write-sequence</span> bitmap stream<span class="opt">)))</span>
-      <span class="opt">(</span><span class="kwa">values</span><span class="opt">)))</span>
+							 crvs inverse-h)))))))
+	(<span class="kwa">with-open-file</span> (<span class="kwa">stream</span> #p<span class="str">&quot;/dev/stdout&quot;</span>
+				:direction :output
+				:if-exists :append
+				:element-type &apos;(<span class="kwa">unsigned-byte</span> <span class="num">8</span>))
+	  (<span class="kwa">write-sequence</span> (<span class="kwa">cbyte</span> (<span class="kwa">format</span> nil <span class="str">&quot;P4~%~d ~d~%&quot;</span> n n)) stream)
+	  (<span class="kwa">write-sequence</span> bitmap stream)))
+      (<span class="kwa">values</span>)))
 
-<span class="opt">(</span><span class="kwa">declaim</span> <span class="opt">(</span><span class="kwa">inline</span> <span class="opt">))</span>
-<span class="opt">(</span><span class="kwa">in-package</span> <span class="opt">:</span>cl-user<span class="opt">)</span>
+(<span class="kwa">declaim</span> (<span class="kwa">inline</span> ))
+(<span class="kwa">in-package</span> :cl-user)
 
-<span class="opt">(</span><span class="kwa">defun</span> <span class="kwb">main</span> <span class="opt">()</span>
-  <span class="opt">(</span><span class="kwa">vops</span><span class="opt">::</span>main<span class="opt">))</span>
+(<span class="kwa">defun</span> main ()
+  (<span class="kwa">vops</span>::main))
     </pre>
   </section>
   <section>
@@ -342,40 +342,27 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
     <pre>
 NOTES:
 64-bit Ubuntu quad core
-SBCL 2.1.1
+SBCL 2.2.0
 
 
-Fri, 19 Feb 2021 22:33:43 GMT
+Wed, 12 Jan 2022 03:30:17 GMT
 
 MAKE:
 cp: 'mandelbrot.sbcl-4.sbcl' and './mandelbrot.sbcl-4.sbcl' are the same file
-SBCL built with: /usr/local/bin/sbcl --userinit /dev/null --batch --eval '(load &quot;mandelbrot.sbcl-4.sbcl_compile&quot;)'
+SBCL built with: /opt/src/sbcl-2.2.0/bin/sbcl --userinit /dev/null --batch --eval '(load &quot;mandelbrot.sbcl-4.sbcl_compile&quot;)'
 ### START mandelbrot.sbcl-4.sbcl_compile
 (handler-bind ((sb-ext:defconstant-uneql      (lambda (c) (abort c))))      (require :sb-concurrency)      (load (compile-file &quot;mandelbrot.sbcl-4.sbcl&quot; ))) (save-lisp-and-die &quot;sbcl.core&quot; :purify t)
 ### END mandelbrot.sbcl-4.sbcl_compile
 
-; compiling file &quot;/home/dunham/all-benchmarksgame/2000-benchmarksgame/bench/mandelbrot/mandelbrot.sbcl-4.sbcl&quot; (written 18 MAY 2020 01:25:41 PM):
-; processing (SETF *EFFICIENCY-NOTE-COST-THRESHOLD* ...)
-; processing (SETF *EFFICIENCY-NOTE-LIMIT* ...)
-; processing (SETF *INLINE-EXPANSION-LIMIT* ...)
-; processing (SB-INT:SET-FLOATING-POINT-MODES :TRAPS ...)
-; processing (DEFPACKAGE :VOPS ...)
-; processing (IN-PACKAGE :SB-VM)
-; processing (DECLAIM (OPTIMIZE # ...))
-; processing (HANDLER-BIND (#) ...)
-; processing (DECLAIM (INLINE COMPLEX-DOUBLE-FLOAT/SSE-*))
-; processing (DECLAIM (INLINE CMPLE-MOVMSKPD))
-; processing (DECLAIM (INLINE VOPS::CALC-ROW ...))
-; processing (DECLAIM (INLINE VOPS::COMPLEX-DOUBLE-FLOAT/SSE-*))
-; processing (DECLAIM (INLINE VOPS::CMPLE-MOVMSKPD))
-; processing (DEFUN VOPS::COMPLEX-DOUBLE-FLOAT/SSE-* ...)
-; file: /home/dunham/all-benchmarksgame/2000-benchmarksgame/bench/mandelbrot/mandelbrot.sbcl-4.sbcl
+; compiling file &quot;/home/dunham/all-benchmarksgame/benchmarksgame_i53330/mandelbrot/tmp/mandelbrot.sbcl-4.sbcl&quot; (written 18 MAY 2020 01:25:41 PM):
+
+; file: /home/dunham/all-benchmarksgame/benchmarksgame_i53330/mandelbrot/tmp/mandelbrot.sbcl-4.sbcl
 ; in: DEFUN VOPS::COMPLEX-DOUBLE-FLOAT/SSE-*
 ;     (DEFUN VOPS::COMPLEX-DOUBLE-FLOAT/SSE-* (SB-VM::NUMBERA SB-VM::NUMBERB)
 ;       (DECLARE (TYPE (COMPLEX DOUBLE-FLOAT) SB-VM::NUMBERA SB-VM::NUMBERB)
 ;                (OPTIMIZE (SPEED 3) (SAFETY 0) (SPACE 0) (DEBUG 0)))
 ;       (SB-VM::COMPLEX-DOUBLE-FLOAT/SSE-* SB-VM::NUMBERA SB-VM::NUMBERB))
-; --&gt; PROGN SB-IMPL::%DEFUN SB-IMPL::%DEFUN SB-INT:NAMED-LAMBDA 
+; --&gt; SB-IMPL::%DEFUN SB-IMPL::%DEFUN SB-INT:NAMED-LAMBDA 
 ; ==&gt;
 ;   #'(SB-INT:NAMED-LAMBDA VOPS::COMPLEX-DOUBLE-FLOAT/SSE-*
 ;         (SB-VM::NUMBERA SB-VM::NUMBERB)
@@ -387,17 +374,6 @@ SBCL built with: /usr/local/bin/sbcl --userinit /dev/null --batch --eval '(load 
 ; 
 ; note: doing complex float to pointer coercion (cost 13) to &quot;&lt;return value&gt;&quot;
 
-; processing (DEFUN VOPS::CMPLE-MOVMSKPD ...)
-; processing (IN-PACKAGE :VOPS)
-; processing (DECLAIM (OPTIMIZE # ...))
-; processing (DEFMACRO CBYTE ...)
-; processing (DEFCONSTANT +ZERO+ ...)
-; processing (DEFCONSTANT +FOUR+ ...)
-; processing (DEFCONSTANT +WORKERS+ ...)
-; processing (DEFMACRO ESCAPES? ...)
-; processing (DEFUN CALC-ROW ...)
-; processing (DEFUN MAIN ...)
-; file: /home/dunham/all-benchmarksgame/2000-benchmarksgame/bench/mandelbrot/mandelbrot.sbcl-4.sbcl
 ; in: DEFUN MAIN
 ;     (LAMBDA ()
 ;       (LOOP VOPS::FOR VOPS::Y VOPS::OF-TYPE FIXNUM VOPS::FROM VOPS::I VOPS::BELOW VOPS::N VOPS::BY VOPS::+WORKERS+
@@ -406,19 +382,11 @@ SBCL built with: /usr/local/bin/sbcl --userinit /dev/null --batch --eval '(load 
 ; note: doing float to pointer coercion (cost 13), for:
 ;       the second argument of CLOSURE-INIT
 
-; processing (DECLAIM (INLINE))
-; processing (IN-PACKAGE :CL-USER)
-; processing (DEFUN MAIN ...)
-; file: /home/dunham/all-benchmarksgame/2000-benchmarksgame/bench/mandelbrot/mandelbrot.sbcl-4.sbcl
 ; in: DEFUN MAIN
 ;     (VOPS::MAIN)
-; --&gt; BLOCK LET* LET 
+; --&gt; BLOCK LET* LET MAPCAR 
 ; ==&gt;
-;   (MAPCAR #'SB-THREAD:JOIN-THREAD
-;           (LOOP VOPS::FOR VOPS::I VOPS::OF-TYPE FIXNUM VOPS::FROM 0 VOPS::BELOW VOPS::+WORKERS+
-;                 VOPS::COLLECTING (SB-THREAD:MAKE-THREAD
-;                                   (LET (#)
-;                                     (LAMBDA # #)))))
+;   1
 ; 
 ; note: doing float to pointer coercion (cost 13), for:
 ;       the second argument of CLOSURE-INIT
@@ -428,16 +396,16 @@ SBCL built with: /usr/local/bin/sbcl --userinit /dev/null --batch --eval '(load 
 
 
 ; wrote /home/dunham/all-benchmarksgame/benchmarksgame_i53330/mandelbrot/tmp/mandelbrot.sbcl-4.fasl
-; compilation finished in 0:00:00.276
+; compilation finished in 0:00:00.292
 ### START mandelbrot.sbcl-4.sbcl_run
 (main) (quit)
 ### END mandelbrot.sbcl-4.sbcl_run
 
 
-2.54s to complete and log all make actions
+2.68s to complete and log all make actions
 
 COMMAND LINE:
-/usr/local/bin/sbcl  --noinform --core sbcl.core --userinit /dev/null --load mandelbrot.sbcl-4.sbcl_run 16000
+/opt/src/sbcl-2.2.0/bin/sbcl  --noinform --core sbcl.core --userinit /dev/null --load mandelbrot.sbcl-4.sbcl_run 16000
 
 (BINARY) PROGRAM OUTPUT NOT SHOWN
     </pre>

@@ -39,78 +39,78 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="slc">;;      * posix-argv like Jon Smith&apos;s fannkuch-redux Lisp SBCL #2 program</span>
 <span class="slc">;;      * deftype &amp; type function suggested by tfb on SO</span>
 
-<span class="opt">(</span><span class="kwa">declaim</span> <span class="opt">(</span><span class="kwa">optimize</span> <span class="opt">(</span><span class="kwa">speed</span> <span class="num">3</span><span class="opt">) (</span><span class="kwa">safety</span> <span class="num">0</span><span class="opt">) (</span><span class="kwa">space</span> <span class="num">0</span><span class="opt">)))</span>
+(<span class="kwa">declaim</span> (<span class="kwa">optimize</span> (<span class="kwa">speed</span> <span class="num">3</span>) (<span class="kwa">safety</span> <span class="num">0</span>) (<span class="kwa">space</span> <span class="num">0</span>)))
 
-<span class="opt">(</span><span class="kwa">deftype</span> int31 <span class="opt">(&amp;</span>optional <span class="opt">(</span><span class="kwa">bits</span> <span class="num">31</span><span class="opt">))</span>
-  <span class="opt">`(</span><span class="kwa">signed-byte</span> <span class="opt">,</span>bits<span class="opt">))</span>
+(<span class="kwa">deftype</span> int31 (&amp;optional (<span class="kwa">bits</span> <span class="num">31</span>))
+  `(<span class="kwa">signed-byte</span> ,bits))
 
-<span class="opt">(</span><span class="kwa">declaim</span> <span class="opt">(</span><span class="kwa">inline</span> eval-A<span class="opt">))</span>
-<span class="opt">(</span><span class="kwa">defun</span> <span class="kwb">eval-A</span> <span class="opt">(</span><span class="kwa">i</span> j<span class="opt">)</span>
-  <span class="opt">(</span><span class="kwa">declare</span> <span class="opt">(</span><span class="kwa">type</span> int31 i j<span class="opt">))</span>
-  <span class="opt">(/</span> <span class="num">1.0</span>d0 <span class="opt">(+ (</span><span class="kwa">ash</span> <span class="opt">(* (+</span> i j<span class="opt">) (+</span> i j <span class="num">1</span><span class="opt">))</span> -<span class="num">1</span><span class="opt">)</span> i <span class="num">1</span><span class="opt">)))</span>
+(<span class="kwa">declaim</span> (<span class="kwa">inline</span> eval-A))
+(<span class="kwa">defun</span> eval-A (<span class="kwa">i</span> j)
+  (<span class="kwa">declare</span> (<span class="kwa">type</span> int31 i j))
+  (/ <span class="num">1.0</span>d0 (+ (<span class="kwa">ash</span> (* (+ i j) (+ i j <span class="num">1</span>)) -<span class="num">1</span>) i <span class="num">1</span>)))
 
-<span class="opt">(</span><span class="kwa">defun</span> <span class="kwb">eval-At-times-u</span> <span class="opt">(</span><span class="kwa">u</span> n Au start end<span class="opt">)</span>
-  <span class="opt">(</span><span class="kwa">declare</span> <span class="opt">(</span><span class="kwa">type</span> int31 n start end<span class="opt">)</span>
-           <span class="opt">(</span><span class="kwa">type</span> <span class="opt">(</span><span class="kwa">simple-array</span> double-float<span class="opt">)</span> u Au<span class="opt">))</span>
-  <span class="opt">(</span><span class="kwa">loop</span> for i from start below end do
-        <span class="opt">(</span><span class="kwa">setf</span> <span class="opt">(</span><span class="kwa">aref</span> Au i<span class="opt">)</span>
-              <span class="opt">(</span><span class="kwa">loop</span> for j below n
-                    summing <span class="opt">(* (</span><span class="kwa">aref</span> u j<span class="opt">) (</span><span class="kwa">eval-A</span> j i<span class="opt">))</span>
-                    of-type double-float<span class="opt">))))</span>
+(<span class="kwa">defun</span> eval-At-times-u (<span class="kwa">u</span> n Au start end)
+  (<span class="kwa">declare</span> (<span class="kwa">type</span> int31 n start end)
+           (<span class="kwa">type</span> (<span class="kwa">simple-array</span> double-float) u Au))
+  (<span class="kwa">loop</span> for i from start below end do
+        (<span class="kwa">setf</span> (<span class="kwa">aref</span> Au i)
+              (<span class="kwa">loop</span> for j below n
+                    summing (* (<span class="kwa">aref</span> u j) (<span class="kwa">eval-A</span> j i))
+                    of-type double-float))))
 
-<span class="opt">(</span><span class="kwa">defun</span> <span class="kwb">eval-A-times-u</span> <span class="opt">(</span><span class="kwa">u</span> n Au start end<span class="opt">)</span>
-  <span class="opt">(</span><span class="kwa">declare</span> <span class="opt">(</span><span class="kwa">type</span> int31 n start end<span class="opt">)</span>
-           <span class="opt">(</span><span class="kwa">type</span> <span class="opt">(</span><span class="kwa">simple-array</span> double-float<span class="opt">)</span> u Au<span class="opt">))</span>
-  <span class="opt">(</span><span class="kwa">loop</span> for i from start below end do
-        <span class="opt">(</span><span class="kwa">setf</span> <span class="opt">(</span><span class="kwa">aref</span> Au i<span class="opt">)</span>
-              <span class="opt">(</span><span class="kwa">loop</span> for j below n
-                    summing <span class="opt">(* (</span><span class="kwa">aref</span> u j<span class="opt">) (</span><span class="kwa">eval-A</span> i j<span class="opt">))</span>
-                    of-type double-float<span class="opt">))))</span>
+(<span class="kwa">defun</span> eval-A-times-u (<span class="kwa">u</span> n Au start end)
+  (<span class="kwa">declare</span> (<span class="kwa">type</span> int31 n start end)
+           (<span class="kwa">type</span> (<span class="kwa">simple-array</span> double-float) u Au))
+  (<span class="kwa">loop</span> for i from start below end do
+        (<span class="kwa">setf</span> (<span class="kwa">aref</span> Au i)
+              (<span class="kwa">loop</span> for j below n
+                    summing (* (<span class="kwa">aref</span> u j) (<span class="kwa">eval-A</span> i j))
+                    of-type double-float))))
 
-<span class="opt">#+</span>sb-thread
-<span class="opt">(</span><span class="kwa">defun</span> <span class="kwb">execute-parallel</span> <span class="opt">(</span><span class="kwa">start</span> end function<span class="opt">)</span>
-  <span class="opt">(</span><span class="kwa">declare</span> <span class="opt">(</span><span class="kwa">type</span> int31 start end<span class="opt">))</span>
-  <span class="opt">(</span><span class="kwa">let</span><span class="opt">* ((</span><span class="kwa">num-threads</span> <span class="num">4</span><span class="opt">))</span>
-    <span class="opt">(</span><span class="kwa">declare</span> <span class="opt">(</span><span class="kwa">type</span> function function<span class="opt">))</span>
-    <span class="opt">(</span><span class="kwa">loop</span> with step <span class="opt">= (</span><span class="kwa">truncate</span> <span class="opt">(</span><span class="kwa">-</span> end start<span class="opt">)</span> num-threads<span class="opt">)</span>
+#+sb-thread
+(<span class="kwa">defun</span> execute-parallel (<span class="kwa">start</span> end function)
+  (<span class="kwa">declare</span> (<span class="kwa">type</span> int31 start end))
+  (<span class="kwa">let</span>* ((<span class="kwa">num-threads</span> <span class="num">4</span>))
+    (<span class="kwa">declare</span> (<span class="kwa">type</span> function function))
+    (<span class="kwa">loop</span> with step = (<span class="kwa">truncate</span> (<span class="kwa">-</span> end start) num-threads)
           for index from start below end by step
-          collecting <span class="opt">(</span><span class="kwa">let</span> <span class="opt">((</span><span class="kwa">start</span> index<span class="opt">)</span>
-                           <span class="opt">(</span><span class="kwa">end</span> <span class="opt">(</span><span class="kwa">min</span> end <span class="opt">(+</span> index step<span class="opt">))))</span>
-                       <span class="opt">(</span><span class="kwa">sb-thread</span><span class="opt">:</span>make-thread
-                        <span class="opt">(</span><span class="kwa">lambda</span> <span class="opt">() (</span><span class="kwa">funcall</span> function start end<span class="opt">))))</span>
+          collecting (<span class="kwa">let</span> ((<span class="kwa">start</span> index)
+                           (<span class="kwa">end</span> (<span class="kwa">min</span> end (+ index step))))
+                       (<span class="kwa">sb-thread</span>:make-thread
+                        (<span class="kwa">lambda</span> () (<span class="kwa">funcall</span> function start end))))
           into threads
-          finally <span class="opt">(</span><span class="kwa">mapcar</span> <span class="opt">#&apos;</span>sb-thread<span class="opt">:</span>join-thread threads<span class="opt">))))</span>
+          finally (<span class="kwa">mapcar</span> #&apos;sb-thread:join-thread threads))))
 
-<span class="opt">#</span>-sb-thread
-<span class="opt">(</span><span class="kwa">defun</span> <span class="kwb">execute-parallel</span> <span class="opt">(</span><span class="kwa">start</span> end function <span class="opt">)</span>
-  <span class="opt">(</span><span class="kwa">funcall</span> function start end<span class="opt">))</span>
+#-sb-thread
+(<span class="kwa">defun</span> execute-parallel (<span class="kwa">start</span> end function )
+  (<span class="kwa">funcall</span> function start end))
 
-<span class="opt">(</span><span class="kwa">defun</span> <span class="kwb">eval-AtA-times-u</span> <span class="opt">(</span><span class="kwa">u</span> AtAu v n start end<span class="opt">)</span>
-  <span class="opt">(</span><span class="kwa">execute-parallel</span> start end
-    <span class="opt">(</span><span class="kwa">lambda</span> <span class="opt">(</span><span class="kwa">start</span> end<span class="opt">)</span>
-      <span class="opt">(</span><span class="kwa">eval-A-times-u</span> u n v start end<span class="opt">)))</span>
-  <span class="opt">(</span><span class="kwa">execute-parallel</span> start end
-    <span class="opt">(</span><span class="kwa">lambda</span> <span class="opt">(</span><span class="kwa">start</span> end<span class="opt">)</span>
-      <span class="opt">(</span><span class="kwa">eval-At-times-u</span> v n AtAu start end<span class="opt">))))</span>
+(<span class="kwa">defun</span> eval-AtA-times-u (<span class="kwa">u</span> AtAu v n start end)
+  (<span class="kwa">execute-parallel</span> start end
+    (<span class="kwa">lambda</span> (<span class="kwa">start</span> end)
+      (<span class="kwa">eval-A-times-u</span> u n v start end)))
+  (<span class="kwa">execute-parallel</span> start end
+    (<span class="kwa">lambda</span> (<span class="kwa">start</span> end)
+      (<span class="kwa">eval-At-times-u</span> v n AtAu start end))))
 
-<span class="opt">(</span><span class="kwa">defun</span> <span class="kwb">main</span> <span class="opt">()</span> 
-  <span class="opt">(</span><span class="kwa">let</span><span class="opt">* ((</span><span class="kwa">args</span> <span class="opt">(</span><span class="kwa">cdr</span> sb-ext<span class="opt">:*</span>posix-argv<span class="opt">*))</span>
-         <span class="opt">(</span><span class="kwa">n</span> <span class="opt">(</span><span class="kwa">parse-integer</span> <span class="opt">(</span><span class="kwa">car</span> args<span class="opt">))))</span>
-    <span class="opt">(</span><span class="kwa">declare</span> <span class="opt">(</span><span class="kwa">type</span> int31 n<span class="opt">))</span>
-    <span class="opt">(</span><span class="kwa">let</span> <span class="opt">((</span><span class="kwa">u</span> <span class="opt">(</span><span class="kwa">make-array</span> n <span class="opt">:</span>element-type <span class="opt">&apos;</span>double-float <span class="opt">:</span>initial-element <span class="num">1.0</span>d0<span class="opt">))</span>
-          <span class="opt">(</span><span class="kwa">v</span> <span class="opt">(</span><span class="kwa">make-array</span> n <span class="opt">:</span>element-type <span class="opt">&apos;</span>double-float<span class="opt">))</span>
-          <span class="opt">(</span><span class="kwa">tmp</span> <span class="opt">(</span><span class="kwa">make-array</span> n <span class="opt">:</span>element-type <span class="opt">&apos;</span>double-float<span class="opt">)))</span>
-      <span class="opt">(</span><span class="kwa">declare</span> <span class="opt">(</span><span class="kwa">type</span> <span class="opt">(</span><span class="kwa">simple-array</span> double-float<span class="opt">)</span> U V tmp<span class="opt">))</span>
-      <span class="opt">(</span><span class="kwa">dotimes</span> <span class="opt">(</span><span class="kwa">i</span> <span class="num">10</span><span class="opt">)</span>
-        <span class="opt">(</span><span class="kwa">eval-AtA-times-u</span> u v tmp n <span class="num">0</span> n<span class="opt">)</span>
-        <span class="opt">(</span><span class="kwa">eval-AtA-times-u</span> v u tmp n <span class="num">0</span> n<span class="opt">))</span>
-      <span class="opt">(</span><span class="kwa">let</span> <span class="opt">((</span><span class="kwa">vBv</span> <span class="num">0.0</span>d0<span class="opt">)</span>
-            <span class="opt">(</span><span class="kwa">vv</span> <span class="num">0.0</span>d0<span class="opt">))</span>
-        <span class="opt">(</span><span class="kwa">declare</span> <span class="opt">(</span><span class="kwa">type</span> double-float vBv vv<span class="opt">))</span>
-        <span class="opt">(</span><span class="kwa">dotimes</span> <span class="opt">(</span><span class="kwa">i</span> n<span class="opt">)</span>
-          <span class="opt">(</span><span class="kwa">incf</span> vBv <span class="opt">(* (</span><span class="kwa">aref</span> u i<span class="opt">) (</span><span class="kwa">aref</span> v i<span class="opt">)))</span>
-          <span class="opt">(</span><span class="kwa">incf</span> vv <span class="opt">(* (</span><span class="kwa">aref</span> v i<span class="opt">) (</span><span class="kwa">aref</span> v i<span class="opt">))))</span>
-        <span class="opt">(</span><span class="kwa">format</span> t <span class="str">&quot;~11,9F~%&quot;</span> <span class="opt">(</span><span class="kwa">sqrt</span> <span class="opt">(</span><span class="kwa">the</span> <span class="opt">(</span><span class="kwa">double-float</span> <span class="num">0</span>d0<span class="opt">) (/</span> vBv vv<span class="opt">))))))))</span>
+(<span class="kwa">defun</span> main () 
+  (<span class="kwa">let</span>* ((<span class="kwa">args</span> (<span class="kwa">cdr</span> sb-ext:*posix-argv*))
+         (<span class="kwa">n</span> (<span class="kwa">parse-integer</span> (<span class="kwa">car</span> args))))
+    (<span class="kwa">declare</span> (<span class="kwa">type</span> int31 n))
+    (<span class="kwa">let</span> ((<span class="kwa">u</span> (<span class="kwa">make-array</span> n :element-type &apos;double-float :initial-element <span class="num">1.0</span>d0))
+          (<span class="kwa">v</span> (<span class="kwa">make-array</span> n :element-type &apos;double-float))
+          (<span class="kwa">tmp</span> (<span class="kwa">make-array</span> n :element-type &apos;double-float)))
+      (<span class="kwa">declare</span> (<span class="kwa">type</span> (<span class="kwa">simple-array</span> double-float) U V tmp))
+      (<span class="kwa">dotimes</span> (<span class="kwa">i</span> <span class="num">10</span>)
+        (<span class="kwa">eval-AtA-times-u</span> u v tmp n <span class="num">0</span> n)
+        (<span class="kwa">eval-AtA-times-u</span> v u tmp n <span class="num">0</span> n))
+      (<span class="kwa">let</span> ((<span class="kwa">vBv</span> <span class="num">0.0</span>d0)
+            (<span class="kwa">vv</span> <span class="num">0.0</span>d0))
+        (<span class="kwa">declare</span> (<span class="kwa">type</span> double-float vBv vv))
+        (<span class="kwa">dotimes</span> (<span class="kwa">i</span> n)
+          (<span class="kwa">incf</span> vBv (* (<span class="kwa">aref</span> u i) (<span class="kwa">aref</span> v i)))
+          (<span class="kwa">incf</span> vv (* (<span class="kwa">aref</span> v i) (<span class="kwa">aref</span> v i))))
+        (<span class="kwa">format</span> t <span class="str">&quot;~11,9F~%&quot;</span> (<span class="kwa">sqrt</span> (<span class="kwa">the</span> (<span class="kwa">double-float</span> <span class="num">0</span>d0) (/ vBv vv))))))))
     </pre>
   </section>
   <section>
@@ -120,29 +120,26 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
     <pre>
 NOTES:
 64-bit Ubuntu quad core
-SBCL 2.1.1
+SBCL 2.2.0
 
 
-Fri, 19 Feb 2021 22:50:27 GMT
+Wed, 12 Jan 2022 03:58:44 GMT
 
 MAKE:
 cp: 'spectralnorm.sbcl-8.sbcl' and './spectralnorm.sbcl-8.sbcl' are the same file
-SBCL built with: /usr/local/bin/sbcl --userinit /dev/null --batch --eval '(load &quot;spectralnorm.sbcl-8.sbcl_compile&quot;)'
+SBCL built with: /opt/src/sbcl-2.2.0/bin/sbcl --userinit /dev/null --batch --eval '(load &quot;spectralnorm.sbcl-8.sbcl_compile&quot;)'
 ### START spectralnorm.sbcl-8.sbcl_compile
 (handler-bind ((sb-ext:defconstant-uneql      (lambda (c) (abort c))))      (require :sb-concurrency)      (load (compile-file &quot;spectralnorm.sbcl-8.sbcl&quot; ))) (save-lisp-and-die &quot;sbcl.core&quot; :purify t)
 ### END spectralnorm.sbcl-8.sbcl_compile
 
-; compiling file &quot;/home/dunham/all-benchmarksgame/2000-benchmarksgame/bench/spectralnorm/spectralnorm.sbcl-8.sbcl&quot; (written 21 OCT 2019 09:23:31 AM):
-; processing (DECLAIM (OPTIMIZE # ...))
-; processing (DEFTYPE INT31 ...)
-; processing (DECLAIM (INLINE EVAL-A))
-; processing (DEFUN EVAL-A ...)
-; file: /home/dunham/all-benchmarksgame/2000-benchmarksgame/bench/spectralnorm/spectralnorm.sbcl-8.sbcl
+; compiling file &quot;/home/dunham/all-benchmarksgame/benchmarksgame_i53330/spectralnorm/tmp/spectralnorm.sbcl-8.sbcl&quot; (written 21 OCT 2019 09:23:31 AM):
+
+; file: /home/dunham/all-benchmarksgame/benchmarksgame_i53330/spectralnorm/tmp/spectralnorm.sbcl-8.sbcl
 ; in: DEFUN EVAL-A
 ;     (DEFUN EVAL-A (I J)
 ;       (DECLARE (TYPE INT31 I J))
 ;       (/ 1.0d0 (+ (ASH (* # #) -1) I 1)))
-; --&gt; PROGN SB-IMPL::%DEFUN SB-IMPL::%DEFUN SB-INT:NAMED-LAMBDA 
+; --&gt; SB-IMPL::%DEFUN SB-IMPL::%DEFUN SB-INT:NAMED-LAMBDA 
 ; ==&gt;
 ;   #'(SB-INT:NAMED-LAMBDA EVAL-A
 ;         (I J)
@@ -152,12 +149,6 @@ SBCL built with: /usr/local/bin/sbcl --userinit /dev/null --batch --eval '(load 
 ; 
 ; note: doing float to pointer coercion (cost 13) to &quot;&lt;return value&gt;&quot;
 
-; processing (DEFUN EVAL-AT-TIMES-U ...)
-; processing (DEFUN EVAL-A-TIMES-U ...)
-; processing (DEFUN EXECUTE-PARALLEL ...)
-; processing (DEFUN EVAL-ATA-TIMES-U ...)
-; processing (DEFUN MAIN ...)
-; file: /home/dunham/all-benchmarksgame/2000-benchmarksgame/bench/spectralnorm/spectralnorm.sbcl-8.sbcl
 ; in: DEFUN MAIN
 ;     (FORMAT T &quot;~11,9F~%&quot; (SQRT (THE (DOUBLE-FLOAT 0.0d0) (/ VBV VV))))
 ; 
@@ -168,16 +159,16 @@ SBCL built with: /usr/local/bin/sbcl --userinit /dev/null --batch --eval '(load 
 
 
 ; wrote /home/dunham/all-benchmarksgame/benchmarksgame_i53330/spectralnorm/tmp/spectralnorm.sbcl-8.fasl
-; compilation finished in 0:00:00.060
+; compilation finished in 0:00:00.096
 ### START spectralnorm.sbcl-8.sbcl_run
 (main) (quit)
 ### END spectralnorm.sbcl-8.sbcl_run
 
 
-2.24s to complete and log all make actions
+2.61s to complete and log all make actions
 
 COMMAND LINE:
-/usr/local/bin/sbcl --dynamic-space-size 500 --noinform --core sbcl.core --userinit /dev/null --load spectralnorm.sbcl-8.sbcl_run 5500
+/opt/src/sbcl-2.2.0/bin/sbcl --dynamic-space-size 500 --noinform --core sbcl.core --userinit /dev/null --load spectralnorm.sbcl-8.sbcl_run 5500
 
 PROGRAM OUTPUT:
 1.274224153

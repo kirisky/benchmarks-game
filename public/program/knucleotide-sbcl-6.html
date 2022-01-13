@@ -29,236 +29,236 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="slc">;;</span>
 <span class="slc">;; Based on Java submission #1</span>
 
-<span class="opt">(</span><span class="kwa">defpackage</span> <span class="opt">:</span>knucleotide2
-  <span class="opt">(:</span>use <span class="opt">:</span>cl<span class="opt">))</span>
+(<span class="kwa">defpackage</span> :knucleotide2
+  (:use :cl))
 
-<span class="opt">(</span><span class="kwa">in-package</span> <span class="opt">:</span>knucleotide2<span class="opt">)</span>
+(<span class="kwa">in-package</span> :knucleotide2)
 
-<span class="opt">(</span><span class="kwa">declaim</span> <span class="opt">(</span><span class="kwa">optimize</span> <span class="opt">(</span><span class="kwa">speed</span> <span class="num">3</span><span class="opt">) (</span><span class="kwa">safety</span> <span class="num">0</span><span class="opt">) (</span><span class="kwa">space</span> <span class="num">0</span><span class="opt">) (</span><span class="kwa">debug</span> <span class="num">0</span><span class="opt">)))</span>
-<span class="opt">(</span><span class="kwa">declaim</span> <span class="opt">(</span><span class="kwa">inline</span> get-key<span class="opt">))</span>
+(<span class="kwa">declaim</span> (<span class="kwa">optimize</span> (<span class="kwa">speed</span> <span class="num">3</span>) (<span class="kwa">safety</span> <span class="num">0</span>) (<span class="kwa">space</span> <span class="num">0</span>) (<span class="kwa">debug</span> <span class="num">0</span>)))
+(<span class="kwa">declaim</span> (<span class="kwa">inline</span> get-key))
 
 <span class="slc">;; simple thread runner implementation</span>
 <span class="slc">;; we have a semaphore</span>
-<span class="opt">(</span><span class="kwa">defparameter</span> <span class="opt">*</span>my-tr-available-thread-semaphore<span class="opt">*</span> nil<span class="opt">)</span>
+(<span class="kwa">defparameter</span> *my-tr-available-thread-semaphore* nil)
 <span class="slc">;; each time a thread finishes up, we increment this semaphore</span>
 <span class="slc">;; the main thread waits on the semaphore, whenever it goes above 0 it finds another task if one is available and</span>
 <span class="slc">;; starts it up</span>
 
 
-<span class="opt">(</span><span class="kwa">defparameter</span> <span class="opt">*</span>my-tr-task-remaining-count<span class="opt">*</span> <span class="num">0</span><span class="opt">)</span>
-<span class="opt">(</span><span class="kwa">declaim</span> <span class="opt">(</span><span class="kwa">type</span> fixnum <span class="opt">*</span>my-tr-task-remaining-count<span class="opt">*))</span>
-<span class="opt">(</span><span class="kwa">defparameter</span> <span class="opt">*</span>my-tr-completed-task-mutex<span class="opt">*</span> nil<span class="opt">)</span>
-<span class="opt">(</span><span class="kwa">defparameter</span> <span class="opt">*</span>my-tr-task-completed-cv<span class="opt">*</span> nil<span class="opt">)</span>
+(<span class="kwa">defparameter</span> *my-tr-task-remaining-count* <span class="num">0</span>)
+(<span class="kwa">declaim</span> (<span class="kwa">type</span> fixnum *my-tr-task-remaining-count*))
+(<span class="kwa">defparameter</span> *my-tr-completed-task-mutex* nil)
+(<span class="kwa">defparameter</span> *my-tr-task-completed-cv* nil)
 
 <span class="slc">;;writing to status and result should only be done in my-tr-run</span>
-<span class="opt">(</span><span class="kwa">defstruct</span> my-task
-  <span class="opt">(</span><span class="kwa">mylambda</span><span class="opt">)</span> <span class="slc">; the thing to run</span>
-  <span class="opt">(</span><span class="kwa">status</span> nil<span class="opt">)</span> <span class="slc">; nil or t</span>
-  <span class="opt">(</span><span class="kwa">result</span> nil<span class="opt">))</span>
+(<span class="kwa">defstruct</span> my-task
+  (<span class="kwa">mylambda</span>) <span class="slc">; the thing to run</span>
+  (<span class="kwa">status</span> nil) <span class="slc">; nil or t</span>
+  (<span class="kwa">result</span> nil))
 
-<span class="opt">(</span><span class="kwa">defparameter</span> <span class="opt">*</span>my-task-list<span class="opt">* #())</span>
-<span class="opt">(</span><span class="kwa">declaim</span> <span class="opt">(</span><span class="kwa">type</span> vector <span class="opt">*</span>my-task-list<span class="opt">*))</span>
+(<span class="kwa">defparameter</span> *my-task-list* #())
+(<span class="kwa">declaim</span> (<span class="kwa">type</span> vector *my-task-list*))
 
 <span class="slc">;; must have set up populated *my-task-list* first</span>
 <span class="slc">;; each time a thread becomes available, then we run the next task</span>
-<span class="opt">(</span><span class="kwa">defun</span> <span class="kwb">my-tr-run</span> <span class="opt">(</span><span class="kwa">threadcount</span><span class="opt">)</span>
-  <span class="opt">(</span><span class="kwa">declare</span> <span class="opt">(</span><span class="kwa">type</span> fixnum threadcount<span class="opt">))</span>
-  <span class="opt">(</span><span class="kwa">setf</span> <span class="opt">*</span>my-tr-available-thread-semaphore<span class="opt">* (</span><span class="kwa">sb-thread</span><span class="opt">:</span>make-semaphore <span class="opt">:</span>count threadcount<span class="opt">))</span>
-  <span class="opt">(</span><span class="kwa">setf</span> <span class="opt">*</span>my-tr-completed-task-mutex<span class="opt">* (</span><span class="kwa">sb-thread</span><span class="opt">:</span>make-mutex<span class="opt">))</span> 
-  <span class="opt">(</span><span class="kwa">setf</span> <span class="opt">*</span>my-tr-task-remaining-count<span class="opt">* (</span><span class="kwa">length</span> <span class="opt">*</span>my-task-list<span class="opt">*))</span> 
-  <span class="opt">(</span><span class="kwa">setf</span> <span class="opt">*</span>my-tr-task-completed-cv<span class="opt">* (</span><span class="kwa">sb-thread</span><span class="opt">:</span>make-waitqueue<span class="opt">))</span> 
-  <span class="opt">(</span><span class="kwa">loop</span> for taskindex from <span class="num">0</span> below <span class="opt">(</span><span class="kwa">length</span> <span class="opt">*</span>my-task-list<span class="opt">*)</span> do
-       <span class="opt">(</span><span class="kwa">sb-thread</span><span class="opt">:</span>wait-on-semaphore <span class="opt">*</span>my-tr-available-thread-semaphore<span class="opt">*)</span>
-       <span class="opt">(</span><span class="kwa">let</span> <span class="opt">((</span><span class="kwa">thetask</span> <span class="opt">(</span><span class="kwa">elt</span> <span class="opt">*</span>my-task-list<span class="opt">*</span> taskindex<span class="opt">)))</span>
-         <span class="opt">(</span><span class="kwa">sb-thread</span><span class="opt">:</span>make-thread <span class="opt">(</span><span class="kwa">lambda</span> <span class="opt">() (</span><span class="kwa">let</span> <span class="opt">((</span><span class="kwa">results</span>
-                                                  <span class="opt">(</span><span class="kwa">funcall</span> <span class="opt">(</span><span class="kwa">my-task-mylambda</span> thetask<span class="opt">))))</span>
-                                             <span class="opt">(</span><span class="kwa">setf</span> <span class="opt">(</span><span class="kwa">my-task-result</span> thetask<span class="opt">)</span> results<span class="opt">)</span>
-                                             <span class="opt">(</span><span class="kwa">setf</span> <span class="opt">(</span><span class="kwa">my-task-status</span> thetask<span class="opt">)</span> t<span class="opt">)</span>
-                                             <span class="opt">(</span><span class="kwa">sb-thread</span><span class="opt">:</span>signal-semaphore <span class="opt">*</span>my-tr-available-thread-semaphore<span class="opt">*)</span>
-                                             <span class="opt">(</span><span class="kwa">sb-thread</span><span class="opt">:</span>with-mutex <span class="opt">(*</span>my-tr-completed-task-mutex<span class="opt">*)</span>
-                                               <span class="opt">(</span><span class="kwa">decf</span> <span class="opt">*</span>my-tr-task-remaining-count<span class="opt">*)</span>
-                                               <span class="opt">(</span><span class="kwa">sb-thread</span><span class="opt">:</span>condition-notify <span class="opt">*</span>my-tr-task-completed-cv<span class="opt">*)</span>
-                                               <span class="opt">)</span>
-                                             <span class="opt">)))))</span>
-  <span class="opt">(</span><span class="kwa">loop</span>
-     <span class="opt">(</span><span class="kwa">sb-thread</span><span class="opt">:</span>with-mutex <span class="opt">(*</span>my-tr-completed-task-mutex<span class="opt">*)</span>
-       <span class="opt">(</span><span class="kwa">if</span> <span class="opt">(</span><span class="kwa">eql</span> <span class="opt">*</span>my-tr-task-remaining-count<span class="opt">*</span> <span class="num">0</span><span class="opt">)</span>
-           <span class="opt">(</span><span class="kwa">return</span><span class="opt">)</span>
-           <span class="opt">(</span><span class="kwa">sb-thread</span><span class="opt">:</span>condition-wait <span class="opt">*</span>my-tr-task-completed-cv<span class="opt">* *</span>my-tr-completed-task-mutex<span class="opt">*)))))</span>
+(<span class="kwa">defun</span> my-tr-run (<span class="kwa">threadcount</span>)
+  (<span class="kwa">declare</span> (<span class="kwa">type</span> fixnum threadcount))
+  (<span class="kwa">setf</span> *my-tr-available-thread-semaphore* (<span class="kwa">sb-thread</span>:make-semaphore :count threadcount))
+  (<span class="kwa">setf</span> *my-tr-completed-task-mutex* (<span class="kwa">sb-thread</span>:make-mutex)) 
+  (<span class="kwa">setf</span> *my-tr-task-remaining-count* (<span class="kwa">length</span> *my-task-list*)) 
+  (<span class="kwa">setf</span> *my-tr-task-completed-cv* (<span class="kwa">sb-thread</span>:make-waitqueue)) 
+  (<span class="kwa">loop</span> for taskindex from <span class="num">0</span> below (<span class="kwa">length</span> *my-task-list*) do
+       (<span class="kwa">sb-thread</span>:wait-on-semaphore *my-tr-available-thread-semaphore*)
+       (<span class="kwa">let</span> ((<span class="kwa">thetask</span> (<span class="kwa">elt</span> *my-task-list* taskindex)))
+         (<span class="kwa">sb-thread</span>:make-thread (<span class="kwa">lambda</span> () (<span class="kwa">let</span> ((<span class="kwa">results</span>
+                                                  (<span class="kwa">funcall</span> (<span class="kwa">my-task-mylambda</span> thetask))))
+                                             (<span class="kwa">setf</span> (<span class="kwa">my-task-result</span> thetask) results)
+                                             (<span class="kwa">setf</span> (<span class="kwa">my-task-status</span> thetask) t)
+                                             (<span class="kwa">sb-thread</span>:signal-semaphore *my-tr-available-thread-semaphore*)
+                                             (<span class="kwa">sb-thread</span>:with-mutex (*my-tr-completed-task-mutex*)
+                                               (<span class="kwa">decf</span> *my-tr-task-remaining-count*)
+                                               (<span class="kwa">sb-thread</span>:condition-notify *my-tr-task-completed-cv*)
+                                               )
+                                             )))))
+  (<span class="kwa">loop</span>
+     (<span class="kwa">sb-thread</span>:with-mutex (*my-tr-completed-task-mutex*)
+       (<span class="kwa">if</span> (<span class="kwa">eql</span> *my-tr-task-remaining-count* <span class="num">0</span>)
+           (<span class="kwa">return</span>)
+           (<span class="kwa">sb-thread</span>:condition-wait *my-tr-task-completed-cv* *my-tr-completed-task-mutex*)))))
 
-<span class="opt">(</span><span class="kwa">defconstant</span> CODES  <span class="opt">#(</span><span class="kwa">-1</span> <span class="num">0</span> -<span class="num">1 1 3</span> -<span class="num">1</span> -<span class="num">1 2</span><span class="opt">))</span> 
-<span class="opt">(</span><span class="kwa">defconstant</span> NUCLEOTIDES <span class="opt">#(#</span>\A <span class="opt">#</span>\C <span class="opt">#</span>\G <span class="opt">#</span>\T<span class="opt">))</span> 
+(<span class="kwa">defconstant</span> CODES  #(<span class="kwa">-1</span> <span class="num">0</span> -<span class="num">1 1 3</span> -<span class="num">1</span> -<span class="num">1 2</span>)) 
+(<span class="kwa">defconstant</span> NUCLEOTIDES #(#\A #\C #\G #\T)) 
 
-<span class="opt">(</span><span class="kwa">defun</span> <span class="kwb">hash-function</span> <span class="opt">(</span><span class="kwa">x</span><span class="opt">)</span>
-  <span class="opt">(</span><span class="kwa">declare</span> <span class="opt">(</span><span class="kwa">type</span> <span class="opt">(</span><span class="kwa">unsigned-byte</span> <span class="num">64</span><span class="opt">)</span> x<span class="opt">))</span>
-  x<span class="opt">)</span>
+(<span class="kwa">defun</span> hash-function (<span class="kwa">x</span>)
+  (<span class="kwa">declare</span> (<span class="kwa">type</span> (<span class="kwa">unsigned-byte</span> <span class="num">64</span>) x))
+  x)
 
-<span class="opt">(</span><span class="kwa">defstruct</span> result
-  <span class="opt">(</span><span class="kwa">outmap</span> <span class="opt">(</span><span class="kwa">make-hash-table</span>
-           <span class="opt">:</span>test <span class="opt">&apos;</span>eql
-           <span class="opt">:</span>hash-function <span class="opt">#&apos;</span>hash-function
-           <span class="opt">:</span>rehash-size <span class="num">2.0</span>
-           <span class="opt">:</span>rehash-threshold <span class="num">0.7</span><span class="opt">))</span>
-  <span class="opt">(</span><span class="kwa">keylength</span> <span class="num">0</span><span class="opt">))</span>
+(<span class="kwa">defstruct</span> result
+  (<span class="kwa">outmap</span> (<span class="kwa">make-hash-table</span>
+           :test &apos;eql
+           :hash-function #&apos;hash-function
+           :rehash-size <span class="num">2.0</span>
+           :rehash-threshold <span class="num">0.7</span>))
+  (<span class="kwa">keylength</span> <span class="num">0</span>))
 
-<span class="opt">(</span><span class="kwa">defun</span> <span class="kwb">create-fragment-tasks</span> <span class="opt">(</span><span class="kwa">sequence</span> mfragment-lengths<span class="opt">)</span>
-  <span class="opt">(</span><span class="kwa">declare</span> <span class="opt">(</span><span class="kwa">type</span> <span class="opt">(</span><span class="kwa">simple-array</span> <span class="opt">(</span><span class="kwa">unsigned-byte</span> <span class="num">8</span><span class="opt">) (*))</span> sequence<span class="opt">))</span>
-  <span class="opt">(</span><span class="kwa">let</span> <span class="opt">((</span><span class="kwa">tasks</span> <span class="opt">(</span><span class="kwa">make-array</span> <span class="num">46</span> <span class="opt">:</span>fill-pointer <span class="num">0</span><span class="opt">)))</span>
-    <span class="opt">(</span><span class="kwa">loop</span> for fragmentLength across mfragment-lengths do
-         <span class="opt">(</span><span class="kwa">loop</span> for i of-type <span class="opt">(</span><span class="kwa">unsigned-byte</span> <span class="num">32</span><span class="opt">)</span> from <span class="num">0</span> below fragmentLength do
-              <span class="opt">(</span><span class="kwa">let</span> <span class="opt">((</span><span class="kwa">offset</span> i<span class="opt">)</span>
-                    <span class="opt">(</span><span class="kwa">mfragmentlength</span> fragmentLength<span class="opt">))</span>
-                <span class="opt">(</span><span class="kwa">vector-push-extend</span>
-                 <span class="opt">(</span><span class="kwa">make-my-task</span> <span class="opt">:</span>mylambda
-                               <span class="opt">(</span><span class="kwa">lambda</span> <span class="opt">()</span>
-                                 <span class="opt">(</span><span class="kwa">declare</span> <span class="opt">(</span><span class="kwa">type</span> <span class="opt">(</span><span class="kwa">unsigned-byte</span> <span class="num">32</span><span class="opt">)</span> mfragmentlength<span class="opt">)</span>
-                                          <span class="opt">(</span><span class="kwa">type</span> <span class="opt">(</span><span class="kwa">unsigned-byte</span> <span class="num">32</span><span class="opt">)</span> offset<span class="opt">))</span>
-                                 <span class="opt">(</span><span class="kwa">create-fragment-map</span> sequence offset mfragmentlength<span class="opt">)</span>
-                                 <span class="opt">))</span>
-                 tasks<span class="opt">))))</span>
-    tasks<span class="opt">))</span>
+(<span class="kwa">defun</span> create-fragment-tasks (<span class="kwa">sequence</span> mfragment-lengths)
+  (<span class="kwa">declare</span> (<span class="kwa">type</span> (<span class="kwa">simple-array</span> (<span class="kwa">unsigned-byte</span> <span class="num">8</span>) (*)) sequence))
+  (<span class="kwa">let</span> ((<span class="kwa">tasks</span> (<span class="kwa">make-array</span> <span class="num">46</span> :fill-pointer <span class="num">0</span>)))
+    (<span class="kwa">loop</span> for fragmentLength across mfragment-lengths do
+         (<span class="kwa">loop</span> for i of-type (<span class="kwa">unsigned-byte</span> <span class="num">32</span>) from <span class="num">0</span> below fragmentLength do
+              (<span class="kwa">let</span> ((<span class="kwa">offset</span> i)
+                    (<span class="kwa">mfragmentlength</span> fragmentLength))
+                (<span class="kwa">vector-push-extend</span>
+                 (<span class="kwa">make-my-task</span> :mylambda
+                               (<span class="kwa">lambda</span> ()
+                                 (<span class="kwa">declare</span> (<span class="kwa">type</span> (<span class="kwa">unsigned-byte</span> <span class="num">32</span>) mfragmentlength)
+                                          (<span class="kwa">type</span> (<span class="kwa">unsigned-byte</span> <span class="num">32</span>) offset))
+                                 (<span class="kwa">create-fragment-map</span> sequence offset mfragmentlength)
+                                 ))
+                 tasks))))
+    tasks))
 
-<span class="opt">(</span><span class="kwa">defun</span> <span class="kwb">create-fragment-map</span> <span class="opt">(</span><span class="kwa">sequence</span> offset fragmentLength<span class="opt">)</span>
-  <span class="opt">(</span><span class="kwa">declare</span> <span class="opt">(</span><span class="kwa">type</span> <span class="opt">(</span><span class="kwa">simple-array</span> <span class="opt">(</span><span class="kwa">unsigned-byte</span> <span class="num">8</span><span class="opt">) (*))</span> sequence<span class="opt">)</span>
-           <span class="opt">(</span><span class="kwa">type</span> <span class="opt">(</span><span class="kwa">unsigned-byte</span> <span class="num">32</span><span class="opt">)</span> offset<span class="opt">)</span>
-           <span class="opt">(</span><span class="kwa">type</span> <span class="opt">(</span><span class="kwa">unsigned-byte</span> <span class="num">32</span><span class="opt">)</span> fragmentLength<span class="opt">))</span>
-  <span class="opt">(</span><span class="kwa">let</span><span class="opt">* ((</span><span class="kwa">res</span> <span class="opt">(</span><span class="kwa">make-result</span> <span class="opt">:</span>keylength fragmentLength<span class="opt">))</span>
-         <span class="opt">(</span><span class="kwa">mymap</span> <span class="opt">(</span><span class="kwa">result-outmap</span> res<span class="opt">))</span>
-         <span class="opt">(</span><span class="kwa">lastIndex</span> <span class="opt">(+ (</span><span class="kwa">-</span> <span class="opt">(</span><span class="kwa">length</span> sequence<span class="opt">)</span> fragmentLength<span class="opt">)</span> <span class="num">1</span><span class="opt">)))</span>
-    <span class="opt">(</span><span class="kwa">declare</span> <span class="opt">(</span><span class="kwa">type</span> <span class="opt">(</span><span class="kwa">unsigned-byte</span> <span class="num">32</span><span class="opt">)</span> lastIndex<span class="opt">))</span>
-    <span class="opt">(</span><span class="kwa">loop</span>
-       for index of-type <span class="opt">(</span><span class="kwa">unsigned-byte</span> <span class="num">32</span><span class="opt">)</span> from offset below lastIndex by fragmentLength
+(<span class="kwa">defun</span> create-fragment-map (<span class="kwa">sequence</span> offset fragmentLength)
+  (<span class="kwa">declare</span> (<span class="kwa">type</span> (<span class="kwa">simple-array</span> (<span class="kwa">unsigned-byte</span> <span class="num">8</span>) (*)) sequence)
+           (<span class="kwa">type</span> (<span class="kwa">unsigned-byte</span> <span class="num">32</span>) offset)
+           (<span class="kwa">type</span> (<span class="kwa">unsigned-byte</span> <span class="num">32</span>) fragmentLength))
+  (<span class="kwa">let</span>* ((<span class="kwa">res</span> (<span class="kwa">make-result</span> :keylength fragmentLength))
+         (<span class="kwa">mymap</span> (<span class="kwa">result-outmap</span> res))
+         (<span class="kwa">lastIndex</span> (+ (<span class="kwa">-</span> (<span class="kwa">length</span> sequence) fragmentLength) <span class="num">1</span>)))
+    (<span class="kwa">declare</span> (<span class="kwa">type</span> (<span class="kwa">unsigned-byte</span> <span class="num">32</span>) lastIndex))
+    (<span class="kwa">loop</span>
+       for index of-type (<span class="kwa">unsigned-byte</span> <span class="num">32</span>) from offset below lastIndex by fragmentLength
        do
-         <span class="opt">(</span><span class="kwa">let</span><span class="opt">* ((</span><span class="kwa">key</span> <span class="opt">(</span><span class="kwa">get-key</span> sequence index fragmentLength<span class="opt">))</span>
-                <span class="opt">(</span><span class="kwa">value</span> <span class="opt">(</span><span class="kwa">gethash</span> key mymap <span class="num">0</span><span class="opt">)))</span>
-           <span class="opt">(</span><span class="kwa">declare</span> <span class="opt">(</span><span class="kwa">type</span> <span class="opt">(</span><span class="kwa">unsigned-byte</span> <span class="num">64</span><span class="opt">)</span> key<span class="opt">)</span>
-                    <span class="opt">(</span><span class="kwa">type</span> <span class="opt">(</span><span class="kwa">unsigned-byte</span> <span class="num">32</span><span class="opt">)</span> value<span class="opt">))</span>
-           <span class="opt">(</span><span class="kwa">setf</span> <span class="opt">(</span><span class="kwa">gethash</span> key mymap <span class="num">0</span><span class="opt">) (</span><span class="kwa">the</span> <span class="opt">(</span><span class="kwa">unsigned-byte</span> <span class="num">32</span><span class="opt">) (+</span> value <span class="num">1</span><span class="opt">)))))</span>
-    res<span class="opt">))</span>
+         (<span class="kwa">let</span>* ((<span class="kwa">key</span> (<span class="kwa">get-key</span> sequence index fragmentLength))
+                (<span class="kwa">value</span> (<span class="kwa">gethash</span> key mymap <span class="num">0</span>)))
+           (<span class="kwa">declare</span> (<span class="kwa">type</span> (<span class="kwa">unsigned-byte</span> <span class="num">64</span>) key)
+                    (<span class="kwa">type</span> (<span class="kwa">unsigned-byte</span> <span class="num">32</span>) value))
+           (<span class="kwa">setf</span> (<span class="kwa">gethash</span> key mymap <span class="num">0</span>) (<span class="kwa">the</span> (<span class="kwa">unsigned-byte</span> <span class="num">32</span>) (+ value <span class="num">1</span>)))))
+    res))
 
-<span class="opt">(</span><span class="kwa">defun</span> <span class="kwb">sum-two-maps</span> <span class="opt">(</span><span class="kwa">result1</span> result2<span class="opt">)</span>
-  <span class="opt">(</span><span class="kwa">loop</span> for key2 of-type <span class="opt">(</span><span class="kwa">unsigned-byte</span> <span class="num">64</span><span class="opt">)</span> being the hash-keys  of <span class="opt">(</span><span class="kwa">result-outmap</span> result2<span class="opt">)</span>
-     using <span class="opt">(</span><span class="kwa">hash-value</span> value2<span class="opt">)</span> do
-       <span class="opt">(</span><span class="kwa">setf</span> <span class="opt">(</span><span class="kwa">gethash</span> key2 <span class="opt">(</span><span class="kwa">result-outmap</span> result1<span class="opt">)) (+ (</span><span class="kwa">the</span> <span class="opt">(</span><span class="kwa">unsigned-byte</span> <span class="num">32</span><span class="opt">) (</span><span class="kwa">gethash</span> key2 <span class="opt">(</span><span class="kwa">result-outmap</span> result1<span class="opt">)</span> <span class="num">0</span><span class="opt">)) (</span><span class="kwa">the</span> <span class="opt">(</span><span class="kwa">unsigned-byte</span> <span class="num">32</span><span class="opt">)</span> value2<span class="opt">))))</span>
+(<span class="kwa">defun</span> sum-two-maps (<span class="kwa">result1</span> result2)
+  (<span class="kwa">loop</span> for key2 of-type (<span class="kwa">unsigned-byte</span> <span class="num">64</span>) being the hash-keys  of (<span class="kwa">result-outmap</span> result2)
+     using (<span class="kwa">hash-value</span> value2) do
+       (<span class="kwa">setf</span> (<span class="kwa">gethash</span> key2 (<span class="kwa">result-outmap</span> result1)) (+ (<span class="kwa">the</span> (<span class="kwa">unsigned-byte</span> <span class="num">32</span>) (<span class="kwa">gethash</span> key2 (<span class="kwa">result-outmap</span> result1) <span class="num">0</span>)) (<span class="kwa">the</span> (<span class="kwa">unsigned-byte</span> <span class="num">32</span>) value2))))
   result1
-  <span class="opt">)</span>
+  )
 
-<span class="opt">(</span><span class="kwa">defun</span> <span class="kwb">write-frequencies</span> <span class="opt">(</span><span class="kwa">totalCount</span> frequencies<span class="opt">)</span>
-  <span class="opt">(</span><span class="kwa">let</span> <span class="opt">((</span><span class="kwa">freq</span> <span class="opt">(</span><span class="kwa">make-array</span> <span class="opt">(</span><span class="kwa">hash-table-count</span> <span class="opt">(</span><span class="kwa">result-outmap</span> frequencies<span class="opt">)) :</span>fill-pointer <span class="num">0</span> <span class="opt">:</span>element-type <span class="opt">&apos;</span>cons<span class="opt">)))</span>
-    <span class="opt">(</span><span class="kwa">loop</span> for key being the hash-keys of <span class="opt">(</span><span class="kwa">result-outmap</span> frequencies<span class="opt">)</span>
-       using <span class="opt">(</span><span class="kwa">hash-value</span> cnt<span class="opt">)</span> do
-         <span class="opt">(</span><span class="kwa">let</span> <span class="opt">((</span><span class="kwa">nentry</span> <span class="opt">(</span><span class="kwa">cons</span> <span class="opt">(</span><span class="kwa">key-to-string</span> key <span class="opt">(</span><span class="kwa">result-keylength</span> frequencies<span class="opt">))</span> cnt<span class="opt">)))</span>
-           <span class="opt">(</span><span class="kwa">vector-push-extend</span> nentry freq<span class="opt">)))</span>
-    <span class="opt">(</span><span class="kwa">sort</span> freq <span class="opt">(</span><span class="kwa">lambda</span> <span class="opt">(</span><span class="kwa">x</span> y<span class="opt">) (&gt; (</span><span class="kwa">cdr</span> x<span class="opt">) (</span><span class="kwa">cdr</span> y<span class="opt">))))</span>
-    <span class="opt">(</span><span class="kwa">let</span> <span class="opt">((</span><span class="kwa">outstr</span>
-           <span class="opt">(</span><span class="kwa">apply</span> <span class="opt">#&apos;</span>concatenate 
-                  <span class="opt">(</span><span class="kwa">append</span> <span class="opt">(</span><span class="kwa">list</span> <span class="opt">&apos;</span>string<span class="opt">)</span>
-                          <span class="opt">(</span><span class="kwa">loop</span> for index from <span class="num">0</span> below <span class="opt">(</span><span class="kwa">length</span> freq<span class="opt">)</span>
-                                           for <span class="opt">(</span><span class="kwa">key</span> . value<span class="opt">) = (</span><span class="kwa">elt</span> freq index<span class="opt">)</span>
+(<span class="kwa">defun</span> write-frequencies (<span class="kwa">totalCount</span> frequencies)
+  (<span class="kwa">let</span> ((<span class="kwa">freq</span> (<span class="kwa">make-array</span> (<span class="kwa">hash-table-count</span> (<span class="kwa">result-outmap</span> frequencies)) :fill-pointer <span class="num">0</span> :element-type &apos;cons)))
+    (<span class="kwa">loop</span> for key being the hash-keys of (<span class="kwa">result-outmap</span> frequencies)
+       using (<span class="kwa">hash-value</span> cnt) do
+         (<span class="kwa">let</span> ((<span class="kwa">nentry</span> (<span class="kwa">cons</span> (<span class="kwa">key-to-string</span> key (<span class="kwa">result-keylength</span> frequencies)) cnt)))
+           (<span class="kwa">vector-push-extend</span> nentry freq)))
+    (<span class="kwa">sort</span> freq (<span class="kwa">lambda</span> (<span class="kwa">x</span> y) (&gt; (<span class="kwa">cdr</span> x) (<span class="kwa">cdr</span> y))))
+    (<span class="kwa">let</span> ((<span class="kwa">outstr</span>
+           (<span class="kwa">apply</span> #&apos;concatenate 
+                  (<span class="kwa">append</span> (<span class="kwa">list</span> &apos;string)
+                          (<span class="kwa">loop</span> for index from <span class="num">0</span> below (<span class="kwa">length</span> freq)
+                                           for (<span class="kwa">key</span> . value) = (<span class="kwa">elt</span> freq index)
                                            collect 
-                                             <span class="opt">(</span><span class="kwa">format</span> nil <span class="str">&quot;~a ~,3f~%&quot;</span> key <span class="opt">(/ (*</span> value <span class="num">100.0</span><span class="opt">)</span> totalCount<span class="opt">)))))))</span>
-      outstr<span class="opt">)))</span>
+                                             (<span class="kwa">format</span> nil <span class="str">&quot;~a ~,3f~%&quot;</span> key (/ (* value <span class="num">100.0</span>) totalCount)))))))
+      outstr)))
 
-<span class="opt">(</span><span class="kwa">defun</span> <span class="kwb">write-count</span> <span class="opt">(</span><span class="kwa">tasks</span> nucleotideFragment<span class="opt">)</span>
-  <span class="opt">(</span><span class="kwa">let</span><span class="opt">* ((</span><span class="kwa">key</span> <span class="opt">(</span><span class="kwa">to-codes-new</span> <span class="opt">(</span><span class="kwa">map</span> <span class="opt">&apos;(</span><span class="kwa">vector</span> <span class="opt">(</span><span class="kwa">unsigned-byte</span> <span class="num">8</span><span class="opt">)) #&apos;</span>char-code nucleotideFragment<span class="opt">) (</span><span class="kwa">length</span> nucleotideFragment<span class="opt">)) )</span>
-         <span class="opt">(</span><span class="kwa">k</span> <span class="opt">(</span><span class="kwa">get-key</span> key <span class="num">0</span> <span class="opt">(</span><span class="kwa">length</span> nucleotideFragment<span class="opt">)))</span>
-         <span class="opt">(</span><span class="kwa">count</span> <span class="num">0</span><span class="opt">))</span>
-    <span class="opt">(</span><span class="kwa">loop</span> for task across tasks 
-       for result <span class="opt">= (</span><span class="kwa">my-task-result</span> task<span class="opt">)</span> do
-         <span class="opt">(</span><span class="kwa">if</span> <span class="opt">(</span><span class="kwa">eql</span> <span class="opt">(</span><span class="kwa">result-keylength</span> result<span class="opt">) (</span><span class="kwa">length</span> nucleotideFragment<span class="opt">))</span>
-             <span class="opt">(</span><span class="kwa">setf</span> count <span class="opt">(+</span> count <span class="opt">(</span><span class="kwa">gethash</span> k <span class="opt">(</span><span class="kwa">result-outmap</span> result<span class="opt">)</span> <span class="num">0</span><span class="opt">)))))</span>
-    <span class="opt">(</span><span class="kwa">format</span> nil <span class="str">&quot;~a~c~a~%&quot;</span> count <span class="opt">#</span><span class="esc">\t</span>ab nucleotideFragment<span class="opt">)))</span>
+(<span class="kwa">defun</span> write-count (<span class="kwa">tasks</span> nucleotideFragment)
+  (<span class="kwa">let</span>* ((<span class="kwa">key</span> (<span class="kwa">to-codes-new</span> (<span class="kwa">map</span> &apos;(<span class="kwa">vector</span> (<span class="kwa">unsigned-byte</span> <span class="num">8</span>)) #&apos;char-code nucleotideFragment) (<span class="kwa">length</span> nucleotideFragment)) )
+         (<span class="kwa">k</span> (<span class="kwa">get-key</span> key <span class="num">0</span> (<span class="kwa">length</span> nucleotideFragment)))
+         (<span class="kwa">count</span> <span class="num">0</span>))
+    (<span class="kwa">loop</span> for task across tasks 
+       for result = (<span class="kwa">my-task-result</span> task) do
+         (<span class="kwa">if</span> (<span class="kwa">eql</span> (<span class="kwa">result-keylength</span> result) (<span class="kwa">length</span> nucleotideFragment))
+             (<span class="kwa">setf</span> count (+ count (<span class="kwa">gethash</span> k (<span class="kwa">result-outmap</span> result) <span class="num">0</span>)))))
+    (<span class="kwa">format</span> nil <span class="str">&quot;~a~c~a~%&quot;</span> count #<span class="esc">\t</span>ab nucleotideFragment)))
 
-<span class="opt">(</span><span class="kwa">defun</span> <span class="kwb">key-to-string</span> <span class="opt">(</span><span class="kwa">key</span> length<span class="opt">)</span>
-  <span class="opt">(</span><span class="kwa">declare</span> <span class="opt">(</span><span class="kwa">type</span> <span class="opt">(</span><span class="kwa">unsigned-byte</span> <span class="num">64</span><span class="opt">)</span> key<span class="opt">)</span>
-           <span class="opt">(</span><span class="kwa">type</span> <span class="opt">(</span><span class="kwa">unsigned-byte</span> <span class="num">32</span><span class="opt">)</span> length<span class="opt">))</span>
-  <span class="opt">(</span><span class="kwa">let</span> <span class="opt">((</span><span class="kwa">res</span> <span class="opt">(</span><span class="kwa">make-string</span> length<span class="opt">)))</span>
-    <span class="opt">(</span><span class="kwa">loop</span> for i from <span class="num">0</span> below length do
-         <span class="opt">(</span><span class="kwa">setf</span> <span class="opt">(</span><span class="kwa">elt</span> res <span class="opt">(</span><span class="kwa">-</span> length i <span class="num">1</span><span class="opt">)) (</span><span class="kwa">elt</span> NUCLEOTIDES <span class="opt">(</span><span class="kwa">logand</span> key <span class="opt">#</span>x3<span class="opt">)))</span>
-         <span class="opt">(</span><span class="kwa">setf</span> key <span class="opt">(</span><span class="kwa">ash</span> key -<span class="num">2</span><span class="opt">)))</span>
-    res<span class="opt">))</span>
+(<span class="kwa">defun</span> key-to-string (<span class="kwa">key</span> length)
+  (<span class="kwa">declare</span> (<span class="kwa">type</span> (<span class="kwa">unsigned-byte</span> <span class="num">64</span>) key)
+           (<span class="kwa">type</span> (<span class="kwa">unsigned-byte</span> <span class="num">32</span>) length))
+  (<span class="kwa">let</span> ((<span class="kwa">res</span> (<span class="kwa">make-string</span> length)))
+    (<span class="kwa">loop</span> for i from <span class="num">0</span> below length do
+         (<span class="kwa">setf</span> (<span class="kwa">elt</span> res (<span class="kwa">-</span> length i <span class="num">1</span>)) (<span class="kwa">elt</span> NUCLEOTIDES (<span class="kwa">logand</span> key #x3)))
+         (<span class="kwa">setf</span> key (<span class="kwa">ash</span> key -<span class="num">2</span>)))
+    res))
 
-<span class="opt">(</span><span class="kwa">defun</span> <span class="kwb">get-key</span> <span class="opt">(</span><span class="kwa">arr</span> offset length<span class="opt">)</span>
-  <span class="opt">(</span><span class="kwa">declare</span> <span class="opt">(</span><span class="kwa">type</span> <span class="opt">(</span><span class="kwa">simple-array</span> <span class="opt">(</span><span class="kwa">unsigned-byte</span> <span class="num">8</span><span class="opt">))</span> arr<span class="opt">)</span>
-           <span class="opt">(</span><span class="kwa">type</span> <span class="opt">(</span><span class="kwa">unsigned-byte</span> <span class="num">32</span><span class="opt">)</span> offset<span class="opt">)</span>
-           <span class="opt">(</span><span class="kwa">type</span> <span class="opt">(</span><span class="kwa">unsigned-byte</span> <span class="num">32</span><span class="opt">)</span> length<span class="opt">))</span>
-  <span class="opt">(</span><span class="kwa">let</span> <span class="opt">((</span><span class="kwa">key</span> <span class="num">0</span><span class="opt">))</span>
-    <span class="opt">(</span><span class="kwa">declare</span> <span class="opt">(</span><span class="kwa">type</span> <span class="opt">(</span><span class="kwa">unsigned-byte</span> <span class="num">64</span><span class="opt">)</span> key<span class="opt">))</span>
-    <span class="opt">(</span><span class="kwa">loop</span> for i of-type <span class="opt">(</span><span class="kwa">unsigned-byte</span> <span class="num">32</span><span class="opt">)</span> from offset below <span class="opt">(+</span> offset length<span class="opt">)</span> do
-         <span class="opt">(</span><span class="kwa">setf</span> key <span class="opt">(</span><span class="kwa">the</span> fixnum <span class="opt">(+ (</span><span class="kwa">the</span> fixnum <span class="opt">(*</span> key <span class="num">4</span><span class="opt">)) (</span><span class="kwa">the</span> fixnum <span class="opt">(</span><span class="kwa">elt</span> arr i<span class="opt">))))))</span>
-    key<span class="opt">))</span>
+(<span class="kwa">defun</span> get-key (<span class="kwa">arr</span> offset length)
+  (<span class="kwa">declare</span> (<span class="kwa">type</span> (<span class="kwa">simple-array</span> (<span class="kwa">unsigned-byte</span> <span class="num">8</span>)) arr)
+           (<span class="kwa">type</span> (<span class="kwa">unsigned-byte</span> <span class="num">32</span>) offset)
+           (<span class="kwa">type</span> (<span class="kwa">unsigned-byte</span> <span class="num">32</span>) length))
+  (<span class="kwa">let</span> ((<span class="kwa">key</span> <span class="num">0</span>))
+    (<span class="kwa">declare</span> (<span class="kwa">type</span> (<span class="kwa">unsigned-byte</span> <span class="num">64</span>) key))
+    (<span class="kwa">loop</span> for i of-type (<span class="kwa">unsigned-byte</span> <span class="num">32</span>) from offset below (+ offset length) do
+         (<span class="kwa">setf</span> key (<span class="kwa">the</span> fixnum (+ (<span class="kwa">the</span> fixnum (* key <span class="num">4</span>)) (<span class="kwa">the</span> fixnum (<span class="kwa">elt</span> arr i))))))
+    key))
 
-<span class="opt">(</span><span class="kwa">defun</span> <span class="kwb">to-codes-new</span> <span class="opt">(</span><span class="kwa">sequence</span> length<span class="opt">)</span>
-  <span class="opt">(</span><span class="kwa">declare</span> <span class="opt">(</span><span class="kwa">type</span> <span class="opt">(</span><span class="kwa">simple-array</span> <span class="opt">(</span><span class="kwa">unsigned-byte</span> <span class="num">8</span><span class="opt">) (*))</span> sequence<span class="opt">)</span>
-           <span class="opt">(</span><span class="kwa">type</span> <span class="opt">(</span><span class="kwa">unsigned-byte</span> <span class="num">32</span><span class="opt">)</span> length<span class="opt">)</span>
-           <span class="opt">)</span>
-  <span class="opt">(</span><span class="kwa">let</span> <span class="opt">((</span><span class="kwa">result</span> <span class="opt">(</span><span class="kwa">make-array</span> length <span class="opt">:</span>element-type <span class="opt">&apos;(</span><span class="kwa">unsigned-byte</span> <span class="num">8</span><span class="opt">))))</span>
-    <span class="opt">(</span><span class="kwa">loop</span> for i of-type <span class="opt">(</span><span class="kwa">unsigned-byte</span> <span class="num">32</span><span class="opt">)</span> from <span class="num">0</span> below length do
-         <span class="opt">(</span><span class="kwa">setf</span> <span class="opt">(</span><span class="kwa">elt</span> result i<span class="opt">) (</span><span class="kwa">elt</span> CODES <span class="opt">(</span><span class="kwa">logand</span> <span class="opt">(</span><span class="kwa">elt</span> sequence i<span class="opt">) #</span>x7<span class="opt">))))</span>
-    result<span class="opt">))</span>
+(<span class="kwa">defun</span> to-codes-new (<span class="kwa">sequence</span> length)
+  (<span class="kwa">declare</span> (<span class="kwa">type</span> (<span class="kwa">simple-array</span> (<span class="kwa">unsigned-byte</span> <span class="num">8</span>) (*)) sequence)
+           (<span class="kwa">type</span> (<span class="kwa">unsigned-byte</span> <span class="num">32</span>) length)
+           )
+  (<span class="kwa">let</span> ((<span class="kwa">result</span> (<span class="kwa">make-array</span> length :element-type &apos;(<span class="kwa">unsigned-byte</span> <span class="num">8</span>))))
+    (<span class="kwa">loop</span> for i of-type (<span class="kwa">unsigned-byte</span> <span class="num">32</span>) from <span class="num">0</span> below length do
+         (<span class="kwa">setf</span> (<span class="kwa">elt</span> result i) (<span class="kwa">elt</span> CODES (<span class="kwa">logand</span> (<span class="kwa">elt</span> sequence i) #x7))))
+    result))
 
-<span class="opt">(</span><span class="kwa">defconstant</span> FRAGMENT-LENGTHS  <span class="opt">#(</span><span class="kwa">1</span> <span class="num">2 3 4 6 12 18</span><span class="opt">))</span> 
-<span class="opt">(</span><span class="kwa">defconstant</span> NUCLEOTIDE-FRAGMENTS <span class="opt">#(</span><span class="str">&quot;GGT&quot;</span> <span class="str">&quot;GGTA&quot;</span> <span class="str">&quot;GGTATT&quot;</span> <span class="str">&quot;GGTATTTTAATT&quot;</span>
-                                           <span class="str">&quot;GGTATTTTAATTTATAGT&quot;</span> <span class="opt">))</span>
-<span class="opt">(</span><span class="kwa">defconstant</span> DNA_THREE_IN_BYTES <span class="opt">(</span><span class="kwa">map</span> <span class="opt">&apos;(</span><span class="kwa">simple-array</span> <span class="opt">(</span><span class="kwa">unsigned-byte</span> <span class="num">8</span><span class="opt">) (*)) #&apos;</span>char-code <span class="str">&quot;&gt;THREE&quot;</span><span class="opt">))</span>
-<span class="opt">(</span><span class="kwa">defconstant</span> NEWLINE-CODE  <span class="opt">(</span><span class="kwa">map</span> <span class="opt">&apos;(</span><span class="kwa">simple-array</span> <span class="opt">(</span><span class="kwa">unsigned-byte</span> <span class="num">8</span><span class="opt">) (*)) #&apos;</span>char-code <span class="str">&quot;</span>
-<span class="str">&quot;</span><span class="opt">))</span> 
+(<span class="kwa">defconstant</span> FRAGMENT-LENGTHS  #(<span class="kwa">1</span> <span class="num">2 3 4 6 12 18</span>)) 
+(<span class="kwa">defconstant</span> NUCLEOTIDE-FRAGMENTS #(<span class="str">&quot;GGT&quot;</span> <span class="str">&quot;GGTA&quot;</span> <span class="str">&quot;GGTATT&quot;</span> <span class="str">&quot;GGTATTTTAATT&quot;</span>
+                                           <span class="str">&quot;GGTATTTTAATTTATAGT&quot;</span> ))
+(<span class="kwa">defconstant</span> DNA_THREE_IN_BYTES (<span class="kwa">map</span> &apos;(<span class="kwa">simple-array</span> (<span class="kwa">unsigned-byte</span> <span class="num">8</span>) (*)) #&apos;char-code <span class="str">&quot;&gt;THREE&quot;</span>))
+(<span class="kwa">defconstant</span> NEWLINE-CODE  (<span class="kwa">map</span> &apos;(<span class="kwa">simple-array</span> (<span class="kwa">unsigned-byte</span> <span class="num">8</span>) (*)) #&apos;char-code <span class="str">&quot;</span>
+<span class="str">&quot;</span>)) 
 
-<span class="opt">(</span><span class="kwa">defun</span> <span class="kwb">read-ascii-file-to-binary-array</span> <span class="opt">(</span><span class="kwa">filename</span><span class="opt">)</span>
-  <span class="opt">(</span><span class="kwa">with-open-stream</span> <span class="opt">(</span><span class="kwa">stream</span> <span class="opt">(</span><span class="kwa">open</span> filename <span class="opt">:</span>element-type <span class="opt">&apos;(</span><span class="kwa">unsigned-byte</span> <span class="num">8</span><span class="opt">)))</span>
-    <span class="opt">(</span><span class="kwa">let</span><span class="opt">* ((</span><span class="kwa">buffer</span>
-            <span class="opt">(</span><span class="kwa">make-array</span> <span class="opt">(</span><span class="kwa">file-length</span> stream<span class="opt">)</span>
-                        <span class="opt">:</span>element-type
-                        <span class="opt">&apos;(</span><span class="kwa">unsigned-byte</span> <span class="num">8</span><span class="opt">))))</span>
-      <span class="opt">(</span><span class="kwa">read-sequence</span> buffer stream<span class="opt">)</span>
-      buffer<span class="opt">)))</span>
+(<span class="kwa">defun</span> read-ascii-file-to-binary-array (<span class="kwa">filename</span>)
+  (<span class="kwa">with-open-stream</span> (<span class="kwa">stream</span> (<span class="kwa">open</span> filename :element-type &apos;(<span class="kwa">unsigned-byte</span> <span class="num">8</span>)))
+    (<span class="kwa">let</span>* ((<span class="kwa">buffer</span>
+            (<span class="kwa">make-array</span> (<span class="kwa">file-length</span> stream)
+                        :element-type
+                        &apos;(<span class="kwa">unsigned-byte</span> <span class="num">8</span>))))
+      (<span class="kwa">read-sequence</span> buffer stream)
+      buffer)))
 
-<span class="opt">(</span><span class="kwa">defun</span> <span class="kwb">read-in-data-chunked</span> <span class="opt">(</span><span class="kwa">ifilename</span><span class="opt">)</span>
-  <span class="opt">(</span><span class="kwa">let</span> <span class="opt">((</span><span class="kwa">bytes</span> <span class="opt">(</span><span class="kwa">read-ascii-file-to-binary-array</span> ifilename<span class="opt">)))</span>
-    <span class="opt">(</span><span class="kwa">declare</span> <span class="opt">(</span><span class="kwa">type</span> <span class="opt">(</span><span class="kwa">simple-array</span> <span class="opt">(</span><span class="kwa">unsigned-byte</span> <span class="num">8</span><span class="opt">) (*))</span> bytes<span class="opt">))</span>
+(<span class="kwa">defun</span> read-in-data-chunked (<span class="kwa">ifilename</span>)
+  (<span class="kwa">let</span> ((<span class="kwa">bytes</span> (<span class="kwa">read-ascii-file-to-binary-array</span> ifilename)))
+    (<span class="kwa">declare</span> (<span class="kwa">type</span> (<span class="kwa">simple-array</span> (<span class="kwa">unsigned-byte</span> <span class="num">8</span>) (*)) bytes))
     <span class="slc">;;we have read all the data!</span>
     <span class="slc">;;we have to doctor the array so that it no longer has newlines and junk</span>
     <span class="slc">;;  (print-range bytes 0 100)</span>
-    <span class="opt">(</span><span class="kwa">let</span><span class="opt">* ((</span><span class="kwa">threestart</span> <span class="opt">(</span><span class="kwa">search</span> DNA_THREE_IN_BYTES bytes<span class="opt">))</span>
-           <span class="opt">(</span><span class="kwa">realstart</span> <span class="opt">(</span><span class="kwa">the</span> <span class="opt">(</span><span class="kwa">unsigned-byte</span> <span class="num">32</span><span class="opt">) (</span><span class="kwa">search</span> NEWLINE-CODE bytes <span class="opt">:</span>start2 threestart<span class="opt">)))</span>
-           <span class="opt">(</span><span class="kwa">writeposition</span> <span class="num">0</span><span class="opt">))</span>
-      <span class="opt">(</span><span class="kwa">declare</span> <span class="opt">(</span><span class="kwa">type</span> <span class="opt">(</span><span class="kwa">unsigned-byte</span> <span class="num">32</span><span class="opt">)</span> threestart<span class="opt">)</span>
-               <span class="opt">(</span><span class="kwa">type</span> <span class="opt">(</span><span class="kwa">unsigned-byte</span> <span class="num">32</span><span class="opt">)</span> realstart<span class="opt">)</span>
-               <span class="opt">(</span><span class="kwa">type</span> <span class="opt">(</span><span class="kwa">unsigned-byte</span> <span class="num">32</span><span class="opt">)</span> writeposition<span class="opt">))</span> 
-      <span class="opt">(</span><span class="kwa">loop</span> for pos from realstart below <span class="opt">(</span><span class="kwa">length</span> bytes<span class="opt">)</span> do
-           <span class="opt">(</span><span class="kwa">let</span> <span class="opt">((</span><span class="kwa">nchar</span> <span class="opt">(</span><span class="kwa">aref</span> bytes pos<span class="opt">)))</span>
-             <span class="opt">(</span><span class="kwa">if</span> <span class="opt">(</span><span class="kwa">not</span> <span class="opt">(</span><span class="kwa">eql</span> nchar <span class="num">10</span><span class="opt">))</span> <span class="slc">; newline</span>
-                 <span class="opt">(</span><span class="kwa">progn</span>
-                   <span class="opt">(</span><span class="kwa">setf</span> <span class="opt">(</span><span class="kwa">aref</span> bytes writeposition<span class="opt">) (</span><span class="kwa">aref</span> bytes pos<span class="opt">))</span>
-                   <span class="opt">(</span><span class="kwa">incf</span> writeposition<span class="opt">))</span>
-                 <span class="opt">)))</span>
-      <span class="opt">(</span><span class="kwa">let</span> <span class="opt">((</span><span class="kwa">outarr</span> <span class="opt">(</span><span class="kwa">make-array</span> writeposition <span class="opt">:</span>element-type <span class="opt">&apos;(</span><span class="kwa">unsigned-byte</span> <span class="num">8</span><span class="opt">))))</span>
-        <span class="opt">(</span><span class="kwa">declare</span> <span class="opt">(</span><span class="kwa">type</span> <span class="opt">(</span><span class="kwa">simple-array</span> <span class="opt">(</span><span class="kwa">unsigned-byte</span> <span class="num">8</span><span class="opt">) (*))</span> outarr<span class="opt">))</span>
-        <span class="opt">(</span><span class="kwa">loop</span> for i from <span class="num">0</span> below writeposition do
-             <span class="opt">(</span><span class="kwa">setf</span> <span class="opt">(</span><span class="kwa">aref</span> outarr i<span class="opt">) (</span><span class="kwa">aref</span> bytes i<span class="opt">)))</span>
-        <span class="opt">(</span><span class="kwa">return-from</span> read-in-data-chunked outarr<span class="opt">)))))</span>
+    (<span class="kwa">let</span>* ((<span class="kwa">threestart</span> (<span class="kwa">search</span> DNA_THREE_IN_BYTES bytes))
+           (<span class="kwa">realstart</span> (<span class="kwa">the</span> (<span class="kwa">unsigned-byte</span> <span class="num">32</span>) (<span class="kwa">search</span> NEWLINE-CODE bytes :start2 threestart)))
+           (<span class="kwa">writeposition</span> <span class="num">0</span>))
+      (<span class="kwa">declare</span> (<span class="kwa">type</span> (<span class="kwa">unsigned-byte</span> <span class="num">32</span>) threestart)
+               (<span class="kwa">type</span> (<span class="kwa">unsigned-byte</span> <span class="num">32</span>) realstart)
+               (<span class="kwa">type</span> (<span class="kwa">unsigned-byte</span> <span class="num">32</span>) writeposition)) 
+      (<span class="kwa">loop</span> for pos from realstart below (<span class="kwa">length</span> bytes) do
+           (<span class="kwa">let</span> ((<span class="kwa">nchar</span> (<span class="kwa">aref</span> bytes pos)))
+             (<span class="kwa">if</span> (<span class="kwa">not</span> (<span class="kwa">eql</span> nchar <span class="num">10</span>)) <span class="slc">; newline</span>
+                 (<span class="kwa">progn</span>
+                   (<span class="kwa">setf</span> (<span class="kwa">aref</span> bytes writeposition) (<span class="kwa">aref</span> bytes pos))
+                   (<span class="kwa">incf</span> writeposition))
+                 )))
+      (<span class="kwa">let</span> ((<span class="kwa">outarr</span> (<span class="kwa">make-array</span> writeposition :element-type &apos;(<span class="kwa">unsigned-byte</span> <span class="num">8</span>))))
+        (<span class="kwa">declare</span> (<span class="kwa">type</span> (<span class="kwa">simple-array</span> (<span class="kwa">unsigned-byte</span> <span class="num">8</span>) (*)) outarr))
+        (<span class="kwa">loop</span> for i from <span class="num">0</span> below writeposition do
+             (<span class="kwa">setf</span> (<span class="kwa">aref</span> outarr i) (<span class="kwa">aref</span> bytes i)))
+        (<span class="kwa">return-from</span> read-in-data-chunked outarr)))))
 
-<span class="opt">(</span><span class="kwa">defun</span> <span class="kwb">main</span> <span class="opt">()</span>
-  <span class="opt">(</span><span class="kwa">let</span><span class="opt">* ((</span><span class="kwa">pifile</span> <span class="opt">#</span>p<span class="str">&quot;/dev/stdin&quot;</span><span class="opt">)</span>
-         <span class="opt">(</span><span class="kwa">msequenceraw</span> <span class="opt">(</span><span class="kwa">read-in-data-chunked</span> pifile<span class="opt">))</span>
-         <span class="opt">(</span><span class="kwa">msequence</span> <span class="opt">(</span><span class="kwa">to-codes-new</span> msequenceraw <span class="opt">(</span><span class="kwa">length</span> msequenceraw<span class="opt">))))</span>
+(<span class="kwa">defun</span> main ()
+  (<span class="kwa">let</span>* ((<span class="kwa">pifile</span> #p<span class="str">&quot;/dev/stdin&quot;</span>)
+         (<span class="kwa">msequenceraw</span> (<span class="kwa">read-in-data-chunked</span> pifile))
+         (<span class="kwa">msequence</span> (<span class="kwa">to-codes-new</span> msequenceraw (<span class="kwa">length</span> msequenceraw))))
 <span class="slc">;    (setf *tbytes* msequenceraw)</span>
-    <span class="opt">(</span><span class="kwa">setf</span> <span class="opt">*</span>my-task-list<span class="opt">* (</span><span class="kwa">create-fragment-tasks</span> msequence FRAGMENT-LENGTHS<span class="opt">))</span>
-    <span class="opt">(</span><span class="kwa">my-tr-run</span> <span class="num">4</span><span class="opt">)</span>
-    <span class="opt">(</span><span class="kwa">format</span> t <span class="str">&quot;~a~%&quot;</span> <span class="opt">(</span><span class="kwa">write-frequencies</span> <span class="opt">(</span><span class="kwa">length</span> msequence<span class="opt">) (</span><span class="kwa">my-task-result</span> <span class="opt">(</span><span class="kwa">elt</span> <span class="opt">*</span>my-task-list<span class="opt">*</span> <span class="num">0</span><span class="opt">))))</span>
+    (<span class="kwa">setf</span> *my-task-list* (<span class="kwa">create-fragment-tasks</span> msequence FRAGMENT-LENGTHS))
+    (<span class="kwa">my-tr-run</span> <span class="num">4</span>)
+    (<span class="kwa">format</span> t <span class="str">&quot;~a~%&quot;</span> (<span class="kwa">write-frequencies</span> (<span class="kwa">length</span> msequence) (<span class="kwa">my-task-result</span> (<span class="kwa">elt</span> *my-task-list* <span class="num">0</span>))))
     
-    <span class="opt">(</span><span class="kwa">format</span> t <span class="str">&quot;~a~%&quot;</span> <span class="opt">(</span><span class="kwa">write-frequencies</span> <span class="opt">(</span><span class="kwa">-</span> <span class="opt">(</span><span class="kwa">length</span> msequence<span class="opt">)</span> <span class="num">1</span><span class="opt">) (</span><span class="kwa">sum-two-maps</span>
-                                                       <span class="opt">(</span><span class="kwa">my-task-result</span> <span class="opt">(</span><span class="kwa">elt</span> <span class="opt">*</span>my-task-list<span class="opt">*</span> <span class="num">1</span><span class="opt">))</span>
-                                                       <span class="opt">(</span><span class="kwa">my-task-result</span> <span class="opt">(</span><span class="kwa">elt</span> <span class="opt">*</span>my-task-list<span class="opt">*</span> <span class="num">2</span><span class="opt">))</span>
-                                                                  <span class="opt">)))</span>
-    <span class="opt">(</span><span class="kwa">loop</span> for nucleotide-fragment across NUCLEOTIDE-FRAGMENTS do
-         <span class="opt">(</span><span class="kwa">princ</span> <span class="opt">(</span><span class="kwa">write-count</span> <span class="opt">*</span>my-task-list<span class="opt">*</span>  nucleotide-fragment<span class="opt">)))</span>
-<span class="opt">))</span>
+    (<span class="kwa">format</span> t <span class="str">&quot;~a~%&quot;</span> (<span class="kwa">write-frequencies</span> (<span class="kwa">-</span> (<span class="kwa">length</span> msequence) <span class="num">1</span>) (<span class="kwa">sum-two-maps</span>
+                                                       (<span class="kwa">my-task-result</span> (<span class="kwa">elt</span> *my-task-list* <span class="num">1</span>))
+                                                       (<span class="kwa">my-task-result</span> (<span class="kwa">elt</span> *my-task-list* <span class="num">2</span>))
+                                                                  )))
+    (<span class="kwa">loop</span> for nucleotide-fragment across NUCLEOTIDE-FRAGMENTS do
+         (<span class="kwa">princ</span> (<span class="kwa">write-count</span> *my-task-list*  nucleotide-fragment)))
+))
 
-<span class="opt">(</span><span class="kwa">in-package</span> <span class="opt">:</span>cl-user<span class="opt">)</span>
+(<span class="kwa">in-package</span> :cl-user)
 
-<span class="opt">(</span><span class="kwa">defun</span> <span class="kwb">main</span> <span class="opt">()</span>
-  <span class="opt">(</span><span class="kwa">knucleotide2</span><span class="opt">::</span>main<span class="opt">))</span>
+(<span class="kwa">defun</span> main ()
+  (<span class="kwa">knucleotide2</span>::main))
     </pre>
   </section>
   <section>
@@ -268,33 +268,21 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
     <pre>
 NOTES:
 64-bit Ubuntu quad core
-SBCL 2.1.1
+SBCL 2.2.0
 
 
-Fri, 19 Feb 2021 22:20:54 GMT
+Wed, 12 Jan 2022 03:09:10 GMT
 
 MAKE:
 cp: 'knucleotide.sbcl-6.sbcl' and './knucleotide.sbcl-6.sbcl' are the same file
-SBCL built with: /usr/local/bin/sbcl --userinit /dev/null --batch --eval '(load &quot;knucleotide.sbcl-6.sbcl_compile&quot;)'
+SBCL built with: /opt/src/sbcl-2.2.0/bin/sbcl --userinit /dev/null --batch --eval '(load &quot;knucleotide.sbcl-6.sbcl_compile&quot;)'
 ### START knucleotide.sbcl-6.sbcl_compile
 (handler-bind ((sb-ext:defconstant-uneql      (lambda (c) (abort c))))      (require :sb-concurrency)      (load (compile-file &quot;knucleotide.sbcl-6.sbcl&quot; ))) (save-lisp-and-die &quot;sbcl.core&quot; :purify t)
 ### END knucleotide.sbcl-6.sbcl_compile
 
-; compiling file &quot;/home/dunham/all-benchmarksgame/2000-benchmarksgame/bench/knucleotide/knucleotide.sbcl-6.sbcl&quot; (written 26 APR 2018 12:48:18 PM):
-; processing (DEFPACKAGE :KNUCLEOTIDE2 ...)
-; processing (IN-PACKAGE :KNUCLEOTIDE2)
-; processing (DECLAIM (OPTIMIZE # ...))
-; processing (DECLAIM (INLINE GET-KEY))
-; processing (DEFPARAMETER *MY-TR-AVAILABLE-THREAD-SEMAPHORE* ...)
-; processing (DEFPARAMETER *MY-TR-TASK-REMAINING-COUNT* ...)
-; processing (DECLAIM (TYPE FIXNUM ...))
-; processing (DEFPARAMETER *MY-TR-COMPLETED-TASK-MUTEX* ...)
-; processing (DEFPARAMETER *MY-TR-TASK-COMPLETED-CV* ...)
-; processing (DEFSTRUCT MY-TASK ...)
-; processing (DEFPARAMETER *MY-TASK-LIST* ...)
-; processing (DECLAIM (TYPE VECTOR ...))
-; processing (DEFUN MY-TR-RUN ...)
-; file: /home/dunham/all-benchmarksgame/2000-benchmarksgame/bench/knucleotide/knucleotide.sbcl-6.sbcl
+; compiling file &quot;/home/dunham/all-benchmarksgame/benchmarksgame_i53330/knucleotide/tmp/knucleotide.sbcl-6.sbcl&quot; (written 26 APR 2018 12:48:18 PM):
+
+; file: /home/dunham/all-benchmarksgame/benchmarksgame_i53330/knucleotide/tmp/knucleotide.sbcl-6.sbcl
 ; in: DEFUN MY-TR-RUN
 ;     (ELT KNUCLEOTIDE2::*MY-TASK-LIST* KNUCLEOTIDE2::TASKINDEX)
 ; 
@@ -310,12 +298,6 @@ SBCL built with: /usr/local/bin/sbcl --userinit /dev/null --batch --eval '(load 
 ; because:
 ;   callable expression is not known to be a function
 
-; processing (DEFCONSTANT CODES ...)
-; processing (DEFCONSTANT NUCLEOTIDES ...)
-; processing (DEFUN HASH-FUNCTION ...)
-; processing (DEFSTRUCT RESULT ...)
-; processing (DEFUN CREATE-FRAGMENT-TASKS ...)
-; file: /home/dunham/all-benchmarksgame/2000-benchmarksgame/bench/knucleotide/knucleotide.sbcl-6.sbcl
 ; in: DEFUN CREATE-FRAGMENT-TASKS
 ;     (LOOP KNUCLEOTIDE2::FOR KNUCLEOTIDE2::FRAGMENTLENGTH KNUCLEOTIDE2::ACROSS KNUCLEOTIDE2::MFRAGMENT-LENGTHS
 ;           DO (LOOP KNUCLEOTIDE2::FOR KNUCLEOTIDE2::I KNUCLEOTIDE2::OF-TYPE (UNSIGNED-BYTE
@@ -326,9 +308,9 @@ SBCL built with: /usr/local/bin/sbcl --userinit /dev/null --batch --eval '(load 
 ;                         (VECTOR-PUSH-EXTEND
 ;                          (KNUCLEOTIDE2::MAKE-MY-TASK :MYLAMBDA #)
 ;                          KNUCLEOTIDE2::TASKS))))
-; --&gt; BLOCK LET LET TAGBODY SB-LOOP::LOOP-DESETQ SETQ THE 
+; --&gt; LET LET TAGBODY SB-LOOP::LOOP-DESETQ SETQ THE AREF 
 ; ==&gt;
-;   (AREF #:LOOP-ACROSS-VECTOR-0 #:LOOP-ACROSS-INDEX-1)
+;   1
 ; 
 ; note: unable to
 ;   optimize
@@ -340,8 +322,6 @@ SBCL built with: /usr/local/bin/sbcl --userinit /dev/null --batch --eval '(load 
 ; due to type uncertainty:
 ;   The first argument is a VECTOR, not a SIMPLE-ARRAY.
 
-; processing (DEFUN CREATE-FRAGMENT-MAP ...)
-; file: /home/dunham/all-benchmarksgame/2000-benchmarksgame/bench/knucleotide/knucleotide.sbcl-6.sbcl
 ; in: DEFUN CREATE-FRAGMENT-MAP
 ;     (DEFUN KNUCLEOTIDE2::CREATE-FRAGMENT-MAP
 ;            (SEQUENCE KNUCLEOTIDE2::OFFSET KNUCLEOTIDE2::FRAGMENTLENGTH)
@@ -359,7 +339,6 @@ SBCL built with: /usr/local/bin/sbcl --userinit /dev/null --batch --eval '(load 
 ;                                                                            32) KNUCLEOTIDE2::FROM KNUCLEOTIDE2::OFFSET KNUCLEOTIDE2::BELOW KNUCLEOTIDE2::LASTINDEX KNUCLEOTIDE2::BY KNUCLEOTIDE2::FRAGMENTLENGTH
 ;               DO ...)
 ;         KNUCLEOTIDE2::RES))
-; --&gt; PROGN 
 ; ==&gt;
 ;   (SB-IMPL::%DEFUN 'KNUCLEOTIDE2::CREATE-FRAGMENT-MAP
 ;                    (SB-INT:NAMED-LAMBDA KNUCLEOTIDE2::CREATE-FRAGMENT-MAP
@@ -381,19 +360,27 @@ SBCL built with: /usr/local/bin/sbcl --userinit /dev/null --batch --eval '(load 
 ;   Call to KNUCLEOTIDE2::GET-KEY could not be inlined because no definition for it
 ;   was seen prior to its first use.
 
-; processing (DEFUN SUM-TWO-MAPS ...)
-; processing (DEFUN WRITE-FREQUENCIES ...)
-; file: /home/dunham/all-benchmarksgame/2000-benchmarksgame/bench/knucleotide/knucleotide.sbcl-6.sbcl
 ; in: DEFUN WRITE-FREQUENCIES
 ;     (SORT KNUCLEOTIDE2::FREQ
 ;           (LAMBDA (KNUCLEOTIDE2::X KNUCLEOTIDE2::Y)
 ;             (&gt; (CDR KNUCLEOTIDE2::X) (CDR KNUCLEOTIDE2::Y))))
+; --&gt; BLOCK LET SB-IMPL::SEQ-DISPATCH IF LET SB-IMPL::STABLE-SORT-LIST BLOCK 
+; --&gt; LABELS SB-IMPL::MERGE* BLOCK VALUES SB-IMPL::MERGE-LISTS* 
+; ==&gt;
+;   SB-IMPL::TEST
 ; 
 ; note: could not stack allocate SB-IMPL::TEST in:
 ;        (SORT FREQ (LAMBDA (X Y) (&gt; (CDR X) (CDR Y))))
+
+; ==&gt;
+;   SB-IMPL::KEY
 ; 
 ; note: could not stack allocate SB-IMPL::KEY in:
 ;        (SORT FREQ (LAMBDA (X Y) (&gt; (CDR X) (CDR Y))))
+
+; --&gt; BLOCK LET SB-IMPL::SEQ-DISPATCH IF LET SB-IMPL::STABLE-SORT-LIST 
+; ==&gt;
+;   SB-IMPL::PREDICATE-FUN
 ; 
 ; note: could not stack allocate SB-IMPL::PREDICATE-FUN in:
 ;        (SORT FREQ (LAMBDA (X Y) (&gt; (CDR X) (CDR Y))))
@@ -411,19 +398,22 @@ SBCL built with: /usr/local/bin/sbcl --userinit /dev/null --batch --eval '(load 
 ;     (SORT KNUCLEOTIDE2::FREQ
 ;           (LAMBDA (KNUCLEOTIDE2::X KNUCLEOTIDE2::Y)
 ;             (&gt; (CDR KNUCLEOTIDE2::X) (CDR KNUCLEOTIDE2::Y))))
+; --&gt; LOCALLY SB-C::%FUNCALL 
+; ==&gt;
+;   SB-IMPL::PREDICATE
 ; 
 ; note: could not stack allocate: (SORT FREQ (LAMBDA (X Y) (&gt; (CDR X) (CDR Y))))
 
 ;     (&gt; (CDR KNUCLEOTIDE2::X) (CDR KNUCLEOTIDE2::Y))
 ; 
 ; note: unable to
-;   open-code float conversion of first argument in mixed SINGLE-FLOAT-DOUBLE-FLOAT numeric operation
+;   open-code float conversion in mixed numeric operation
 ; due to type uncertainty:
 ;   The first argument is a REAL, not a SINGLE-FLOAT.
 ;   The second argument is a REAL, not a DOUBLE-FLOAT.
 ; 
 ; note: unable to
-;   open-code float conversion of second argument in mixed DOUBLE-FLOAT-SINGLE-FLOAT numeric operation
+;   open-code float conversion in mixed numeric operation
 ; due to type uncertainty:
 ;   The first argument is a REAL, not a DOUBLE-FLOAT.
 ;   The second argument is a REAL, not a SINGLE-FLOAT.
@@ -437,129 +427,131 @@ SBCL built with: /usr/local/bin/sbcl --userinit /dev/null --batch --eval '(load 
 ;     (* KNUCLEOTIDE2::VALUE 100.0)
 ; 
 ; note: unable to
-;   open-code float conversion of first argument in mixed RATIONAL-FLOAT numeric operation
+;   open-code float conversion in mixed numeric operation
 ; due to type uncertainty:
 ;   The first argument is a NUMBER, not a RATIONAL.
 ; 
 ; note: unable to
-;   open-code float conversion of second argument in mixed DOUBLE-FLOAT-SINGLE-FLOAT numeric operation
+;   open-code float conversion in mixed numeric operation
 ; due to type uncertainty:
 ;   The first argument is a NUMBER, not a DOUBLE-FLOAT.
 ; 
 ; note: unable to
-;   open-code float conversion of second argument in mixed (COMPLEX DOUBLE-FLOAT)-SINGLE-FLOAT numeric operation
+;   open-code float conversion in mixed numeric operation
 ; due to type uncertainty:
 ;   The first argument is a NUMBER, not a (COMPLEX DOUBLE-FLOAT).
 
 ;     (/ (* KNUCLEOTIDE2::VALUE 100.0) KNUCLEOTIDE2::TOTALCOUNT)
 ; 
 ; note: unable to
-;   open-code float conversion of first argument in mixed RATIONAL-FLOAT numeric operation
+;   open-code float conversion in mixed numeric operation
 ; due to type uncertainty:
-;   The first argument is a NUMBER, not a RATIONAL.
-;   The second argument is a NUMBER, not a FLOAT.
-; 
-; note: unable to
-;   open-code float conversion of second argument in mixed FLOAT-RATIONAL numeric operation
-; due to type uncertainty:
-;   The first argument is a NUMBER, not a FLOAT.
+;   The first argument is a (OR FLOAT (COMPLEX SINGLE-FLOAT)
+;                               (COMPLEX DOUBLE-FLOAT)), not a FLOAT.
 ;   The second argument is a NUMBER, not a RATIONAL.
 ; 
 ; note: unable to
-;   open-code float conversion of first argument in mixed RATIONAL-(COMPLEX FLOAT) numeric operation
+;   open-code float conversion in mixed numeric operation
 ; due to type uncertainty:
-;   The first argument is a NUMBER, not a RATIONAL.
-;   The second argument is a NUMBER, not a (OR (COMPLEX SINGLE-FLOAT)
-;                                              (COMPLEX DOUBLE-FLOAT)).
-; 
-; note: unable to
-;   open-code float conversion of second argument in mixed (COMPLEX FLOAT)-RATIONAL numeric operation
-; due to type uncertainty:
-;   The first argument is a NUMBER, not a (OR (COMPLEX SINGLE-FLOAT)
-;                                             (COMPLEX DOUBLE-FLOAT)).
+;   The first argument is a (OR FLOAT (COMPLEX SINGLE-FLOAT)
+;                               (COMPLEX DOUBLE-FLOAT)), not a (OR
+;                                                               (COMPLEX
+;                                                                SINGLE-FLOAT)
+;                                                               (COMPLEX
+;                                                                DOUBLE-FLOAT)).
 ;   The second argument is a NUMBER, not a RATIONAL.
 ; 
 ; note: unable to
-;   open-code float conversion of first argument in mixed SINGLE-FLOAT-DOUBLE-FLOAT numeric operation
+;   open-code float conversion in mixed numeric operation
 ; due to type uncertainty:
-;   The first argument is a NUMBER, not a SINGLE-FLOAT.
+;   The first argument is a (OR FLOAT (COMPLEX SINGLE-FLOAT)
+;                               (COMPLEX DOUBLE-FLOAT)), not a SINGLE-FLOAT.
 ;   The second argument is a NUMBER, not a DOUBLE-FLOAT.
 ; 
 ; note: unable to
-;   open-code float conversion of second argument in mixed DOUBLE-FLOAT-SINGLE-FLOAT numeric operation
+;   open-code float conversion in mixed numeric operation
 ; due to type uncertainty:
-;   The first argument is a NUMBER, not a DOUBLE-FLOAT.
+;   The first argument is a (OR FLOAT (COMPLEX SINGLE-FLOAT)
+;                               (COMPLEX DOUBLE-FLOAT)), not a DOUBLE-FLOAT.
 ;   The second argument is a NUMBER, not a SINGLE-FLOAT.
 ; 
 ; note: unable to
-;   open-code float conversion of first argument in mixed SINGLE-FLOAT-(COMPLEX DOUBLE-FLOAT) numeric operation
+;   open-code float conversion in mixed numeric operation
 ; due to type uncertainty:
-;   The first argument is a NUMBER, not a SINGLE-FLOAT.
+;   The first argument is a (OR FLOAT (COMPLEX SINGLE-FLOAT)
+;                               (COMPLEX DOUBLE-FLOAT)), not a SINGLE-FLOAT.
 ;   The second argument is a NUMBER, not a (COMPLEX DOUBLE-FLOAT).
 ; 
 ; note: unable to
-;   open-code float conversion of second argument in mixed (COMPLEX DOUBLE-FLOAT)-SINGLE-FLOAT numeric operation
+;   open-code float conversion in mixed numeric operation
 ; due to type uncertainty:
-;   The first argument is a NUMBER, not a (COMPLEX DOUBLE-FLOAT).
+;   The first argument is a (OR FLOAT (COMPLEX SINGLE-FLOAT)
+;                               (COMPLEX DOUBLE-FLOAT)), not a (COMPLEX
+;                                                               DOUBLE-FLOAT).
 ;   The second argument is a NUMBER, not a SINGLE-FLOAT.
 ; 
 ; note: unable to
 ;   optimize
 ; due to type uncertainty:
-;   The first argument is a NUMBER, not a (COMPLEX SINGLE-FLOAT).
+;   The first argument is a (OR FLOAT (COMPLEX SINGLE-FLOAT)
+;                               (COMPLEX DOUBLE-FLOAT)), not a (COMPLEX
+;                                                               SINGLE-FLOAT).
 ;   The second argument is a NUMBER, not a (COMPLEX SINGLE-FLOAT).
 ; 
 ; note: unable to
 ;   optimize
 ; due to type uncertainty:
-;   The first argument is a NUMBER, not a SINGLE-FLOAT.
+;   The first argument is a (OR FLOAT (COMPLEX SINGLE-FLOAT)
+;                               (COMPLEX DOUBLE-FLOAT)), not a SINGLE-FLOAT.
 ;   The second argument is a NUMBER, not a (COMPLEX SINGLE-FLOAT).
 ; 
 ; note: unable to
 ;   optimize
 ; due to type uncertainty:
-;   The first argument is a NUMBER, not a (COMPLEX DOUBLE-FLOAT).
+;   The first argument is a (OR FLOAT (COMPLEX SINGLE-FLOAT)
+;                               (COMPLEX DOUBLE-FLOAT)), not a (COMPLEX
+;                                                               DOUBLE-FLOAT).
 ;   The second argument is a NUMBER, not a (COMPLEX DOUBLE-FLOAT).
 ; 
 ; note: unable to
 ;   optimize
 ; due to type uncertainty:
-;   The first argument is a NUMBER, not a DOUBLE-FLOAT.
+;   The first argument is a (OR FLOAT (COMPLEX SINGLE-FLOAT)
+;                               (COMPLEX DOUBLE-FLOAT)), not a DOUBLE-FLOAT.
 ;   The second argument is a NUMBER, not a (COMPLEX DOUBLE-FLOAT).
-; 
-; note: unable to
-;   convert x/2^k to shift
-; due to type uncertainty:
-;   The first argument is a NUMBER, not a INTEGER.
-;   The second argument is a NUMBER, not a INTEGER.
 
 ;     (* KNUCLEOTIDE2::VALUE 100.0)
 ; 
 ; note: forced to do GENERIC-* (cost 30)
 ;       unable to do inline float arithmetic (cost 4) because:
 ;       The first argument is a NUMBER, not a (COMPLEX SINGLE-FLOAT).
-;       The result is a (VALUES NUMBER &amp;OPTIONAL), not a (VALUES
-;                                                         (COMPLEX SINGLE-FLOAT)
-;                                                         &amp;REST T).
+;       The result is a (VALUES
+;                        (OR FLOAT (COMPLEX SINGLE-FLOAT) (COMPLEX DOUBLE-FLOAT))
+;                        &amp;OPTIONAL), not a (VALUES (COMPLEX SINGLE-FLOAT) &amp;REST T).
 ;       unable to do inline float arithmetic (cost 4) because:
 ;       The first argument is a NUMBER, not a SINGLE-FLOAT.
-;       The result is a (VALUES NUMBER &amp;OPTIONAL), not a (VALUES SINGLE-FLOAT
-;                                                                &amp;REST T).
+;       The result is a (VALUES
+;                        (OR FLOAT (COMPLEX SINGLE-FLOAT) (COMPLEX DOUBLE-FLOAT))
+;                        &amp;OPTIONAL), not a (VALUES SINGLE-FLOAT &amp;REST T).
 
 ;     (/ (* KNUCLEOTIDE2::VALUE 100.0) KNUCLEOTIDE2::TOTALCOUNT)
 ; 
 ; note: forced to do full call
 ;       unable to do inline float arithmetic (cost 12) because:
-;       The first argument is a NUMBER, not a SINGLE-FLOAT.
+;       The first argument is a (OR FLOAT (COMPLEX SINGLE-FLOAT)
+;                                   (COMPLEX DOUBLE-FLOAT)), not a SINGLE-FLOAT.
 ;       The second argument is a NUMBER, not a SINGLE-FLOAT.
-;       The result is a (VALUES NUMBER &amp;OPTIONAL), not a (VALUES SINGLE-FLOAT
-;                                                                &amp;REST T).
+;       The result is a (VALUES
+;                        (OR FLOAT (COMPLEX SINGLE-FLOAT) (COMPLEX DOUBLE-FLOAT))
+;                        &amp;OPTIONAL), not a (VALUES SINGLE-FLOAT &amp;REST T).
 ;       unable to do inline float arithmetic (cost 12) because:
-;       The first argument is a NUMBER, not a (COMPLEX SINGLE-FLOAT).
+;       The first argument is a (OR FLOAT (COMPLEX SINGLE-FLOAT)
+;                                   (COMPLEX DOUBLE-FLOAT)), not a (COMPLEX
+;                                                                   SINGLE-FLOAT).
 ;       The second argument is a NUMBER, not a SINGLE-FLOAT.
-;       The result is a (VALUES NUMBER &amp;OPTIONAL), not a (VALUES
-;                                                         (COMPLEX SINGLE-FLOAT)
-;                                                         &amp;REST T).
+;       The result is a (VALUES
+;                        (OR FLOAT (COMPLEX SINGLE-FLOAT) (COMPLEX DOUBLE-FLOAT))
+;                        &amp;OPTIONAL), not a (VALUES (COMPLEX SINGLE-FLOAT) &amp;REST T).
 ;       etc.
 
 ;     (&gt; (CDR KNUCLEOTIDE2::X) (CDR KNUCLEOTIDE2::Y))
@@ -573,8 +565,6 @@ SBCL built with: /usr/local/bin/sbcl --userinit /dev/null --batch --eval '(load 
 ;       The second argument is a REAL, not a DOUBLE-FLOAT.
 ;       etc.
 
-; processing (DEFUN WRITE-COUNT ...)
-; file: /home/dunham/all-benchmarksgame/2000-benchmarksgame/bench/knucleotide/knucleotide.sbcl-6.sbcl
 ; in: DEFUN WRITE-COUNT
 ;     (MAP '(VECTOR (UNSIGNED-BYTE 8)) #'CHAR-CODE KNUCLEOTIDE2::NUCLEOTIDEFRAGMENT)
 ; 
@@ -601,9 +591,9 @@ SBCL built with: /usr/local/bin/sbcl --userinit /dev/null --batch --eval '(load 
 ;           DO (IF (EQL (KNUCLEOTIDE2::RESULT-KEYLENGTH KNUCLEOTIDE2::RESULT)
 ;                       (LENGTH KNUCLEOTIDE2::NUCLEOTIDEFRAGMENT))
 ;                  (SETF COUNT (+ COUNT #))))
-; --&gt; BLOCK LET LET LET TAGBODY SB-LOOP::LOOP-DESETQ SETQ THE 
+; --&gt; LET LET LET TAGBODY SB-LOOP::LOOP-DESETQ SETQ THE AREF 
 ; ==&gt;
-;   (AREF #:LOOP-ACROSS-VECTOR-0 #:LOOP-ACROSS-INDEX-1)
+;   1
 ; 
 ; note: unable to
 ;   optimize
@@ -627,51 +617,51 @@ SBCL built with: /usr/local/bin/sbcl --userinit /dev/null --batch --eval '(load 
 ;                 (KNUCLEOTIDE2::RESULT-OUTMAP KNUCLEOTIDE2::RESULT) 0))
 ; 
 ; note: unable to
-;   open-code float conversion of first argument in mixed RATIONAL-FLOAT numeric operation
+;   open-code float conversion in mixed numeric operation
 ; due to type uncertainty:
 ;   The first argument is a NUMBER, not a RATIONAL.
 ;   The second argument is a NUMBER, not a FLOAT.
 ; 
 ; note: unable to
-;   open-code float conversion of second argument in mixed FLOAT-RATIONAL numeric operation
+;   open-code float conversion in mixed numeric operation
 ; due to type uncertainty:
 ;   The first argument is a NUMBER, not a FLOAT.
 ;   The second argument is a NUMBER, not a RATIONAL.
 ; 
 ; note: unable to
-;   open-code float conversion of first argument in mixed RATIONAL-(COMPLEX FLOAT) numeric operation
+;   open-code float conversion in mixed numeric operation
 ; due to type uncertainty:
 ;   The first argument is a NUMBER, not a RATIONAL.
 ;   The second argument is a NUMBER, not a (OR (COMPLEX SINGLE-FLOAT)
 ;                                              (COMPLEX DOUBLE-FLOAT)).
 ; 
 ; note: unable to
-;   open-code float conversion of second argument in mixed (COMPLEX FLOAT)-RATIONAL numeric operation
+;   open-code float conversion in mixed numeric operation
 ; due to type uncertainty:
 ;   The first argument is a NUMBER, not a (OR (COMPLEX SINGLE-FLOAT)
 ;                                             (COMPLEX DOUBLE-FLOAT)).
 ;   The second argument is a NUMBER, not a RATIONAL.
 ; 
 ; note: unable to
-;   open-code float conversion of first argument in mixed SINGLE-FLOAT-DOUBLE-FLOAT numeric operation
+;   open-code float conversion in mixed numeric operation
 ; due to type uncertainty:
 ;   The first argument is a NUMBER, not a SINGLE-FLOAT.
 ;   The second argument is a NUMBER, not a DOUBLE-FLOAT.
 ; 
 ; note: unable to
-;   open-code float conversion of second argument in mixed DOUBLE-FLOAT-SINGLE-FLOAT numeric operation
+;   open-code float conversion in mixed numeric operation
 ; due to type uncertainty:
 ;   The first argument is a NUMBER, not a DOUBLE-FLOAT.
 ;   The second argument is a NUMBER, not a SINGLE-FLOAT.
 ; 
 ; note: unable to
-;   open-code float conversion of first argument in mixed SINGLE-FLOAT-(COMPLEX DOUBLE-FLOAT) numeric operation
+;   open-code float conversion in mixed numeric operation
 ; due to type uncertainty:
 ;   The first argument is a NUMBER, not a SINGLE-FLOAT.
 ;   The second argument is a NUMBER, not a (COMPLEX DOUBLE-FLOAT).
 ; 
 ; note: unable to
-;   open-code float conversion of second argument in mixed (COMPLEX DOUBLE-FLOAT)-SINGLE-FLOAT numeric operation
+;   open-code float conversion in mixed numeric operation
 ; due to type uncertainty:
 ;   The first argument is a NUMBER, not a (COMPLEX DOUBLE-FLOAT).
 ;   The second argument is a NUMBER, not a SINGLE-FLOAT.
@@ -689,17 +679,6 @@ SBCL built with: /usr/local/bin/sbcl --userinit /dev/null --batch --eval '(load 
 ;                                                                &amp;REST T).
 ;       etc.
 
-; processing (DEFUN KEY-TO-STRING ...)
-; processing (DEFUN GET-KEY ...)
-; processing (DEFUN TO-CODES-NEW ...)
-; processing (DEFCONSTANT FRAGMENT-LENGTHS ...)
-; processing (DEFCONSTANT NUCLEOTIDE-FRAGMENTS ...)
-; processing (DEFCONSTANT DNA_THREE_IN_BYTES ...)
-; processing (DEFCONSTANT NEWLINE-CODE ...)
-; processing (DEFUN READ-ASCII-FILE-TO-BINARY-ARRAY ...)
-; processing (DEFUN READ-IN-DATA-CHUNKED ...)
-; processing (DEFUN MAIN ...)
-; file: /home/dunham/all-benchmarksgame/2000-benchmarksgame/bench/knucleotide/knucleotide.sbcl-6.sbcl
 ; in: DEFUN MAIN
 ;     (ELT KNUCLEOTIDE2::*MY-TASK-LIST* 0)
 ; 
@@ -721,25 +700,23 @@ SBCL built with: /usr/local/bin/sbcl --userinit /dev/null --batch --eval '(load 
 ;   optimize
 ; due to type uncertainty:
 ;   The first argument is a VECTOR, not a (SIMPLE-ARRAY * (*)).
-
-; processing (IN-PACKAGE :CL-USER)
-; processing (DEFUN MAIN ...); 
+; 
 ; compilation unit finished
 ;   caught 2 STYLE-WARNING conditions
-;   printed 48 notes
+;   printed 45 notes
 
 
 ; wrote /home/dunham/all-benchmarksgame/benchmarksgame_i53330/knucleotide/tmp/knucleotide.sbcl-6.fasl
-; compilation finished in 0:00:00.132
+; compilation finished in 0:00:00.128
 ### START knucleotide.sbcl-6.sbcl_run
 (main) (quit)
 ### END knucleotide.sbcl-6.sbcl_run
 
 
-2.35s to complete and log all make actions
+2.55s to complete and log all make actions
 
 COMMAND LINE:
-/usr/local/bin/sbcl  --noinform --core sbcl.core --userinit /dev/null --load knucleotide.sbcl-6.sbcl_run 0 &lt; knucleotide-input25000000.txt
+/opt/src/sbcl-2.2.0/bin/sbcl  --noinform --core sbcl.core --userinit /dev/null --load knucleotide.sbcl-6.sbcl_run 0 &lt; knucleotide-input25000000.txt
 
 PROGRAM OUTPUT:
 A 30.295

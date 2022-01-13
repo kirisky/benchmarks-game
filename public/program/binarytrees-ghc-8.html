@@ -32,11 +32,11 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="slc">-- Compact region optimization by Jaro Reinders</span>
 <span class="slc">--</span>
 
-<span class="kwd">import</span> System<span class="opt">.</span>Environment
-<span class="kwd">import</span> Data<span class="opt">.</span>Bits
-<span class="kwd">import</span> Text<span class="opt">.</span>Printf
-<span class="kwd">import</span> Control<span class="opt">.</span>Parallel<span class="opt">.</span>Strategies
-<span class="kwd">import</span> GHC<span class="opt">.</span>Compact
+<span class="kwd">import</span> System.Environment
+<span class="kwd">import</span> Data.Bits
+<span class="kwd">import</span> Text.Printf
+<span class="kwd">import</span> Control.Parallel.Strategies
+<span class="kwd">import</span> GHC.Compact
 
 <span class="slc">--</span>
 <span class="slc">-- an artificially strict tree. </span>
@@ -44,61 +44,61 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="slc">-- normally you would ensure the branches are lazy, but this benchmark</span>
 <span class="slc">-- requires strict allocation.</span>
 <span class="slc">--</span>
-<span class="kwd">data</span> Tree <span class="opt">=</span> Nil | Node <span class="opt">!</span>Tree <span class="opt">!</span>Tree
+<span class="kwd">data</span> Tree = Nil | Node !Tree !Tree
 
-minN <span class="opt">=</span> <span class="num">4</span>
+minN = <span class="num">4</span>
 
-io s n t <span class="opt">=</span> printf <span class="str">&quot;</span><span class="ipl">%s</span> <span class="str">of depth</span> <span class="ipl">%d</span><span class="str"></span><span class="esc">\t</span> <span class="str">check:</span> <span class="ipl">%d</span><span class="str"></span><span class="esc">\n</span><span class="str">&quot;</span> s n t
+io s n t = printf <span class="str">&quot;</span><span class="ipl">%s</span> <span class="str">of depth</span> <span class="ipl">%d</span><span class="str"></span><span class="esc">\t</span> <span class="str">check:</span> <span class="ipl">%d</span><span class="str"></span><span class="esc">\n</span><span class="str">&quot;</span> s n t
 
-main <span class="opt">=</span> <span class="kwd">do</span>
-    n <span class="opt">&lt;-</span> <span class="kwc">getArgs</span> <span class="opt">&gt;&gt;=</span> <span class="kwc">readIO</span> <span class="opt">.</span> <span class="kwc">head</span>
-    <span class="kwd">let</span> maxN     <span class="opt">=</span> <span class="kwc">max</span> <span class="opt">(</span>minN <span class="opt">+</span> <span class="num">2</span><span class="opt">)</span> n
-        stretchN <span class="opt">=</span> maxN <span class="opt">+</span> <span class="num">1</span>
+main = <span class="kwd">do</span>
+    n &lt;- <span class="kwc">getArgs</span> &gt;&gt;= <span class="kwc">readIO</span> . <span class="kwc">head</span>
+    <span class="kwd">let</span> maxN     = <span class="kwc">max</span> (minN + <span class="num">2</span>) n
+        stretchN = maxN + <span class="num">1</span>
 
     <span class="slc">-- stretch memory tree</span>
-    <span class="kwd">let</span> c <span class="opt">=</span> checkPar4 <span class="opt">(</span>makePar4 stretchN<span class="opt">)</span>
+    <span class="kwd">let</span> c = checkPar4 (makePar4 stretchN)
     io <span class="str">&quot;stretch tree&quot;</span> stretchN c
 
     <span class="slc">-- allocate a long lived tree (in a compact region)</span>
-    long <span class="opt">&lt;-</span> compact <span class="opt">(</span>makePar2 maxN<span class="opt">)</span>
+    long &lt;- compact (makePar2 maxN)
 
     <span class="slc">-- allocate, walk, and deallocate many bottom-up binary trees</span>
-    <span class="kwd">let</span> vs <span class="opt">= (</span>depth minN maxN<span class="opt">)</span> `using`
-             <span class="opt">(</span>parList <span class="opt">$</span> evalTuple3 r0 r0 rseq<span class="opt">)</span>
-    <span class="kwc">mapM_</span> <span class="opt">(\((</span>m<span class="opt">,</span>d<span class="opt">,</span>i<span class="opt">)) -&gt;</span> io <span class="opt">(</span><span class="kwc">show</span> m <span class="opt">++</span> <span class="str">&quot;</span><span class="esc">\t</span> <span class="str">trees&quot;</span><span class="opt">)</span> d i<span class="opt">)</span> vs
+    <span class="kwd">let</span> vs = (depth minN maxN) `using`
+             (parList $ evalTuple3 r0 r0 rseq)
+    <span class="kwc">mapM_</span> (\((m,d,i)) -&gt; io (<span class="kwc">show</span> m ++ <span class="str">&quot;</span><span class="esc">\t</span> <span class="str">trees&quot;</span>) d i) vs
 
     <span class="slc">-- confirm the the long-lived binary tree still exists</span>
-    io <span class="str">&quot;long lived tree&quot;</span> maxN <span class="opt">(</span>check <span class="opt">(</span>getCompact long<span class="opt">))</span>
+    io <span class="str">&quot;long lived tree&quot;</span> maxN (check (getCompact long))
 
 <span class="slc">-- generate trees of depth &#64;d&#64;, &#64;d+1&#64;... until &#64;m&#64;</span>
-depth <span class="opt">::</span> <span class="kwb">Int</span> <span class="opt">-&gt;</span> <span class="kwb">Int</span> <span class="opt">-&gt; [(</span><span class="kwb">Int</span><span class="opt">,</span> <span class="kwb">Int</span><span class="opt">,</span> <span class="kwb">Int</span><span class="opt">)]</span>
+depth :: <span class="kwb">Int</span> -&gt; <span class="kwb">Int</span> -&gt; [(<span class="kwb">Int</span>, <span class="kwb">Int</span>, <span class="kwb">Int</span>)]
 depth d m
-    | d <span class="opt">&lt;=</span> m    <span class="opt">= (</span>n<span class="opt">,</span> d<span class="opt">,</span> sumT d n <span class="num">0</span><span class="opt">) :</span> depth <span class="opt">(</span>d<span class="opt">+</span><span class="num">2</span><span class="opt">)</span> m
-    | <span class="kwc">otherwise</span> <span class="opt">= []</span>
-  <span class="kwd">where</span> n <span class="opt">=</span> <span class="num">1</span> `shiftL` <span class="opt">(</span>m <span class="opt">-</span> d <span class="opt">+</span> minN<span class="opt">)</span>
+    | d &lt;= m    = (n, d, sumT d n <span class="num">0</span>) : depth (d+<span class="num">2</span>) m
+    | <span class="kwc">otherwise</span> = []
+  <span class="kwd">where</span> n = <span class="num">1</span> `shiftL` (m - d + minN)
 
 <span class="slc">-- allocate and check &#64;i&#64; trees of depth &#64;d&#64;</span>
-sumT <span class="opt">::</span> <span class="kwb">Int</span> <span class="opt">-&gt;</span> <span class="kwb">Int</span> <span class="opt">-&gt;</span> <span class="kwb">Int</span> <span class="opt">-&gt;</span> <span class="kwb">Int</span>
-sumT d <span class="num">0</span> t <span class="opt">=</span> t
-sumT d i t <span class="opt">=</span> sumT d <span class="opt">(</span>i<span class="opt">-</span><span class="num">1</span><span class="opt">) (</span>t <span class="opt">+</span> a<span class="opt">)</span>
-  <span class="kwd">where</span> a <span class="opt">=</span> check <span class="opt">(</span>make d<span class="opt">)</span>
+sumT :: <span class="kwb">Int</span> -&gt; <span class="kwb">Int</span> -&gt; <span class="kwb">Int</span> -&gt; <span class="kwb">Int</span>
+sumT d <span class="num">0</span> t = t
+sumT d i t = sumT d (i-<span class="num">1</span>) (t + a)
+  <span class="kwd">where</span> a = check (make d)
 
 <span class="slc">-- traverse the tree, counting up the nodes</span>
-check <span class="opt">::</span> Tree <span class="opt">-&gt;</span> <span class="kwb">Int</span>
-check t <span class="opt">=</span> tailCheck t <span class="num">0</span>
+check :: Tree -&gt; <span class="kwb">Int</span>
+check t = tailCheck t <span class="num">0</span>
 
-tailCheck <span class="opt">::</span> Tree <span class="opt">-&gt;</span> <span class="kwb">Int</span> <span class="opt">-&gt;</span> <span class="kwb">Int</span>
-tailCheck Nil        <span class="opt">!</span>a <span class="opt">=</span> a
-tailCheck <span class="opt">(</span>Node l r<span class="opt">) !</span>a <span class="opt">=</span> tailCheck l <span class="opt">$</span> tailCheck r <span class="opt">$</span> a <span class="opt">+</span> <span class="num">1</span>
+tailCheck :: Tree -&gt; <span class="kwb">Int</span> -&gt; <span class="kwb">Int</span>
+tailCheck Nil        !a = a
+tailCheck (Node l r) !a = tailCheck l $ tailCheck r $ a + <span class="num">1</span>
 
 <span class="slc">-- traverse and count nodes in parallel (4-threaded version)</span>
-checkPar4 <span class="opt">::</span> Tree <span class="opt">-&gt;</span> <span class="kwb">Int</span>
-checkPar4 <span class="opt">(</span>Node <span class="opt">(</span>Node ll lr<span class="opt">) (</span>Node rl rr<span class="opt">)) =</span> <span class="kwc">all</span> <span class="opt">+</span> alr <span class="opt">+</span> arl <span class="opt">+</span> arr <span class="opt">+</span> <span class="num">3</span> `using` strat <span class="kwd">where</span>
-  <span class="kwc">all</span> <span class="opt">=</span> tailCheck ll <span class="num">0</span>
-  alr <span class="opt">=</span> tailCheck lr <span class="num">0</span>
-  arl <span class="opt">=</span> tailCheck rl <span class="num">0</span>
-  arr <span class="opt">=</span> tailCheck rr <span class="num">0</span>
-  strat v <span class="opt">=</span> <span class="kwd">do</span>
+checkPar4 :: Tree -&gt; <span class="kwb">Int</span>
+checkPar4 (Node (Node ll lr) (Node rl rr)) = <span class="kwc">all</span> + alr + arl + arr + <span class="num">3</span> `using` strat <span class="kwd">where</span>
+  <span class="kwc">all</span> = tailCheck ll <span class="num">0</span>
+  alr = tailCheck lr <span class="num">0</span>
+  arl = tailCheck rl <span class="num">0</span>
+  arr = tailCheck rr <span class="num">0</span>
+  strat v = <span class="kwd">do</span>
     rpar <span class="kwc">all</span>
     rpar alr
     rpar arl
@@ -106,23 +106,23 @@ checkPar4 <span class="opt">(</span>Node <span class="opt">(</span>Node ll lr<sp
     <span class="kwc">return</span> v
 
 <span class="slc">-- build a tree</span>
-make <span class="opt">::</span> <span class="kwb">Int</span> <span class="opt">-&gt;</span> Tree
-make d <span class="opt">=</span>
-  <span class="kwd">if</span> d <span class="opt">&lt;</span> <span class="num">10</span> <span class="kwd">then</span> make<span class="opt">&apos;</span> d <span class="kwd">else</span> makePar2 d
+make :: <span class="kwb">Int</span> -&gt; Tree
+make d =
+  <span class="kwd">if</span> d &lt; <span class="num">10</span> <span class="kwd">then</span> make&apos; d <span class="kwd">else</span> makePar2 d
 
-make<span class="opt">&apos; ::</span> <span class="kwb">Int</span> <span class="opt">-&gt;</span> Tree
-make<span class="opt">&apos;</span> <span class="num">0</span> <span class="opt">=</span> Node Nil Nil
-make<span class="opt">&apos;</span> d <span class="opt">=</span> Node <span class="opt">(</span>make<span class="opt">&apos; (</span>d <span class="opt">-</span> <span class="num">1</span><span class="opt">)) (</span>make<span class="opt">&apos; (</span>d <span class="opt">-</span> <span class="num">1</span><span class="opt">))</span>
+make&apos; :: <span class="kwb">Int</span> -&gt; Tree
+make&apos; <span class="num">0</span> = Node Nil Nil
+make&apos; d = Node (make&apos; (d - <span class="num">1</span>)) (make&apos; (d - <span class="num">1</span>))
 
 <span class="slc">-- build a tree in parallel (4-threaded version)</span>
-makePar4 <span class="opt">::</span> <span class="kwb">Int</span> <span class="opt">-&gt;</span> Tree
-makePar4 d <span class="opt">=</span> Node <span class="opt">(</span>Node ll lr<span class="opt">) (</span>Node rl rr<span class="opt">)</span> `using` strat <span class="kwd">where</span>
-  <span class="opt">!</span>d<span class="opt">&apos; =</span> d <span class="opt">-</span> <span class="num">2</span>
-  ll <span class="opt">=</span> make<span class="opt">&apos;</span> d<span class="opt">&apos;</span>
-  lr <span class="opt">=</span> make<span class="opt">&apos;</span> d<span class="opt">&apos;</span>
-  rl <span class="opt">=</span> make<span class="opt">&apos;</span> d<span class="opt">&apos;</span>
-  rr <span class="opt">=</span> make<span class="opt">&apos;</span> d<span class="opt">&apos;</span>
-  strat v <span class="opt">=</span> <span class="kwd">do</span>
+makePar4 :: <span class="kwb">Int</span> -&gt; Tree
+makePar4 d = Node (Node ll lr) (Node rl rr) `using` strat <span class="kwd">where</span>
+  !d&apos; = d - <span class="num">2</span>
+  ll = make&apos; d&apos;
+  lr = make&apos; d&apos;
+  rl = make&apos; d&apos;
+  rr = make&apos; d&apos;
+  strat v = <span class="kwd">do</span>
     rpar ll
     rpar lr
     rpar rl
@@ -130,12 +130,12 @@ makePar4 d <span class="opt">=</span> Node <span class="opt">(</span>Node ll lr<
     <span class="kwc">return</span> v
 
 <span class="slc">-- build a tree in parallel (2-threaded version)</span>
-makePar2 <span class="opt">::</span> <span class="kwb">Int</span> <span class="opt">-&gt;</span> Tree
-makePar2 d <span class="opt">=</span> Node l r  `using` strat <span class="kwd">where</span>
-  <span class="opt">!</span>d<span class="opt">&apos; =</span> d <span class="opt">-</span> <span class="num">1</span>
-  l <span class="opt">=</span> make<span class="opt">&apos;</span> d<span class="opt">&apos;</span>
-  r <span class="opt">=</span> make<span class="opt">&apos;</span> d<span class="opt">&apos;</span>
-  strat v <span class="opt">=</span> <span class="kwd">do</span>
+makePar2 :: <span class="kwb">Int</span> -&gt; Tree
+makePar2 d = Node l r  `using` strat <span class="kwd">where</span>
+  !d&apos; = d - <span class="num">1</span>
+  l = make&apos; d&apos;
+  r = make&apos; d&apos;
+  strat v = <span class="kwd">do</span>
     rpar l
     rseq r
     <span class="kwc">return</span> v
@@ -150,22 +150,22 @@ makePar2 d <span class="opt">=</span> Node l r  `using` strat <span class="kwd">
 NOTES:
 64-bit Ubuntu quad core
 The Glorious Glasgow Haskell Compilation System,
-version 9.0.1
+version 9.2.1
 
 
-Sun, 21 Feb 2021 00:07:50 GMT
+Wed, 12 Jan 2022 23:27:46 GMT
 
 MAKE:
 mv binarytrees.ghc-8.ghc binarytrees.ghc-8.hs
-/opt/src/ghc-9.0.1/bin/ghc --make -fllvm -O2 -XBangPatterns -threaded -rtsopts -fno-cse binarytrees.ghc-8.hs -o binarytrees.ghc-8.ghc_run
+~/.ghcup/ghc/9.2.1/bin/ghc --make -fllvm -O2 -XBangPatterns -threaded -rtsopts -fno-cse binarytrees.ghc-8.hs -o binarytrees.ghc-8.ghc_run
 [1 of 1] Compiling Main             ( binarytrees.ghc-8.hs, binarytrees.ghc-8.o )
 You are using an unsupported version of LLVM!
-Currently only 9 is supported. System LLVM version: 11.0.0
+Currently only 9 to 13 is supported. System LLVM version: 13.0.0
 We will try though...
 Linking binarytrees.ghc-8.ghc_run ...
 rm binarytrees.ghc-8.hs
 
-10.52s to complete and log all make actions
+10.29s to complete and log all make actions
 
 COMMAND LINE:
 ./binarytrees.ghc-8.ghc_run +RTS -N4 -K128M -H -RTS 21

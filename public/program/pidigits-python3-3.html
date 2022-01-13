@@ -31,89 +31,89 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="slc"># optimal Python program. Please contribute a better program if you can make a</span>
 <span class="slc"># better program.</span>
 
-<span class="kwa">from</span> ctypes <span class="kwa">import</span> c_int<span class="opt">,</span> c_ulong<span class="opt">,</span> c_void_p<span class="opt">,</span> byref<span class="opt">,</span> CDLL<span class="opt">,</span> Structure
-<span class="kwa">from</span> ctypes<span class="opt">.</span>util <span class="kwa">import</span> find_library
+<span class="kwa">from</span> ctypes <span class="kwa">import</span> c_int, c_ulong, c_void_p, byref, CDLL, Structure
+<span class="kwa">from</span> ctypes.util <span class="kwa">import</span> find_library
 <span class="kwa">from</span> sys <span class="kwa">import</span> argv
 
 
 <span class="slc"># We&apos;ll be using GMP for our arbitrary-precision math needs instead of using</span>
 <span class="slc"># Python&apos;s built in arbitrary-precision math because it is significantly faster.</span>
-GMP<span class="opt">=</span><span class="kwd">CDLL</span><span class="opt">(</span><span class="kwd">find_library</span><span class="opt">(</span><span class="str">&quot;gmp&quot;</span><span class="opt">))</span>
+GMP=<span class="kwd">CDLL</span>(<span class="kwd">find_library</span>(<span class="str">&quot;gmp&quot;</span>))
 
 <span class="slc"># By default, Python assumes that C functions will return int&apos;s but that is not</span>
 <span class="slc"># quite correct for the __gmpz_get_ui() function which returns an unsigned long</span>
 <span class="slc"># instead so we tell it the correct type here.</span>
-GMP<span class="num">.__</span>gmpz<span class="num">_</span>get<span class="num">_u</span>i<span class="opt">.</span>restype<span class="opt">=</span>c_ulong
+GMP.__gmpz_get_ui.restype=c_ulong
 
 
-<span class="kwa">class</span> <span class="kwd">mpz_t</span><span class="opt">(</span>Structure<span class="opt">):</span>
-    _fields_<span class="opt">=[(</span><span class="str">&quot;mp_alloc&quot;</span><span class="opt">,</span> c_int<span class="opt">),</span>
-              <span class="opt">(</span><span class="str">&quot;mp_size&quot;</span><span class="opt">,</span> c_int<span class="opt">),</span>
-              <span class="opt">(</span><span class="str">&quot;mp_d&quot;</span><span class="opt">,</span> c_void_p<span class="opt">)]</span>
+<span class="kwa">class</span> <span class="kwd">mpz_t</span>(Structure):
+    _fields_=[(<span class="str">&quot;mp_alloc&quot;</span>, c_int),
+              (<span class="str">&quot;mp_size&quot;</span>, c_int),
+              (<span class="str">&quot;mp_d&quot;</span>, c_void_p)]
 
-tmp1<span class="opt">=</span><span class="kwd">mpz_t</span><span class="opt">()</span>
-tmp2<span class="opt">=</span><span class="kwd">mpz_t</span><span class="opt">()</span>
-acc<span class="opt">=</span><span class="kwd">mpz_t</span><span class="opt">()</span>
-den<span class="opt">=</span><span class="kwd">mpz_t</span><span class="opt">()</span>
-num<span class="opt">=</span><span class="kwd">mpz_t</span><span class="opt">()</span>
+tmp1=<span class="kwd">mpz_t</span>()
+tmp2=<span class="kwd">mpz_t</span>()
+acc=<span class="kwd">mpz_t</span>()
+den=<span class="kwd">mpz_t</span>()
+num=<span class="kwd">mpz_t</span>()
 
 
-<span class="kwa">def</span> <span class="kwd">extract_Digit</span><span class="opt">(</span>nth<span class="opt">):</span>
+<span class="kwa">def</span> <span class="kwd">extract_Digit</span>(nth):
     <span class="slc"># Joggling between tmp1 and tmp2, so GMP won&apos;t have to use temp buffers.</span>
-    GMP<span class="num">.__</span>gmpz<span class="num">_</span>mul<span class="num">_u</span>i<span class="opt">(</span><span class="kwd">byref</span><span class="opt">(</span>tmp1<span class="opt">),</span> <span class="kwd">byref</span><span class="opt">(</span>num<span class="opt">),</span> <span class="kwd">c_ulong</span><span class="opt">(</span>nth<span class="opt">))</span>
-    GMP<span class="num">.__</span>gmpz<span class="num">_</span>add<span class="opt">(</span><span class="kwd">byref</span><span class="opt">(</span>tmp2<span class="opt">),</span> <span class="kwd">byref</span><span class="opt">(</span>tmp1<span class="opt">),</span> <span class="kwd">byref</span><span class="opt">(</span>acc<span class="opt">))</span>
-    GMP<span class="num">.__</span>gmpz<span class="num">_</span>tdiv<span class="num">_</span>q<span class="opt">(</span><span class="kwd">byref</span><span class="opt">(</span>tmp1<span class="opt">),</span> <span class="kwd">byref</span><span class="opt">(</span>tmp2<span class="opt">),</span> <span class="kwd">byref</span><span class="opt">(</span>den<span class="opt">))</span>
+    GMP.<span class="kwd">__gmpz_mul_ui</span>(<span class="kwd">byref</span>(tmp1), <span class="kwd">byref</span>(num), <span class="kwd">c_ulong</span>(nth))
+    GMP.<span class="kwd">__gmpz_add</span>(<span class="kwd">byref</span>(tmp2), <span class="kwd">byref</span>(tmp1), <span class="kwd">byref</span>(acc))
+    GMP.<span class="kwd">__gmpz_tdiv_q</span>(<span class="kwd">byref</span>(tmp1), <span class="kwd">byref</span>(tmp2), <span class="kwd">byref</span>(den))
 
-    <span class="kwa">return</span> GMP<span class="num">.__</span>gmpz<span class="num">_</span>get<span class="num">_u</span>i<span class="opt">(</span><span class="kwd">byref</span><span class="opt">(</span>tmp1<span class="opt">))</span>
-
-
-<span class="kwa">def</span> <span class="kwd">eliminate_Digit</span><span class="opt">(</span>d<span class="opt">):</span>
-    GMP<span class="num">.__</span>gmpz<span class="num">_</span>submul<span class="num">_u</span>i<span class="opt">(</span><span class="kwd">byref</span><span class="opt">(</span>acc<span class="opt">),</span> <span class="kwd">byref</span><span class="opt">(</span>den<span class="opt">),</span> <span class="kwd">c_ulong</span><span class="opt">(</span>d<span class="opt">))</span>
-    GMP<span class="num">.__</span>gmpz<span class="num">_</span>mul<span class="num">_u</span>i<span class="opt">(</span><span class="kwd">byref</span><span class="opt">(</span>acc<span class="opt">),</span> <span class="kwd">byref</span><span class="opt">(</span>acc<span class="opt">),</span> <span class="kwd">c_ulong</span><span class="opt">(</span><span class="num">10</span><span class="opt">))</span>
-    GMP<span class="num">.__</span>gmpz<span class="num">_</span>mul<span class="num">_u</span>i<span class="opt">(</span><span class="kwd">byref</span><span class="opt">(</span>num<span class="opt">),</span> <span class="kwd">byref</span><span class="opt">(</span>num<span class="opt">),</span> <span class="kwd">c_ulong</span><span class="opt">(</span><span class="num">10</span><span class="opt">))</span>
+    <span class="kwa">return</span> GMP.<span class="kwd">__gmpz_get_ui</span>(<span class="kwd">byref</span>(tmp1))
 
 
-<span class="kwa">def</span> <span class="kwd">next_Term</span><span class="opt">(</span>k<span class="opt">):</span>
-    k2<span class="opt">=</span>k<span class="opt">*</span><span class="num">2</span><span class="opt">+</span><span class="num">1</span>
-    GMP<span class="num">.__</span>gmpz<span class="num">_</span>addmul<span class="num">_u</span>i<span class="opt">(</span><span class="kwd">byref</span><span class="opt">(</span>acc<span class="opt">),</span> <span class="kwd">byref</span><span class="opt">(</span>num<span class="opt">),</span> <span class="kwd">c_ulong</span><span class="opt">(</span><span class="num">2</span><span class="opt">))</span>
-    GMP<span class="num">.__</span>gmpz<span class="num">_</span>mul<span class="num">_u</span>i<span class="opt">(</span><span class="kwd">byref</span><span class="opt">(</span>acc<span class="opt">),</span> <span class="kwd">byref</span><span class="opt">(</span>acc<span class="opt">),</span> <span class="kwd">c_ulong</span><span class="opt">(</span>k2<span class="opt">))</span>
-    GMP<span class="num">.__</span>gmpz<span class="num">_</span>mul<span class="num">_u</span>i<span class="opt">(</span><span class="kwd">byref</span><span class="opt">(</span>den<span class="opt">),</span> <span class="kwd">byref</span><span class="opt">(</span>den<span class="opt">),</span> <span class="kwd">c_ulong</span><span class="opt">(</span>k2<span class="opt">))</span>
-    GMP<span class="num">.__</span>gmpz<span class="num">_</span>mul<span class="num">_u</span>i<span class="opt">(</span><span class="kwd">byref</span><span class="opt">(</span>num<span class="opt">),</span> <span class="kwd">byref</span><span class="opt">(</span>num<span class="opt">),</span> <span class="kwd">c_ulong</span><span class="opt">(</span>k<span class="opt">))</span>
+<span class="kwa">def</span> <span class="kwd">eliminate_Digit</span>(d):
+    GMP.<span class="kwd">__gmpz_submul_ui</span>(<span class="kwd">byref</span>(acc), <span class="kwd">byref</span>(den), <span class="kwd">c_ulong</span>(d))
+    GMP.<span class="kwd">__gmpz_mul_ui</span>(<span class="kwd">byref</span>(acc), <span class="kwd">byref</span>(acc), <span class="kwd">c_ulong</span>(<span class="num">10</span>))
+    GMP.<span class="kwd">__gmpz_mul_ui</span>(<span class="kwd">byref</span>(num), <span class="kwd">byref</span>(num), <span class="kwd">c_ulong</span>(<span class="num">10</span>))
 
 
-<span class="kwa">def</span> <span class="kwd">main</span><span class="opt">():</span>
-    n<span class="opt">=</span><span class="kwb">int</span><span class="opt">(</span>argv<span class="opt">[</span><span class="num">1</span><span class="opt">])</span>
-
-    GMP<span class="num">.__</span>gmpz<span class="num">_</span>init<span class="num">_</span>set<span class="num">_u</span>i<span class="opt">(</span><span class="kwd">byref</span><span class="opt">(</span>tmp1<span class="opt">),</span> <span class="kwd">c_ulong</span><span class="opt">(</span><span class="num">0</span><span class="opt">))</span>
-    GMP<span class="num">.__</span>gmpz<span class="num">_</span>init<span class="num">_</span>set<span class="num">_u</span>i<span class="opt">(</span><span class="kwd">byref</span><span class="opt">(</span>tmp2<span class="opt">),</span> <span class="kwd">c_ulong</span><span class="opt">(</span><span class="num">0</span><span class="opt">))</span>
-
-    GMP<span class="num">.__</span>gmpz<span class="num">_</span>init<span class="num">_</span>set<span class="num">_u</span>i<span class="opt">(</span><span class="kwd">byref</span><span class="opt">(</span>acc<span class="opt">),</span> <span class="kwd">c_ulong</span><span class="opt">(</span><span class="num">0</span><span class="opt">))</span>
-    GMP<span class="num">.__</span>gmpz<span class="num">_</span>init<span class="num">_</span>set<span class="num">_u</span>i<span class="opt">(</span><span class="kwd">byref</span><span class="opt">(</span>den<span class="opt">),</span> <span class="kwd">c_ulong</span><span class="opt">(</span><span class="num">1</span><span class="opt">))</span>
-    GMP<span class="num">.__</span>gmpz<span class="num">_</span>init<span class="num">_</span>set<span class="num">_u</span>i<span class="opt">(</span><span class="kwd">byref</span><span class="opt">(</span>num<span class="opt">),</span> <span class="kwd">c_ulong</span><span class="opt">(</span><span class="num">1</span><span class="opt">))</span>
+<span class="kwa">def</span> <span class="kwd">next_Term</span>(k):
+    k2=k*<span class="num">2</span>+<span class="num">1</span>
+    GMP.<span class="kwd">__gmpz_addmul_ui</span>(<span class="kwd">byref</span>(acc), <span class="kwd">byref</span>(num), <span class="kwd">c_ulong</span>(<span class="num">2</span>))
+    GMP.<span class="kwd">__gmpz_mul_ui</span>(<span class="kwd">byref</span>(acc), <span class="kwd">byref</span>(acc), <span class="kwd">c_ulong</span>(k2))
+    GMP.<span class="kwd">__gmpz_mul_ui</span>(<span class="kwd">byref</span>(den), <span class="kwd">byref</span>(den), <span class="kwd">c_ulong</span>(k2))
+    GMP.<span class="kwd">__gmpz_mul_ui</span>(<span class="kwd">byref</span>(num), <span class="kwd">byref</span>(num), <span class="kwd">c_ulong</span>(k))
 
 
-    i<span class="opt">=</span><span class="num">0</span>
-    k<span class="opt">=</span><span class="num">0</span>
-    <span class="kwa">while</span> i<span class="opt">&lt;</span>n<span class="opt">:</span>
-        k<span class="opt">+=</span><span class="num">1</span>
-        <span class="kwd">next_Term</span><span class="opt">(</span>k<span class="opt">)</span>
-        <span class="kwa">if</span> GMP<span class="num">.__</span>gmpz<span class="num">_</span>cmp<span class="opt">(</span><span class="kwd">byref</span><span class="opt">(</span>num<span class="opt">),</span> <span class="kwd">byref</span><span class="opt">(</span>acc<span class="opt">))&gt;</span><span class="num">0</span><span class="opt">:</span>
+<span class="kwa">def</span> <span class="kwd">main</span>():
+    n=<span class="kwb">int</span>(argv[<span class="num">1</span>])
+
+    GMP.<span class="kwd">__gmpz_init_set_ui</span>(<span class="kwd">byref</span>(tmp1), <span class="kwd">c_ulong</span>(<span class="num">0</span>))
+    GMP.<span class="kwd">__gmpz_init_set_ui</span>(<span class="kwd">byref</span>(tmp2), <span class="kwd">c_ulong</span>(<span class="num">0</span>))
+
+    GMP.<span class="kwd">__gmpz_init_set_ui</span>(<span class="kwd">byref</span>(acc), <span class="kwd">c_ulong</span>(<span class="num">0</span>))
+    GMP.<span class="kwd">__gmpz_init_set_ui</span>(<span class="kwd">byref</span>(den), <span class="kwd">c_ulong</span>(<span class="num">1</span>))
+    GMP.<span class="kwd">__gmpz_init_set_ui</span>(<span class="kwd">byref</span>(num), <span class="kwd">c_ulong</span>(<span class="num">1</span>))
+
+
+    i=<span class="num">0</span>
+    k=<span class="num">0</span>
+    <span class="kwa">while</span> i&lt;n:
+        k+=<span class="num">1</span>
+        <span class="kwd">next_Term</span>(k)
+        <span class="kwa">if</span> GMP.<span class="kwd">__gmpz_cmp</span>(<span class="kwd">byref</span>(num), <span class="kwd">byref</span>(acc))&gt;<span class="num">0</span>:
             <span class="kwa">continue</span>
 
 
-        d<span class="opt">=</span><span class="kwd">extract_Digit</span><span class="opt">(</span><span class="num">3</span><span class="opt">)</span>
-        <span class="kwa">if</span> d<span class="opt">!=</span><span class="kwd">extract_Digit</span><span class="opt">(</span><span class="num">4</span><span class="opt">):</span>
+        d=<span class="kwd">extract_Digit</span>(<span class="num">3</span>)
+        <span class="kwa">if</span> d!=<span class="kwd">extract_Digit</span>(<span class="num">4</span>):
             <span class="kwa">continue</span>
 
 
-        <span class="kwa">print</span><span class="opt">(</span><span class="kwb">chr</span><span class="opt">(</span><span class="num">48</span><span class="opt">+</span>d<span class="opt">),</span> end<span class="opt">=</span><span class="str">&quot;&quot;</span><span class="opt">)</span>
-        i<span class="opt">+=</span><span class="num">1</span>
-        <span class="kwa">if</span> i<span class="opt">%</span><span class="num">10</span><span class="opt">==</span><span class="num">0</span><span class="opt">:</span>
-            <span class="kwa">print</span><span class="opt">(</span><span class="str">&quot;</span><span class="esc">\t</span><span class="str">:</span><span class="ipl">%d</span><span class="str">&quot;</span> <span class="opt">% (</span>i<span class="opt">))</span>
-        <span class="kwd">eliminate_Digit</span><span class="opt">(</span>d<span class="opt">)</span>
+        <span class="kwa">print</span>(<span class="kwb">chr</span>(<span class="num">48</span>+d), end=<span class="str">&quot;&quot;</span>)
+        i+=<span class="num">1</span>
+        <span class="kwa">if</span> i%<span class="num">10</span>==<span class="num">0</span>:
+            <span class="kwa">print</span>(<span class="str">&quot;</span><span class="esc">\t</span><span class="str">:</span><span class="ipl">%d</span><span class="str">&quot;</span> % (i))
+        <span class="kwd">eliminate_Digit</span>(d)
 
 
-<span class="kwd">main</span><span class="opt">()</span>
+<span class="kwd">main</span>()
     </pre>
   </section>
   <section>
@@ -123,25 +123,21 @@ num<span class="opt">=</span><span class="kwd">mpz_t</span><span class="opt">()<
     <pre>
 NOTES:
 64-bit Ubuntu quad core
-Python 3.9.2
+Python 3.10.1
 
 
-Sun, 21 Mar 2021 02:34:03 GMT
+Fri, 07 Jan 2022 03:00:56 GMT
 
 MAKE:
 mv pidigits.python3-3.python3 pidigits.python3-3.py
 ~/.local/bin/pytype .
-ninja: Entering directory `.pytype'
-[1/1] check pidigits.python3-3
-Computing dependencies
-Analyzing 1 sources with 0 local dependencies
-Leaving directory '.pytype'
-Success: no errors found
+/bin/sh: 1: /home/dunham/.local/bin/pytype: not found
+make: [/home/dunham/all-benchmarksgame/2000-benchmarksgame/nanobench/makefiles/u64q.programs.Makefile:375: pidigits.python3-3.python3_run] Error 127 (ignored)
 
-5.68s to complete and log all make actions
+0.01s to complete and log all make actions
 
 COMMAND LINE:
-/opt/src/Python-3.9.2/bin/python3 -OO pidigits.python3-3.py 10000
+/opt/src/Python-3.10.1/bin/python3 -OO pidigits.python3-3.py 10000
 
 (TRUNCATED) PROGRAM OUTPUT:
 3141592653	:10

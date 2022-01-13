@@ -41,96 +41,96 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="com">fannkuch-redux +RTS -N4 -RTS 12</span>
 <span class="com">-}</span>
 
-<span class="kwd">module</span> Main<span class="opt">(</span>main<span class="opt">)</span> <span class="kwd">where</span>
+<span class="kwd">module</span> Main(main) <span class="kwd">where</span>
 
-<span class="kwd">import</span> System<span class="opt">.</span>Environment
-<span class="kwd">import</span> Data<span class="opt">.</span>Bits
-<span class="kwd">import</span> Data<span class="opt">.</span>List
-<span class="kwd">import</span> Control<span class="opt">.</span>Monad
-<span class="kwd">import</span> Control<span class="opt">.</span>Concurrent
-<span class="kwd">import</span> Control<span class="opt">.</span>Concurrent<span class="opt">.</span>Async
+<span class="kwd">import</span> System.Environment
+<span class="kwd">import</span> Data.Bits
+<span class="kwd">import</span> Data.List
+<span class="kwd">import</span> Control.Monad
+<span class="kwd">import</span> Control.Concurrent
+<span class="kwd">import</span> Control.Concurrent.Async
 
-<span class="kwd">import qualified</span> Data<span class="opt">.</span>Vector<span class="opt">.</span>Unboxed<span class="opt">.</span>Mutable <span class="kwd">as</span> VM
-<span class="kwd">import qualified</span> Data<span class="opt">.</span>Vector<span class="opt">.</span>Generic<span class="opt">.</span>Mutable <span class="kwd">as</span> VG
+<span class="kwd">import qualified</span> Data.Vector.Unboxed.Mutable <span class="kwd">as</span> VM
+<span class="kwd">import qualified</span> Data.Vector.Generic.Mutable <span class="kwd">as</span> VG
 
 
-main <span class="opt">::</span> <span class="kwb">IO</span> <span class="opt">()</span>
-main <span class="opt">=</span> <span class="kwd">do</span>
-    n <span class="opt">&lt;-</span> <span class="kwc">readIO</span> <span class="opt">.</span> <span class="kwc">head</span> <span class="opt">=&lt;&lt;</span> <span class="kwc">getArgs</span>
+main :: <span class="kwb">IO</span> ()
+main = <span class="kwd">do</span>
+    n &lt;- <span class="kwc">readIO</span> . <span class="kwc">head</span> =&lt;&lt; <span class="kwc">getArgs</span>
 
-    <span class="opt">(</span>maxFlipsCount<span class="opt">,</span> checkSum<span class="opt">) &lt;-</span> fannkuch n
+    (maxFlipsCount, checkSum) &lt;- fannkuch n
 
-    <span class="kwc">putStr</span> <span class="opt">$</span> <span class="kwc">unlines</span>
-        <span class="opt">[</span> <span class="kwc">show</span> checkSum
-        <span class="opt">,</span> <span class="str">&quot;Pfannkuchen(&quot;</span> <span class="opt">++</span> <span class="kwc">show</span> n <span class="opt">++</span> <span class="str">&quot;) = &quot;</span> <span class="opt">++</span> <span class="kwc">show</span> maxFlipsCount
-        <span class="opt">]</span>
+    <span class="kwc">putStr</span> $ <span class="kwc">unlines</span>
+        [ <span class="kwc">show</span> checkSum
+        , <span class="str">&quot;Pfannkuchen(&quot;</span> ++ <span class="kwc">show</span> n ++ <span class="str">&quot;) = &quot;</span> ++ <span class="kwc">show</span> maxFlipsCount
+        ]
 
 
 fannkuch
-    <span class="opt">::</span> <span class="kwb">Int</span>
+    :: <span class="kwb">Int</span>
         <span class="slc">-- ^ n, the size of the fannkuch-redux problem.</span>
-    <span class="opt">-&gt;</span> <span class="kwb">IO</span> <span class="opt">(</span><span class="kwb">Int</span><span class="opt">,</span> <span class="kwb">Int</span><span class="opt">)</span>
+    -&gt; <span class="kwb">IO</span> (<span class="kwb">Int</span>, <span class="kwb">Int</span>)
         <span class="slc">-- ^ (max flips count, checksum)</span>
-fannkuch <span class="opt">!</span>n <span class="opt">=</span> <span class="kwd">do</span>
+fannkuch !n = <span class="kwd">do</span>
 
     <span class="slc">-- Number of permutations to consider.</span>
-    <span class="kwd">let</span> numPermutations <span class="opt">=</span> factorial n
+    <span class="kwd">let</span> numPermutations = factorial n
 
     <span class="slc">-- Number of cores available for work.</span>
-    numCapabilities <span class="opt">&lt;-</span> getNumCapabilities
+    numCapabilities &lt;- getNumCapabilities
 
     <span class="slc">-- The amount of work which we would like to give to each core.</span>
-    <span class="kwd">let</span> workSize <span class="opt">=</span> <span class="kwc">max</span> <span class="num">1000</span> <span class="opt">$</span> numPermutations `<span class="kwc">div</span>` numCapabilities
+    <span class="kwd">let</span> workSize = <span class="kwc">max</span> <span class="num">1000</span> $ numPermutations `<span class="kwc">div</span>` numCapabilities
 
     <span class="slc">-- Divide up the permutations into workSize units</span>
-    <span class="kwd">let</span> workBoundary <span class="opt">=</span> <span class="kwc">takeWhile</span> <span class="opt">(&lt;=</span>numPermutations<span class="opt">) $</span> <span class="kwc">iterate</span> <span class="opt">(+</span>workSize<span class="opt">)</span> <span class="num">1</span>
+    <span class="kwd">let</span> workBoundary = <span class="kwc">takeWhile</span> (&lt;=numPermutations) $ <span class="kwc">iterate</span> (+workSize) <span class="num">1</span>
 
     <span class="slc">-- Upper and lower permutation index bounds for each workSize unit</span>
-    <span class="kwd">let</span> workRanges <span class="opt">=</span> <span class="kwc">zip</span> workBoundary <span class="opt">$</span> <span class="kwc">tail</span> workBoundary <span class="opt">++ [</span>numPermutations<span class="opt">+</span><span class="num">1</span><span class="opt">]</span>
+    <span class="kwd">let</span> workRanges = <span class="kwc">zip</span> workBoundary $ <span class="kwc">tail</span> workBoundary ++ [numPermutations+<span class="num">1</span>]
 
     <span class="slc">-- Perform the work.</span>
-    results <span class="opt">&lt;-</span> mapConcurrently <span class="opt">(</span><span class="kwc">uncurry</span> <span class="opt">$</span> work n<span class="opt">)</span> workRanges
+    results &lt;- mapConcurrently (<span class="kwc">uncurry</span> $ work n) workRanges
 
     <span class="slc">-- Gather up the results and return.</span>
-    <span class="kwc">return</span> <span class="opt">$</span> <span class="kwc">foldl1</span><span class="opt">&apos; (\(</span>fc0<span class="opt">,</span>cs0<span class="opt">) (</span>fc1<span class="opt">,</span>cs1<span class="opt">) -&gt; (</span><span class="kwc">max</span> fc0 fc1<span class="opt">,</span> cs0<span class="opt">+</span>cs1<span class="opt">))</span> results
+    <span class="kwc">return</span> $ <span class="kwc">foldl1</span>&apos; (\(fc0,cs0) (fc1,cs1) -&gt; (<span class="kwc">max</span> fc0 fc1, cs0+cs1)) results
 
 
 <span class="slc">-- | Basic tail-call factorial. Never called on the hot path of this program.</span>
-factorial <span class="opt">::</span> <span class="kwb">Int</span> <span class="opt">-&gt;</span> <span class="kwb">Int</span>
-factorial z0 <span class="opt">=</span> go z0 <span class="num">1</span>
+factorial :: <span class="kwb">Int</span> -&gt; <span class="kwb">Int</span>
+factorial z0 = go z0 <span class="num">1</span>
   <span class="kwd">where</span>
-    go <span class="num">1</span> <span class="opt">!</span>answer <span class="opt">=</span> answer
-    go <span class="opt">!</span>z <span class="opt">!</span>answer <span class="opt">=</span> go <span class="opt">(</span>z<span class="opt">-</span><span class="num">1</span><span class="opt">) (</span>answer<span class="opt">*</span>z<span class="opt">)</span>
+    go <span class="num">1</span> !answer = answer
+    go !z !answer = go (z-<span class="num">1</span>) (answer*z)
 
 
 <span class="slc">-- | Work function which counts flips and calculates checksum for a range of</span>
 <span class="slc">-- permutations.</span>
 work
-    <span class="opt">::</span> <span class="kwb">Int</span>
+    :: <span class="kwb">Int</span>
         <span class="slc">-- ^ n, The size of the fannkuch-redux problem.</span>
-    <span class="opt">-&gt;</span> <span class="kwb">Int</span>
+    -&gt; <span class="kwb">Int</span>
         <span class="slc">-- ^ Lower bound inclusive of the permutation indices for this work.</span>
-    <span class="opt">-&gt;</span> <span class="kwb">Int</span>
+    -&gt; <span class="kwb">Int</span>
         <span class="slc">-- ^ Upper bound exclusive of the permutation indices for this work.</span>
-    <span class="opt">-&gt;</span> <span class="kwb">IO</span> <span class="opt">(</span><span class="kwb">Int</span><span class="opt">,</span> <span class="kwb">Int</span><span class="opt">)</span>
+    -&gt; <span class="kwb">IO</span> (<span class="kwb">Int</span>, <span class="kwb">Int</span>)
         <span class="slc">-- ^ (max flips count, checksum)</span>
-work <span class="opt">!</span>n <span class="opt">!</span>permIndexBegin <span class="opt">!</span>permIndexEnd <span class="opt">=</span> <span class="kwd">do</span>
+work !n !permIndexBegin !permIndexEnd = <span class="kwd">do</span>
 
     <span class="slc">-- Allocate mutable vector memory in the worker thread. Hopefully no two</span>
     <span class="slc">-- threads will allocate mutable vectors which share a cache line.</span>
 
     <span class="slc">-- Permutation vector.</span>
-    perm  <span class="opt">::</span> VM<span class="opt">.</span>IOVector <span class="kwb">Int</span> <span class="opt">&lt;-</span> VM<span class="opt">.</span>unsafeNew n
+    perm  :: VM.IOVector <span class="kwb">Int</span> &lt;- VM.unsafeNew n
 
     <span class="slc">-- Working temporary permutation vector.</span>
-    tperm <span class="opt">::</span> VM<span class="opt">.</span>IOVector <span class="kwb">Int</span> <span class="opt">&lt;-</span> VM<span class="opt">.</span>unsafeNew n
+    tperm :: VM.IOVector <span class="kwb">Int</span> &lt;- VM.unsafeNew n
 
     <span class="slc">-- Count vector.</span>
     <span class="slc">--</span>
     <span class="slc">-- &gt; To optimize the process I use an intermediate data structure,</span>
     <span class="slc">-- &gt; count[], which keeps count of how many rotations have been done</span>
     <span class="slc">-- &gt; at every level.</span>
-    count <span class="opt">::</span> VM<span class="opt">.</span>IOVector <span class="kwb">Int</span> <span class="opt">&lt;-</span> VM<span class="opt">.</span>unsafeNew n
+    count :: VM.IOVector <span class="kwb">Int</span> &lt;- VM.unsafeNew n
 
     <span class="slc">-- Initialize the perm and count vectors.</span>
     permIndex n permIndexBegin perm count
@@ -139,56 +139,56 @@ work <span class="opt">!</span>n <span class="opt">!</span>permIndexBegin <span 
     <span class="slc">-- from fannkuch-redux Haskell GHC #4 because they seem unimprovably fast.</span>
     <span class="kwd">let</span>
         loop
-            <span class="opt">::</span> <span class="kwb">Int</span> <span class="slc">-- c,  checksum</span>
-            <span class="opt">-&gt;</span> <span class="kwb">Int</span> <span class="slc">-- m,  flip count</span>
-            <span class="opt">-&gt;</span> <span class="kwb">Int</span> <span class="slc">-- pc, permutation index</span>
-            <span class="opt">-&gt;</span> <span class="kwb">IO</span><span class="opt">(</span><span class="kwb">Int</span><span class="opt">,</span><span class="kwb">Int</span><span class="opt">)</span>
-        loop <span class="opt">!</span>c <span class="opt">!</span>m <span class="opt">!</span>pc
-            | pc <span class="opt">== (</span>permIndexEnd<span class="opt">-</span><span class="num">1</span><span class="opt">) =</span> <span class="kwc">return</span> <span class="opt">(</span>m<span class="opt">,</span> c<span class="opt">)</span>
-            | <span class="kwc">otherwise</span> <span class="opt">=</span> <span class="kwd">do</span>
+            :: <span class="kwb">Int</span> <span class="slc">-- c,  checksum</span>
+            -&gt; <span class="kwb">Int</span> <span class="slc">-- m,  flip count</span>
+            -&gt; <span class="kwb">Int</span> <span class="slc">-- pc, permutation index</span>
+            -&gt; <span class="kwb">IO</span>(<span class="kwb">Int</span>,<span class="kwb">Int</span>)
+        loop !c !m !pc
+            | pc == (permIndexEnd-<span class="num">1</span>) = <span class="kwc">return</span> (m, c)
+            | <span class="kwc">otherwise</span> = <span class="kwd">do</span>
                 permNext n perm count
-                VM<span class="opt">.</span>unsafeCopy tperm perm
-                <span class="kwd">let</span> count_flips <span class="opt">::</span> <span class="kwb">Int</span> <span class="opt">-&gt;</span> <span class="kwb">IO</span> <span class="opt">(</span><span class="kwb">Int</span><span class="opt">,</span> <span class="kwb">Int</span><span class="opt">)</span>
-                    count_flips <span class="opt">!</span>flips <span class="opt">=</span> <span class="com">{-# SCC &quot;count_flips&quot; #-}</span> <span class="kwd">do</span>
-                        f <span class="opt">&lt;-</span> VM<span class="opt">.</span>unsafeRead tperm <span class="num">0</span>
-                        <span class="kwd">if</span> f <span class="opt">==</span> <span class="num">1</span>
+                VM.unsafeCopy tperm perm
+                <span class="kwd">let</span> count_flips :: <span class="kwb">Int</span> -&gt; <span class="kwb">IO</span> (<span class="kwb">Int</span>, <span class="kwb">Int</span>)
+                    count_flips !flips = <span class="com">{-# SCC &quot;count_flips&quot; #-}</span> <span class="kwd">do</span>
+                        f &lt;- VM.unsafeRead tperm <span class="num">0</span>
+                        <span class="kwd">if</span> f == <span class="num">1</span>
                         <span class="kwd">then</span> loop
-                                <span class="opt">(</span>c <span class="opt">+ (</span><span class="kwd">if</span> pc <span class="opt">.&amp;.</span> <span class="num">1</span> <span class="opt">==</span> <span class="num">0</span> <span class="kwd">then</span> flips <span class="kwd">else</span> <span class="opt">-</span>flips<span class="opt">))</span>
-                                <span class="opt">(</span><span class="kwc">max</span> m flips<span class="opt">)</span>
-                                <span class="opt">(</span>pc<span class="opt">+</span><span class="num">1</span><span class="opt">)</span>
+                                (c + (<span class="kwd">if</span> pc .&amp;. <span class="num">1</span> == <span class="num">0</span> <span class="kwd">then</span> flips <span class="kwd">else</span> -flips))
+                                (<span class="kwc">max</span> m flips)
+                                (pc+<span class="num">1</span>)
                         <span class="kwd">else do</span>
-                            VG<span class="opt">.</span><span class="kwc">reverse</span> <span class="opt">$</span> VM<span class="opt">.</span>unsafeSlice <span class="num">0</span> f tperm
-                            count_flips <span class="opt">(</span>flips<span class="opt">+</span><span class="num">1</span><span class="opt">)</span>
+                            VG.<span class="kwc">reverse</span> $ VM.unsafeSlice <span class="num">0</span> f tperm
+                            count_flips (flips+<span class="num">1</span>)
                 count_flips <span class="num">0</span>
-    loop <span class="num">0 0</span> <span class="opt">(</span>permIndexBegin<span class="opt">-</span><span class="num">1</span><span class="opt">)</span>
+    loop <span class="num">0 0</span> (permIndexBegin-<span class="num">1</span>)
 
 
 <span class="slc">-- | Generate the next permutation vector and count vector.</span>
 permNext
-    <span class="opt">::</span> <span class="kwb">Int</span> <span class="slc">-- ^ Permutation length.</span>
-    <span class="opt">-&gt;</span> VM<span class="opt">.</span>IOVector <span class="kwb">Int</span> <span class="slc">-- ^ Vector to be mutated to next permutation.</span>
-    <span class="opt">-&gt;</span> VM<span class="opt">.</span>IOVector <span class="kwb">Int</span> <span class="slc">-- ^ count vector for recursion depth state.</span>
-    <span class="opt">-&gt;</span> <span class="kwb">IO</span> <span class="opt">()</span>
-permNext <span class="opt">!</span>n <span class="opt">!</span>perm <span class="opt">!</span>count <span class="opt">=</span> go <span class="num">1</span>
+    :: <span class="kwb">Int</span> <span class="slc">-- ^ Permutation length.</span>
+    -&gt; VM.IOVector <span class="kwb">Int</span> <span class="slc">-- ^ Vector to be mutated to next permutation.</span>
+    -&gt; VM.IOVector <span class="kwb">Int</span> <span class="slc">-- ^ count vector for recursion depth state.</span>
+    -&gt; <span class="kwb">IO</span> ()
+permNext !n !perm !count = go <span class="num">1</span>
   <span class="kwd">where</span>
     go
-        <span class="opt">::</span> <span class="kwb">Int</span> <span class="slc">-- ^ i loops over [1..n-1]</span>
-        <span class="opt">-&gt;</span> <span class="kwb">IO</span> <span class="opt">()</span>
-    go <span class="opt">!</span>i
-        | i <span class="opt">&gt;=</span> n    <span class="opt">=</span> <span class="kwc">return</span> <span class="opt">()</span>
-        | <span class="kwc">otherwise</span> <span class="opt">=</span> <span class="kwd">do</span>
+        :: <span class="kwb">Int</span> <span class="slc">-- ^ i loops over [1..n-1]</span>
+        -&gt; <span class="kwb">IO</span> ()
+    go !i
+        | i &gt;= n    = <span class="kwc">return</span> ()
+        | <span class="kwc">otherwise</span> = <span class="kwd">do</span>
 
             <span class="slc">-- left-rotate the first i+1 places of perm</span>
-            rotateLeft perm <span class="opt">$</span> i<span class="opt">+</span><span class="num">1</span>
+            rotateLeft perm $ i+<span class="num">1</span>
 
-            counti <span class="opt">&lt;-</span> VM<span class="opt">.</span>unsafeRead count i
-            <span class="kwd">if</span> counti <span class="opt">&gt;=</span> i
+            counti &lt;- VM.unsafeRead count i
+            <span class="kwd">if</span> counti &gt;= i
             <span class="kwd">then do</span>
-                VM<span class="opt">.</span>unsafeWrite count i <span class="num">0</span>
-                go <span class="opt">$</span> i<span class="opt">+</span><span class="num">1</span>
+                VM.unsafeWrite count i <span class="num">0</span>
+                go $ i+<span class="num">1</span>
             <span class="kwd">else do</span>
-                VM<span class="opt">.</span>unsafeWrite count i <span class="opt">$</span> counti<span class="opt">+</span><span class="num">1</span>
-                <span class="kwc">return</span> <span class="opt">()</span>
+                VM.unsafeWrite count i $ counti+<span class="num">1</span>
+                <span class="kwc">return</span> ()
 
 
 <span class="slc">-- | From a permutation index, generate permutation vector and count vector.</span>
@@ -202,34 +202,34 @@ permNext <span class="opt">!</span>n <span class="opt">!</span>perm <span class=
 <span class="slc">-- &gt; Doing it in the descending order from n-1 to 1 gives us both the count[]</span>
 <span class="slc">-- &gt; array and the permutation.</span>
 permIndex
-    <span class="opt">::</span> <span class="kwb">Int</span> <span class="slc">-- ^ Permutation length.</span>
-    <span class="opt">-&gt;</span> <span class="kwb">Int</span> <span class="slc">-- ^ ith permutation index, 1-based.</span>
-    <span class="opt">-&gt;</span> VM<span class="opt">.</span>IOVector <span class="kwb">Int</span> <span class="slc">-- ^ Mutable permutation vector output.</span>
-    <span class="opt">-&gt;</span> VM<span class="opt">.</span>IOVector <span class="kwb">Int</span> <span class="slc">-- ^ Mutable count vector output.</span>
-    <span class="opt">-&gt;</span> <span class="kwb">IO</span> <span class="opt">()</span>
-permIndex <span class="opt">!</span>n <span class="opt">!</span>i <span class="opt">!</span>perm <span class="opt">!</span>count <span class="opt">=</span> <span class="kwd">do</span>
+    :: <span class="kwb">Int</span> <span class="slc">-- ^ Permutation length.</span>
+    -&gt; <span class="kwb">Int</span> <span class="slc">-- ^ ith permutation index, 1-based.</span>
+    -&gt; VM.IOVector <span class="kwb">Int</span> <span class="slc">-- ^ Mutable permutation vector output.</span>
+    -&gt; VM.IOVector <span class="kwb">Int</span> <span class="slc">-- ^ Mutable count vector output.</span>
+    -&gt; <span class="kwb">IO</span> ()
+permIndex !n !i !perm !count = <span class="kwd">do</span>
 
     <span class="slc">-- initialize perm to [1,2,..n]</span>
-    forM_ <span class="opt">[</span><span class="num">0</span><span class="opt">..</span>n<span class="opt">-</span><span class="num">1</span><span class="opt">] (\</span>k <span class="opt">-&gt;</span> VM<span class="opt">.</span>unsafeWrite perm k <span class="opt">$</span> k <span class="opt">+</span> <span class="num">1</span><span class="opt">)</span>
+    forM_ [<span class="num">0</span>..n-<span class="num">1</span>] (\k -&gt; VM.unsafeWrite perm k $ k + <span class="num">1</span>)
 
-    VM<span class="opt">.</span>unsafeWrite count <span class="num">0 0</span> <span class="slc">-- count[0] is always 0.</span>
+    VM.unsafeWrite count <span class="num">0 0</span> <span class="slc">-- count[0] is always 0.</span>
 
     <span class="slc">-- forM_ k = [n-1..1] over the count vector</span>
-    forM_ <span class="opt">(</span><span class="kwc">take</span> <span class="opt">(</span>n<span class="opt">-</span><span class="num">1</span><span class="opt">) $</span> <span class="kwc">iterate</span> <span class="opt">(</span><span class="kwc">subtract</span> <span class="num">1</span><span class="opt">) (</span>n<span class="opt">-</span><span class="num">1</span><span class="opt">)) $ \</span> k <span class="opt">-&gt;</span> <span class="kwd">do</span>
-        <span class="kwd">let</span> countk <span class="opt">= (</span>i `<span class="kwc">mod</span>` factorial <span class="opt">(</span>k<span class="opt">+</span><span class="num">1</span><span class="opt">))</span> `<span class="kwc">div</span>` factorial k
-        VM<span class="opt">.</span>unsafeWrite count k countk
-        replicateM_ countk <span class="opt">$</span> rotateLeft perm <span class="opt">$</span> k<span class="opt">+</span><span class="num">1</span>
+    forM_ (<span class="kwc">take</span> (n-<span class="num">1</span>) $ <span class="kwc">iterate</span> (<span class="kwc">subtract</span> <span class="num">1</span>) (n-<span class="num">1</span>)) $ \ k -&gt; <span class="kwd">do</span>
+        <span class="kwd">let</span> countk = (i `<span class="kwc">mod</span>` factorial (k+<span class="num">1</span>)) `<span class="kwc">div</span>` factorial k
+        VM.unsafeWrite count k countk
+        replicateM_ countk $ rotateLeft perm $ k+<span class="num">1</span>
 
 
 <span class="slc">-- | Left-rotate the first i places of perm where i &gt;= 2.</span>
 rotateLeft
-    <span class="opt">::</span> VM<span class="opt">.</span>IOVector <span class="kwb">Int</span>
-    <span class="opt">-&gt;</span> <span class="kwb">Int</span> <span class="slc">-- ^ Precondition: i &gt;= 2</span>
-    <span class="opt">-&gt;</span> <span class="kwb">IO</span> <span class="opt">()</span>
-rotateLeft <span class="opt">!</span>perm <span class="opt">!</span>i <span class="opt">=</span> <span class="kwd">do</span>
-    <span class="opt">!</span>perm0 <span class="opt">&lt;-</span> VM<span class="opt">.</span>unsafeRead perm <span class="num">0</span>
-    VM<span class="opt">.</span>unsafeMove <span class="opt">(</span>VM<span class="opt">.</span>unsafeSlice <span class="num">0</span> <span class="opt">(</span>i<span class="opt">-</span><span class="num">1</span><span class="opt">)</span> perm<span class="opt">) (</span>VM<span class="opt">.</span>unsafeSlice <span class="num">1</span> <span class="opt">(</span>i<span class="opt">-</span><span class="num">1</span><span class="opt">)</span> perm<span class="opt">)</span>
-    VM<span class="opt">.</span>unsafeWrite perm <span class="opt">(</span>i<span class="opt">-</span><span class="num">1</span><span class="opt">)</span> perm0
+    :: VM.IOVector <span class="kwb">Int</span>
+    -&gt; <span class="kwb">Int</span> <span class="slc">-- ^ Precondition: i &gt;= 2</span>
+    -&gt; <span class="kwb">IO</span> ()
+rotateLeft !perm !i = <span class="kwd">do</span>
+    !perm0 &lt;- VM.unsafeRead perm <span class="num">0</span>
+    VM.unsafeMove (VM.unsafeSlice <span class="num">0</span> (i-<span class="num">1</span>) perm) (VM.unsafeSlice <span class="num">1</span> (i-<span class="num">1</span>) perm)
+    VM.unsafeWrite perm (i-<span class="num">1</span>) perm0
     </pre>
   </section>
   <section>
@@ -240,22 +240,22 @@ rotateLeft <span class="opt">!</span>perm <span class="opt">!</span>i <span clas
 NOTES:
 64-bit Ubuntu quad core
 The Glorious Glasgow Haskell Compilation System,
-version 9.0.1
+version 9.2.1
 
 
-Sun, 21 Feb 2021 00:23:04 GMT
+Wed, 12 Jan 2022 23:41:15 GMT
 
 MAKE:
 mv fannkuchredux.ghc-6.ghc fannkuchredux.ghc-6.hs
-/opt/src/ghc-9.0.1/bin/ghc --make -fllvm -O2 -XBangPatterns -threaded -rtsopts -XScopedTypeVariables fannkuchredux.ghc-6.hs -o fannkuchredux.ghc-6.ghc_run
+~/.ghcup/ghc/9.2.1/bin/ghc --make -fllvm -O2 -XBangPatterns -threaded -rtsopts -XScopedTypeVariables fannkuchredux.ghc-6.hs -o fannkuchredux.ghc-6.ghc_run
 [1 of 1] Compiling Main             ( fannkuchredux.ghc-6.hs, fannkuchredux.ghc-6.o )
 You are using an unsupported version of LLVM!
-Currently only 9 is supported. System LLVM version: 11.0.0
+Currently only 9 to 13 is supported. System LLVM version: 13.0.0
 We will try though...
 Linking fannkuchredux.ghc-6.ghc_run ...
 rm fannkuchredux.ghc-6.hs
 
-11.63s to complete and log all make actions
+11.61s to complete and log all make actions
 
 COMMAND LINE:
 ./fannkuchredux.ghc-6.ghc_run +RTS -N4 -RTS 12

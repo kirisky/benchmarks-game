@@ -37,154 +37,154 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 
 <span class="kwa">module</span> MiniParallel
     <span class="kwa">class</span> Worker
-        <span class="kwa">def</span> <span class="kwd">initialize</span><span class="opt">(</span>read<span class="opt">,</span> write<span class="opt">)</span>
-            <span class="kwb">&#64;read</span><span class="opt">,</span> <span class="kwb">&#64;write</span> <span class="opt">=</span> read<span class="opt">,</span> write
+        <span class="kwa">def</span> <span class="kwd">initialize</span>(read, write<span class="opt">)</span>
+            <span class="kwb">&#64;read</span>, <span class="kwb">&#64;write</span> = read, write
         <span class="kwa">end</span>
 
         <span class="kwa">def</span> close_pipes
-            <span class="kwb">&#64;read</span><span class="opt">.</span>close
-            <span class="kwb">&#64;write</span><span class="opt">.</span>close
+            <span class="kwb">&#64;read</span>.close
+            <span class="kwb">&#64;write</span>.close
         <span class="kwa">end</span>
 
-        <span class="kwa">def</span> <span class="kwd">work</span><span class="opt">(</span>index<span class="opt">)</span>
-            Marshal<span class="opt">.</span><span class="kwd">dump</span><span class="opt">(</span>index<span class="opt">,</span> <span class="kwb">&#64;write</span><span class="opt">)</span>
-            Marshal<span class="opt">.</span><span class="kwd">load</span><span class="opt">(</span><span class="kwb">&#64;read</span><span class="opt">)</span>
+        <span class="kwa">def</span> <span class="kwd">work</span>(index<span class="opt">)</span>
+            Marshal.<span class="kwd">dump</span>(index, <span class="kwb">&#64;write</span><span class="opt">)</span>
+            Marshal.<span class="kwd">load</span>(<span class="kwb">&#64;read</span><span class="opt">)</span>
         <span class="kwa">end</span>
     <span class="kwa">end</span>
 
-    <span class="kwa">def self</span><span class="opt">.</span><span class="kwd">map</span><span class="opt">(</span>array<span class="opt">, &amp;</span>block<span class="opt">)</span>
-        <span class="kwd">work_in_processes</span><span class="opt">(</span>
-            array<span class="opt">,</span>
-            <span class="opt">[</span>array<span class="opt">.</span>size<span class="opt">,</span> core_count<span class="opt">].</span>min<span class="opt">,</span>
-            <span class="opt">&amp;</span>block
+    <span class="kwa">def self</span>.<span class="kwd">map</span>(array, &amp;block<span class="opt">)</span>
+        <span class="kwd">work_in_processes</span>(
+            array,
+            [array.size, core_count].min,
+            &amp;block
         <span class="opt">)</span>
     <span class="kwa">end</span>
 
-    <span class="kwa">def self</span><span class="opt">.</span>core_count
-        &#64;<span class="kwb">&#64;core_count</span> <span class="opt">||=</span> IO<span class="opt">.</span><span class="kwd">read</span><span class="opt">(</span><span class="str">&quot;/proc/cpuinfo&quot;</span><span class="opt">).</span><span class="kwd">scan</span><span class="opt">(</span><span class="kwc">/^processor/</span><span class="opt">).</span>size
+    <span class="kwa">def self</span>.core_count
+        &#64;<span class="kwb">&#64;core_count</span> ||= IO.<span class="kwd">read</span>(<span class="str">&quot;/proc/cpuinfo&quot;</span><span class="opt">)</span>.<span class="kwd">scan</span>(<span class="kwc">/^processor/</span><span class="opt">)</span>.size
     <span class="kwa">end</span>
 
-    <span class="kwa">private</span>
+    private
 
-    <span class="kwa">def self</span><span class="opt">.</span><span class="kwd">work_in_processes</span><span class="opt">(</span>array<span class="opt">,</span> count<span class="opt">, &amp;</span>block<span class="opt">)</span>
-        index <span class="opt">= -</span><span class="num">1</span>
-        results<span class="opt">,</span> threads <span class="opt">= [], []</span>
-        mx <span class="opt">=</span> Mutex<span class="opt">.</span>new
+    <span class="kwa">def self</span>.<span class="kwd">work_in_processes</span>(array, count, &amp;block<span class="opt">)</span>
+        index = -<span class="num">1</span>
+        results, threads = [], []
+        mx = Mutex.new
 
-        workers <span class="opt">=</span> <span class="kwd">create_workers</span><span class="opt">(</span>array<span class="opt">,</span> count<span class="opt">, &amp;</span>block<span class="opt">)</span>
+        workers = <span class="kwd">create_workers</span>(array, count, &amp;block<span class="opt">)</span>
 
-        workers<span class="opt">.</span>each <span class="kwa">do</span> <span class="opt">|</span>worker<span class="opt">|</span>
-            threads <span class="opt">&lt;&lt;</span> Thread<span class="opt">.</span>new <span class="kwa">do</span>
+        workers.each <span class="kwa">do</span> |worker|
+            threads &lt;&lt; Thread.new <span class="kwa">do</span>
               <span class="kwa">loop do</span>
-                mx<span class="opt">.</span>synchronize <span class="kwa">do</span> index <span class="opt">+=</span> <span class="num">1</span> <span class="kwa">end</span>                  
-                <span class="kwa">break if</span> index <span class="opt">&gt;=</span> array<span class="opt">.</span>size
-                results<span class="opt">[</span>index<span class="opt">] =</span> worker<span class="opt">.</span><span class="kwd">work</span><span class="opt">(</span>index<span class="opt">)</span>
+                mx.synchronize <span class="kwa">do</span> index += <span class="num">1</span> <span class="kwa">end</span>                  
+                <span class="kwa">break if</span> index &gt;= array.size
+                results[index] = worker.<span class="kwd">work</span>(index<span class="opt">)</span>
               <span class="kwa">end</span>
-              worker<span class="opt">.</span>close_pipes
+              worker.close_pipes
             <span class="kwa">end</span>
         <span class="kwa">end</span>
 
-        threads<span class="opt">.</span><span class="kwd">each</span><span class="opt">(&amp;</span><span class="kwc">:join</span><span class="opt">)</span>
-        Process<span class="opt">.</span>waitall
+        threads.<span class="kwd">each</span>(&amp;<span class="kwc">:join</span><span class="opt">)</span>
+        Process.waitall
 
         results
     <span class="kwa">end</span>
 
-    <span class="kwa">def self</span><span class="opt">.</span><span class="kwd">create_workers</span><span class="opt">(</span>array<span class="opt">,</span> count<span class="opt">, &amp;</span>block<span class="opt">)</span>
-        workers <span class="opt">= []</span>
-        count<span class="opt">.</span>times <span class="kwa">do</span>
-            workers <span class="opt">&lt;&lt;</span> <span class="kwd">create_worker</span><span class="opt">(</span>array<span class="opt">,</span> workers<span class="opt">, &amp;</span>block<span class="opt">)</span>
+    <span class="kwa">def self</span>.<span class="kwd">create_workers</span>(array, count, &amp;block<span class="opt">)</span>
+        workers = []
+        count.times <span class="kwa">do</span>
+            workers &lt;&lt; <span class="kwd">create_worker</span>(array, workers, &amp;block<span class="opt">)</span>
         <span class="kwa">end</span>
         workers
     <span class="kwa">end</span>
 
-    <span class="kwa">def self</span><span class="opt">.</span><span class="kwd">create_worker</span><span class="opt">(</span>array<span class="opt">,</span> started_workers<span class="opt">, &amp;</span>block<span class="opt">)</span>
-        child_read<span class="opt">,</span> parent_write <span class="opt">=</span> IO<span class="opt">.</span>pipe
-        parent_read<span class="opt">,</span> child_write <span class="opt">=</span> IO<span class="opt">.</span>pipe
+    <span class="kwa">def self</span>.<span class="kwd">create_worker</span>(array, started_workers, &amp;block<span class="opt">)</span>
+        child_read, parent_write = IO.pipe
+        parent_read, child_write = IO.pipe
 
-        Process<span class="opt">.</span>fork <span class="kwa">do</span>
-            started_workers<span class="opt">.</span><span class="kwd">each</span><span class="opt">(&amp;</span><span class="kwc">:close_pipes</span><span class="opt">)</span>
+        Process.fork <span class="kwa">do</span>
+            started_workers.<span class="kwd">each</span>(&amp;<span class="kwc">:close_pipes</span><span class="opt">)</span>
 
-            parent_write<span class="opt">.</span>close
-            parent_read<span class="opt">.</span>close
+            parent_write.close
+            parent_read.close
 
-            <span class="kwd">process_incoming_jobs</span><span class="opt">(</span>child_read<span class="opt">,</span> child_write<span class="opt">,</span> array<span class="opt">, &amp;</span>block<span class="opt">)</span>
+            <span class="kwd">process_incoming_jobs</span>(child_read, child_write, array, &amp;block<span class="opt">)</span>
 
-            child_read<span class="opt">.</span>close
-            child_write<span class="opt">.</span>close
+            child_read.close
+            child_write.close
         <span class="kwa">end</span>
 
-        child_read<span class="opt">.</span>close
-        child_write<span class="opt">.</span>close
+        child_read.close
+        child_write.close
 
-        Worker<span class="opt">.</span><span class="kwd">new</span><span class="opt">(</span>parent_read<span class="opt">,</span> parent_write<span class="opt">)</span>
+        Worker.<span class="kwd">new</span>(parent_read, parent_write<span class="opt">)</span>
     <span class="kwa">end</span>
 
-    <span class="kwa">def self</span><span class="opt">.</span><span class="kwd">process_incoming_jobs</span><span class="opt">(</span>read<span class="opt">,</span> write<span class="opt">,</span> array<span class="opt">, &amp;</span>block<span class="opt">)</span>
-        <span class="kwa">until</span> read<span class="opt">.</span>eof<span class="opt">?</span>
-            index <span class="opt">=</span> Marshal<span class="opt">.</span><span class="kwd">load</span><span class="opt">(</span>read<span class="opt">)</span>
-            Marshal<span class="opt">.</span><span class="kwd">dump</span><span class="opt">(</span>block<span class="opt">.</span><span class="kwd">call</span><span class="opt">(</span>array<span class="opt">[</span>index<span class="opt">]),</span> write<span class="opt">)</span>
+    <span class="kwa">def self</span>.<span class="kwd">process_incoming_jobs</span>(read, write, array, &amp;block<span class="opt">)</span>
+        <span class="kwa">until</span> read.eof?
+            index = Marshal.<span class="kwd">load</span>(read<span class="opt">)</span>
+            Marshal.<span class="kwd">dump</span>(block.<span class="kwd">call</span>(array[index]<span class="opt">)</span>, write<span class="opt">)</span>
         <span class="kwa">end</span>
     <span class="kwa">end</span>
 <span class="kwa">end</span>
 
-Size <span class="opt">=</span> <span class="kwc">ARGV</span><span class="opt">.</span>shift<span class="opt">.</span>to_i
+Size = <span class="kwc">ARGV</span>.shift.to_i
 
-puts <span class="str">&quot;P4</span><span class="esc">\n</span><span class="str">#{Size} #{Size}&quot;</span>
+puts <span class="str">&quot;P4</span><span class="esc">\n</span><span class="str"></span><span class="ipl">#{Size}</span> <span class="str"></span><span class="ipl">#{Size}</span><span class="str">&quot;</span>
 
 <span class="kwa">def</span> row y
-    byte_acc <span class="opt">=</span> <span class="num">0</span>
-    bit_num <span class="opt">=</span> <span class="num">0</span>
-    res <span class="opt">= []</span>
-    ci <span class="opt">= (</span><span class="num">2.0</span><span class="opt">*</span>y<span class="opt">/</span>Size<span class="opt">)-</span><span class="num">1.0</span>
-    x <span class="opt">=</span> <span class="num">0</span>
-    <span class="kwa">while</span> x <span class="opt">&lt;</span> Size
-        zrzr <span class="opt">=</span> zr <span class="opt">=</span> <span class="num">0.0</span>
-        zizi <span class="opt">=</span> zi <span class="opt">=</span> <span class="num">0.0</span>
-        cr <span class="opt">= (</span><span class="num">2.0</span><span class="opt">*</span>x<span class="opt">/</span>Size<span class="opt">)-</span><span class="num">1.5</span>
-        escape <span class="opt">=</span> <span class="num">0b1</span>
+    byte_acc = <span class="num">0</span>
+    bit_num = <span class="num">0</span>
+    res = []
+    ci = (<span class="num">2.0</span>*y/Size<span class="opt">)</span>-<span class="num">1.0</span>
+    x = <span class="num">0</span>
+    <span class="kwa">while</span> x &lt; Size
+        zrzr = zr = <span class="num">0.0</span>
+        zizi = zi = <span class="num">0.0</span>
+        cr = (<span class="num">2.0</span>*x/Size<span class="opt">)</span>-<span class="num">1.5</span>
+        escape = <span class="num">0b1</span>
 
-        z <span class="opt">=</span> <span class="num">0</span>
-        <span class="kwa">while</span> z <span class="opt">&lt;</span> <span class="num">50</span>
-            tr <span class="opt">=</span> zrzr <span class="opt">-</span> zizi <span class="opt">+</span> cr
-            ti <span class="opt">=</span> <span class="num">2.0</span><span class="opt">*</span>zr<span class="opt">*</span>zi <span class="opt">+</span> ci
-            zr <span class="opt">=</span> tr
-            zi <span class="opt">=</span> ti
+        z = <span class="num">0</span>
+        <span class="kwa">while</span> z &lt; <span class="num">50</span>
+            tr = zrzr - zizi + cr
+            ti = <span class="num">2.0</span>*zr*zi + ci
+            zr = tr
+            zi = ti
             <span class="slc"># preserve recalculation</span>
-            zrzr <span class="opt">=</span> zr<span class="opt">*</span>zr
-            zizi <span class="opt">=</span> zi<span class="opt">*</span>zi
-            <span class="kwa">if</span> zrzr<span class="opt">+</span>zizi <span class="opt">&gt;</span> <span class="num">4.0</span>
-                escape <span class="opt">=</span> <span class="num">0b0</span>
+            zrzr = zr*zr
+            zizi = zi*zi
+            <span class="kwa">if</span> zrzr+zizi &gt; <span class="num">4.0</span>
+                escape = <span class="num">0b0</span>
                 <span class="kwa">break</span>
             <span class="kwa">end</span>
-            z <span class="opt">+=</span> <span class="num">1</span>
+            z += <span class="num">1</span>
         <span class="kwa">end</span>
 
-        byte_acc <span class="opt">= (</span>byte_acc <span class="opt">&lt;&lt;</span> <span class="num">1</span><span class="opt">) |</span> escape
-        bit_num <span class="opt">+=</span> <span class="num">1</span>
+        byte_acc = (byte_acc &lt;&lt; <span class="num">1</span><span class="opt">)</span> | escape
+        bit_num += <span class="num">1</span>
 
         <span class="slc"># Code is very similar for these cases, but using separate blocks</span>
         <span class="slc"># ensures we skip the shifting when it&apos;s unnecessary, which is most</span>
         <span class="slc"># cases.</span>
-        <span class="kwa">if</span> <span class="opt">(</span>bit_num <span class="opt">==</span> <span class="num">8</span><span class="opt">)</span>
-            res <span class="opt">&lt;&lt;</span> byte_acc<span class="opt">.</span>chr
-            byte_acc <span class="opt">=</span> <span class="num">0</span>
-            bit_num <span class="opt">=</span> <span class="num">0</span>
-        <span class="kwa">elsif</span> <span class="opt">(</span>x <span class="opt">==</span> Size <span class="opt">-</span> <span class="num">1</span><span class="opt">)</span>
-            byte_acc <span class="opt">&lt;&lt;= (</span><span class="num">8</span> <span class="opt">-</span> bit_num<span class="opt">)</span>
-            res <span class="opt">&lt;&lt;</span> byte_acc<span class="opt">.</span>chr
-            byte_acc <span class="opt">=</span> <span class="num">0</span>
-            bit_num <span class="opt">=</span> <span class="num">0</span>
+        <span class="kwa">if</span> (bit_num == <span class="num">8</span><span class="opt">)</span>
+            res &lt;&lt; byte_acc.chr
+            byte_acc = <span class="num">0</span>
+            bit_num = <span class="num">0</span>
+        <span class="kwa">elsif</span> (x == Size - <span class="num">1</span><span class="opt">)</span>
+            byte_acc &lt;&lt;= (<span class="num">8</span> - bit_num<span class="opt">)</span>
+            res &lt;&lt; byte_acc.chr
+            byte_acc = <span class="num">0</span>
+            bit_num = <span class="num">0</span>
         <span class="kwa">end</span>
-        x <span class="opt">+=</span> <span class="num">1</span>
+        x += <span class="num">1</span>
     <span class="kwa">end</span>
-    res<span class="opt">.</span>join
+    res.join
 <span class="kwa">end</span>
 
-<span class="kwa">if</span> MiniParallel<span class="opt">.</span>core_count <span class="opt">&gt;</span> <span class="num">1</span>
-    print MiniParallel<span class="opt">.</span><span class="kwd">map</span><span class="opt">((</span><span class="num">0</span><span class="opt">...</span>Size<span class="opt">).</span>to_a<span class="opt">){|</span>y<span class="opt">|</span>row y<span class="opt">}.</span>join
+<span class="kwa">if</span> MiniParallel.core_count &gt; <span class="num">1</span>
+    print MiniParallel.<span class="kwd">map</span>((<span class="num">0</span>...Size<span class="opt">)</span>.to_a<span class="opt">)</span>{|y|row y}.join
 <span class="kwa">else</span>
-    <span class="opt">(</span><span class="num">0</span><span class="opt">...</span>Size<span class="opt">).</span>each<span class="opt">{|</span>i<span class="opt">|</span>print row i<span class="opt">}</span>
+    (<span class="num">0</span>...Size<span class="opt">)</span>.each{|i|print row i}
 <span class="kwa">end</span>
     </pre>
   </section>
@@ -195,14 +195,14 @@ puts <span class="str">&quot;P4</span><span class="esc">\n</span><span class="st
     <pre>
 NOTES:
 64-bit Ubuntu quad core
-ruby 3.0.0p0 (2020-12-25 revision 95aff21468) [x86_64-linux]
---jit
+ruby 3.1.0p0 (2021-12-25 revision fb4df44d16) [x86_64-linux]
+--yjit
 
 
-Sun, 28 Feb 2021 03:53:45 GMT
+Fri, 07 Jan 2022 19:43:01 GMT
 
 COMMAND LINE:
-/opt/src/ruby-3.0.0/bin/ruby --jit -W0 mandelbrot.ruby-5.ruby 16000
+/opt/src/ruby-3.1.0/bin/ruby --yjit -W0 mandelbrot.ruby-5.ruby 16000
 
 (BINARY) PROGRAM OUTPUT NOT SHOWN
     </pre>

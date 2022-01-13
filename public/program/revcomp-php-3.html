@@ -22,62 +22,62 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
       <h2>source code</h2>
     </div>
     <pre>
-<span class="opt">&lt;</span>?php
+&lt;?php
 <span class="slc"># The Computer Language Benchmarks Game</span>
 <span class="slc"># https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
 <span class="slc">#</span>
 <span class="slc"># contributed by Yuriy Moskalchuk</span>
 
-<span class="kwa">function</span> <span class="kwd">work</span><span class="opt">()</span>
-<span class="opt">{</span>
-    <span class="kwa">global</span> <span class="kwc">$seq</span><span class="opt">,</span> <span class="kwc">$workers</span><span class="opt">;</span>
-    <span class="kwc">$sockets</span> <span class="opt">=</span> <span class="kwd">stream_socket_pair</span><span class="opt">(</span><span class="num">1</span><span class="opt">,</span> <span class="num">1</span><span class="opt">,</span> <span class="num">0</span><span class="opt">);</span>
-    <span class="kwc">$pid</span> <span class="opt">=</span> <span class="kwd">pcntl_fork</span><span class="opt">();</span>
-    <span class="kwa">if</span> <span class="opt">(</span><span class="kwc">$pid</span> <span class="opt">===</span> <span class="num">0</span><span class="opt">) {</span>
-        <span class="kwd">fclose</span><span class="opt">(</span><span class="kwc">$sockets</span><span class="opt">[</span><span class="num">0</span><span class="opt">]);</span>
-        <span class="kwd">fwrite</span><span class="opt">(</span><span class="kwc">$sockets</span><span class="opt">[</span><span class="num">1</span><span class="opt">],</span>
-            <span class="kwd">wordwrap</span><span class="opt">(</span>
-                <span class="kwd">strrev</span><span class="opt">(</span>
-                    <span class="kwd">strtr</span><span class="opt">(</span>
-                        <span class="kwd">str_ireplace</span><span class="opt">(</span><span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span> <span class="str">&apos;&apos;</span><span class="opt">,</span> <span class="kwc">$seq</span><span class="opt">),</span>
-                        <span class="str">&apos;CGATMKRYVBHDcgatmkryvbhd&apos;</span><span class="opt">,</span>
+<span class="kwa">function</span> <span class="kwd">work</span>()
+{
+    <span class="kwa">global</span> $seq, $workers;
+    $sockets = <span class="kwd">stream_socket_pair</span>(<span class="num">1</span>, <span class="num">1</span>, <span class="num">0</span>);
+    $pid = <span class="kwd">pcntl_fork</span>();
+    <span class="kwa">if</span> ($pid === <span class="num">0</span>) {
+        <span class="kwd">fclose</span>($sockets[<span class="num">0</span>]);
+        <span class="kwd">fwrite</span>($sockets[<span class="num">1</span>],
+            <span class="kwd">wordwrap</span>(
+                <span class="kwd">strrev</span>(
+                    <span class="kwd">strtr</span>(
+                        <span class="kwd">str_ireplace</span>(<span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span>, <span class="str">&apos;&apos;</span>, $seq),
+                        <span class="str">&apos;CGATMKRYVBHDcgatmkryvbhd&apos;</span>,
                         <span class="str">&apos;GCTAKMYRBVDHGCTAKMYRBVDH&apos;</span>
-                    <span class="opt">)</span>
-                <span class="opt">),</span>
-                <span class="num">60</span><span class="opt">,</span> <span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span> <span class="kwa">true</span>
-            <span class="opt">)</span>
-        <span class="opt">);</span>
-        <span class="kwa">exit</span><span class="opt">;</span>
-    <span class="opt">}</span> <span class="kwa">else</span> <span class="opt">{</span>
-        <span class="kwd">fclose</span><span class="opt">(</span><span class="kwc">$sockets</span><span class="opt">[</span><span class="num">1</span><span class="opt">]);</span>
-        <span class="kwc">$workers</span><span class="opt">[] =</span> <span class="kwc">$sockets</span><span class="opt">[</span><span class="num">0</span><span class="opt">];</span>
-    <span class="opt">}</span>
-<span class="opt">}</span>
+                    )
+                ),
+                <span class="num">60</span>, <span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span>, true
+            )
+        );
+        <span class="kwa">exit</span>;
+    } <span class="kwa">else</span> {
+        <span class="kwd">fclose</span>($sockets[<span class="num">1</span>]);
+        $workers[] = $sockets[<span class="num">0</span>];
+    }
+}
 
-<span class="kwc">$headers</span> <span class="opt">=</span> <span class="kwc">$workers</span> <span class="opt">= [];</span>
-<span class="kwc">$seq</span> <span class="opt">=</span> <span class="str">&apos;&apos;</span><span class="opt">;</span>
-<span class="kwa">while</span> <span class="opt">(</span><span class="kwa">true</span><span class="opt">) {</span>
-    <span class="kwc">$line</span> <span class="opt">=</span> <span class="kwd">fgets</span><span class="opt">(</span>STDIN<span class="opt">);</span>
-    <span class="kwa">if</span> <span class="opt">(</span><span class="kwc">$line</span> <span class="opt">&amp;&amp;</span> <span class="kwc">$line</span><span class="opt">[</span><span class="num">0</span><span class="opt">] ===</span> <span class="str">&apos;&gt;&apos;</span><span class="opt">) {</span>
-        <span class="kwc">$headers</span><span class="opt">[] =</span> <span class="kwc">$line</span><span class="opt">;</span>
-        <span class="kwa">if</span> <span class="opt">(!</span><span class="kwa">empty</span><span class="opt">(</span><span class="kwc">$seq</span><span class="opt">)) {</span>
-            <span class="kwd">work</span><span class="opt">();</span>
-            <span class="kwc">$seq</span> <span class="opt">=</span> <span class="str">&apos;&apos;</span><span class="opt">;</span>
-        <span class="opt">}</span>
-    <span class="opt">}</span> <span class="kwa">else</span> <span class="opt">{</span>
-        <span class="kwc">$seq</span> <span class="opt">.=</span> <span class="kwc">$line</span><span class="opt">;</span>
-        <span class="kwa">if</span> <span class="opt">(!</span><span class="kwc">$line</span><span class="opt">) {</span>
-            <span class="kwa">break</span><span class="opt">;</span>
-        <span class="opt">}</span>
-    <span class="opt">}</span>
-<span class="opt">}</span>
-<span class="kwd">work</span><span class="opt">();</span>
+$headers = $workers = [];
+$seq = <span class="str">&apos;&apos;</span>;
+<span class="kwa">while</span> (true) {
+    $line = <span class="kwd">fgets</span>(STDIN);
+    <span class="kwa">if</span> ($line &amp;&amp; $line[<span class="num">0</span>] === <span class="str">&apos;&gt;&apos;</span>) {
+        $headers[] = $line;
+        <span class="kwa">if</span> (!<span class="kwa">empty</span>($seq)) {
+            <span class="kwd">work</span>();
+            $seq = <span class="str">&apos;&apos;</span>;
+        }
+    } <span class="kwa">else</span> {
+        $seq .= $line;
+        <span class="kwa">if</span> (!$line) {
+            <span class="kwa">break</span>;
+        }
+    }
+}
+<span class="kwd">work</span>();
 
-<span class="kwa">foreach</span> <span class="opt">(</span><span class="kwc">$workers</span> <span class="kwa">as</span> <span class="kwc">$n</span> <span class="opt">=&gt;</span> <span class="kwc">$socket</span><span class="opt">) {</span>
-    <span class="kwd">fwrite</span><span class="opt">(</span>STDOUT<span class="opt">,</span> <span class="kwc">$headers</span><span class="opt">[</span><span class="kwc">$n</span><span class="opt">]);</span>
-    <span class="kwd">stream_copy_to_stream</span><span class="opt">(</span><span class="kwc">$socket</span><span class="opt">,</span> STDOUT<span class="opt">);</span>
-    <span class="kwd">fwrite</span><span class="opt">(</span>STDOUT<span class="opt">,</span> <span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">);</span>
-<span class="opt">}</span>
+<span class="kwa">foreach</span> ($workers <span class="kwa">as</span> $n =&gt; $socket) {
+    <span class="kwd">fwrite</span>(STDOUT, $headers[$n]);
+    <span class="kwd">stream_copy_to_stream</span>($socket, STDOUT);
+    <span class="kwd">fwrite</span>(STDOUT, <span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span>);
+}
     </pre>
   </section>
   <section>
@@ -87,15 +87,15 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
     <pre>
 NOTES:
 64-bit Ubuntu quad core
-PHP 8.0.0 (cli) (built: Nov 26 2020 09:02:29) ( NTS )
+PHP 8.1.1 (cli) (built: Jan  6 2022 19:24:43) (NTS)
 Copyright (c) The PHP Group
-Zend Engine v4.0.0-dev, Copyright (c) Zend Technologies
+Zend Engine v4.1.1, Copyright (c) Zend Technologies
 
 
-Sun, 29 Nov 2020 22:10:54 GMT
+Fri, 07 Jan 2022 04:58:12 GMT
 
 COMMAND LINE:
-/opt/src/php-8.0.0/bin/php -dzend_extension=/opt/src/php-8.0.0/lib/php/extensions/no-debug-non-zts-20200930/opcache.so -dopcache.enable_cli=1 -dopcache.jit_buffer_size=64M -n -d memory_limit=3072M revcomp.php-3.php 0 &lt; revcomp-input100000000.txt
+/opt/src/php-8.1.1/bin/php -dzend_extension=/opt/src/php-8.1.1/lib/php/extensions/no-debug-non-zts-20200930/opcache.so -dopcache.enable_cli=1 -dopcache.jit_buffer_size=64M -n -d memory_limit=3072M revcomp.php-3.php 0 &lt; revcomp-input100000000.txt
 
 (TRUNCATED) PROGRAM OUTPUT:
 &gt;ONE Homo sapiens alu
@@ -266,7 +266,9 @@ GCGCCCGGCCTTTTTGAGACGGAGTCTCGCTCTGTCGCCCAGGCTGGAGTGCAGTGGCGC
 GATCTCGGCTCACTGCAACCTCCGCCTCCCGGGTTCAAGCGATTCTCCTGCCTCAGCCTC
 CCGAGTAGCTGGGATTACAGGCGCGCGCCACCACGCCCGGCTAATTTTTGTATTTTTAGT
 AGAGACGGGGTTTCACCATGTTGGCCAGGCTGGTCTCGAACTCCTGACCTCAGGTGATCC
-GCCCGCCTCGGCCTCCCAAAGTGCTGGGATT    </pre>
+GCCCGCCTCGGCCTCCCAAAGTGCTGGGATT
+Failed loading /opt/src/php-8.1.1/lib/php/extensions/no-debug-non-zts-20200930/opcache.so:  /opt/src/php-8.1.1/lib/php/extensions/no-debug-non-zts-20200930/opcache.so: cannot open shared object file: No such file or directory
+    </pre>
   </section>
 </article>
 <footer>

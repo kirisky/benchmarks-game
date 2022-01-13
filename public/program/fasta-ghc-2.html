@@ -27,95 +27,95 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="slc">--</span>
 <span class="slc">-- Contributed by Branimir Maksimovic</span>
 
-<span class="kwd">import</span> Control<span class="opt">.</span>Monad
-<span class="kwd">import</span> Control<span class="opt">.</span>Concurrent
-<span class="kwd">import</span> Control<span class="opt">.</span>Concurrent<span class="opt">.</span>Chan
-<span class="kwd">import</span> System<span class="opt">.</span>Environment
-<span class="kwd">import</span> Data<span class="opt">.</span>IORef
-<span class="kwd">import</span> Data<span class="opt">.</span>List
-<span class="kwd">import qualified</span> Data<span class="opt">.</span>ByteString<span class="opt">.</span>Char8 <span class="kwd">as</span> B
-<span class="kwd">import qualified</span> Data<span class="opt">.</span>ByteString<span class="opt">.</span>Lazy<span class="opt">.</span>Char8 <span class="kwd">as</span> BL
+<span class="kwd">import</span> Control.Monad
+<span class="kwd">import</span> Control.Concurrent
+<span class="kwd">import</span> Control.Concurrent.Chan
+<span class="kwd">import</span> System.Environment
+<span class="kwd">import</span> Data.IORef
+<span class="kwd">import</span> Data.List
+<span class="kwd">import qualified</span> Data.ByteString.Char8 <span class="kwd">as</span> B
+<span class="kwd">import qualified</span> Data.ByteString.Lazy.Char8 <span class="kwd">as</span> BL
 
-lineLen <span class="opt">=</span> <span class="num">60</span>
-blockFactor <span class="opt">=</span> <span class="num">10</span>
-block <span class="opt">=</span> lineLen <span class="opt">*</span> blockFactor
+lineLen = <span class="num">60</span>
+blockFactor = <span class="num">10</span>
+block = lineLen * blockFactor
 
-main <span class="opt">=</span> <span class="kwd">do</span>
-    n <span class="opt">&lt;-</span> <span class="kwc">getArgs</span> <span class="opt">&gt;&gt;=</span> <span class="kwc">readIO</span><span class="opt">.</span><span class="kwc">head</span>
-    rnd <span class="opt">&lt;-</span> newIORef <span class="num">42</span>
-    repeatFasta <span class="str">&quot;&gt;ONE Homo sapiens alu&quot;</span> <span class="opt">(</span><span class="num">2</span><span class="opt">*</span>n<span class="opt">)</span> alu
-    dta <span class="opt">&lt;-</span> startThreads
-    randomFasta <span class="str">&quot;&gt;TWO IUB ambiguity codes&quot;</span> <span class="opt">(</span><span class="num">3</span><span class="opt">*</span>n<span class="opt">)</span> iub rnd dta
-    randomFasta <span class="str">&quot;&gt;THREE Homo sapiens frequency&quot;</span> <span class="opt">(</span><span class="num">5</span><span class="opt">*</span>n<span class="opt">)</span> homosapiens rnd dta
-    <span class="kwd">where</span> startThreads <span class="opt">=</span> <span class="kwd">do</span>
-            out <span class="opt">&lt;-</span> newEmptyMVar
-            workChan <span class="opt">&lt;-</span> newChan
-            <span class="kwc">mapM_</span> <span class="opt">(\</span>_<span class="opt">-&gt;</span> forkIO <span class="opt">$</span> <span class="kwd">do</span>
-                  <span class="kwd">let</span> loop <span class="opt">=</span> <span class="kwd">do</span>
-                       <span class="opt">(</span>i<span class="opt">,</span>work<span class="opt">,</span>line<span class="opt">) &lt;-</span> takeMVar out
-                       <span class="kwd">let</span> <span class="opt">!</span>ln <span class="opt">=</span> line work
-                       writeChan workChan <span class="opt">(</span>i<span class="opt">,</span>ln<span class="opt">)</span>
+main = <span class="kwd">do</span>
+    n &lt;- <span class="kwc">getArgs</span> &gt;&gt;= <span class="kwc">readIO</span>.<span class="kwc">head</span>
+    rnd &lt;- newIORef <span class="num">42</span>
+    repeatFasta <span class="str">&quot;&gt;ONE Homo sapiens alu&quot;</span> (<span class="num">2</span>*n) alu
+    dta &lt;- startThreads
+    randomFasta <span class="str">&quot;&gt;TWO IUB ambiguity codes&quot;</span> (<span class="num">3</span>*n) iub rnd dta
+    randomFasta <span class="str">&quot;&gt;THREE Homo sapiens frequency&quot;</span> (<span class="num">5</span>*n) homosapiens rnd dta
+    <span class="kwd">where</span> startThreads = <span class="kwd">do</span>
+            out &lt;- newEmptyMVar
+            workChan &lt;- newChan
+            <span class="kwc">mapM_</span> (\_-&gt; forkIO $ <span class="kwd">do</span>
+                  <span class="kwd">let</span> loop = <span class="kwd">do</span>
+                       (i,work,line) &lt;- takeMVar out
+                       <span class="kwd">let</span> !ln = line work
+                       writeChan workChan (i,ln)
                        loop
-                  loop<span class="opt">) [</span><span class="num">0</span><span class="opt">.</span><span class="num">.2</span><span class="opt">]</span>
-            <span class="kwc">return</span> <span class="opt">(</span>out<span class="opt">,</span>workChan<span class="opt">)</span>
+                  loop) [<span class="num">0</span>.<span class="num">.2</span>]
+            <span class="kwc">return</span> (out,workChan)
 
-repeatFasta <span class="opt">::</span> <span class="kwb">String</span> <span class="opt">-&gt;</span> <span class="kwb">Int</span> <span class="opt">-&gt;</span> BL<span class="opt">.</span>ByteString <span class="opt">-&gt;</span> <span class="kwb">IO</span> <span class="opt">()</span>
-repeatFasta s n nuc <span class="opt">=</span> <span class="kwd">do</span>
+repeatFasta :: <span class="kwb">String</span> -&gt; <span class="kwb">Int</span> -&gt; BL.ByteString -&gt; <span class="kwb">IO</span> ()
+repeatFasta s n nuc = <span class="kwd">do</span>
     <span class="kwc">putStrLn</span> s
-    breakString <span class="opt">$</span> BL<span class="opt">.</span>toStrict <span class="opt">$</span> BL<span class="opt">.</span><span class="kwc">take</span> <span class="opt">(</span><span class="kwc">fromIntegral</span> n<span class="opt">) $</span> BL<span class="opt">.</span><span class="kwc">cycle</span> nuc
+    breakString $ BL.toStrict $ BL.<span class="kwc">take</span> (<span class="kwc">fromIntegral</span> n) $ BL.<span class="kwc">cycle</span> nuc
 
-randomFasta <span class="opt">::</span> <span class="kwb">String</span> <span class="opt">-&gt;</span> <span class="kwb">Int</span> <span class="opt">-&gt; [(</span><span class="kwb">Float</span><span class="opt">,</span><span class="kwb">Char</span><span class="opt">)]-&gt;</span> IORef <span class="kwb">Int</span> <span class="opt">-&gt;</span> 
-               <span class="opt">(</span>MVar <span class="opt">(</span><span class="kwb">Int</span><span class="opt">,[</span><span class="kwb">Float</span><span class="opt">],[</span><span class="kwb">Float</span><span class="opt">]-&gt;</span>B<span class="opt">.</span>ByteString<span class="opt">),</span>Chan <span class="opt">(</span><span class="kwb">Int</span><span class="opt">,</span>B<span class="opt">.</span>ByteString<span class="opt">))-&gt;</span> <span class="kwb">IO</span> <span class="opt">()</span>
-randomFasta s n nuc rnd <span class="opt">(</span>out<span class="opt">,</span>workChan<span class="opt">) =</span> <span class="kwd">do</span>
+randomFasta :: <span class="kwb">String</span> -&gt; <span class="kwb">Int</span> -&gt; [(<span class="kwb">Float</span>,<span class="kwb">Char</span>)]-&gt; IORef <span class="kwb">Int</span> -&gt; 
+               (MVar (<span class="kwb">Int</span>,[<span class="kwb">Float</span>],[<span class="kwb">Float</span>]-&gt;B.ByteString),Chan (<span class="kwb">Int</span>,B.ByteString))-&gt; <span class="kwb">IO</span> ()
+randomFasta s n nuc rnd (out,workChan) = <span class="kwd">do</span>
     <span class="kwc">putStrLn</span> s
-    <span class="kwd">let</span> tbl <span class="opt">=</span> <span class="kwc">scanl1</span> <span class="opt">(\(</span>a<span class="opt">,</span>_<span class="opt">) (</span>b<span class="opt">,</span>c<span class="opt">) -&gt;(</span>a<span class="opt">+</span>b<span class="opt">,</span>c<span class="opt">))</span> nuc
-        genRndLst n <span class="opt">=</span> replicateM n <span class="opt">(</span>genRandom <span class="num">1.0</span> rnd<span class="opt">)</span>
-        <span class="kwc">find</span> <span class="opt">((</span>a<span class="opt">,</span>b<span class="opt">):</span>xs<span class="opt">)</span> p
-            | p <span class="opt">&lt;</span> a <span class="opt">=</span> b
-            | <span class="kwc">otherwise</span> <span class="opt">=</span> <span class="kwc">find</span> xs p
-        unf <span class="opt">[] =</span> Nothing
-        unf <span class="opt">(</span>x<span class="opt">:</span>xs<span class="opt">) =</span> Just <span class="opt">(</span><span class="kwc">find</span> tbl x<span class="opt">,</span>xs<span class="opt">)</span>
-        line <span class="opt">=</span> B<span class="opt">.</span><span class="kwc">unfoldr</span> unf
-    <span class="opt">(</span><span class="kwa">sum</span><span class="opt">,</span>i<span class="opt">) &lt;-</span> <span class="kwc">foldM</span> <span class="opt">(\(</span>x<span class="opt">,</span>i<span class="opt">)</span> _<span class="opt">-&gt;</span><span class="kwd">do</span>
-                         lst <span class="opt">&lt;-</span> genRndLst block
-                         putMVar out <span class="opt">(</span>i<span class="opt">,</span>lst<span class="opt">,</span>line<span class="opt">)</span>
-                         <span class="kwc">return</span> <span class="opt">(</span>x<span class="opt">+</span>block<span class="opt">,</span>i<span class="opt">+</span><span class="num">1</span><span class="opt">) ) (</span><span class="num">0</span><span class="opt">,</span><span class="num">0</span><span class="opt">) [</span>block<span class="opt">,</span><span class="num">2</span><span class="opt">*</span>block<span class="opt">..</span>n<span class="opt">-</span><span class="num">1</span><span class="opt">]</span>
-    mp <span class="opt">&lt;-</span> <span class="kwc">foldM</span> <span class="opt">(\</span>m _<span class="opt">-&gt;</span> <span class="kwd">do</span>
-                    dta <span class="opt">&lt;-</span> readChan workChan
-                    <span class="kwc">return</span> <span class="opt">(</span>dta<span class="opt">:</span>m<span class="opt">) ) [] [</span><span class="num">0</span><span class="opt">..</span>i<span class="opt">-</span><span class="num">1</span><span class="opt">]</span>
-    <span class="kwc">mapM_</span> <span class="opt">(\(</span>_<span class="opt">,</span>line<span class="opt">)-&gt;</span> breakString line<span class="opt">) $</span> <span class="kwc">sort</span> mp
-    lst <span class="opt">&lt;-</span> genRndLst <span class="opt">(</span>n<span class="opt">-</span><span class="kwa">sum</span><span class="opt">)</span>
-    breakString <span class="opt">$</span> line lst
+    <span class="kwd">let</span> tbl = <span class="kwc">scanl1</span> (\(a,_) (b,c) -&gt;(a+b,c)) nuc
+        genRndLst n = replicateM n (genRandom <span class="num">1.0</span> rnd)
+        <span class="kwc">find</span> ((a,b):xs) p
+            | p &lt; a = b
+            | <span class="kwc">otherwise</span> = <span class="kwc">find</span> xs p
+        unf [] = Nothing
+        unf (x:xs) = Just (<span class="kwc">find</span> tbl x,xs)
+        line = B.<span class="kwc">unfoldr</span> unf
+    (<span class="kwa">sum</span>,i) &lt;- <span class="kwc">foldM</span> (\(x,i) _-&gt;<span class="kwd">do</span>
+                         lst &lt;- genRndLst block
+                         putMVar out (i,lst,line)
+                         <span class="kwc">return</span> (x+block,i+<span class="num">1</span>) ) (<span class="num">0</span>,<span class="num">0</span>) [block,<span class="num">2</span>*block..n-<span class="num">1</span>]
+    mp &lt;- <span class="kwc">foldM</span> (\m _-&gt; <span class="kwd">do</span>
+                    dta &lt;- readChan workChan
+                    <span class="kwc">return</span> (dta:m) ) [] [<span class="num">0</span>..i-<span class="num">1</span>]
+    <span class="kwc">mapM_</span> (\(_,line)-&gt; breakString line) $ <span class="kwc">sort</span> mp
+    lst &lt;- genRndLst (n-<span class="kwa">sum</span>)
+    breakString $ line lst
     
-alu <span class="opt">=</span> BL<span class="opt">.</span>pack <span class="str">&quot;GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGG\</span>
+alu = BL.pack <span class="str">&quot;GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGGGAGGCCGAGGCGGGCGGATCACCTGAGG\</span>
 <span class="str">    \TCAGGAGTTCGAGACCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAATACAAAAATTAGCCGGG\</span>
 <span class="str">    \CGTGGTGGCGCGCGCCTGTAATCCCAGCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGGAGGC\</span>
 <span class="str">    \GGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCCAGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA&quot;</span>
 
-iub <span class="opt">= [(</span><span class="num">0.27</span><span class="opt">,&apos;</span>a<span class="opt">&apos;),(</span><span class="num">0.12</span><span class="opt">,&apos;</span>c<span class="opt">&apos;),(</span><span class="num">0.12</span><span class="opt">,&apos;</span>g<span class="opt">&apos;),(</span><span class="num">0.27</span><span class="opt">,&apos;</span>t<span class="opt">&apos;),(</span><span class="num">0.02</span><span class="opt">,&apos;</span>B<span class="opt">&apos;)</span>
-      <span class="opt">,(</span><span class="num">0.02</span><span class="opt">,&apos;</span>D<span class="opt">&apos;),(</span><span class="num">0.02</span><span class="opt">,&apos;</span>H<span class="opt">&apos;),(</span><span class="num">0.02</span><span class="opt">,&apos;</span>K<span class="opt">&apos;),(</span><span class="num">0.02</span><span class="opt">,&apos;</span>M<span class="opt">&apos;),(</span><span class="num">0.02</span><span class="opt">,&apos;</span>N<span class="opt">&apos;)</span>
-      <span class="opt">,(</span><span class="num">0.02</span><span class="opt">,&apos;</span>R<span class="opt">&apos;),(</span><span class="num">0.02</span><span class="opt">,&apos;</span>S<span class="opt">&apos;),(</span><span class="num">0.02</span><span class="opt">,&apos;</span>V<span class="opt">&apos;),(</span><span class="num">0.02</span><span class="opt">,&apos;</span>W<span class="opt">&apos;),(</span><span class="num">0.02</span><span class="opt">,&apos;</span>Y<span class="opt">&apos;)]</span>
+iub = [(<span class="num">0.27</span>,&apos;a&apos;),(<span class="num">0.12</span>,&apos;c&apos;),(<span class="num">0.12</span>,&apos;g&apos;),(<span class="num">0.27</span>,&apos;t&apos;),(<span class="num">0.02</span>,&apos;B&apos;)
+      ,(<span class="num">0.02</span>,&apos;D&apos;),(<span class="num">0.02</span>,&apos;H&apos;),(<span class="num">0.02</span>,&apos;K&apos;),(<span class="num">0.02</span>,&apos;M&apos;),(<span class="num">0.02</span>,&apos;N&apos;)
+      ,(<span class="num">0.02</span>,&apos;R&apos;),(<span class="num">0.02</span>,&apos;S&apos;),(<span class="num">0.02</span>,&apos;V&apos;),(<span class="num">0.02</span>,&apos;W&apos;),(<span class="num">0.02</span>,&apos;Y&apos;)]
 
-homosapiens <span class="opt">= [(</span><span class="num">0.3029549426680</span><span class="opt">,&apos;</span>a<span class="opt">&apos;),(</span><span class="num">0.1979883004921</span><span class="opt">,&apos;</span>c<span class="opt">&apos;)</span>
-              <span class="opt">,(</span><span class="num">0.1975473066391</span><span class="opt">,&apos;</span>g<span class="opt">&apos;),(</span><span class="num">0.3015094502008</span><span class="opt">,&apos;</span>t<span class="opt">&apos;)]</span>
+homosapiens = [(<span class="num">0.3029549426680</span>,&apos;a&apos;),(<span class="num">0.1979883004921</span>,&apos;c&apos;)
+              ,(<span class="num">0.1975473066391</span>,&apos;g&apos;),(<span class="num">0.3015094502008</span>,&apos;t&apos;)]
 
-genRandom <span class="opt">::</span> <span class="kwb">Float</span> <span class="opt">-&gt;</span> IORef <span class="kwb">Int</span> <span class="opt">-&gt;</span> <span class="kwb">IO Float</span>
-genRandom <span class="kwc">max</span> rnd <span class="opt">=</span> <span class="kwd">do</span>
-    <span class="kwd">let</span> im <span class="opt">=</span> <span class="num">139968</span>
-        ia <span class="opt">=</span> <span class="num">3877</span>
-        ic <span class="opt">=</span> <span class="num">29573</span>
-        form x <span class="opt">= ((</span>x<span class="opt">*</span>ia<span class="opt">+</span>ic<span class="opt">)</span>`<span class="kwc">rem</span>`im<span class="opt">)</span>
-    modifyIORef<span class="opt">&apos;</span> rnd form
-    <span class="kwc">last</span> <span class="opt">&lt;-</span> readIORef rnd
-    <span class="kwc">return</span> <span class="opt">(</span><span class="kwc">max</span> <span class="opt">* (</span><span class="kwc">fromIntegral last</span><span class="opt">) /</span> <span class="kwc">fromIntegral</span> im<span class="opt">)</span>
+genRandom :: <span class="kwb">Float</span> -&gt; IORef <span class="kwb">Int</span> -&gt; <span class="kwb">IO Float</span>
+genRandom <span class="kwc">max</span> rnd = <span class="kwd">do</span>
+    <span class="kwd">let</span> im = <span class="num">139968</span>
+        ia = <span class="num">3877</span>
+        ic = <span class="num">29573</span>
+        form x = ((x*ia+ic)`<span class="kwc">rem</span>`im)
+    modifyIORef&apos; rnd form
+    <span class="kwc">last</span> &lt;- readIORef rnd
+    <span class="kwc">return</span> (<span class="kwc">max</span> * (<span class="kwc">fromIntegral last</span>) / <span class="kwc">fromIntegral</span> im)
 
-breakString s <span class="opt">=</span> <span class="kwc">break</span><span class="opt">&apos; $</span> B<span class="opt">.</span><span class="kwc">splitAt</span> <span class="opt">(</span><span class="kwc">fromIntegral</span> lineLen<span class="opt">)</span> s
-     <span class="kwd">where</span> <span class="kwc">break</span><span class="opt">&apos; (</span>l<span class="opt">,</span>r<span class="opt">)</span>
-            | B<span class="opt">.</span><span class="kwc">null</span> l <span class="opt">&amp;&amp;</span> B<span class="opt">.</span><span class="kwc">null</span> r  <span class="opt">=</span> <span class="kwc">return</span> <span class="opt">()</span>
-            | B<span class="opt">.</span><span class="kwc">null</span> r <span class="opt">=</span> B<span class="opt">.</span><span class="kwc">putStrLn</span> l
-            | <span class="kwc">otherwise</span> <span class="opt">=</span> <span class="kwd">do</span>
-                           B<span class="opt">.</span><span class="kwc">putStrLn</span> l
-                           <span class="kwc">break</span><span class="opt">&apos; $</span> B<span class="opt">.</span><span class="kwc">splitAt</span> <span class="opt">(</span><span class="kwc">fromIntegral</span> lineLen<span class="opt">)</span> r
+breakString s = <span class="kwc">break</span>&apos; $ B.<span class="kwc">splitAt</span> (<span class="kwc">fromIntegral</span> lineLen) s
+     <span class="kwd">where</span> <span class="kwc">break</span>&apos; (l,r)
+            | B.<span class="kwc">null</span> l &amp;&amp; B.<span class="kwc">null</span> r  = <span class="kwc">return</span> ()
+            | B.<span class="kwc">null</span> r = B.<span class="kwc">putStrLn</span> l
+            | <span class="kwc">otherwise</span> = <span class="kwd">do</span>
+                           B.<span class="kwc">putStrLn</span> l
+                           <span class="kwc">break</span>&apos; $ B.<span class="kwc">splitAt</span> (<span class="kwc">fromIntegral</span> lineLen) r
     </pre>
   </section>
   <section>
@@ -126,22 +126,22 @@ breakString s <span class="opt">=</span> <span class="kwc">break</span><span cla
 NOTES:
 64-bit Ubuntu quad core
 The Glorious Glasgow Haskell Compilation System,
-version 9.0.1
+version 9.2.1
 
 
-Sun, 21 Feb 2021 00:25:36 GMT
+Wed, 12 Jan 2022 23:42:58 GMT
 
 MAKE:
 mv fasta.ghc-2.ghc fasta.ghc-2.hs
-/opt/src/ghc-9.0.1/bin/ghc --make -fllvm -O2 -XBangPatterns -threaded -rtsopts -XOverloadedStrings fasta.ghc-2.hs -o fasta.ghc-2.ghc_run
+~/.ghcup/ghc/9.2.1/bin/ghc --make -fllvm -O2 -XBangPatterns -threaded -rtsopts -XOverloadedStrings fasta.ghc-2.hs -o fasta.ghc-2.ghc_run
 [1 of 1] Compiling Main             ( fasta.ghc-2.hs, fasta.ghc-2.o )
 You are using an unsupported version of LLVM!
-Currently only 9 is supported. System LLVM version: 11.0.0
+Currently only 9 to 13 is supported. System LLVM version: 13.0.0
 We will try though...
 Linking fasta.ghc-2.ghc_run ...
 rm fasta.ghc-2.hs
 
-10.27s to complete and log all make actions
+10.18s to complete and log all make actions
 
 COMMAND LINE:
 ./fasta.ghc-2.ghc_run +RTS -N4 -RTS 25000000

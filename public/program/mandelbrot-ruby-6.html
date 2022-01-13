@@ -29,132 +29,132 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 
 <span class="kwa">require</span> <span class="str">&apos;thread&apos;</span>
 
-WORKER_COUNT <span class="opt">=</span> <span class="kwa">begin</span>
-  cpu_count <span class="opt">=</span> <span class="kwa">if</span> File<span class="opt">.</span>readable<span class="opt">?(</span><span class="str">&apos;/proc/cpuinfo&apos;</span><span class="opt">)</span> <span class="slc"># Linux</span>
-    <span class="str">%x(cat /proc/cpuinfo | grep -c processor).chomp.to_i</span>
-<span class="str">  elsif File.executable?(&apos;/usr/sbin/sysctl&apos;)  #OS/X</span>
-<span class="str">    %x(/usr/sbin/sysctl -n hw.ncpu).chomp.to_i</span>
-<span class="str">  else</span>
-<span class="str">    1</span>
-<span class="str">  end</span>
-<span class="str">  [(cpu_count * 2.0).to_i, 2].max</span>
-<span class="str">end</span>
-<span class="str"></span>
-<span class="str">class WorkerPool</span>
-<span class="str"></span>
-<span class="str">  def initialize</span>
-<span class="str">    &#64;work = Queue.new</span>
-<span class="str">    &#64;pool = Array.new(WORKER_COUNT) do |i|</span>
-<span class="str">      Thread.new do</span>
-<span class="str">        Thread.current[:id] = i</span>
-<span class="str">        catch(:exit) do</span>
-<span class="str">          while(true) do</span>
-<span class="str">            work, args = &#64;work.pop</span>
-<span class="str">            work.call(*args)</span>
-<span class="str">          end</span>
-<span class="str">        end</span>
-<span class="str">      end</span>
-<span class="str">    end</span>
-<span class="str">  end</span>
-<span class="str"></span>
-<span class="str">  def schedule(*args, &amp;block)</span>
-<span class="str">    &#64;work &lt;&lt; [block, args]</span>
-<span class="str">  end</span>
-<span class="str"></span>
-<span class="str">  def shutdown</span>
-<span class="str">    &#64;pool.size.times do</span>
-<span class="str">      schedule { throw :exit }</span>
-<span class="str">    end</span>
-<span class="str">    &#64;pool.each do |t|</span>
-<span class="str">      t.join</span>
-<span class="str">    end</span>
-<span class="str">  end</span>
-<span class="str"></span>
-<span class="str">end</span>
-<span class="str"></span>
-<span class="str">class Mandel</span>
-<span class="str"></span>
-<span class="str">  attr_reader :output</span>
-<span class="str"></span>
-<span class="str">  def self.render(size)</span>
-<span class="str">    m = Mandel.new(size)</span>
-<span class="str">    m.process</span>
-<span class="str">    print &quot;#{m.header}</span><span class="esc">\n</span><span class="str">#{m.output.join}&quot;</span>
-<span class="str">  end</span>
-<span class="str"></span>
-<span class="str">  def initialize(size)</span>
-<span class="str">    &#64;size = size.to_i</span>
-<span class="str">    &#64;output = Array.new(&#64;size)</span>
-<span class="str">    &#64;two_over_size = 2.0 / &#64;size.to_f</span>
-<span class="str">  end</span>
-<span class="str"></span>
-<span class="str">  def process</span>
-<span class="str">    workers = WorkerPool.new  # Using a thread pool to manage processes</span>
-<span class="str">    &#64;size.times do |row|</span>
-<span class="str">      workers.schedule(row) do |y|</span>
-<span class="str">        read, write = IO.pipe</span>
-<span class="str">        Process.fork do</span>
-<span class="str">          read.close</span>
-<span class="str">          ci = (&#64;two_over_size * y.to_f) - 1.0</span>
-<span class="str">          write.print( render_row(ci) )</span>
-<span class="str">        end</span>
-<span class="str">        Process.wait</span>
-<span class="str">        write.close</span>
-<span class="str">        &#64;output[y] = read.read</span>
-<span class="str">      end</span>
-<span class="str">    end</span>
-<span class="str">    workers.shutdown</span>
-<span class="str">  end</span>
-<span class="str"></span>
-<span class="str">  def header</span>
-<span class="str">    &quot;P4</span><span class="esc">\n</span><span class="str">#{&#64;size} #{&#64;size}&quot;</span>
-<span class="str">  end</span>
-<span class="str"></span>
-<span class="str">  private</span>
-<span class="str"></span>
-<span class="str">  def render_row(ci)</span>
-<span class="str">    row_bits = Array.new(&#64;size) do |col|</span>
-<span class="str">      cr = (&#64;two_over_size * col.to_f) - 1.5</span>
-<span class="str">      get_bit(cr, ci)</span>
-<span class="str">    end</span>
-<span class="str"></span>
-<span class="str">    row = &apos;&apos;</span>
-<span class="str">    row_bits.each_slice(8) do |byte|</span>
-<span class="str">      if byte.size &lt; 8</span>
-<span class="str">        byte = byte.fill(0b0, byte.size, 8 - byte.size)</span>
-<span class="str">      end</span>
-<span class="str">      row &lt;&lt; byte.join.to_i(2).chr</span>
-<span class="str">    end</span>
-<span class="str"></span>
-<span class="str">    row</span>
-<span class="str">  end</span>
-<span class="str"></span>
-<span class="str">  def get_bit(cr, ci)</span>
-<span class="str">    zrzr = 0.0</span>
-<span class="str">    zizi = 0.0</span>
-<span class="str">    zrzi = 0.0</span>
-<span class="str"></span>
-<span class="str">    count = 50</span>
-<span class="str">    while count &gt; 0</span>
-<span class="str"></span>
-<span class="str">      zr = zrzr - zizi + cr</span>
-<span class="str">      zi = 2.0 * zrzi + ci</span>
-<span class="str"></span>
-<span class="str">      zrzr = zr * zr</span>
-<span class="str">      zizi = zi * zi</span>
-<span class="str">      zrzi = zr * zi</span>
-<span class="str"></span>
-<span class="str">      return 0b0 if zrzr + zizi &gt; 4.0</span>
-<span class="str"></span>
-<span class="str">      count -= 1</span>
-<span class="str">    end</span>
-<span class="str"></span>
-<span class="str">    0b1</span>
-<span class="str">  end</span>
-<span class="str"></span>
-<span class="str">end</span>
-<span class="str"></span>
-<span class="str">Mandel.render(ARGV.shift)</span>
+WORKER_COUNT = <span class="kwa">begin</span>
+  cpu_count = <span class="kwa">if</span> File.readable?(<span class="str">&apos;/proc/cpuinfo&apos;</span><span class="opt">)</span> <span class="slc"># Linux</span>
+    <span class="str">%x(cat /proc/cpuinfo | grep -c processor)</span>.chomp.to_i
+  <span class="kwa">elsif</span> File.executable?(<span class="str">&apos;/usr/sbin/sysctl&apos;)  #OS/X</span>
+<span class="str">    %x(/usr/sbin/sysctl -n hw.ncpu)</span>.chomp.to_i
+  <span class="kwa">else</span>
+    <span class="num">1</span>
+  <span class="kwa">end</span>
+  [(cpu_count * <span class="num">2.0</span><span class="opt">)</span>.to_i, <span class="num">2</span>].max
+<span class="kwa">end</span>
+
+<span class="kwa">class</span> WorkerPool
+
+  <span class="kwa">def</span> initialize
+    <span class="kwb">&#64;work</span> = Queue.new
+    <span class="kwb">&#64;pool</span> = Array.<span class="kwd">new</span>(WORKER_COUNT<span class="opt">)</span> <span class="kwa">do</span> |i|
+      Thread.new <span class="kwa">do</span>
+        Thread.current[<span class="kwc">:id</span>] = i
+        <span class="kwd">catch</span>(<span class="kwc">:exit</span><span class="opt">)</span> <span class="kwa">do</span>
+          <span class="kwa">while</span>(<span class="kwa">true</span><span class="opt">)</span> <span class="kwa">do</span>
+            work, args = <span class="kwb">&#64;work</span>.pop
+            work.<span class="kwd">call</span>(*args<span class="opt">)</span>
+          <span class="kwa">end</span>
+        <span class="kwa">end</span>
+      <span class="kwa">end</span>
+    <span class="kwa">end</span>
+  <span class="kwa">end</span>
+
+  <span class="kwa">def</span> <span class="kwd">schedule</span>(*args, &amp;block<span class="opt">)</span>
+    <span class="kwb">&#64;work</span> &lt;&lt; [block, args]
+  <span class="kwa">end</span>
+
+  <span class="kwa">def</span> shutdown
+    <span class="kwb">&#64;pool</span>.size.times <span class="kwa">do</span>
+      schedule { throw :exit }
+    <span class="kwa">end</span>
+    <span class="kwb">&#64;pool</span>.each <span class="kwa">do</span> |t|
+      t.join
+    <span class="kwa">end</span>
+  <span class="kwa">end</span>
+
+<span class="kwa">end</span>
+
+<span class="kwa">class</span> Mandel
+
+  attr_reader <span class="kwc">:output</span>
+
+  <span class="kwa">def self</span>.<span class="kwd">render</span>(size<span class="opt">)</span>
+    m = Mandel.<span class="kwd">new</span>(size<span class="opt">)</span>
+    m.process
+    print <span class="str">&quot;</span><span class="ipl">#{m.header}</span><span class="str"></span><span class="esc">\n</span><span class="str"></span><span class="ipl">#{m.output.join}</span><span class="str">&quot;</span>
+  <span class="kwa">end</span>
+
+  <span class="kwa">def</span> <span class="kwd">initialize</span>(size<span class="opt">)</span>
+    <span class="kwb">&#64;size</span> = size.to_i
+    <span class="kwb">&#64;output</span> = Array.<span class="kwd">new</span>(<span class="kwb">&#64;size</span><span class="opt">)</span>
+    <span class="kwb">&#64;two_over_size</span> = <span class="num">2.0</span> / <span class="kwb">&#64;size</span>.to_f
+  <span class="kwa">end</span>
+
+  <span class="kwa">def</span> process
+    workers = WorkerPool.new  <span class="slc"># Using a thread pool to manage processes</span>
+    <span class="kwb">&#64;size</span>.times <span class="kwa">do</span> |row|
+      workers.<span class="kwd">schedule</span>(row<span class="opt">)</span> <span class="kwa">do</span> |y|
+        read, write = IO.pipe
+        Process.fork <span class="kwa">do</span>
+          read.close
+          ci = (<span class="kwb">&#64;two_over_size</span> * y.to_f<span class="opt">)</span> - <span class="num">1.0</span>
+          write.<span class="kwd">print</span>( <span class="kwd">render_row</span>(ci<span class="opt">) )</span>
+        <span class="kwa">end</span>
+        Process.wait
+        write.close
+        <span class="kwb">&#64;output</span>[y] = read.read
+      <span class="kwa">end</span>
+    <span class="kwa">end</span>
+    workers.shutdown
+  <span class="kwa">end</span>
+
+  <span class="kwa">def</span> header
+    <span class="str">&quot;P4</span><span class="esc">\n</span><span class="str"></span><span class="ipl">#{&#64;size}</span> <span class="str"></span><span class="ipl">#{&#64;size}</span><span class="str">&quot;</span>
+  <span class="kwa">end</span>
+
+  private
+
+  <span class="kwa">def</span> <span class="kwd">render_row</span>(ci<span class="opt">)</span>
+    row_bits = Array.<span class="kwd">new</span>(<span class="kwb">&#64;size</span><span class="opt">)</span> <span class="kwa">do</span> |col|
+      cr = (<span class="kwb">&#64;two_over_size</span> * col.to_f<span class="opt">)</span> - <span class="num">1.5</span>
+      <span class="kwd">get_bit</span>(cr, ci<span class="opt">)</span>
+    <span class="kwa">end</span>
+
+    row = <span class="str">&apos;&apos;</span>
+    row_bits.<span class="kwd">each_slice</span>(<span class="num">8</span><span class="opt">)</span> <span class="kwa">do</span> |byte|
+      <span class="kwa">if</span> byte.size &lt; <span class="num">8</span>
+        byte = byte.<span class="kwd">fill</span>(<span class="num">0b0</span>, byte.size, <span class="num">8</span> - byte.size<span class="opt">)</span>
+      <span class="kwa">end</span>
+      row &lt;&lt; byte.join.<span class="kwd">to_i</span>(<span class="num">2</span><span class="opt">)</span>.chr
+    <span class="kwa">end</span>
+
+    row
+  <span class="kwa">end</span>
+
+  <span class="kwa">def</span> <span class="kwd">get_bit</span>(cr, ci<span class="opt">)</span>
+    zrzr = <span class="num">0.0</span>
+    zizi = <span class="num">0.0</span>
+    zrzi = <span class="num">0.0</span>
+
+    count = <span class="num">50</span>
+    <span class="kwa">while</span> count &gt; <span class="num">0</span>
+
+      zr = zrzr - zizi + cr
+      zi = <span class="num">2.0</span> * zrzi + ci
+
+      zrzr = zr * zr
+      zizi = zi * zi
+      zrzi = zr * zi
+
+      <span class="kwa">return</span> <span class="num">0b0</span> <span class="kwa">if</span> zrzr + zizi &gt; <span class="num">4.0</span>
+
+      count -= <span class="num">1</span>
+    <span class="kwa">end</span>
+
+    <span class="num">0b1</span>
+  <span class="kwa">end</span>
+
+<span class="kwa">end</span>
+
+Mandel.<span class="kwd">render</span>(<span class="kwc">ARGV</span>.shift<span class="opt">)</span>
     </pre>
   </section>
   <section>
@@ -164,33 +164,33 @@ WORKER_COUNT <span class="opt">=</span> <span class="kwa">begin</span>
     <pre>
 NOTES:
 64-bit Ubuntu quad core
-ruby 3.0.0p0 (2020-12-25 revision 95aff21468) [x86_64-linux]
---jit
+ruby 3.1.0p0 (2021-12-25 revision fb4df44d16) [x86_64-linux]
+--yjit
 
 
-Sun, 28 Feb 2021 03:38:29 GMT
+Fri, 07 Jan 2022 19:41:49 GMT
 
 COMMAND LINE:
-/opt/src/ruby-3.0.0/bin/ruby --jit -W0 mandelbrot.ruby-6.ruby 4000
+/opt/src/ruby-3.1.0/bin/ruby --yjit -W0 mandelbrot.ruby-6.ruby 4000
 
 PROGRAM FAILED 
 
 
 (BINARY) PROGRAM OUTPUT NOT SHOWN
 
-#&lt;Thread:0x00005648d6975980 mandelbrot.ruby-6.ruby:24 run&gt; terminated with exception (report_on_exception is true):
+#&lt;Thread:0x00007f48d0071140 mandelbrot.ruby-6.ruby:24 run&gt; terminated with exception (report_on_exception is true):
 mandelbrot.ruby-6.ruby:71:in `pipe': Too many open files (Errno::EMFILE)
 	from mandelbrot.ruby-6.ruby:71:in `block (2 levels) in process'
 	from mandelbrot.ruby-6.ruby:29:in `block (3 levels) in initialize'
 	from mandelbrot.ruby-6.ruby:26:in `catch'
 	from mandelbrot.ruby-6.ruby:26:in `block (2 levels) in initialize'
-#&lt;Thread:0x00005648d6975890 mandelbrot.ruby-6.ruby:24 run&gt; terminated with exception (report_on_exception is true):
+#&lt;Thread:0x00007f48d0070e48 mandelbrot.ruby-6.ruby:24 run&gt; terminated with exception (report_on_exception is true):
 mandelbrot.ruby-6.ruby:71:in `pipe': Too many open files (Errno::EMFILE)
 	from mandelbrot.ruby-6.ruby:71:in `block (2 levels) in process'
 	from mandelbrot.ruby-6.ruby:29:in `block (3 levels) in initialize'
 	from mandelbrot.ruby-6.ruby:26:in `catch'
 	from mandelbrot.ruby-6.ruby:26:in `block (2 levels) in initialize'
-#&lt;Thread:0x00005648d6975e08 mandelbrot.ruby-6.ruby:24 run&gt; terminated with exception (report_on_exception is true):
+#&lt;Thread:0x00007f48d0070d30 mandelbrot.ruby-6.ruby:24 run&gt; terminated with exception (report_on_exception is true):
 mandelbrot.ruby-6.ruby:71:in `pipe': Too many open files (Errno::EMFILE)
 	from mandelbrot.ruby-6.ruby:71:in `block (2 levels) in process'
 	from mandelbrot.ruby-6.ruby:29:in `block (3 levels) in initialize'
@@ -198,14 +198,6 @@ mandelbrot.ruby-6.ruby:71:in `pipe': Too many open files (Errno::EMFILE)
 	from mandelbrot.ruby-6.ruby:26:in `block (2 levels) in initialize'
 mandelbrot.ruby-6.ruby:71:in `pipe': Too many open files (Errno::EMFILE)
 	from mandelbrot.ruby-6.ruby:71:in `block (2 levels) in process'
-	from mandelbrot.ruby-6.ruby:29:in `block (3 levels) in initialize'
-	from mandelbrot.ruby-6.ruby:26:in `catch'
-	from mandelbrot.ruby-6.ruby:26:in `block (2 levels) in initialize'
-mandelbrot.ruby-6.ruby:75:in `write': Broken pipe (Errno::EPIPE)
-	from mandelbrot.ruby-6.ruby:75:in `print'
-	from mandelbrot.ruby-6.ruby:75:in `block (3 levels) in process'
-	from mandelbrot.ruby-6.ruby:72:in `fork'
-	from mandelbrot.ruby-6.ruby:72:in `block (2 levels) in process'
 	from mandelbrot.ruby-6.ruby:29:in `block (3 levels) in initialize'
 	from mandelbrot.ruby-6.ruby:26:in `catch'
 	from mandelbrot.ruby-6.ruby:26:in `block (2 levels) in initialize'

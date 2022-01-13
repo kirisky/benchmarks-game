@@ -28,114 +28,114 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="com">   contributed by Marco van de Voort</span>
 <span class="com">}</span>
 
-<span class="kwa">program</span> reverse_complement<span class="opt">;</span>
+<span class="kwa">program</span> reverse_complement;
 
-<span class="kwa">var</span> lookupComplement <span class="opt">:</span> <span class="kwa">array</span><span class="opt">[</span><span class="esc">#0</span><span class="opt">..</span><span class="esc">#255</span><span class="opt">]</span> <span class="kwa">of</span> <span class="kwb">char</span><span class="opt">;</span>
+<span class="kwa">var</span> lookupComplement : <span class="kwa">array</span>[<span class="esc">#0</span>..<span class="esc">#255</span>] <span class="kwa">of</span> <span class="kwb">char</span>;
 
-<span class="kwa">Const</span> FASTAXLAT <span class="opt">:</span> <span class="kwa">array</span><span class="opt">[</span><span class="num">0</span><span class="opt">.</span><span class="num">.11</span><span class="opt">]</span> <span class="kwa">of array</span><span class="opt">[</span><span class="num">0</span><span class="opt">.</span><span class="num">.1</span><span class="opt">]</span> <span class="kwa">of</span> <span class="kwb">char</span> <span class="opt">= (</span>
-		  <span class="opt">(</span> <span class="str">&apos;A&apos;</span><span class="opt">,</span> <span class="str">&apos;T&apos;</span> <span class="opt">), (</span> <span class="str">&apos;C&apos;</span><span class="opt">,</span> <span class="str">&apos;G&apos;</span> <span class="opt">),</span>
-		  <span class="opt">(</span> <span class="str">&apos;B&apos;</span><span class="opt">,</span> <span class="str">&apos;V&apos;</span> <span class="opt">), (</span> <span class="str">&apos;D&apos;</span><span class="opt">,</span> <span class="str">&apos;H&apos;</span> <span class="opt">),</span>
-	          <span class="opt">(</span> <span class="str">&apos;K&apos;</span><span class="opt">,</span> <span class="str">&apos;M&apos;</span> <span class="opt">), (</span> <span class="str">&apos;R&apos;</span><span class="opt">,</span> <span class="str">&apos;Y&apos;</span> <span class="opt">),</span>
-		  <span class="opt">(</span> <span class="str">&apos;a&apos;</span><span class="opt">,</span> <span class="str">&apos;t&apos;</span> <span class="opt">), (</span> <span class="str">&apos;c&apos;</span><span class="opt">,</span> <span class="str">&apos;g&apos;</span> <span class="opt">),</span>
-		  <span class="opt">(</span> <span class="str">&apos;b&apos;</span><span class="opt">,</span> <span class="str">&apos;v&apos;</span> <span class="opt">), (</span> <span class="str">&apos;d&apos;</span><span class="opt">,</span> <span class="str">&apos;h&apos;</span> <span class="opt">),</span>
-	          <span class="opt">(</span> <span class="str">&apos;k&apos;</span><span class="opt">,</span> <span class="str">&apos;m&apos;</span> <span class="opt">), (</span> <span class="str">&apos;r&apos;</span><span class="opt">,</span> <span class="str">&apos;y&apos;</span> <span class="opt">));</span>
+<span class="kwa">Const</span> FASTAXLAT : <span class="kwa">array</span>[<span class="num">0</span>.<span class="num">.11</span>] <span class="kwa">of array</span>[<span class="num">0</span>.<span class="num">.1</span>] <span class="kwa">of</span> <span class="kwb">char</span> = (
+		  ( <span class="str">&apos;A&apos;</span>, <span class="str">&apos;T&apos;</span> ), ( <span class="str">&apos;C&apos;</span>, <span class="str">&apos;G&apos;</span> ),
+		  ( <span class="str">&apos;B&apos;</span>, <span class="str">&apos;V&apos;</span> ), ( <span class="str">&apos;D&apos;</span>, <span class="str">&apos;H&apos;</span> ),
+	          ( <span class="str">&apos;K&apos;</span>, <span class="str">&apos;M&apos;</span> ), ( <span class="str">&apos;R&apos;</span>, <span class="str">&apos;Y&apos;</span> ),
+		  ( <span class="str">&apos;a&apos;</span>, <span class="str">&apos;t&apos;</span> ), ( <span class="str">&apos;c&apos;</span>, <span class="str">&apos;g&apos;</span> ),
+		  ( <span class="str">&apos;b&apos;</span>, <span class="str">&apos;v&apos;</span> ), ( <span class="str">&apos;d&apos;</span>, <span class="str">&apos;h&apos;</span> ),
+	          ( <span class="str">&apos;k&apos;</span>, <span class="str">&apos;m&apos;</span> ), ( <span class="str">&apos;r&apos;</span>, <span class="str">&apos;y&apos;</span> ));
 
-      BufferIncrement <span class="opt">=</span> <span class="num">1024</span><span class="opt">;</span>
+      BufferIncrement = <span class="num">1024</span>;
 
-<span class="kwa">procedure</span> <span class="kwd">flushbuffer</span><span class="opt">(</span>buffer<span class="opt">:</span>pchar<span class="opt">;</span>inbuf<span class="opt">:</span><span class="kwb">longint</span><span class="opt">);</span>
+<span class="kwa">procedure</span> <span class="kwd">flushbuffer</span>(buffer:pchar;inbuf:<span class="kwb">longint</span>);
 
-<span class="kwa">var</span> p<span class="opt">,</span>p2 <span class="opt">:</span> pchar<span class="opt">;</span>
-    c  <span class="opt">:</span> <span class="kwb">char</span><span class="opt">;</span>
+<span class="kwa">var</span> p,p2 : pchar;
+    c  : <span class="kwb">char</span>;
 
 <span class="kwa">begin</span>
-  <span class="kwa">if</span> inbuf<span class="opt">&gt;</span><span class="num">0</span> <span class="kwa">then</span>
+  <span class="kwc">if</span> inbuf&gt;<span class="num">0</span> <span class="kwc">then</span>
    <span class="kwa">begin</span>
-     p<span class="opt">:=</span>buffer<span class="opt">;</span>
-     p2<span class="opt">:=&#64;</span>buffer<span class="opt">[</span>inbuf<span class="opt">-</span><span class="num">1</span><span class="opt">];</span>
-     <span class="kwa">while</span> p<span class="opt">&lt;</span>p2 <span class="kwa">do</span>
+     p:=buffer;
+     p2:=&#64;buffer[inbuf-<span class="num">1</span>];
+     <span class="kwc">while</span> p&lt;p2 <span class="kwc">do</span>
       <span class="kwa">begin</span>
-       c<span class="opt">:=</span>lookupcomplement<span class="opt">[</span>p<span class="opt">^];</span>
-       p<span class="opt">^:=</span>lookupcomplement<span class="opt">[</span>p2<span class="opt">^];</span>
-       p2<span class="opt">^:=</span>c<span class="opt">;</span>
-       <span class="kwd">inc</span><span class="opt">(</span>p<span class="opt">);</span>
-       <span class="kwd">dec</span><span class="opt">(</span>p2<span class="opt">);</span>
-     <span class="kwa">end</span><span class="opt">;</span>
-    <span class="kwa">if</span> p2<span class="opt">=</span>p <span class="kwa">then</span>
-      p<span class="opt">^:=</span>lookupcomplement<span class="opt">[</span>p<span class="opt">^];</span>
+       c:=lookupcomplement[p^];
+       p^:=lookupcomplement[p2^];
+       p2^:=c;
+       <span class="kwd">inc</span>(p);
+       <span class="kwd">dec</span>(p2);
+     <span class="kwa">end</span>;
+    <span class="kwc">if</span> p2=p <span class="kwc">then</span>
+      p^:=lookupcomplement[p^];
 
-    p<span class="opt">:=</span>buffer<span class="opt">;</span>
-    p<span class="opt">[</span>inbuf<span class="opt">]:=</span><span class="esc">#0</span><span class="opt">;</span>
+    p:=buffer;
+    p[inbuf]:=<span class="esc">#0</span>;
 
-   <span class="kwa">while</span> <span class="opt">(</span>inbuf <span class="opt">&gt;</span> <span class="num">60</span><span class="opt">)</span> <span class="kwa">do</span>
+   <span class="kwc">while</span> (inbuf &gt; <span class="num">60</span>) <span class="kwc">do</span>
      <span class="kwa">begin</span>
-    	c <span class="opt">:=</span> p<span class="opt">[</span><span class="num">60</span><span class="opt">];</span>
-	p<span class="opt">[</span><span class="num">60</span><span class="opt">]:=</span><span class="esc">#0</span><span class="opt">;</span>
-        <span class="kwd">writeln</span><span class="opt">(</span>p<span class="opt">);</span>
-        p<span class="opt">[</span><span class="num">60</span><span class="opt">]:=</span>c<span class="opt">;</span>
-	<span class="kwd">inc</span><span class="opt">(</span>p<span class="opt">,</span><span class="num">60</span><span class="opt">);</span>
-	<span class="kwd">dec</span><span class="opt">(</span>inbuf<span class="opt">,</span><span class="num">60</span><span class="opt">);</span>
-     <span class="kwa">end</span><span class="opt">;</span>
-     p<span class="opt">[</span>inbuf<span class="opt">]:=</span><span class="esc">#0</span><span class="opt">;</span>
-     <span class="kwd">writeln</span><span class="opt">(</span>p<span class="opt">);</span>
-  <span class="kwa">end</span><span class="opt">;</span>
-<span class="kwa">end</span><span class="opt">;</span>
+    	c := p[<span class="num">60</span>];
+	p[<span class="num">60</span>]:=<span class="esc">#0</span>;
+        <span class="kwd">writeln</span>(p);
+        p[<span class="num">60</span>]:=c;
+	<span class="kwd">inc</span>(p,<span class="num">60</span>);
+	<span class="kwd">dec</span>(inbuf,<span class="num">60</span>);
+     <span class="kwa">end</span>;
+     p[inbuf]:=<span class="esc">#0</span>;
+     <span class="kwd">writeln</span>(p);
+  <span class="kwa">end</span>;
+<span class="kwa">end</span>;
 
-<span class="kwa">const</span> initialincrement<span class="opt">=</span><span class="num">1024</span><span class="opt">;</span>
+<span class="kwa">const</span> initialincrement=<span class="num">1024</span>;
 
-<span class="kwa">procedure</span> run<span class="opt">;</span>
+<span class="kwa">procedure</span> run;
 
-<span class="kwa">var</span> s  <span class="opt">:</span> <span class="kwb">string</span><span class="opt">;</span>
-    c  <span class="opt">:</span> <span class="kwb">char</span><span class="opt">;</span>
-    buffersize<span class="opt">,</span>
-    bufferptr<span class="opt">,</span>
-    len		<span class="opt">:</span> <span class="kwb">longint</span><span class="opt">;</span>
-    p  <span class="opt">:</span>pchar<span class="opt">;</span>
-    line <span class="opt">:</span> <span class="kwb">integer</span><span class="opt">;</span>
-    bufin<span class="opt">,</span>bufout <span class="opt">:</span> <span class="kwa">array</span><span class="opt">[</span><span class="num">0</span><span class="opt">.</span><span class="num">.8191</span><span class="opt">]</span> <span class="kwa">of</span> <span class="kwb">char</span><span class="opt">;</span>
+<span class="kwa">var</span> s  : <span class="kwa">string</span>;
+    c  : <span class="kwb">char</span>;
+    buffersize,
+    bufferptr,
+    len		: <span class="kwb">longint</span>;
+    p  :pchar;
+    line : <span class="kwb">integer</span>;
+    bufin,bufout : <span class="kwa">array</span>[<span class="num">0</span>.<span class="num">.8191</span>] <span class="kwa">of</span> <span class="kwb">char</span>;
 
 <span class="kwa">begin</span>
-  <span class="kwd">settextbuf</span><span class="opt">(</span>input<span class="opt">,</span>bufin<span class="opt">);</span>
-  <span class="kwd">settextbuf</span><span class="opt">(</span>output<span class="opt">,</span>bufout<span class="opt">);</span>
-  <span class="kwa">for</span> c<span class="opt">:=</span><span class="esc">#0</span>  <span class="kwa">to</span> <span class="esc">#255</span>  <span class="kwa">do</span>
-    lookupcomplement<span class="opt">[</span>c<span class="opt">]:=</span>c<span class="opt">;</span>
-  <span class="kwa">for</span> len<span class="opt">:=</span><span class="num">0</span> <span class="kwa">to</span> <span class="kwd">high</span><span class="opt">(</span>FASTAXLAT<span class="opt">)</span> <span class="kwa">do</span>
+  <span class="kwd">settextbuf</span>(input,bufin);
+  <span class="kwd">settextbuf</span>(output,bufout);
+  <span class="kwc">for</span> c:=<span class="esc">#0</span>  <span class="kwc">to</span> <span class="esc">#255</span>  <span class="kwc">do</span>
+    lookupcomplement[c]:=c;
+  <span class="kwc">for</span> len:=<span class="num">0</span> <span class="kwc">to</span> <span class="kwd">high</span>(FASTAXLAT) <span class="kwc">do</span>
     <span class="kwa">begin</span>
-      lookupcomplement<span class="opt">[</span>FASTAXLAT<span class="opt">[</span>len<span class="opt">][</span><span class="num">0</span><span class="opt">]]:=</span><span class="kwd">upcase</span><span class="opt">(</span>FASTAXLAT<span class="opt">[</span>len<span class="opt">][</span><span class="num">1</span><span class="opt">]);</span>
-      lookupcomplement<span class="opt">[</span>FASTAXLAT<span class="opt">[</span>len<span class="opt">][</span><span class="num">1</span><span class="opt">]]:=</span><span class="kwd">upcase</span><span class="opt">(</span>FASTAXLAT<span class="opt">[</span>len<span class="opt">][</span><span class="num">0</span><span class="opt">]);</span>
-    <span class="kwa">end</span><span class="opt">;</span>
-  buffersize<span class="opt">:=</span>initialincrement<span class="opt">;</span>
-  bufferptr <span class="opt">:=</span><span class="num">0</span><span class="opt">;</span>
-  <span class="kwd">getmem</span><span class="opt">(</span>p<span class="opt">,</span>buffersize<span class="opt">);</span>
-  line<span class="opt">:=</span><span class="num">0</span><span class="opt">;</span>
-  <span class="kwa">while not</span> eof <span class="kwa">do</span>
+      lookupcomplement[FASTAXLAT[len][<span class="num">0</span>]]:=<span class="kwd">upcase</span>(FASTAXLAT[len][<span class="num">1</span>]);
+      lookupcomplement[FASTAXLAT[len][<span class="num">1</span>]]:=<span class="kwd">upcase</span>(FASTAXLAT[len][<span class="num">0</span>]);
+    <span class="kwa">end</span>;
+  buffersize:=initialincrement;
+  bufferptr :=<span class="num">0</span>;
+  <span class="kwd">getmem</span>(p,buffersize);
+  line:=<span class="num">0</span>;
+  <span class="kwc">while</span> <span class="kwa">not</span> eof <span class="kwc">do</span>
     <span class="kwa">begin</span>
-      <span class="kwd">readln</span><span class="opt">(</span>s<span class="opt">);</span>
-      <span class="kwd">inc</span><span class="opt">(</span>line<span class="opt">);</span>
-      len<span class="opt">:=</span><span class="kwd">length</span><span class="opt">(</span>s<span class="opt">);</span>
-      <span class="kwa">if</span> <span class="opt">(</span>len<span class="opt">&gt;</span><span class="num">0</span><span class="opt">)</span> <span class="kwa">and</span> <span class="opt">(</span>s<span class="opt">[</span><span class="num">1</span><span class="opt">]=</span><span class="str">&apos;&gt;&apos;</span><span class="opt">)</span> <span class="kwa">then</span>
+      <span class="kwd">readln</span>(s);
+      <span class="kwd">inc</span>(line);
+      len:=<span class="kwd">length</span>(s);
+      <span class="kwc">if</span> (len&gt;<span class="num">0</span>) <span class="kwa">and</span> (s[<span class="num">1</span>]=<span class="str">&apos;&gt;&apos;</span>) <span class="kwc">then</span>
           <span class="kwa">begin</span>
-	    <span class="kwd">flushbuffer</span><span class="opt">(</span>p<span class="opt">,</span>bufferptr<span class="opt">);</span>
- 	    <span class="kwd">writeln</span><span class="opt">(</span>s<span class="opt">);</span>
-	    bufferptr<span class="opt">:=</span><span class="num">0</span><span class="opt">;</span>
+	    <span class="kwd">flushbuffer</span>(p,bufferptr);
+ 	    <span class="kwd">writeln</span>(s);
+	    bufferptr:=<span class="num">0</span>;
 	  <span class="kwa">end</span>
-       <span class="kwa">else</span>
+       <span class="kwc">else</span>
          <span class="kwa">begin</span>
-           <span class="kwa">if</span> <span class="opt">(</span>bufferptr<span class="opt">+</span>len<span class="opt">+</span><span class="num">1</span><span class="opt">)&gt;</span>buffersize <span class="kwa">then</span>
+           <span class="kwc">if</span> (bufferptr+len+<span class="num">1</span>)&gt;buffersize <span class="kwc">then</span>
 	     <span class="kwa">begin</span>
-	        <span class="kwd">inc</span><span class="opt">(</span>buffersize<span class="opt">,</span>buffersize<span class="opt">);</span>
+	        <span class="kwd">inc</span>(buffersize,buffersize);
 <span class="slc">//	        inc(buffersize,initialincrement);</span>
-                <span class="kwd">reallocmem</span><span class="opt">(</span>p<span class="opt">,</span>buffersize<span class="opt">);</span>
-	     <span class="kwa">end</span><span class="opt">;</span>
-	   <span class="kwd">move</span> <span class="opt">(</span>s<span class="opt">[</span><span class="num">1</span><span class="opt">],</span>p<span class="opt">[</span>bufferptr<span class="opt">],</span>len<span class="opt">);</span>
-	   <span class="kwd">inc</span><span class="opt">(</span>bufferptr<span class="opt">,</span>len<span class="opt">);</span>
-	 <span class="kwa">end</span><span class="opt">;</span>
-    <span class="kwa">end</span><span class="opt">;</span>
-    <span class="kwd">flushbuffer</span><span class="opt">(</span>p<span class="opt">,</span>bufferptr<span class="opt">);</span>
-<span class="kwa">end</span><span class="opt">;</span>
+                <span class="kwd">reallocmem</span>(p,buffersize);
+	     <span class="kwa">end</span>;
+	   <span class="kwd">move</span> (s[<span class="num">1</span>],p[bufferptr],len);
+	   <span class="kwd">inc</span>(bufferptr,len);
+	 <span class="kwa">end</span>;
+    <span class="kwa">end</span>;
+    <span class="kwd">flushbuffer</span>(p,bufferptr);
+<span class="kwa">end</span>;
 
 <span class="kwa">begin</span>
-  run<span class="opt">;</span>
-<span class="kwa">end</span><span class="opt">.</span>
+  run;
+<span class="kwa">end</span>.
     </pre>
   </section>
   <section>
@@ -145,25 +145,24 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
     <pre>
 NOTES:
 64-bit Ubuntu quad core
-Free Pascal Compiler version 3.2.0 [2020/06/14] for x86_64
+Free Pascal Compiler version 3.2.2 [2021/05/16] for x86_64
 
 
-
-Fri, 23 Oct 2020 23:55:25 GMT
+Mon, 10 Jan 2022 02:17:54 GMT
 
 MAKE:
 mv revcomp.fpascal-2.fpascal revcomp.fpascal-2.pas
-/opt/src/fpc-3.2.0/bin/fpc -FuInclude/fpascal -XXs -O3 -Ci- -Cr- -g- -CpCOREAVX -CfAVX -Tlinux  -oFPASCAL_RUN revcomp.fpascal-2.pas
-Free Pascal Compiler version 3.2.0 [2020/06/14] for x86_64
-Copyright (c) 1993-2020 by Florian Klaempfl and others
+/opt/src/fpc-3.2.2/bin/fpc -FuInclude/fpascal -XXs -O3 -Ci- -Cr- -g- -CpCOREAVX -CfAVX -Tlinux  -oFPASCAL_RUN revcomp.fpascal-2.pas
+Free Pascal Compiler version 3.2.2 [2021/05/16] for x86_64
+Copyright (c) 1993-2021 by Florian Klaempfl and others
 Target OS: Linux for x86-64
 Compiling revcomp.fpascal-2.pas
 Linking FPASCAL_RUN
-114 lines compiled, 0.6 sec
+114 lines compiled, 0.5 sec
 mv FPASCAL_RUN revcomp.fpascal-2.fpascal_run
 rm revcomp.fpascal-2.pas
 
-0.90s to complete and log all make actions
+0.76s to complete and log all make actions
 
 COMMAND LINE:
 ./revcomp.fpascal-2.fpascal_run 0 &lt; revcomp-input100000000.txt

@@ -30,128 +30,128 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="com">  optimized and multithreaded by Jean de La Taille</span>
 <span class="com">}</span>
 
-<span class="kwa">program</span> mandelbrot<span class="opt">;</span>
+<span class="kwa">program</span> mandelbrot;
 
 <span class="kwa">uses</span>
-  <span class="ppc">{$ifdef unix}</span>cthreads<span class="opt">,</span><span class="ppc">{$endif}</span>
-  sysUtils<span class="opt">,</span> dateUtils<span class="opt">,</span> math<span class="opt">;</span>
+  <span class="com">{$ifdef unix}</span>cthreads,<span class="com">{$endif}</span>
+  sysUtils, dateUtils, math;
 
 <span class="kwa">const</span>
-  Limit <span class="opt">=</span> <span class="num">4</span><span class="opt">;</span>
+  Limit = <span class="num">4</span>;
 
 <span class="kwa">var</span>
-  n<span class="opt">,</span> n_1<span class="opt">,</span> dimx<span class="opt">,</span> dimy <span class="opt">:</span> <span class="kwb">longint</span><span class="opt">;</span>
-  TextBuf<span class="opt">:</span> <span class="kwa">array of</span> <span class="kwb">byte</span><span class="opt">;</span>
-  start<span class="opt">,</span> finish <span class="opt">:</span> TDateTime<span class="opt">;</span>
+  n, n_1, dimx, dimy : <span class="kwb">longint</span>;
+  TextBuf: <span class="kwa">array of</span> <span class="kwb">byte</span>;
+  start, finish : TDateTime;
 
 <span class="kwa">type</span>
-  mem <span class="opt">=</span> <span class="kwa">record</span>
-    from_y<span class="opt">,</span> to_y <span class="opt">:</span> <span class="kwb">longint</span><span class="opt">;</span>
-  <span class="kwa">end</span><span class="opt">;</span>
-  pmem <span class="opt">= ^</span>mem<span class="opt">;</span>
+  mem = <span class="kwa">record</span>
+    from_y, to_y : <span class="kwb">longint</span>;
+  <span class="kwa">end</span>;
+  pmem = ^mem;
 
-<span class="kwa">function</span> <span class="kwd">subThread</span><span class="opt">(</span>p<span class="opt">:</span> <span class="kwb">pointer</span><span class="opt">) :</span> ptrint<span class="opt">;</span>
+<span class="kwa">function</span> <span class="kwd">subThread</span>(p: <span class="kwb">pointer</span>) : ptrint;
 <span class="kwa">var</span>
-  x<span class="opt">,</span> y<span class="opt">,</span> from_y<span class="opt">,</span> to_y<span class="opt">,</span> buf_index<span class="opt">,</span> i<span class="opt">:</span> <span class="kwb">Longint</span><span class="opt">;</span>
-  Zr<span class="opt">,</span> Zi<span class="opt">,</span> Ti<span class="opt">,</span> Tr <span class="opt">:</span> <span class="kwb">Double</span><span class="opt">;</span>
-  Cr<span class="opt">,</span> Ci <span class="opt">:</span> <span class="kwb">Double</span><span class="opt">;</span>
-  bits<span class="opt">:</span> <span class="kwb">Longint</span><span class="opt">;</span>
-  bit<span class="opt">:</span> <span class="kwb">Longint</span><span class="opt">;</span>
+  x, y, from_y, to_y, buf_index, i: <span class="kwb">Longint</span>;
+  Zr, Zi, Ti, Tr : <span class="kwb">Double</span>;
+  Cr, Ci : <span class="kwb">Double</span>;
+  bits: <span class="kwb">Longint</span>;
+  bit: <span class="kwb">Longint</span>;
 <span class="kwa">begin</span>
-  from_y <span class="opt">:=</span> <span class="kwd">pmem</span><span class="opt">(</span>p<span class="opt">)^.</span>from_y<span class="opt">;</span>
-  to_y <span class="opt">:=</span> <span class="kwd">pmem</span><span class="opt">(</span>p<span class="opt">)^.</span>to_y<span class="opt">;</span>
-  buf_index <span class="opt">:=</span> from_y <span class="opt">*</span> dimx<span class="opt">;</span>
-  <span class="kwa">for</span> y <span class="opt">:=</span> from_y <span class="kwa">to</span> to_y <span class="kwa">do</span>
+  from_y := <span class="kwd">pmem</span>(p)^.from_y;
+  to_y := <span class="kwd">pmem</span>(p)^.to_y;
+  buf_index := from_y * dimx;
+  <span class="kwc">for</span> y := from_y <span class="kwc">to</span> to_y <span class="kwc">do</span>
   <span class="kwa">begin</span>
-    bit <span class="opt">:=</span> <span class="num">128</span><span class="opt">;</span> <span class="slc">// 1000 0000</span>
-    bits <span class="opt">:=</span> <span class="num">0</span><span class="opt">;</span>
-    Ci <span class="opt">:= ((</span>y <span class="opt">+</span> y<span class="opt">) /</span> n<span class="opt">) -</span> <span class="num">1.0</span><span class="opt">;</span>
-    <span class="kwa">for</span> x <span class="opt">:=</span> <span class="num">0</span> <span class="kwa">to</span> n_1 <span class="kwa">do</span>
+    bit := <span class="num">128</span>; <span class="slc">// 1000 0000</span>
+    bits := <span class="num">0</span>;
+    Ci := ((y + y) / n) - <span class="num">1.0</span>;
+    <span class="kwc">for</span> x := <span class="num">0</span> <span class="kwc">to</span> n_1 <span class="kwc">do</span>
     <span class="kwa">begin</span>
       <span class="slc">//---------------------------</span>
-      Zr <span class="opt">:=</span> <span class="num">0</span><span class="opt">;</span>
-      Zi <span class="opt">:=</span> <span class="num">0</span><span class="opt">;</span>
-      Tr <span class="opt">:=</span> <span class="num">0</span><span class="opt">;</span>
-      Ti <span class="opt">:=</span> <span class="num">0</span><span class="opt">;</span>
-      Cr <span class="opt">:= ((</span>x <span class="opt">+</span> x<span class="opt">) /</span> n<span class="opt">) -</span> <span class="num">1.5</span><span class="opt">;</span>
-      <span class="kwa">for</span> i <span class="opt">:=</span> <span class="num">1</span> <span class="kwa">to</span> <span class="num">50</span> <span class="kwa">do</span>
+      Zr := <span class="num">0</span>;
+      Zi := <span class="num">0</span>;
+      Tr := <span class="num">0</span>;
+      Ti := <span class="num">0</span>;
+      Cr := ((x + x) / n) - <span class="num">1.5</span>;
+      <span class="kwc">for</span> i := <span class="num">1</span> <span class="kwc">to</span> <span class="num">50</span> <span class="kwc">do</span>
       <span class="kwa">begin</span>
-        Zi <span class="opt">:=</span> <span class="num">2</span> <span class="opt">*</span> Zr <span class="opt">*</span> Zi <span class="opt">+</span> Ci<span class="opt">;</span>
-        Zr <span class="opt">:=</span> Tr <span class="opt">-</span> Ti <span class="opt">+</span> Cr<span class="opt">;</span>
-        Ti <span class="opt">:=</span> Zi <span class="opt">*</span> Zi<span class="opt">;</span>
-        Tr <span class="opt">:=</span> Zr <span class="opt">*</span> Zr<span class="opt">;</span>
-        <span class="kwa">if</span> <span class="opt">((</span>Tr <span class="opt">+</span> Ti<span class="opt">) &gt;</span> limit<span class="opt">)</span> <span class="kwa">then</span>
+        Zi := <span class="num">2</span> * Zr * Zi + Ci;
+        Zr := Tr - Ti + Cr;
+        Ti := Zi * Zi;
+        Tr := Zr * Zr;
+        <span class="kwc">if</span> ((Tr + Ti) &gt; limit) <span class="kwc">then</span>
         <span class="kwa">begin</span>
-          bits <span class="opt">:=</span> bits <span class="kwa">or</span> bit<span class="opt">;</span>
-          break<span class="opt">;</span>
-        <span class="kwa">end</span><span class="opt">;</span>
-      <span class="kwa">end</span><span class="opt">;</span>
+          bits := bits <span class="kwa">or</span> bit;
+          break;
+        <span class="kwa">end</span>;
+      <span class="kwa">end</span>;
       <span class="slc">//---------------------------</span>
-      bit <span class="opt">:=</span> bit <span class="opt">&gt;&gt;</span> <span class="num">1</span><span class="opt">;</span>
-      <span class="kwa">if</span> <span class="opt">(</span>bit <span class="opt">=</span> <span class="num">0</span><span class="opt">)</span> <span class="kwa">then</span>
+      bit := bit &gt;&gt; <span class="num">1</span>;
+      <span class="kwc">if</span> (bit = <span class="num">0</span>) <span class="kwc">then</span>
       <span class="kwa">begin</span>
-        TextBuf<span class="opt">[</span>buf_index<span class="opt">] :=</span> <span class="kwa">not</span> bits<span class="opt">;</span>
-        <span class="kwd">inc</span><span class="opt">(</span>buf_index<span class="opt">);</span>
-        bits <span class="opt">:=</span> <span class="num">0</span><span class="opt">;</span>
-        bit <span class="opt">:=</span> <span class="num">128</span><span class="opt">;</span>
-      <span class="kwa">end</span><span class="opt">;</span>
-    <span class="kwa">end</span><span class="opt">;</span>
-  <span class="kwa">end</span><span class="opt">;</span>
-  subThread <span class="opt">:=</span> <span class="num">0</span><span class="opt">;</span>
-<span class="kwa">end</span><span class="opt">;</span>
+        TextBuf[buf_index] := <span class="kwa">not</span> bits;
+        <span class="kwd">inc</span>(buf_index);
+        bits := <span class="num">0</span>;
+        bit := <span class="num">128</span>;
+      <span class="kwa">end</span>;
+    <span class="kwa">end</span>;
+  <span class="kwa">end</span>;
+  subThread := <span class="num">0</span>;
+<span class="kwa">end</span>;
 
-<span class="kwa">procedure</span> run<span class="opt">;</span>
+<span class="kwa">procedure</span> run;
 <span class="kwa">var</span>
-  i<span class="opt">,</span> l<span class="opt">,</span> x<span class="opt">,</span> y<span class="opt">,</span> buf_index<span class="opt">:</span> <span class="kwb">Longint</span><span class="opt">;</span>
-  tt <span class="opt">:</span> <span class="kwa">array</span><span class="opt">[</span><span class="num">0</span><span class="opt">.</span><span class="num">.3</span><span class="opt">]</span> <span class="kwa">of</span> TThreadID<span class="opt">;</span>
-  m <span class="opt">:</span> <span class="kwa">array</span><span class="opt">[</span><span class="num">0</span><span class="opt">.</span><span class="num">.3</span><span class="opt">]</span> <span class="kwa">of</span> mem<span class="opt">;</span>
-  stepL <span class="opt">:</span> <span class="kwb">longint</span><span class="opt">;</span>
+  i, l, x, y, buf_index: <span class="kwb">Longint</span>;
+  tt : <span class="kwa">array</span>[<span class="num">0</span>.<span class="num">.3</span>] <span class="kwa">of</span> TThreadID;
+  m : <span class="kwa">array</span>[<span class="num">0</span>.<span class="num">.3</span>] <span class="kwa">of</span> mem;
+  stepL : <span class="kwb">longint</span>;
 <span class="kwa">begin</span>
-  n_1 <span class="opt">:=</span> n <span class="opt">-</span> <span class="num">1</span><span class="opt">;</span>
-  l <span class="opt">:=</span> <span class="num">0</span><span class="opt">;</span>
-  stepL <span class="opt">:=</span> <span class="kwd">floor</span><span class="opt">(</span>n <span class="opt">/</span> <span class="num">4</span><span class="opt">);</span>
+  n_1 := n - <span class="num">1</span>;
+  l := <span class="num">0</span>;
+  stepL := <span class="kwd">floor</span>(n / <span class="num">4</span>);
 
-  start <span class="opt">:=</span> now<span class="opt">;</span>
-  <span class="kwa">for</span> i <span class="opt">:=</span> <span class="num">0</span> <span class="kwa">to</span> <span class="num">2</span> <span class="kwa">do</span>
+  start := now;
+  <span class="kwc">for</span> i := <span class="num">0</span> <span class="kwc">to</span> <span class="num">2</span> <span class="kwc">do</span>
   <span class="kwa">begin</span>
-    m<span class="opt">[</span>i<span class="opt">].</span>from_y <span class="opt">:=</span> l<span class="opt">;</span>
-    m<span class="opt">[</span>i<span class="opt">].</span>to_y <span class="opt">:=</span> l <span class="opt">+</span> stepL <span class="opt">-</span> <span class="num">1</span><span class="opt">;</span>
-    tt<span class="opt">[</span>i<span class="opt">] :=</span> <span class="kwd">BeginThread</span><span class="opt">(&#64;</span>subThread<span class="opt">, &#64;</span>m<span class="opt">[</span>i<span class="opt">]);</span>
-    l <span class="opt">:=</span> l <span class="opt">+</span> stepL<span class="opt">;</span>
-  <span class="kwa">end</span><span class="opt">;</span>
-  m<span class="opt">[</span><span class="num">3</span><span class="opt">].</span>from_y <span class="opt">:=</span> l<span class="opt">;</span>
-  m<span class="opt">[</span><span class="num">3</span><span class="opt">].</span>to_y <span class="opt">:=</span> n_1<span class="opt">;</span>
-  tt<span class="opt">[</span><span class="num">3</span><span class="opt">] :=</span> <span class="kwd">BeginThread</span><span class="opt">(&#64;</span>subThread<span class="opt">, &#64;</span>m<span class="opt">[</span><span class="num">3</span><span class="opt">]);</span>
-  <span class="kwa">for</span> i <span class="opt">:=</span> <span class="num">0</span> <span class="kwa">to</span> <span class="num">3</span> <span class="kwa">do</span>
-    <span class="kwd">WaitForThreadTerminate</span><span class="opt">(</span>tt<span class="opt">[</span>i<span class="opt">],</span> <span class="num">0</span><span class="opt">);</span>
-  finish <span class="opt">:=</span> now<span class="opt">;</span>
+    m[i].from_y := l;
+    m[i].to_y := l + stepL - <span class="num">1</span>;
+    tt[i] := <span class="kwd">BeginThread</span>(&#64;subThread, &#64;m[i]);
+    l := l + stepL;
+  <span class="kwa">end</span>;
+  m[<span class="num">3</span>].from_y := l;
+  m[<span class="num">3</span>].to_y := n_1;
+  tt[<span class="num">3</span>] := <span class="kwd">BeginThread</span>(&#64;subThread, &#64;m[<span class="num">3</span>]);
+  <span class="kwc">for</span> i := <span class="num">0</span> <span class="kwc">to</span> <span class="num">3</span> <span class="kwc">do</span>
+    <span class="kwd">WaitForThreadTerminate</span>(tt[i], <span class="num">0</span>);
+  finish := now;
   <span class="slc">//WriteLn(&apos;Time : &apos;, MilliSecondsBetween(start, finish) / 1000 : 0 : 4);</span>
 
-  buf_index <span class="opt">:=</span> <span class="num">0</span><span class="opt">;</span>
-  <span class="kwa">for</span> y <span class="opt">:=</span> <span class="num">0</span> <span class="kwa">to</span> n_1 <span class="kwa">do</span>
-    <span class="kwa">for</span> x <span class="opt">:=</span> <span class="num">0</span> <span class="kwa">to</span> dimx <span class="opt">-</span> <span class="num">1</span> <span class="kwa">do</span>
+  buf_index := <span class="num">0</span>;
+  <span class="kwc">for</span> y := <span class="num">0</span> <span class="kwc">to</span> n_1 <span class="kwc">do</span>
+    <span class="kwc">for</span> x := <span class="num">0</span> <span class="kwc">to</span> dimx - <span class="num">1</span> <span class="kwc">do</span>
     <span class="kwa">begin</span>
-      <span class="kwd">write</span><span class="opt">(</span><span class="kwd">chr</span><span class="opt">(</span>TextBuf<span class="opt">[</span>buf_index<span class="opt">]));;</span>
-      <span class="kwd">inc</span><span class="opt">(</span>buf_index<span class="opt">);</span>
-    <span class="kwa">end</span><span class="opt">;</span>
-<span class="kwa">end</span><span class="opt">;</span>
+      <span class="kwd">write</span>(<span class="kwd">chr</span>(TextBuf[buf_index]));;
+      <span class="kwd">inc</span>(buf_index);
+    <span class="kwa">end</span>;
+<span class="kwa">end</span>;
 
 
 <span class="kwa">begin</span>
-  <span class="kwd">Val</span><span class="opt">(</span><span class="kwd">ParamStr</span><span class="opt">(</span><span class="num">1</span><span class="opt">),</span> n<span class="opt">);</span>
-  <span class="kwd">write</span><span class="opt">(</span><span class="str">&apos;P4&apos;</span><span class="opt">,</span> <span class="kwd">chr</span><span class="opt">(</span><span class="num">10</span><span class="opt">),</span> n<span class="opt">,</span> <span class="str">&apos; &apos;</span><span class="opt">,</span> n<span class="opt">,</span> <span class="kwd">chr</span><span class="opt">(</span><span class="num">10</span><span class="opt">));</span>
+  <span class="kwd">Val</span>(<span class="kwd">ParamStr</span>(<span class="num">1</span>), n);
+  <span class="kwd">write</span>(<span class="str">&apos;P4&apos;</span>, <span class="kwd">chr</span>(<span class="num">10</span>), n, <span class="str">&apos; &apos;</span>, n, <span class="kwd">chr</span>(<span class="num">10</span>));
   <span class="slc">//write(&apos;P5&apos;, chr(10), n, &apos; &apos;, n, chr(10), 255, chr(10));</span>
 
-  dimx <span class="opt">:=</span> <span class="kwd">Ceil</span><span class="opt">(</span>n <span class="opt">/</span> <span class="num">8</span><span class="opt">);</span>
-  dimy <span class="opt">:=</span> n<span class="opt">;</span>
-  <span class="kwd">SetLength</span><span class="opt">(</span>TextBuf<span class="opt">, (</span>dimx <span class="opt">*</span> dimy<span class="opt">) +</span> <span class="num">1</span><span class="opt">);</span>
+  dimx := <span class="kwd">Ceil</span>(n / <span class="num">8</span>);
+  dimy := n;
+  <span class="kwd">SetLength</span>(TextBuf, (dimx * dimy) + <span class="num">1</span>);
 
-  start <span class="opt">:=</span> now<span class="opt">;</span>
+  start := now;
 
-  run<span class="opt">;</span>
+  run;
 
-  finish <span class="opt">:=</span> now<span class="opt">;</span>
-<span class="kwa">end</span><span class="opt">.</span>
+  finish := now;
+<span class="kwa">end</span>.
 
 
     </pre>
@@ -163,28 +163,27 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
     <pre>
 NOTES:
 64-bit Ubuntu quad core
-Free Pascal Compiler version 3.2.0 [2020/06/14] for x86_64
+Free Pascal Compiler version 3.2.2 [2021/05/16] for x86_64
 
 
-
-Fri, 23 Oct 2020 23:46:02 GMT
+Mon, 10 Jan 2022 02:06:22 GMT
 
 MAKE:
 mv mandelbrot.fpascal mandelbrot.pas
-/opt/src/fpc-3.2.0/bin/fpc -FuInclude/fpascal -XXs -O3 -Ci- -Cr- -g- -CpCOREAVX -CfAVX -Tlinux  -oFPASCAL_RUN mandelbrot.pas
-Free Pascal Compiler version 3.2.0 [2020/06/14] for x86_64
-Copyright (c) 1993-2020 by Florian Klaempfl and others
+/opt/src/fpc-3.2.2/bin/fpc -FuInclude/fpascal -XXs -O3 -Ci- -Cr- -g- -CpCOREAVX -CfAVX -Tlinux  -oFPASCAL_RUN mandelbrot.pas
+Free Pascal Compiler version 3.2.2 [2021/05/16] for x86_64
+Copyright (c) 1993-2021 by Florian Klaempfl and others
 Target OS: Linux for x86-64
 Compiling mandelbrot.pas
 mandelbrot.pas(21,3) Note: Local variable &quot;start&quot; is assigned but never used
 mandelbrot.pas(21,10) Note: Local variable &quot;finish&quot; is assigned but never used
 Linking FPASCAL_RUN
-132 lines compiled, 0.9 sec
+132 lines compiled, 0.8 sec
 2 note(s) issued
 mv FPASCAL_RUN mandelbrot.fpascal_run
 rm mandelbrot.pas
 
-1.17s to complete and log all make actions
+1.11s to complete and log all make actions
 
 COMMAND LINE:
 ./mandelbrot.fpascal_run 16000

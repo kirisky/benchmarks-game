@@ -40,86 +40,86 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="slc">-- {-# LANGUAGE UnboxedTuples, UnliftedFFITypes #-}</span>
 <span class="slc">-- {-# OPTIONS_GHC -O2 -fllvm -rtsopts #-}</span>
 
-<span class="kwd">import</span> System<span class="opt">.</span>Environment <span class="opt">(</span> <span class="kwc">getArgs</span> <span class="opt">)</span>
-<span class="kwd">import</span> Data<span class="opt">.</span><span class="kwb">Int</span> <span class="opt">(</span> Int32 <span class="opt">)</span>
-<span class="kwd">import</span> Data<span class="opt">.</span>Word <span class="opt">(</span> Word32 <span class="opt">)</span>
-<span class="kwd">import</span> Control<span class="opt">.</span>Monad <span class="opt">(</span> <span class="kwc">when</span> <span class="opt">)</span>
-<span class="kwd">import</span> GHC<span class="opt">.</span>Exts <span class="opt">(</span> Ptr <span class="opt">)</span>
-<span class="kwd">import</span> Foreign<span class="opt">.</span>Ptr <span class="opt">(</span> IntPtr<span class="opt">,</span> castPtr <span class="opt">)</span>
-<span class="kwd">import</span> Foreign<span class="opt">.</span>Storable <span class="opt">(</span> Storable<span class="opt">(..) )</span>
-<span class="kwd">import</span> Foreign<span class="opt">.</span>Marshal<span class="opt">.</span>Alloc <span class="opt">(</span> alloca <span class="opt">)</span>
+<span class="kwd">import</span> System.Environment ( <span class="kwc">getArgs</span> )
+<span class="kwd">import</span> Data.<span class="kwb">Int</span> ( Int32 )
+<span class="kwd">import</span> Data.Word ( Word32 )
+<span class="kwd">import</span> Control.Monad ( <span class="kwc">when</span> )
+<span class="kwd">import</span> GHC.Exts ( Ptr )
+<span class="kwd">import</span> Foreign.Ptr ( IntPtr, castPtr )
+<span class="kwd">import</span> Foreign.Storable ( Storable(..) )
+<span class="kwd">import</span> Foreign.Marshal.Alloc ( alloca )
 
 <span class="slc">-- Pseudo FFI CTypes</span>
-<span class="kwd">type</span> CInt <span class="opt">=</span> Int32
-<span class="kwd">type</span> CWord <span class="opt">=</span> Word32
+<span class="kwd">type</span> CInt = Int32
+<span class="kwd">type</span> CWord = Word32
 
-<span class="kwd">data</span> MPZ <span class="opt">=</span> MPZ <span class="opt">{</span> alloc <span class="opt">:: !</span>Int32<span class="opt">,</span> size <span class="opt">:: !</span>Int32<span class="opt">,</span> ptr <span class="opt">:: !</span>IntPtr <span class="opt">}</span> <span class="kwd">deriving</span> <span class="kwb">Show</span>
+<span class="kwd">data</span> MPZ = MPZ { alloc :: !Int32, size :: !Int32, ptr :: !IntPtr } <span class="kwd">deriving</span> <span class="kwb">Show</span>
 
 <span class="slc">-- to make foreign pointers work...</span>
 <span class="kwd">instance</span> Storable MPZ <span class="kwd">where</span>
-  sizeOf mpz <span class="opt">=</span> sizeOf <span class="opt">(</span><span class="num">0</span><span class="opt">::</span> Int32<span class="opt">) *</span> <span class="num">2</span> <span class="opt">+</span> alignment mpz
-  alignment _ <span class="opt">=</span> sizeOf <span class="opt">(</span><span class="num">0</span> <span class="opt">::</span> IntPtr<span class="opt">)</span>
-  peek mpzp <span class="opt">=</span> <span class="kwd">do</span>
-    a <span class="opt">&lt;-</span> peekElemOff <span class="opt">(</span>castPtr mpzp<span class="opt">)</span> <span class="num">0</span>
-    s <span class="opt">&lt;-</span> peekElemOff <span class="opt">(</span>castPtr mpzp<span class="opt">)</span> <span class="num">1</span>
-    p <span class="opt">&lt;-</span> peekByteOff mpzp <span class="opt">(</span>sizeOf <span class="opt">(</span><span class="num">0</span> <span class="opt">::</span> Int32<span class="opt">) *</span> <span class="num">2</span><span class="opt">)</span>
-    <span class="kwc">return</span> <span class="opt">$!</span> MPZ a s p
-  poke ptrmpz <span class="opt">(</span>MPZ a s p<span class="opt">) =</span> <span class="kwd">do</span>
-    _ <span class="opt">&lt;-</span> pokeElemOff <span class="opt">(</span>castPtr ptrmpz<span class="opt">)</span> <span class="num">0</span> a
-    _ <span class="opt">&lt;-</span> pokeElemOff <span class="opt">(</span>castPtr ptrmpz<span class="opt">)</span> <span class="num">1</span> s
-    _ <span class="opt">&lt;-</span> pokeByteOff ptrmpz <span class="opt">(</span>sizeOf <span class="opt">(</span><span class="num">0</span> <span class="opt">::</span> Int32<span class="opt">) *</span> <span class="num">2</span><span class="opt">)</span> p
-    <span class="kwc">return</span> <span class="opt">()</span>
+  sizeOf mpz = sizeOf (<span class="num">0</span>:: Int32) * <span class="num">2</span> + alignment mpz
+  alignment _ = sizeOf (<span class="num">0</span> :: IntPtr)
+  peek mpzp = <span class="kwd">do</span>
+    a &lt;- peekElemOff (castPtr mpzp) <span class="num">0</span>
+    s &lt;- peekElemOff (castPtr mpzp) <span class="num">1</span>
+    p &lt;- peekByteOff mpzp (sizeOf (<span class="num">0</span> :: Int32) * <span class="num">2</span>)
+    <span class="kwc">return</span> $! MPZ a s p
+  poke ptrmpz (MPZ a s p) = <span class="kwd">do</span>
+    _ &lt;- pokeElemOff (castPtr ptrmpz) <span class="num">0</span> a
+    _ &lt;- pokeElemOff (castPtr ptrmpz) <span class="num">1</span> s
+    _ &lt;- pokeByteOff ptrmpz (sizeOf (<span class="num">0</span> :: Int32) * <span class="num">2</span>) p
+    <span class="kwc">return</span> ()
 
 <span class="kwd">foreign import</span> ccall unsafe <span class="str">&quot;gmp.h __gmpz_cmp&quot;</span>
-  mpzCmp <span class="opt">::</span> Ptr MPZ <span class="opt">-&gt;</span> Ptr MPZ <span class="opt">-&gt;</span> <span class="kwb">IO</span> CInt
+  mpzCmp :: Ptr MPZ -&gt; Ptr MPZ -&gt; <span class="kwb">IO</span> CInt
 
 <span class="kwd">foreign import</span> ccall unsafe <span class="str">&quot;gmp.h __gmpz_init_set_ui&quot;</span>
-  mpzInitSetUi <span class="opt">::</span> Ptr MPZ <span class="opt">-&gt;</span> CWord <span class="opt">-&gt;</span> <span class="kwb">IO</span> <span class="opt">()</span>
+  mpzInitSetUi :: Ptr MPZ -&gt; CWord -&gt; <span class="kwb">IO</span> ()
 
 <span class="kwd">foreign import</span> ccall unsafe <span class="str">&quot;gmp.h __gmpz_get_ui&quot;</span>
-  mpzGetUi <span class="opt">::</span> Ptr MPZ <span class="opt">-&gt;</span> <span class="kwb">IO</span> CWord
+  mpzGetUi :: Ptr MPZ -&gt; <span class="kwb">IO</span> CWord
 
 <span class="kwd">foreign import</span> ccall unsafe <span class="str">&quot;gmp.h __gmpz_add&quot;</span>
-  mpzAdd <span class="opt">::</span> Ptr MPZ <span class="opt">-&gt;</span> Ptr MPZ <span class="opt">-&gt;</span> Ptr MPZ <span class="opt">-&gt;</span> <span class="kwb">IO</span> <span class="opt">()</span>
+  mpzAdd :: Ptr MPZ -&gt; Ptr MPZ -&gt; Ptr MPZ -&gt; <span class="kwb">IO</span> ()
 
 <span class="kwd">foreign import</span> ccall unsafe <span class="str">&quot;gmp.h __gmpz_mul&quot;</span>
-  mpzMul <span class="opt">::</span> Ptr MPZ <span class="opt">-&gt;</span> Ptr MPZ <span class="opt">-&gt;</span> Ptr MPZ <span class="opt">-&gt;</span> <span class="kwb">IO</span> <span class="opt">()</span>
+  mpzMul :: Ptr MPZ -&gt; Ptr MPZ -&gt; Ptr MPZ -&gt; <span class="kwb">IO</span> ()
 
 <span class="kwd">foreign import</span> ccall unsafe <span class="str">&quot;__gmpz_mul_si&quot;</span>
-  mpzMulSi <span class="opt">::</span> Ptr MPZ <span class="opt">-&gt;</span> Ptr MPZ <span class="opt">-&gt;</span> CInt <span class="opt">-&gt;</span> <span class="kwb">IO</span> <span class="opt">()</span>
+  mpzMulSi :: Ptr MPZ -&gt; Ptr MPZ -&gt; CInt -&gt; <span class="kwb">IO</span> ()
 
 <span class="kwd">foreign import</span> ccall unsafe <span class="str">&quot;gmp.h __gmpz_tdiv_q&quot;</span>
-  mpzTdivQ <span class="opt">::</span> Ptr MPZ <span class="opt">-&gt;</span> Ptr MPZ <span class="opt">-&gt;</span> Ptr MPZ <span class="opt">-&gt;</span> <span class="kwb">IO</span> <span class="opt">()</span>
+  mpzTdivQ :: Ptr MPZ -&gt; Ptr MPZ -&gt; Ptr MPZ -&gt; <span class="kwb">IO</span> ()
 
-main <span class="opt">::</span> <span class="kwb">IO</span> <span class="opt">()</span>
-main <span class="opt">=</span> doit <span class="opt">.</span> <span class="kwc">read</span> <span class="opt">.</span> <span class="kwc">head</span> <span class="opt">=&lt;&lt;</span> <span class="kwc">getArgs</span>
+main :: <span class="kwb">IO</span> ()
+main = doit . <span class="kwc">read</span> . <span class="kwc">head</span> =&lt;&lt; <span class="kwc">getArgs</span>
 
-doit <span class="opt">::</span> <span class="kwb">Int</span> <span class="opt">-&gt;</span> <span class="kwb">IO</span> <span class="opt">()</span>
-doit numdgs <span class="opt">=</span>
-    alloca <span class="opt">$ \</span> n1 <span class="opt">-&gt;</span> alloca <span class="opt">$ \</span> n2 <span class="opt">-&gt;</span> alloca <span class="opt">$ \</span> d <span class="opt">-&gt;</span>
-      alloca <span class="opt">$ \</span> u <span class="opt">-&gt;</span> alloca <span class="opt">$ \</span> v <span class="opt">-&gt;</span> alloca <span class="opt">$ \</span> w <span class="opt">-&gt;</span> <span class="kwd">do</span>
-        mpzInitSetUi n1 <span class="num">4</span><span class="opt">;</span> mpzInitSetUi n2 <span class="num">3</span><span class="opt">;</span> mpzInitSetUi d <span class="num">1</span>
-        mpzInitSetUi u <span class="num">0</span><span class="opt">;</span> mpzInitSetUi v <span class="num">0</span><span class="opt">;</span> mpzInitSetUi w <span class="num">0</span>
+doit :: <span class="kwb">Int</span> -&gt; <span class="kwb">IO</span> ()
+doit numdgs =
+    alloca $ \ n1 -&gt; alloca $ \ n2 -&gt; alloca $ \ d -&gt;
+      alloca $ \ u -&gt; alloca $ \ v -&gt; alloca $ \ w -&gt; <span class="kwd">do</span>
+        mpzInitSetUi n1 <span class="num">4</span>; mpzInitSetUi n2 <span class="num">3</span>; mpzInitSetUi d <span class="num">1</span>
+        mpzInitSetUi u <span class="num">0</span>; mpzInitSetUi v <span class="num">0</span>; mpzInitSetUi w <span class="num">0</span>
         loop <span class="num">0 9 0</span> n1 n2 d u v w <span class="kwd">where</span>
-  loop i n k n1 n2 d u v w <span class="opt">=</span> <span class="kwd">do</span>
-    <span class="kwd">if</span> i <span class="opt">&gt;=</span> numdgs <span class="kwd">then</span>
-        <span class="kwc">when</span> <span class="opt">(</span>n <span class="opt">&lt;</span> <span class="num">9</span><span class="opt">) $</span> <span class="slc">-- clean up printing final if necessary!</span>
-          <span class="kwc">putStrLn</span> <span class="opt">$</span> <span class="kwc">replicate</span> n <span class="opt">&apos; &apos; ++</span> <span class="str">&quot;</span><span class="esc">\t</span><span class="str">:&quot;</span> <span class="opt">++</span> <span class="kwc">show</span> numdgs <span class="kwd">else do</span>
-      mpzTdivQ u n1 d<span class="opt">;</span> mpzTdivQ v n2 d
-      cmp <span class="opt">&lt;-</span> mpzCmp u v
-      <span class="kwd">if</span> cmp <span class="opt">/=</span> <span class="num">0</span> <span class="kwd">then do</span>
+  loop i n k n1 n2 d u v w = <span class="kwd">do</span>
+    <span class="kwd">if</span> i &gt;= numdgs <span class="kwd">then</span>
+        <span class="kwc">when</span> (n &lt; <span class="num">9</span>) $ <span class="slc">-- clean up printing final if necessary!</span>
+          <span class="kwc">putStrLn</span> $ <span class="kwc">replicate</span> n &apos; &apos; ++ <span class="str">&quot;</span><span class="esc">\t</span><span class="str">:&quot;</span> ++ <span class="kwc">show</span> numdgs <span class="kwd">else do</span>
+      mpzTdivQ u n1 d; mpzTdivQ v n2 d
+      cmp &lt;- mpzCmp u v
+      <span class="kwd">if</span> cmp /= <span class="num">0</span> <span class="kwd">then do</span>
         <span class="slc">-- produce next term...</span>
-        <span class="kwd">let</span> k2 <span class="opt">=</span> <span class="num">2</span> <span class="opt">*</span> k <span class="opt">+</span> <span class="num">1</span>
-        mpzMulSi u n1 k2<span class="opt">;</span> mpzAdd v n2 n2<span class="opt">;</span> mpzMulSi w n1 k<span class="opt">;</span> mpzAdd n1 u v
-        mpzMulSi u n2 <span class="opt">(</span>k <span class="opt">+</span> <span class="num">3</span><span class="opt">);</span> mpzAdd n2 w u<span class="opt">;</span> mpzMulSi d d <span class="opt">(</span>k2 <span class="opt">+</span> <span class="num">2</span><span class="opt">)</span>
-        loop i n <span class="opt">(</span>k <span class="opt">+</span> <span class="num">1</span><span class="opt">)</span> n1 n2 d u v w
-      <span class="kwd">else do let</span> ni <span class="opt">=</span> i <span class="opt">+</span> <span class="num">1</span>
-              c <span class="opt">&lt;-</span> mpzGetUi u 
-              <span class="kwc">putStr</span> <span class="opt">$</span> <span class="kwc">show</span> c<span class="opt">;</span> <span class="kwc">when</span> <span class="opt">(</span>n <span class="opt">&lt;=</span> <span class="num">0</span><span class="opt">) $</span> <span class="kwc">putStrLn</span> <span class="opt">$</span> <span class="str">&quot;</span><span class="esc">\t</span><span class="str">:&quot;</span> <span class="opt">++</span> <span class="kwc">show</span> ni
+        <span class="kwd">let</span> k2 = <span class="num">2</span> * k + <span class="num">1</span>
+        mpzMulSi u n1 k2; mpzAdd v n2 n2; mpzMulSi w n1 k; mpzAdd n1 u v
+        mpzMulSi u n2 (k + <span class="num">3</span>); mpzAdd n2 w u; mpzMulSi d d (k2 + <span class="num">2</span>)
+        loop i n (k + <span class="num">1</span>) n1 n2 d u v w
+      <span class="kwd">else do let</span> ni = i + <span class="num">1</span>
+              c &lt;- mpzGetUi u 
+              <span class="kwc">putStr</span> $ <span class="kwc">show</span> c; <span class="kwc">when</span> (n &lt;= <span class="num">0</span>) $ <span class="kwc">putStrLn</span> $ <span class="str">&quot;</span><span class="esc">\t</span><span class="str">:&quot;</span> ++ <span class="kwc">show</span> ni
               <span class="slc">-- eliminate just-printed digit...</span>
-              mpzMulSi u u <span class="opt">(-</span><span class="num">10</span><span class="opt">);</span> mpzMul u d u<span class="opt">;</span> mpzMulSi n1 n1 <span class="num">10</span>
-              mpzAdd n1 n1 u<span class="opt">;</span> mpzMulSi n2 n2 <span class="num">10</span><span class="opt">;</span> mpzAdd n2 n2 u
-              loop ni <span class="opt">(</span><span class="kwd">if</span> n <span class="opt">&lt;=</span> <span class="num">0</span> <span class="kwd">then</span> <span class="num">9</span> <span class="kwd">else</span> n <span class="opt">-</span> <span class="num">1</span><span class="opt">)</span> k n1 n2 d u v w
+              mpzMulSi u u (-<span class="num">10</span>); mpzMul u d u; mpzMulSi n1 n1 <span class="num">10</span>
+              mpzAdd n1 n1 u; mpzMulSi n2 n2 <span class="num">10</span>; mpzAdd n2 n2 u
+              loop ni (<span class="kwd">if</span> n &lt;= <span class="num">0</span> <span class="kwd">then</span> <span class="num">9</span> <span class="kwd">else</span> n - <span class="num">1</span>) k n1 n2 d u v w
     
     </pre>
   </section>
@@ -131,22 +131,22 @@ doit numdgs <span class="opt">=</span>
 NOTES:
 64-bit Ubuntu quad core
 The Glorious Glasgow Haskell Compilation System,
-version 9.0.1
+version 9.2.1
 
 
-Sat, 13 Mar 2021 01:02:44 GMT
+Wed, 12 Jan 2022 23:54:37 GMT
 
 MAKE:
 mv pidigits.ghc-5.ghc pidigits.ghc-5.hs
-/opt/src/ghc-9.0.1/bin/ghc --make -fllvm -O2 -XBangPatterns -threaded -rtsopts -XUnboxedTuples -XUnliftedFFITypes pidigits.ghc-5.hs -o pidigits.ghc-5.ghc_run
+~/.ghcup/ghc/9.2.1/bin/ghc --make -fllvm -O2 -XBangPatterns -threaded -rtsopts -XUnboxedTuples -XUnliftedFFITypes pidigits.ghc-5.hs -o pidigits.ghc-5.ghc_run
 [1 of 1] Compiling Main             ( pidigits.ghc-5.hs, pidigits.ghc-5.o )
 You are using an unsupported version of LLVM!
-Currently only 9 is supported. System LLVM version: 11.0.0
+Currently only 9 to 13 is supported. System LLVM version: 13.0.0
 We will try though...
 Linking pidigits.ghc-5.ghc_run ...
 rm pidigits.ghc-5.hs
 
-11.88s to complete and log all make actions
+10.41s to complete and log all make actions
 
 COMMAND LINE:
 ./pidigits.ghc-5.ghc_run +RTS -N4 -RTS 10000

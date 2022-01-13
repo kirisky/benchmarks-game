@@ -31,92 +31,92 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="com">  - modified by Akira1364</span>
 <span class="com">}</span>
 
-<span class="kwa">program</span> spectralnorm<span class="opt">;</span>
+<span class="kwa">program</span> spectralnorm;
 
-<span class="kwa">uses</span> cmem<span class="opt">,</span> <span class="ppc">{$ifdef UNIX}</span>cthreads<span class="opt">,</span><span class="ppc">{$endif}</span> mtprocs<span class="opt">;</span>
+<span class="kwa">uses</span> cmem, <span class="com">{$ifdef UNIX}</span>cthreads,<span class="com">{$endif}</span> mtprocs;
 
 <span class="kwa">type</span>
-  aod <span class="opt">=</span> <span class="kwa">array of</span> <span class="kwb">double</span><span class="opt">;</span>
-  paod <span class="opt">= ^</span>aod<span class="opt">;</span>
-  aodpair <span class="opt">=</span> <span class="kwa">array</span><span class="opt">[</span><span class="num">0</span><span class="opt">.</span><span class="num">.1</span><span class="opt">]</span> <span class="kwa">of</span> paod<span class="opt">;</span>
+  aod = <span class="kwa">array of</span> <span class="kwb">double</span>;
+  paod = ^aod;
+  aodpair = <span class="kwa">array</span>[<span class="num">0</span>.<span class="num">.1</span>] <span class="kwa">of</span> paod;
 
 <span class="kwa">var</span>
-  i<span class="opt">,</span> n<span class="opt">,</span> len<span class="opt">:</span> ptrint<span class="opt">;</span>
-  u<span class="opt">,</span> v<span class="opt">,</span> tmp<span class="opt">:</span> aod<span class="opt">;</span>
-  vBv<span class="opt">,</span> vv<span class="opt">:</span> <span class="kwb">double</span><span class="opt">;</span>
-  up<span class="opt">,</span> uplow<span class="opt">,</span> vp<span class="opt">:</span> pdouble<span class="opt">;</span>
-  w<span class="opt">:</span> aodpair<span class="opt">;</span>
-  wp<span class="opt">: ^</span>aodpair<span class="opt">;</span>
+  i, n, len: ptrint;
+  u, v, tmp: aod;
+  vBv, vv: <span class="kwb">double</span>;
+  up, uplow, vp: pdouble;
+  w: aodpair;
+  wp: ^aodpair;
 
-<span class="kwa">function</span> <span class="kwd">A</span><span class="opt">(</span><span class="kwa">const</span> i<span class="opt">,</span>j <span class="opt">:</span> ptrint<span class="opt">):</span> <span class="kwb">double</span><span class="opt">;</span> <span class="kwa">inline</span><span class="opt">;</span>
+<span class="kwa">function</span> <span class="kwd">A</span>(<span class="kwa">const</span> i,j : ptrint): <span class="kwb">double</span>; <span class="kwa">inline</span>;
 <span class="kwa">begin</span>
-    A <span class="opt">:=</span> <span class="num">1</span> <span class="opt">/ ((</span>i <span class="opt">+</span> j<span class="opt">) * (</span>i <span class="opt">+</span> j <span class="opt">+</span> <span class="num">1</span><span class="opt">)</span> <span class="kwa">div</span> <span class="num">2</span> <span class="opt">+</span> i <span class="opt">+</span> <span class="num">1</span><span class="opt">);</span>
-<span class="kwa">end</span><span class="opt">;</span>
+    A := <span class="num">1</span> / ((i + j) * (i + j + <span class="num">1</span>) <span class="kwa">div</span> <span class="num">2</span> + i + <span class="num">1</span>);
+<span class="kwa">end</span>;
 
-<span class="kwa">procedure</span> <span class="kwd">mulAv</span><span class="opt">(</span>i<span class="opt">:</span> ptrint<span class="opt">;</span> Data<span class="opt">:</span> <span class="kwb">Pointer</span><span class="opt">;</span> Item<span class="opt">:</span> TMultiThreadProcItem<span class="opt">);</span>
+<span class="kwa">procedure</span> <span class="kwd">mulAv</span>(i: ptrint; Data: <span class="kwb">Pointer</span>; Item: TMultiThreadProcItem);
 <span class="kwa">var</span>
-  j<span class="opt">:</span> ptrint<span class="opt">;</span>
-  q<span class="opt">:</span> <span class="kwb">double</span><span class="opt">;</span>
+  j: ptrint;
+  q: <span class="kwb">double</span>;
 <span class="kwa">begin</span>
-  q <span class="opt">:=</span> <span class="num">0</span><span class="opt">;</span>
-  <span class="kwa">for</span> j <span class="opt">:=</span> <span class="num">0</span> <span class="kwa">to</span> n <span class="opt">-</span> <span class="num">1</span> <span class="kwa">do</span>
-    q <span class="opt">:=</span> q <span class="opt">+</span> <span class="kwd">A</span><span class="opt">(</span>i<span class="opt">,</span>j<span class="opt">) *</span> <span class="kwd">aodpair</span><span class="opt">(</span>Data<span class="opt">^)[</span><span class="num">0</span><span class="opt">]^[</span>j<span class="opt">];</span>
-  <span class="kwd">aodpair</span><span class="opt">(</span>Data<span class="opt">^)[</span><span class="num">1</span><span class="opt">]^[</span>i<span class="opt">] :=</span> q<span class="opt">;</span>
-<span class="kwa">end</span><span class="opt">;</span>
+  q := <span class="num">0</span>;
+  <span class="kwc">for</span> j := <span class="num">0</span> <span class="kwc">to</span> n - <span class="num">1</span> <span class="kwc">do</span>
+    q := q + <span class="kwd">A</span>(i,j) * <span class="kwd">aodpair</span>(Data^)[<span class="num">0</span>]^[j];
+  <span class="kwd">aodpair</span>(Data^)[<span class="num">1</span>]^[i] := q;
+<span class="kwa">end</span>;
 
-<span class="kwa">procedure</span> <span class="kwd">mulAtv</span><span class="opt">(</span>i<span class="opt">:</span> ptrint<span class="opt">;</span> Data<span class="opt">:</span> <span class="kwb">Pointer</span><span class="opt">;</span> Item<span class="opt">:</span> TMultiThreadProcItem<span class="opt">);</span>
+<span class="kwa">procedure</span> <span class="kwd">mulAtv</span>(i: ptrint; Data: <span class="kwb">Pointer</span>; Item: TMultiThreadProcItem);
 <span class="kwa">var</span>
-  j<span class="opt">:</span> ptrint<span class="opt">;</span>
-  q<span class="opt">:</span> <span class="kwb">double</span><span class="opt">;</span>
+  j: ptrint;
+  q: <span class="kwb">double</span>;
 <span class="kwa">begin</span>
-  q <span class="opt">:=</span> <span class="num">0</span><span class="opt">;</span>
-  <span class="kwa">for</span> j <span class="opt">:=</span> <span class="num">0</span> <span class="kwa">to</span> n <span class="opt">-</span> <span class="num">1</span> <span class="kwa">do</span>
-    q <span class="opt">:=</span> q <span class="opt">+</span> <span class="kwd">A</span><span class="opt">(</span>j<span class="opt">,</span>i<span class="opt">) *</span> <span class="kwd">aodpair</span><span class="opt">(</span>Data<span class="opt">^)[</span><span class="num">0</span><span class="opt">]^[</span>j<span class="opt">];</span>
-  <span class="kwd">aodpair</span><span class="opt">(</span>Data<span class="opt">^)[</span><span class="num">1</span><span class="opt">]^[</span>i<span class="opt">] :=</span> q<span class="opt">;</span>
-<span class="kwa">end</span><span class="opt">;</span>
+  q := <span class="num">0</span>;
+  <span class="kwc">for</span> j := <span class="num">0</span> <span class="kwc">to</span> n - <span class="num">1</span> <span class="kwc">do</span>
+    q := q + <span class="kwd">A</span>(j,i) * <span class="kwd">aodpair</span>(Data^)[<span class="num">0</span>]^[j];
+  <span class="kwd">aodpair</span>(Data^)[<span class="num">1</span>]^[i] := q;
+<span class="kwa">end</span>;
 
-<span class="kwa">procedure</span> <span class="kwd">mulAtAv</span><span class="opt">(</span><span class="kwa">const</span> PAtA1<span class="opt">,</span> PAtA2<span class="opt">:</span> paod<span class="opt">);</span> <span class="kwa">inline</span><span class="opt">;</span>
+<span class="kwa">procedure</span> <span class="kwd">mulAtAv</span>(<span class="kwa">const</span> PAtA1, PAtA2: paod); <span class="kwa">inline</span>;
 <span class="kwa">begin</span>
-  w<span class="opt">[</span><span class="num">0</span><span class="opt">] :=</span> PAtA1<span class="opt">;</span>
-  w<span class="opt">[</span><span class="num">1</span><span class="opt">] := &#64;</span>tmp<span class="opt">;</span>
-  ProcThreadPool<span class="opt">.</span><span class="kwd">DoParallel</span><span class="opt">(&#64;</span>mulAv<span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> len<span class="opt">,</span> wp<span class="opt">);</span>
-  w<span class="opt">[</span><span class="num">0</span><span class="opt">] := &#64;</span>tmp<span class="opt">;</span>
-  w<span class="opt">[</span><span class="num">1</span><span class="opt">] :=</span> PAtA2<span class="opt">;</span>
-  ProcThreadPool<span class="opt">.</span><span class="kwd">DoParallel</span><span class="opt">(&#64;</span>mulAtv<span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> len<span class="opt">,</span> wp<span class="opt">);</span>
-<span class="kwa">end</span><span class="opt">;</span>
+  w[<span class="num">0</span>] := PAtA1;
+  w[<span class="num">1</span>] := &#64;tmp;
+  ProcThreadPool.<span class="kwd">DoParallel</span>(&#64;mulAv, <span class="num">0</span>, len, wp);
+  w[<span class="num">0</span>] := &#64;tmp;
+  w[<span class="num">1</span>] := PAtA2;
+  ProcThreadPool.<span class="kwd">DoParallel</span>(&#64;mulAtv, <span class="num">0</span>, len, wp);
+<span class="kwa">end</span>;
 
 <span class="kwa">begin</span>
-  <span class="kwd">val</span><span class="opt">(</span><span class="kwd">paramstr</span><span class="opt">(</span><span class="num">1</span><span class="opt">),</span> n<span class="opt">,</span> i<span class="opt">);</span>
-  <span class="kwd">setlength</span><span class="opt">(</span>u<span class="opt">,</span> n<span class="opt">);</span>
-  <span class="kwd">setlength</span><span class="opt">(</span>v<span class="opt">,</span> n<span class="opt">);</span>
-  <span class="kwd">setlength</span><span class="opt">(</span>tmp<span class="opt">,</span> n<span class="opt">);</span>
+  <span class="kwd">val</span>(<span class="kwd">paramstr</span>(<span class="num">1</span>), n, i);
+  <span class="kwd">setlength</span>(u, n);
+  <span class="kwd">setlength</span>(v, n);
+  <span class="kwd">setlength</span>(tmp, n);
 
-  len <span class="opt">:=</span> n <span class="opt">-</span> <span class="num">1</span><span class="opt">;</span>
+  len := n - <span class="num">1</span>;
 
-  <span class="kwa">for</span> i <span class="opt">:=</span> len <span class="kwa">downto</span> <span class="num">0</span> <span class="kwa">do</span>
-    u<span class="opt">[</span>i<span class="opt">] :=</span> <span class="num">1.0</span><span class="opt">;</span>
+  <span class="kwc">for</span> i := len <span class="kwc">downto</span> <span class="num">0</span> <span class="kwc">do</span>
+    u[i] := <span class="num">1.0</span>;
 
-  vBv <span class="opt">:=</span> <span class="num">0</span><span class="opt">;</span>
-  vv <span class="opt">:=</span> <span class="num">0</span><span class="opt">;</span>
-  wp <span class="opt">:= &#64;</span>w<span class="opt">;</span>
+  vBv := <span class="num">0</span>;
+  vv := <span class="num">0</span>;
+  wp := &#64;w;
 
-  <span class="kwa">for</span> i <span class="opt">:=</span> <span class="num">1</span> <span class="kwa">to</span> <span class="num">10</span> <span class="kwa">do begin</span>
-    <span class="kwd">mulAtAv</span><span class="opt">(&#64;</span>u<span class="opt">, &#64;</span>v<span class="opt">);</span>
-    <span class="kwd">mulAtAv</span><span class="opt">(&#64;</span>v<span class="opt">, &#64;</span>u<span class="opt">);</span>
-  <span class="kwa">end</span><span class="opt">;</span>
+  <span class="kwc">for</span> i := <span class="num">1</span> <span class="kwc">to</span> <span class="num">10</span> <span class="kwc">do</span> <span class="kwa">begin</span>
+    <span class="kwd">mulAtAv</span>(&#64;u, &#64;v);
+    <span class="kwd">mulAtAv</span>(&#64;v, &#64;u);
+  <span class="kwa">end</span>;
 
-  up <span class="opt">:= &#64;</span>u<span class="opt">[</span>len<span class="opt">];</span>
-  uplow <span class="opt">:= &#64;</span>u<span class="opt">[</span><span class="num">0</span><span class="opt">];</span>
-  vp <span class="opt">:= &#64;</span>v<span class="opt">[</span>len<span class="opt">];</span>
-  <span class="kwa">repeat</span>
-    vBv <span class="opt">:=</span> vBv <span class="opt">+</span> up<span class="opt">^ *</span> vp<span class="opt">^;</span>
-    vv <span class="opt">:=</span> vv <span class="opt">+</span> vp<span class="opt">^ *</span> vp<span class="opt">^;</span>
-    <span class="kwd">Dec</span><span class="opt">(</span>up<span class="opt">);</span>
-    <span class="kwd">Dec</span><span class="opt">(</span>vp<span class="opt">);</span>
-  <span class="kwa">until</span> up <span class="opt">=</span> uplow<span class="opt">;</span>
+  up := &#64;u[len];
+  uplow := &#64;u[<span class="num">0</span>];
+  vp := &#64;v[len];
+  <span class="kwc">repeat</span>
+    vBv := vBv + up^ * vp^;
+    vv := vv + vp^ * vp^;
+    <span class="kwd">Dec</span>(up);
+    <span class="kwd">Dec</span>(vp);
+  <span class="kwc">until</span> up = uplow;
 
-  <span class="kwd">writeln</span><span class="opt">(</span><span class="kwd">sqrt</span><span class="opt">(</span>vBv <span class="opt">/</span> vv<span class="opt">) :</span> <span class="num">0</span> <span class="opt">:</span> <span class="num">9</span><span class="opt">);</span>
-<span class="kwa">end</span><span class="opt">.</span>
+  <span class="kwd">writeln</span>(<span class="kwd">sqrt</span>(vBv / vv) : <span class="num">0</span> : <span class="num">9</span>);
+<span class="kwa">end</span>.
     </pre>
   </section>
   <section>
@@ -126,27 +126,26 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
     <pre>
 NOTES:
 64-bit Ubuntu quad core
-Free Pascal Compiler version 3.2.0 [2020/06/14] for x86_64
+Free Pascal Compiler version 3.2.2 [2021/05/16] for x86_64
 
 
-
-Fri, 23 Oct 2020 23:57:35 GMT
+Mon, 10 Jan 2022 02:18:49 GMT
 
 MAKE:
 mv spectralnorm.fpascal-3.fpascal spectralnorm.fpascal-3.pas
-/opt/src/fpc-3.2.0/bin/fpc -FuInclude/fpascal -XXs -O3 -Ci- -Cr- -g- -CpCOREAVX -CfAVX -Tlinux -Fi Include/fpascal -oFPASCAL_RUN spectralnorm.fpascal-3.pas
+/opt/src/fpc-3.2.2/bin/fpc -FuInclude/fpascal -XXs -O3 -Ci- -Cr- -g- -CpCOREAVX -CfAVX -Tlinux -Fi Include/fpascal -oFPASCAL_RUN spectralnorm.fpascal-3.pas
 Warning: Only one source file supported, changing source file to compile from &quot;Include/fpascal&quot; into &quot;spectralnorm.fpascal-3.pas&quot;
-Free Pascal Compiler version 3.2.0 [2020/06/14] for x86_64
-Copyright (c) 1993-2020 by Florian Klaempfl and others
+Free Pascal Compiler version 3.2.2 [2021/05/16] for x86_64
+Copyright (c) 1993-2021 by Florian Klaempfl and others
 Target OS: Linux for x86-64
 Compiling spectralnorm.fpascal-3.pas
 Linking FPASCAL_RUN
-95 lines compiled, 1.0 sec
+95 lines compiled, 0.9 sec
 1 warning(s) issued
 mv FPASCAL_RUN spectralnorm.fpascal-3.fpascal_run
 rm spectralnorm.fpascal-3.pas
 
-1.26s to complete and log all make actions
+1.24s to complete and log all make actions
 
 COMMAND LINE:
 ./spectralnorm.fpascal-3.fpascal_run 5500
