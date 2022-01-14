@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,follow,noarchive">
+
+<title>fannkuch-redux Rust&nbsp;#6 program | Computer Language Benchmarks Game </title>
+<style><!--
+a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,header{margin:auto;width:92%}body{font:100% Droid Sans, Ubuntu, Verdana, sans-serif;margin:0;-webkit-text-size-adjust:100%}h3, h1, h2, li a{font-family:Ubuntu Mono,Consolas,Menlo,monospace}div,footer,header{max-width:31em}footer{padding:2.6em 0 0}h3{font-size:1.4em;font-weight:bold;margin:0;padding: .4em}h3, h3 a{color:white;background-color:#77216f}h3 small{font-size:0.64em}h1,h2{margin:1.5em 0 0}h1{font-size:1.4em;font-weight:normal}h2{font-size:1.2em}li{list-style-type:none;vertical-align:top}li a{display:block;font-size:1.2em;margin: .5em .5em 0;padding: .5em .5em .3em}ul{clear:left;margin:-0.3em 0 1.5em;padding-left:0;text-align:center}p{color:#333;line-height:1.4;margin: .3em 0 0}p a, a span{border-bottom: .1em solid #333;padding-bottom: .1em}.com,.slc{color:#888}.kwa{color:#066}.kwb{color:#900}.kwc{color:#050}.kwa,.kwb,.kwc{font-weight:bold}.dstr,.str,.sym,.num{color:#930}pre{color:#222;font-size:1em;overflow-wrap:break-word;white-space:pre-wrap;word-wrap:break-word}@media only screen and (min-width: 60em){article,footer,header{font-size:1.25em}}
+--></style>
+<link rel="shortcut icon" href="../favicon.ico">
+<header>
+  <h3><a href="https://benchmarksgame-team.pages.debian.net/benchmarksgame/index.html">The&nbsp;<small>22.01 Computer&nbsp;Language</small><br>Benchmarks&nbsp;Game</a></h3>
+</header>
+<article>
+  <div>
+    <h1>fannkuch-redux Rust&nbsp;#6 program</h1>
+    <aside>
+      <p><a href="../description/fannkuchredux.html#fannkuchredux">description</a>
+    </aside>
+  </div>
+  <section>
+    <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc">// The Computer Language Benchmarks Game</span>
+<span class="slc">// https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">//</span>
+<span class="slc">// Contributed by Henry Jayakusuma</span>
+<span class="slc">// Inspired by C++ #6 SIMD implementation by Andrei Simion</span>
+<span class="slc">// Requires SSE3 and SSE4 instruction set</span>
+
+<span class="kwa">extern crate</span> rayon<span class="opt">;</span>
+
+<span class="kwa">use</span> std<span class="opt">::</span>arch<span class="opt">::</span>x86_64<span class="opt">::{</span>__m128i<span class="opt">,</span> _mm_extract_epi8<span class="opt">,</span> _mm_shuffle_epi8<span class="opt">};</span>
+<span class="kwa">use</span> std<span class="opt">::</span>cmp<span class="opt">::</span>max<span class="opt">;</span>
+<span class="kwa">use</span> std<span class="opt">::</span>mem<span class="opt">::</span>transmute<span class="opt">;</span>
+<span class="kwa">use</span> rayon<span class="opt">::</span>prelude<span class="opt">::*;</span>
+
+<span class="ppc">#[inline(always)]</span>
+<span class="kwa">fn</span> <span class="kwd">reverse_array</span><span class="opt">(</span>array<span class="opt">:</span> u128<span class="opt">,</span> num_to_reverse<span class="opt">:</span> <span class="kwb">usize</span><span class="opt">) -&gt;</span> u128 <span class="opt">{</span>
+    <span class="kwa">const</span> MASK<span class="opt">: [</span>u128<span class="opt">;</span> <span class="num">16</span><span class="opt">] = [</span>
+        <span class="num">0x0F_0E_0D_0C_0B_0A_09_08_07_06_05_04_03_02_01_00</span><span class="opt">,</span>
+        <span class="num">0x0F_0E_0D_0C_0B_0A_09_08_07_06_05_04_03_02_00_01</span><span class="opt">,</span>
+        <span class="num">0x0F_0E_0D_0C_0B_0A_09_08_07_06_05_04_03_00_01_02</span><span class="opt">,</span>
+        <span class="num">0x0F_0E_0D_0C_0B_0A_09_08_07_06_05_04_00_01_02_03</span><span class="opt">,</span>
+        <span class="num">0x0F_0E_0D_0C_0B_0A_09_08_07_06_05_00_01_02_03_04</span><span class="opt">,</span>
+        <span class="num">0x0F_0E_0D_0C_0B_0A_09_08_07_06_00_01_02_03_04_05</span><span class="opt">,</span>
+        <span class="num">0x0F_0E_0D_0C_0B_0A_09_08_07_00_01_02_03_04_05_06</span><span class="opt">,</span>
+        <span class="num">0x0F_0E_0D_0C_0B_0A_09_08_00_01_02_03_04_05_06_07</span><span class="opt">,</span>
+        <span class="num">0x0F_0E_0D_0C_0B_0A_09_00_01_02_03_04_05_06_07_08</span><span class="opt">,</span>
+        <span class="num">0x0F_0E_0D_0C_0B_0A_00_01_02_03_04_05_06_07_08_09</span><span class="opt">,</span>
+        <span class="num">0x0F_0E_0D_0C_0B_00_01_02_03_04_05_06_07_08_09_0A</span><span class="opt">,</span>
+        <span class="num">0x0F_0E_0D_0C_00_01_02_03_04_05_06_07_08_09_0A_0B</span><span class="opt">,</span>
+        <span class="num">0x0F_0E_0D_00_01_02_03_04_05_06_07_08_09_0A_0B_0C</span><span class="opt">,</span>
+        <span class="num">0x0F_0E_00_01_02_03_04_05_06_07_08_09_0A_0B_0C_0D</span><span class="opt">,</span>
+        <span class="num">0x0F_00_01_02_03_04_05_06_07_08_09_0A_0B_0C_0D_0E</span><span class="opt">,</span>
+        <span class="num">0x00_01_02_03_04_05_06_07_08_09_0A_0B_0C_0D_0E_0F</span><span class="opt">,</span>
+    <span class="opt">];</span>
+    <span class="kwa">unsafe</span> <span class="opt">{</span>
+        transmute<span class="opt">::&lt;</span>__m128i<span class="opt">,</span> u128<span class="opt">&gt;(</span>
+            <span class="kwd">_mm_shuffle_epi8</span><span class="opt">(</span>
+                transmute<span class="opt">::&lt;</span>u128<span class="opt">,</span> __m128i<span class="opt">&gt;(</span>array<span class="opt">),</span>
+                transmute<span class="opt">::&lt;</span>u128<span class="opt">,</span> __m128i<span class="opt">&gt;(*</span>MASK<span class="opt">.</span><span class="kwd">get_unchecked</span><span class="opt">(</span>num_to_reverse<span class="opt">)),</span>
+            <span class="opt">)</span>
+        <span class="opt">)</span>
+    <span class="opt">}</span>
+<span class="opt">}</span>
+
+<span class="ppc">#[inline(always)]</span>
+<span class="kwa">fn</span> <span class="kwd">rotate_array</span><span class="opt">(</span>array<span class="opt">:</span> u128<span class="opt">,</span> num_to_rotate<span class="opt">:</span> <span class="kwb">usize</span><span class="opt">) -&gt;</span> u128 <span class="opt">{</span>
+    <span class="kwa">const</span> MASK<span class="opt">: [</span>u128<span class="opt">;</span> <span class="num">16</span><span class="opt">] = [</span>
+        <span class="num">0x0F_0E_0D_0C_0B_0A_09_08_07_06_05_04_03_02_01_00</span><span class="opt">,</span>
+        <span class="num">0x0F_0E_0D_0C_0B_0A_09_08_07_06_05_04_03_02_00_01</span><span class="opt">,</span>
+        <span class="num">0x0F_0E_0D_0C_0B_0A_09_08_07_06_05_04_03_00_02_01</span><span class="opt">,</span>
+        <span class="num">0x0F_0E_0D_0C_0B_0A_09_08_07_06_05_04_00_03_02_01</span><span class="opt">,</span>
+        <span class="num">0x0F_0E_0D_0C_0B_0A_09_08_07_06_05_00_04_03_02_01</span><span class="opt">,</span>
+        <span class="num">0x0F_0E_0D_0C_0B_0A_09_08_07_06_00_05_04_03_02_01</span><span class="opt">,</span>
+        <span class="num">0x0F_0E_0D_0C_0B_0A_09_08_07_00_06_05_04_03_02_01</span><span class="opt">,</span>
+        <span class="num">0x0F_0E_0D_0C_0B_0A_09_08_00_07_06_05_04_03_02_01</span><span class="opt">,</span>
+        <span class="num">0x0F_0E_0D_0C_0B_0A_09_00_08_07_06_05_04_03_02_01</span><span class="opt">,</span>
+        <span class="num">0x0F_0E_0D_0C_0B_0A_00_09_08_07_06_05_04_03_02_01</span><span class="opt">,</span>
+        <span class="num">0x0F_0E_0D_0C_0B_00_0A_09_08_07_06_05_04_03_02_01</span><span class="opt">,</span>
+        <span class="num">0x0F_0E_0D_0C_00_0B_0A_09_08_07_06_05_04_03_02_01</span><span class="opt">,</span>
+        <span class="num">0x0F_0E_0D_00_0C_0B_0A_09_08_07_06_05_04_03_02_01</span><span class="opt">,</span>
+        <span class="num">0x0F_0E_00_0D_0C_0B_0A_09_08_07_06_05_04_03_02_01</span><span class="opt">,</span>
+        <span class="num">0x0F_00_0E_0D_0C_0B_0A_09_08_07_06_05_04_03_02_01</span><span class="opt">,</span>
+        <span class="num">0x00_0F_0E_0D_0C_0B_0A_09_08_07_06_05_04_03_02_01</span><span class="opt">,</span>
+    <span class="opt">];</span>
+    <span class="kwa">unsafe</span> <span class="opt">{</span>
+        transmute<span class="opt">::&lt;</span>__m128i<span class="opt">,</span> u128<span class="opt">&gt;(</span>
+            <span class="kwd">_mm_shuffle_epi8</span><span class="opt">(</span>
+                transmute<span class="opt">::&lt;</span>u128<span class="opt">,</span> __m128i<span class="opt">&gt;(</span>array<span class="opt">),</span>
+                transmute<span class="opt">::&lt;</span>u128<span class="opt">,</span> __m128i<span class="opt">&gt;(*</span>MASK<span class="opt">.</span><span class="kwd">get_unchecked</span><span class="opt">(</span>num_to_rotate<span class="opt">)),</span>
+            <span class="opt">)</span>
+        <span class="opt">)</span>
+    <span class="opt">}</span>
+<span class="opt">}</span>
+
+<span class="ppc">#[inline(always)]</span>
+<span class="kwa">fn</span> get<span class="opt">&lt;</span><span class="kwa">const</span> IMM8<span class="opt">:</span> <span class="kwb">i32</span><span class="opt">&gt;(</span>array<span class="opt">:</span> u128<span class="opt">) -&gt;</span> <span class="kwb">i32</span> <span class="opt">{</span>
+    <span class="kwa">unsafe</span> <span class="opt">{</span> _mm_extract_epi8<span class="opt">::&lt;</span>IMM8<span class="opt">&gt;(</span>transmute<span class="opt">::&lt;</span>u128<span class="opt">,</span> __m128i<span class="opt">&gt;(</span>array<span class="opt">)) }</span>
+<span class="opt">}</span>
+
+<span class="ppc">#[inline(always)]</span>
+<span class="kwa">fn</span> <span class="kwd">forced_indexing</span><span class="opt">(</span>array<span class="opt">:</span> u128<span class="opt">,</span> idx<span class="opt">:</span> <span class="kwb">u8</span><span class="opt">) -&gt;</span> <span class="kwb">u8</span> <span class="opt">{</span>
+    <span class="kwa">unsafe</span> <span class="opt">{ *</span>transmute<span class="opt">::&lt;</span>u128<span class="opt">, [</span><span class="kwb">u8</span><span class="opt">;</span> <span class="num">16</span><span class="opt">]&gt;(</span>array<span class="opt">).</span><span class="kwd">get_unchecked</span><span class="opt">(</span>idx <span class="kwa">as</span> <span class="kwb">usize</span><span class="opt">) }</span>
+<span class="opt">}</span>
+
+<span class="ppc">#[inline(always)]</span>
+<span class="kwa">fn</span> <span class="kwd">advance_array</span><span class="opt">(</span><span class="kwa">mut</span> array<span class="opt">:</span> u128<span class="opt">,</span> count<span class="opt">: &amp;</span><span class="kwa">mut</span> <span class="opt">[</span><span class="kwb">u8</span><span class="opt">;</span> <span class="num">16</span><span class="opt">]) -&gt;</span> u128 <span class="opt">{</span>
+    <span class="kwa">for</span> layer <span class="kwa">in</span> <span class="num">1</span><span class="opt">.</span><span class="num">.16</span> <span class="opt">{</span>
+        array <span class="opt">=</span> <span class="kwd">rotate_array</span><span class="opt">(</span>array<span class="opt">,</span> layer<span class="opt">);</span>
+        count<span class="opt">[</span>layer<span class="opt">] +=</span> <span class="num">1</span><span class="opt">;</span>
+        <span class="kwa">if</span> count<span class="opt">[</span>layer<span class="opt">] &lt;=</span> layer <span class="kwa">as</span> <span class="kwb">u8</span> <span class="opt">{</span> <span class="kwa">break</span><span class="opt">; }</span>
+        count<span class="opt">[</span>layer<span class="opt">] =</span> <span class="num">0</span><span class="opt">;</span>
+    <span class="opt">}</span>
+    array
+<span class="opt">}</span>
+
+<span class="kwa">fn</span> <span class="kwd">fannkuchredux</span><span class="opt">(</span>n<span class="opt">:</span> <span class="kwb">usize</span><span class="opt">) -&gt; (</span><span class="kwb">i32</span><span class="opt">,</span> <span class="kwb">i32</span><span class="opt">) {</span>
+    assert<span class="opt">!(</span>n <span class="opt">&lt;=</span> <span class="num">16</span><span class="opt">);</span>
+    <span class="kwa">let mut</span> current <span class="opt">=</span> <span class="num">0x0F_0E_0D_0C_0B_0A_09_08_07_06_05_04_03_02_01_00</span><span class="opt">;</span>
+    <span class="kwa">let</span> count <span class="opt">= [</span><span class="num">0u8</span><span class="opt">;</span> <span class="num">16</span><span class="opt">];</span>
+
+    <span class="slc">// Trivial cases, not implemented</span>
+    <span class="kwa">if</span> n <span class="opt">==</span> <span class="num">0</span> <span class="opt">{</span> <span class="kwa">return</span> <span class="opt">(</span><span class="num">0</span><span class="opt">,</span> <span class="num">0</span><span class="opt">); }</span>
+    <span class="kwa">if</span> n <span class="opt">==</span> <span class="num">1</span> <span class="opt">{</span> <span class="kwa">return</span> <span class="opt">(</span><span class="num">0</span><span class="opt">,</span> <span class="num">0</span><span class="opt">); }</span>
+    <span class="kwa">if</span> n <span class="opt">==</span> <span class="num">2</span> <span class="opt">{</span> <span class="kwa">return</span> <span class="opt">(-</span><span class="num">1</span><span class="opt">,</span> <span class="num">1</span><span class="opt">); }</span>
+
+    <span class="slc">// Divide work blocks for each n element rotation</span>
+    <span class="kwa">let mut</span> arrays <span class="opt">=</span> vec<span class="opt">![</span>current<span class="opt">];</span>
+    <span class="kwa">for</span> _ <span class="kwa">in</span> <span class="num">1</span><span class="opt">..</span>n <span class="opt">{</span>
+        current <span class="opt">=</span> <span class="kwd">rotate_array</span><span class="opt">(</span>current<span class="opt">,</span> n <span class="opt">-</span> <span class="num">1</span><span class="opt">);</span>
+        arrays<span class="opt">.</span><span class="kwd">push</span><span class="opt">(</span>current<span class="opt">);</span>
+    <span class="opt">}</span>
+    <span class="opt">(</span><span class="num">0</span><span class="opt">..</span>n<span class="opt">)</span><span class="num">.i</span>nto<span class="num">_</span>par<span class="num">_i</span>ter<span class="opt">().</span><span class="kwd">map</span><span class="opt">(|</span>rotate_count<span class="opt">| {</span>
+        <span class="kwa">let mut</span> current <span class="opt">=</span> arrays<span class="opt">[</span>rotate_count<span class="opt">];</span>
+        <span class="kwa">let mut</span> count <span class="opt">=</span> count<span class="opt">.</span><span class="kwd">clone</span><span class="opt">();</span>
+        count<span class="opt">[</span>n <span class="opt">-</span> <span class="num">1</span><span class="opt">] =</span> rotate_count <span class="kwa">as</span> <span class="kwb">u8</span><span class="opt">;</span>
+
+        <span class="slc">// Divide work blocks for each n - 1 element rotation</span>
+        <span class="kwa">let mut</span> arrays <span class="opt">=</span> vec<span class="opt">![</span>current<span class="opt">];</span>
+        <span class="kwa">for</span> _ <span class="kwa">in</span> <span class="num">1</span><span class="opt">..</span>n <span class="opt">-</span> <span class="num">1</span> <span class="opt">{</span>
+            current <span class="opt">=</span> <span class="kwd">rotate_array</span><span class="opt">(</span>current<span class="opt">,</span> n <span class="opt">-</span> <span class="num">2</span><span class="opt">);</span>
+            arrays<span class="opt">.</span><span class="kwd">push</span><span class="opt">(</span>current<span class="opt">);</span>
+        <span class="opt">}</span>
+        <span class="opt">(</span><span class="num">0</span><span class="opt">..</span>n <span class="opt">-</span> <span class="num">1</span><span class="opt">)</span><span class="num">.i</span>nto<span class="num">_</span>par<span class="num">_i</span>ter<span class="opt">().</span><span class="kwd">map</span><span class="opt">(|</span>rotate_count<span class="opt">| {</span>
+            <span class="kwa">let mut</span> current <span class="opt">=</span> arrays<span class="opt">[</span>rotate_count<span class="opt">];</span>
+            <span class="kwa">let mut</span> count <span class="opt">=</span> count<span class="opt">.</span><span class="kwd">clone</span><span class="opt">();</span>
+            count<span class="opt">[</span>n <span class="opt">-</span> <span class="num">2</span><span class="opt">] =</span> rotate_count <span class="kwa">as</span> <span class="kwb">u8</span><span class="opt">;</span>
+
+            <span class="slc">// Calculating checksum and max_rev</span>
+            <span class="kwa">let mut</span> checksum <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+            <span class="kwa">let mut</span> max_rev <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+            <span class="kwa">while</span> count<span class="opt">[</span>n <span class="opt">-</span> <span class="num">2</span><span class="opt">] ==</span> rotate_count <span class="kwa">as</span> <span class="kwb">u8</span> <span class="opt">{</span>
+                <span class="kwa">let mut</span> tmp <span class="opt">=</span> current<span class="opt">;</span>
+                <span class="kwa">let mut</span> rev_count <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+                <span class="kwa">let mut</span> first <span class="opt">=</span> get<span class="opt">::&lt;</span><span class="num">0</span><span class="opt">&gt;(</span>tmp<span class="opt">)</span> <span class="kwa">as</span> <span class="kwb">u8</span><span class="opt">;</span>
+                <span class="kwa">if</span> first <span class="opt">&gt;</span> <span class="num">0</span> <span class="opt">{</span>
+                    <span class="kwa">while</span> first <span class="opt">&gt;</span> <span class="num">0</span> <span class="opt">{</span>
+                        <span class="kwa">let</span> next <span class="opt">=</span> <span class="kwd">forced_indexing</span><span class="opt">(</span>tmp<span class="opt">,</span> first<span class="opt">);</span>
+                        tmp <span class="opt">=</span> <span class="kwd">reverse_array</span><span class="opt">(</span>tmp<span class="opt">,</span> first <span class="kwa">as</span> <span class="kwb">usize</span><span class="opt">);</span>
+                        first <span class="opt">=</span> next<span class="opt">;</span>
+                        rev_count <span class="opt">+=</span> <span class="num">1</span><span class="opt">;</span>
+                    <span class="opt">}</span>
+                    <span class="slc">// Bit hack: conditional negation, oddly impactful on performance</span>
+                    checksum <span class="opt">+= (</span>rev_count ^ <span class="opt">-(</span>count<span class="opt">[</span><span class="num">1</span><span class="opt">]</span> <span class="kwa">as</span> <span class="kwb">i32</span><span class="opt">)) +</span> count<span class="opt">[</span><span class="num">1</span><span class="opt">]</span> <span class="kwa">as</span> <span class="kwb">i32</span><span class="opt">;</span>
+                    max_rev <span class="opt">=</span> <span class="kwd">max</span><span class="opt">(</span>max_rev<span class="opt">,</span> rev_count<span class="opt">);</span>
+                <span class="opt">}</span>
+                current <span class="opt">=</span> <span class="kwd">advance_array</span><span class="opt">(</span>current<span class="opt">, &amp;</span><span class="kwa">mut</span> count<span class="opt">);</span>
+            <span class="opt">}</span>
+            <span class="opt">(</span>checksum<span class="opt">,</span> max_rev<span class="opt">)</span>
+        <span class="opt">}).</span><span class="kwd">reduce</span><span class="opt">(|| (</span><span class="num">0</span><span class="opt">,</span> <span class="num">0</span><span class="opt">), |(</span>cs1<span class="opt">,</span> mr1<span class="opt">), (</span>cs2<span class="opt">,</span> mr2<span class="opt">)| (</span>cs1 <span class="opt">+</span> cs2<span class="opt">,</span> <span class="kwd">max</span><span class="opt">(</span>mr1<span class="opt">,</span> mr2<span class="opt">)))</span>
+    <span class="opt">}).</span><span class="kwd">reduce</span><span class="opt">(|| (</span><span class="num">0</span><span class="opt">,</span> <span class="num">0</span><span class="opt">), |(</span>cs1<span class="opt">,</span> mr1<span class="opt">), (</span>cs2<span class="opt">,</span> mr2<span class="opt">)| (</span>cs1 <span class="opt">+</span> cs2<span class="opt">,</span> <span class="kwd">max</span><span class="opt">(</span>mr1<span class="opt">,</span> mr2<span class="opt">)))</span>
+<span class="opt">}</span>
+
+<span class="kwa">pub fn</span> <span class="kwd">main</span><span class="opt">() {</span>
+    <span class="kwa">let</span> n <span class="opt">=</span> std<span class="opt">::</span>env<span class="opt">::</span><span class="kwd">args</span><span class="opt">().</span><span class="kwd">nth</span><span class="opt">(</span><span class="num">1</span><span class="opt">)</span>
+        <span class="opt">.</span><span class="kwd">and_then</span><span class="opt">(|</span>n<span class="opt">|</span> n<span class="opt">.</span><span class="kwd">parse</span><span class="opt">().</span><span class="kwd">ok</span><span class="opt">())</span>
+        <span class="num">.u</span>nwrap<span class="num">_</span>or<span class="opt">(</span><span class="num">7</span><span class="opt">);</span>
+    <span class="kwa">let</span> <span class="opt">(</span>checksum<span class="opt">,</span> max_rev<span class="opt">) =</span> <span class="kwd">fannkuchredux</span><span class="opt">(</span>n<span class="opt">);</span>
+    println<span class="opt">!(</span><span class="str">&quot;{}</span><span class="esc">\</span><span class="str">nPfannkuchen({}) = {}&quot;</span><span class="opt">,</span> checksum<span class="opt">,</span> n<span class="opt">,</span> max_rev<span class="opt">);</span>
+<span class="opt">}</span>
+    </pre>
+  </section>
+  <section>
+    <div>
+      <h2 id="log">notes, command-line, and program output</h2>
+    </div>
+    <pre>
+NOTES:
+64-bit Ubuntu quad core
+rustc 1.58.0 (02072b482 2022-01-11)
+LLVM version: 13.0.0
+
+
+Fri, 14 Jan 2022 18:56:14 GMT
+
+MAKE:
+/opt/src/rust-1.58.0/bin/rustc -C opt-level=3 -C target-cpu=ivybridge --C codegen-units=1 -L /opt/src/rust-libs fannkuchredux.rs -o fannkuchredux.rust-6.rust_run
+
+8.73s to complete and log all make actions
+
+COMMAND LINE:
+./fannkuchredux.rust-6.rust_run 12
+
+PROGRAM OUTPUT:
+3968050
+Pfannkuchen(12) = 65
+    </pre>
+  </section>
+</article>
+<footer>
+  <nav>
+    <ul>
+      <li><a href="../license.html"><span>3-Clause BSD License</span></a>
+    </ul>
+  </nav>
+</footer>
+
