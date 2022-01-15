@@ -16,7 +16,7 @@ Now the benchmarks game might be updated after 6 or 12 months. Now it might not 
 
 (On 2012 i5-3330 UEFI / Secure Boot hardware, it has proved very difficult to keep Ubuntu working as a dual-boot with MS Windows 10. The current measurements were made by first re-installing Ubuntu from DVD and re-installing the development tools and development libraries and … and that's way too much aggravation.)
 
-If in-spite of that warning you are intent on adding something to the issue tracker, [please follow the guidelines](/public/CONTRIBUTING.md).
+If in-spite of that warning you are intent on adding something to the issue tracker, [please follow the guidelines](/CONTRIBUTING.md).
 
 
 What else?
