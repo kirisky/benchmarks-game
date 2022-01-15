@@ -9,13 +9,14 @@ Toy-program performance measurements for ~24 language implementations.
 The Benchmarks Game
 ===================
 
-Previously new source-code was usually measured and shown on the website within a few days. Not now.
+Once-upon-a-time new source-code was measured and shown on the website within a few days. Not any more.
 
-Now new source-code might be measured and shown on the website after several months; or not measured and not shown.
+Now the benchmarks game might be updated after 6 or 12 months. Now it might not be updated.
 
-As-of July 2020, new measurements were made on a 2012 i5-3330.
 
-On that UEFI / Secure Boot hardware, it has proved very difficult to keep Ubuntu working as a dual-boot. After using Windows 10, Ubuntu often fails to boot. So far the only reliable remedy is to re-install Ubuntu from DVD — that really isn't practical.
+(On 2012 i5-3330 UEFI / Secure Boot hardware, it has proved very difficult to keep Ubuntu working as a dual-boot with MS Windows 10. The current measurements were made by first re-installing Ubuntu from DVD and re-installing the development tools and development libraries and … and that's way too much aggravation.)
+
+If in-spite of that warning you are intent on adding something to the issue tracker, [please follow the guidelines](/public/CONTRIBUTING.md).
 
 
 What else?
