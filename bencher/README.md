@@ -3,7 +3,7 @@ The Benchmarks Game — bencher
 
 Overview
 --------
-* bencher is an example of how to use the benchmarks game Python 2 program measurement scripts to make the content for the mybenchmarks [PHP website scripts](../mybenchmarks).
+* bencher is an example of how to use the benchmarks game Python 2 program measurement scripts to make the content for the mybenchmarks [PHP website scripts](../mybenchmarks). 
 
 * Different [.ini files](makefiles) allow different sets of measurements to be separated into different folders.
   You really are expected to copy/edit the ini file.
@@ -11,6 +11,8 @@ Overview
 * These scripts are designed to make content for the benchmarks game website — marked-up program source code files, program log files, multi-second run times, results checking, two-dozen language implementations, a thousand programs — that might not be what you need! (Perhaps something like [hyperfine](https://github.com/sharkdp/hyperfine) would match your needs? Perhaps something like [Phoronix Test Suite](https://www.phoronix-test-suite.com/) would match your needs?)
 
 * OTOH perhaps making something like the benchmarks game website is exactly what you would like to do, for example — [https://pybenchmarks.org/](https://pybenchmarks.org/)
+
+(January 2022, made a clean install of Ubuntu 21.10 and successfully installed the libraries required by the measurement scripts.)
    
 Background
 ----------
