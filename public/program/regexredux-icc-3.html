@@ -39,135 +39,135 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="ppc">#include &lt;omp.h&gt;</span>
 
 
-<span class="kwc">typedef</span> <span class="kwb">struct</span> fbuf <span class="opt">{</span>
-    <span class="kwb">char</span> <span class="opt">*</span>buf<span class="opt">;</span>
-    <span class="kwb">size_t</span> size<span class="opt">,</span> len<span class="opt">;</span>
-<span class="opt">}</span> fbuf_t<span class="opt">;</span>
+<span class="kwc">typedef</span> <span class="kwb">struct</span> fbuf {
+    <span class="kwb">char</span> *buf;
+    <span class="kwb">size_t</span> size, len;
+} fbuf_t;
 
-<span class="kwb">static void</span> <span class="kwd">fb_init</span><span class="opt">(</span>fbuf_t <span class="opt">*</span>b<span class="opt">)</span>
-<span class="opt">{</span>
-    b<span class="opt">-&gt;</span>buf <span class="opt">=</span> NULL<span class="opt">;</span>
-    b<span class="opt">-&gt;</span>len <span class="opt">=</span> b<span class="opt">-&gt;</span>size <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
-<span class="opt">}</span>
+<span class="kwb">static void</span> <span class="kwd">fb_init</span>(fbuf_t *b)
+{
+    b-&gt;buf = NULL;
+    b-&gt;len = b-&gt;size = <span class="num">0</span>;
+}
 
-<span class="kwb">static char</span> <span class="opt">*</span><span class="kwd">fb_need</span><span class="opt">(</span>fbuf_t <span class="opt">*</span>b<span class="opt">,</span> <span class="kwb">size_t</span> need<span class="opt">)</span>
-<span class="opt">{</span>
-    need <span class="opt">+=</span> b<span class="opt">-&gt;</span>len<span class="opt">;</span>
-    <span class="kwa">if</span> <span class="opt">(</span>need <span class="opt">&gt;</span> b<span class="opt">-&gt;</span>size<span class="opt">) {</span>
-        <span class="kwa">if</span> <span class="opt">(</span>b<span class="opt">-&gt;</span>size <span class="opt">==</span> <span class="num">0</span><span class="opt">)</span> b<span class="opt">-&gt;</span>size <span class="opt">=</span> need<span class="opt">;</span>
-        <span class="kwa">else while</span> <span class="opt">(</span>need <span class="opt">&gt;</span> b<span class="opt">-&gt;</span>size<span class="opt">)</span> b<span class="opt">-&gt;</span>size <span class="opt">+=</span> b<span class="opt">-&gt;</span>size<span class="opt">;</span>
-        <span class="kwa">if</span> <span class="opt">(!(</span>b<span class="opt">-&gt;</span>buf <span class="opt">=</span> <span class="kwd">realloc</span><span class="opt">(</span>b<span class="opt">-&gt;</span>buf<span class="opt">,</span> b<span class="opt">-&gt;</span>size<span class="opt">)))</span> <span class="kwd">exit</span><span class="opt">(</span><span class="num">1</span><span class="opt">);</span>
-    <span class="opt">}</span>
-    <span class="kwa">return</span> b<span class="opt">-&gt;</span>buf <span class="opt">+</span> b<span class="opt">-&gt;</span>len<span class="opt">;</span>
-<span class="opt">}</span>
+<span class="kwb">static char</span> *<span class="kwd">fb_need</span>(fbuf_t *b, <span class="kwb">size_t</span> need)
+{
+    need += b-&gt;len;
+    <span class="kwa">if</span> (need &gt; b-&gt;size) {
+        <span class="kwa">if</span> (b-&gt;size == <span class="num">0</span>) b-&gt;size = need;
+        <span class="kwa">else while</span> (need &gt; b-&gt;size) b-&gt;size += b-&gt;size;
+        <span class="kwa">if</span> (!(b-&gt;buf = <span class="kwd">realloc</span>(b-&gt;buf, b-&gt;size))) <span class="kwd">exit</span>(<span class="num">1</span>);
+    }
+    <span class="kwa">return</span> b-&gt;buf + b-&gt;len;
+}
 
 <span class="ppc">#define FB_MINREAD    (3&lt;&lt;16)</span>
 
 <span class="com">/* Read all of a stdio stream into dst buffer. */</span>
-<span class="kwb">static size_t</span> <span class="kwd">fb_readall</span><span class="opt">(</span>fbuf_t <span class="opt">*</span>dst<span class="opt">,</span> <span class="kwb">FILE</span> <span class="opt">*</span>fp<span class="opt">)</span>
-<span class="opt">{</span>
-    <span class="kwb">char</span> <span class="opt">*</span>dp<span class="opt">;</span>
-    <span class="kwb">int</span> n<span class="opt">;</span>
-    <span class="kwa">for</span> <span class="opt">(</span>dp <span class="opt">=</span> <span class="kwd">fb_need</span><span class="opt">(</span>dst<span class="opt">,</span> FB_MINREAD<span class="opt">);</span>
-        <span class="opt">(</span>n <span class="opt">=</span> <span class="kwd">fread</span><span class="opt">(</span>dp<span class="opt">,</span> <span class="num">1</span><span class="opt">,</span> dst<span class="opt">-&gt;</span>size <span class="opt">-</span> dst<span class="opt">-&gt;</span>len<span class="opt">,</span> fp<span class="opt">)) &gt;</span> <span class="num">0</span><span class="opt">;</span>
-        dp <span class="opt">=</span> <span class="kwd">fb_need</span><span class="opt">(</span>dst<span class="opt">,</span> FB_MINREAD<span class="opt">))</span> dst<span class="opt">-&gt;</span>len <span class="opt">+=</span> n<span class="opt">;</span>
-    <span class="kwa">if</span> <span class="opt">(</span><span class="kwd">ferror</span><span class="opt">(</span>fp<span class="opt">))</span> <span class="kwd">exit</span><span class="opt">(</span><span class="num">1</span><span class="opt">);</span>
-    <span class="kwa">return</span> dst<span class="opt">-&gt;</span>len<span class="opt">;</span>
-<span class="opt">}</span>
+<span class="kwb">static size_t</span> <span class="kwd">fb_readall</span>(fbuf_t *dst, <span class="kwb">FILE</span> *fp)
+{
+    <span class="kwb">char</span> *dp;
+    <span class="kwb">int</span> n;
+    <span class="kwa">for</span> (dp = <span class="kwd">fb_need</span>(dst, FB_MINREAD);
+        (n = <span class="kwd">fread</span>(dp, <span class="num">1</span>, dst-&gt;size - dst-&gt;len, fp)) &gt; <span class="num">0</span>;
+        dp = <span class="kwd">fb_need</span>(dst, FB_MINREAD)) dst-&gt;len += n;
+    <span class="kwa">if</span> (<span class="kwd">ferror</span>(fp)) <span class="kwd">exit</span>(<span class="num">1</span>);
+    <span class="kwa">return</span> dst-&gt;len;
+}
 
 <span class="com">/* Substitute pattern p with replacement r, copying from src to dst buffer. */</span>
-<span class="kwb">static size_t</span> <span class="kwd">fb_subst</span><span class="opt">(</span>fbuf_t <span class="opt">*</span>dst<span class="opt">,</span> fbuf_t <span class="opt">*</span>src<span class="opt">,</span> <span class="kwb">const char</span> <span class="opt">*</span>p<span class="opt">,</span> <span class="kwb">const char</span> <span class="opt">*</span>r<span class="opt">)</span>
-<span class="opt">{</span>
-    pcre <span class="opt">*</span>re<span class="opt">;</span>
-    pcre_extra <span class="opt">*</span>re_ex<span class="opt">;</span>
-    <span class="kwb">const char</span> <span class="opt">*</span>re_e<span class="opt">;</span>
-    <span class="kwb">char</span> <span class="opt">*</span>dp<span class="opt">;</span>
-    <span class="kwb">int</span> re_eo<span class="opt">,</span> m<span class="opt">[</span><span class="num">3</span><span class="opt">],</span> pos<span class="opt">,</span> rlen<span class="opt">,</span> clen<span class="opt">;</span>
-    <span class="kwa">if</span> <span class="opt">(!(</span>re <span class="opt">=</span> <span class="kwd">pcre_compile</span><span class="opt">(</span>p<span class="opt">,</span> <span class="num">0</span><span class="opt">, &amp;</span>re_e<span class="opt">, &amp;</span>re_eo<span class="opt">,</span> NULL<span class="opt">)))</span> <span class="kwd">exit</span><span class="opt">(</span><span class="num">1</span><span class="opt">);</span>
-    re_ex <span class="opt">=</span> <span class="kwd">pcre_study</span><span class="opt">(</span>re<span class="opt">,</span> PCRE_STUDY_JIT_COMPILE<span class="opt">, &amp;</span>re_e<span class="opt">);</span>
-    <span class="kwa">for</span> <span class="opt">(</span>dst<span class="opt">-&gt;</span>len <span class="opt">=</span> <span class="num">0</span><span class="opt">,</span> rlen <span class="opt">=</span> <span class="kwd">strlen</span><span class="opt">(</span>r<span class="opt">),</span> pos <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
-        <span class="kwd">pcre_exec</span><span class="opt">(</span>re<span class="opt">,</span> re_ex<span class="opt">,</span> src<span class="opt">-&gt;</span>buf<span class="opt">,</span> src<span class="opt">-&gt;</span>len<span class="opt">,</span> pos<span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> m<span class="opt">,</span> <span class="num">3</span><span class="opt">) &gt;=</span> <span class="num">0</span><span class="opt">;</span>
-        pos <span class="opt">=</span> m<span class="opt">[</span><span class="num">1</span><span class="opt">]) {</span>
-        clen <span class="opt">=</span> m<span class="opt">[</span><span class="num">0</span><span class="opt">] -</span> pos<span class="opt">;</span>
-        dp <span class="opt">=</span> <span class="kwd">fb_need</span><span class="opt">(</span>dst<span class="opt">,</span> clen <span class="opt">+</span> rlen<span class="opt">);</span>
-        dst<span class="opt">-&gt;</span>len <span class="opt">+=</span> clen <span class="opt">+</span> rlen<span class="opt">;</span>
-        <span class="kwd">memcpy</span><span class="opt">(</span>dp<span class="opt">,</span> src<span class="opt">-&gt;</span>buf <span class="opt">+</span> pos<span class="opt">,</span> clen<span class="opt">);</span>
-        <span class="kwd">memcpy</span><span class="opt">(</span>dp <span class="opt">+</span> clen<span class="opt">,</span> r<span class="opt">,</span> rlen<span class="opt">);</span>
-    <span class="opt">}</span>
-    clen <span class="opt">=</span> src<span class="opt">-&gt;</span>len <span class="opt">-</span> pos<span class="opt">;</span>
-    dp <span class="opt">=</span> <span class="kwd">fb_need</span><span class="opt">(</span>dst<span class="opt">,</span> clen<span class="opt">);</span>
-    dst<span class="opt">-&gt;</span>len <span class="opt">+=</span> clen<span class="opt">;</span>
-    <span class="kwd">memcpy</span><span class="opt">(</span>dp<span class="opt">,</span> src<span class="opt">-&gt;</span>buf <span class="opt">+</span> pos<span class="opt">,</span> clen<span class="opt">);</span>
-    <span class="kwa">return</span> dst<span class="opt">-&gt;</span>len<span class="opt">;</span>
-<span class="opt">}</span>
+<span class="kwb">static size_t</span> <span class="kwd">fb_subst</span>(fbuf_t *dst, fbuf_t *src, <span class="kwb">const char</span> *p, <span class="kwb">const char</span> *r)
+{
+    pcre *re;
+    pcre_extra *re_ex;
+    <span class="kwb">const char</span> *re_e;
+    <span class="kwb">char</span> *dp;
+    <span class="kwb">int</span> re_eo, m[<span class="num">3</span>], pos, rlen, clen;
+    <span class="kwa">if</span> (!(re = <span class="kwd">pcre_compile</span>(p, <span class="num">0</span>, &amp;re_e, &amp;re_eo, NULL))) <span class="kwd">exit</span>(<span class="num">1</span>);
+    re_ex = <span class="kwd">pcre_study</span>(re, PCRE_STUDY_JIT_COMPILE, &amp;re_e);
+    <span class="kwa">for</span> (dst-&gt;len = <span class="num">0</span>, rlen = <span class="kwd">strlen</span>(r), pos = <span class="num">0</span>;
+        <span class="kwd">pcre_exec</span>(re, re_ex, src-&gt;buf, src-&gt;len, pos, <span class="num">0</span>, m, <span class="num">3</span>) &gt;= <span class="num">0</span>;
+        pos = m[<span class="num">1</span>]) {
+        clen = m[<span class="num">0</span>] - pos;
+        dp = <span class="kwd">fb_need</span>(dst, clen + rlen);
+        dst-&gt;len += clen + rlen;
+        <span class="kwd">memcpy</span>(dp, src-&gt;buf + pos, clen);
+        <span class="kwd">memcpy</span>(dp + clen, r, rlen);
+    }
+    clen = src-&gt;len - pos;
+    dp = <span class="kwd">fb_need</span>(dst, clen);
+    dst-&gt;len += clen;
+    <span class="kwd">memcpy</span>(dp, src-&gt;buf + pos, clen);
+    <span class="kwa">return</span> dst-&gt;len;
+}
 
 <span class="com">/* Count all matches with pattern p in src buffer. */</span>
-<span class="kwb">static int</span> <span class="kwd">fb_countmatches</span><span class="opt">(</span>fbuf_t <span class="opt">*</span>src<span class="opt">,</span> <span class="kwb">const char</span> <span class="opt">*</span>p<span class="opt">)</span>
-<span class="opt">{</span>
-    pcre <span class="opt">*</span>re<span class="opt">;</span>
-    pcre_extra <span class="opt">*</span>re_ex<span class="opt">;</span>
-    <span class="kwb">const char</span> <span class="opt">*</span>re_e<span class="opt">;</span>
-    <span class="kwb">int</span> re_eo<span class="opt">,</span> m<span class="opt">[</span><span class="num">3</span><span class="opt">],</span> pos<span class="opt">,</span> count<span class="opt">;</span>
-    <span class="kwa">if</span> <span class="opt">(!(</span>re <span class="opt">=</span> <span class="kwd">pcre_compile</span><span class="opt">(</span>p<span class="opt">,</span> <span class="num">0</span><span class="opt">, &amp;</span>re_e<span class="opt">, &amp;</span>re_eo<span class="opt">,</span> NULL<span class="opt">)))</span> <span class="kwd">exit</span><span class="opt">(</span><span class="num">1</span><span class="opt">);</span>
-    re_ex <span class="opt">=</span> <span class="kwd">pcre_study</span><span class="opt">(</span>re<span class="opt">,</span> PCRE_STUDY_JIT_COMPILE<span class="opt">, &amp;</span>re_e<span class="opt">);</span>
-    <span class="kwa">for</span> <span class="opt">(</span>count <span class="opt">=</span> <span class="num">0</span><span class="opt">,</span> pos <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
-        <span class="kwd">pcre_exec</span><span class="opt">(</span>re<span class="opt">,</span> re_ex<span class="opt">,</span> src<span class="opt">-&gt;</span>buf<span class="opt">,</span> src<span class="opt">-&gt;</span>len<span class="opt">,</span> pos<span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> m<span class="opt">,</span> <span class="num">3</span><span class="opt">) &gt;=</span> <span class="num">0</span><span class="opt">;</span>
-        pos <span class="opt">=</span> m<span class="opt">[</span><span class="num">1</span><span class="opt">])</span> count<span class="opt">++;</span>
-    <span class="kwa">return</span> count<span class="opt">;</span>
-<span class="opt">}</span>
+<span class="kwb">static int</span> <span class="kwd">fb_countmatches</span>(fbuf_t *src, <span class="kwb">const char</span> *p)
+{
+    pcre *re;
+    pcre_extra *re_ex;
+    <span class="kwb">const char</span> *re_e;
+    <span class="kwb">int</span> re_eo, m[<span class="num">3</span>], pos, count;
+    <span class="kwa">if</span> (!(re = <span class="kwd">pcre_compile</span>(p, <span class="num">0</span>, &amp;re_e, &amp;re_eo, NULL))) <span class="kwd">exit</span>(<span class="num">1</span>);
+    re_ex = <span class="kwd">pcre_study</span>(re, PCRE_STUDY_JIT_COMPILE, &amp;re_e);
+    <span class="kwa">for</span> (count = <span class="num">0</span>, pos = <span class="num">0</span>;
+        <span class="kwd">pcre_exec</span>(re, re_ex, src-&gt;buf, src-&gt;len, pos, <span class="num">0</span>, m, <span class="num">3</span>) &gt;= <span class="num">0</span>;
+        pos = m[<span class="num">1</span>]) count++;
+    <span class="kwa">return</span> count;
+}
 
-<span class="kwb">static const char</span> <span class="opt">*</span>variants<span class="opt">[] = {</span>
-    <span class="str">&quot;agggtaaa|tttaccct&quot;</span><span class="opt">,</span>         <span class="str">&quot;[cgt]gggtaaa|tttaccc[acg]&quot;</span><span class="opt">,</span>
-    <span class="str">&quot;a[act]ggtaaa|tttacc[agt]t&quot;</span><span class="opt">,</span> <span class="str">&quot;ag[act]gtaaa|tttac[agt]ct&quot;</span><span class="opt">,</span>
-    <span class="str">&quot;agg[act]taaa|ttta[agt]cct&quot;</span><span class="opt">,</span> <span class="str">&quot;aggg[acg]aaa|ttt[cgt]ccct&quot;</span><span class="opt">,</span>
-    <span class="str">&quot;agggt[cgt]aa|tt[acg]accct&quot;</span><span class="opt">,</span> <span class="str">&quot;agggta[cgt]a|t[acg]taccct&quot;</span><span class="opt">,</span>
-    <span class="str">&quot;agggtaa[cgt]|[acg]ttaccct&quot;</span><span class="opt">,</span> NULL
-<span class="opt">};</span>
+<span class="kwb">static const char</span> *variants[] = {
+    <span class="str">&quot;agggtaaa|tttaccct&quot;</span>,         <span class="str">&quot;[cgt]gggtaaa|tttaccc[acg]&quot;</span>,
+    <span class="str">&quot;a[act]ggtaaa|tttacc[agt]t&quot;</span>, <span class="str">&quot;ag[act]gtaaa|tttac[agt]ct&quot;</span>,
+    <span class="str">&quot;agg[act]taaa|ttta[agt]cct&quot;</span>, <span class="str">&quot;aggg[acg]aaa|ttt[cgt]ccct&quot;</span>,
+    <span class="str">&quot;agggt[cgt]aa|tt[acg]accct&quot;</span>, <span class="str">&quot;agggta[cgt]a|t[acg]taccct&quot;</span>,
+    <span class="str">&quot;agggtaa[cgt]|[acg]ttaccct&quot;</span>, NULL
+};
 
-<span class="kwb">static const char</span> <span class="opt">*</span>subst<span class="opt">[] = {</span>
+<span class="kwb">static const char</span> *subst[] = {
     <span class="slc">// regex-redux search patterns and replacement text.</span>
-    <span class="str">&quot;tHa[Nt]&quot;</span><span class="opt">,</span> <span class="str">&quot;&lt;4&gt;&quot;</span><span class="opt">,</span>
-    <span class="str">&quot;aND|caN|Ha[DS]|WaS&quot;</span><span class="opt">,</span> <span class="str">&quot;&lt;3&gt;&quot;</span><span class="opt">,</span>
-    <span class="str">&quot;a[NSt]|BY&quot;</span><span class="opt">,</span> <span class="str">&quot;&lt;2&gt;&quot;</span><span class="opt">,</span>
-    <span class="str">&quot;&lt;[^&gt;]*&gt;&quot;</span><span class="opt">,</span> <span class="str">&quot;|&quot;</span><span class="opt">,</span>
-    <span class="str">&quot;</span><span class="esc">\\</span><span class="str">|[^|][^|]*</span><span class="esc">\\</span><span class="str">|&quot;</span><span class="opt">,</span> <span class="str">&quot;-&quot;</span><span class="opt">,</span>
+    <span class="str">&quot;tHa[Nt]&quot;</span>, <span class="str">&quot;&lt;4&gt;&quot;</span>,
+    <span class="str">&quot;aND|caN|Ha[DS]|WaS&quot;</span>, <span class="str">&quot;&lt;3&gt;&quot;</span>,
+    <span class="str">&quot;a[NSt]|BY&quot;</span>, <span class="str">&quot;&lt;2&gt;&quot;</span>,
+    <span class="str">&quot;&lt;[^&gt;]*&gt;&quot;</span>, <span class="str">&quot;|&quot;</span>,
+    <span class="str">&quot;</span><span class="esc">\\</span><span class="str">|[^|][^|]*</span><span class="esc">\\</span><span class="str">|&quot;</span>, <span class="str">&quot;-&quot;</span>,
     NULL
-<span class="opt">};</span>
+};
 
-<span class="kwb">int</span> <span class="kwd">main</span><span class="opt">(</span><span class="kwb">int</span> argc<span class="opt">,</span> <span class="kwb">char</span> <span class="opt">**</span>argv<span class="opt">)</span>
-<span class="opt">{</span>
+<span class="kwb">int</span> <span class="kwd">main</span>(<span class="kwb">int</span> argc, <span class="kwb">char</span> **argv)
+{
 <span class="ppc">#ifdef _OPENMP</span>
-    <span class="kwb">int</span> tnum <span class="opt">=</span> <span class="kwd">omp_get_num_procs</span><span class="opt">();</span>
-    <span class="kwa">if</span> <span class="opt">(</span>tnum<span class="opt">&gt;</span><span class="num">4</span><span class="opt">)</span> tnum <span class="opt">=</span> <span class="num">4</span><span class="opt">;</span>
-    <span class="kwd">omp_set_num_threads</span><span class="opt">(</span>tnum<span class="opt">);</span>
+    <span class="kwb">int</span> tnum = <span class="kwd">omp_get_num_procs</span>();
+    <span class="kwa">if</span> (tnum&gt;<span class="num">4</span>) tnum = <span class="num">4</span>;
+    <span class="kwd">omp_set_num_threads</span>(tnum);
 <span class="ppc">#endif</span>
 
-    fbuf_t seq<span class="opt">[</span><span class="num">2</span><span class="opt">];</span>
-    <span class="kwb">const char</span> <span class="opt">**</span>pp<span class="opt">;</span>
-    <span class="kwb">size_t</span> ilen<span class="opt">,</span> clen<span class="opt">,</span> slen<span class="opt">;</span>
-    <span class="kwb">int</span> flip<span class="opt">;</span>
-    <span class="kwd">fb_init</span><span class="opt">(&amp;</span>seq<span class="opt">[</span><span class="num">0</span><span class="opt">]);</span>
-    <span class="kwd">fb_init</span><span class="opt">(&amp;</span>seq<span class="opt">[</span><span class="num">1</span><span class="opt">]);</span>
-    ilen <span class="opt">=</span> <span class="kwd">fb_readall</span><span class="opt">(&amp;</span>seq<span class="opt">[</span><span class="num">0</span><span class="opt">],</span> stdin<span class="opt">);</span>
-    clen <span class="opt">=</span> <span class="kwd">fb_subst</span><span class="opt">(&amp;</span>seq<span class="opt">[</span><span class="num">1</span><span class="opt">], &amp;</span>seq<span class="opt">[</span><span class="num">0</span><span class="opt">],</span> <span class="str">&quot;&gt;.*|</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span> <span class="str">&quot;&quot;</span><span class="opt">);</span>
-    <span class="kwb">char</span> <span class="opt">*</span>results<span class="opt">[</span><span class="num">9</span><span class="opt">];</span>
+    fbuf_t seq[<span class="num">2</span>];
+    <span class="kwb">const char</span> **pp;
+    <span class="kwb">size_t</span> ilen, clen, slen;
+    <span class="kwb">int</span> flip;
+    <span class="kwd">fb_init</span>(&amp;seq[<span class="num">0</span>]);
+    <span class="kwd">fb_init</span>(&amp;seq[<span class="num">1</span>]);
+    ilen = <span class="kwd">fb_readall</span>(&amp;seq[<span class="num">0</span>], stdin);
+    clen = <span class="kwd">fb_subst</span>(&amp;seq[<span class="num">1</span>], &amp;seq[<span class="num">0</span>], <span class="str">&quot;&gt;.*|</span><span class="esc">\n</span><span class="str">&quot;</span>, <span class="str">&quot;&quot;</span>);
+    <span class="kwb">char</span> *results[<span class="num">9</span>];
 <span class="ppc">#pragma omp parallel</span>
 <span class="ppc">#pragma omp for</span>
-    <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> <span class="num">9</span><span class="opt">;</span> i<span class="opt">++) {</span>
-        results<span class="opt">[</span>i<span class="opt">] = (</span><span class="kwb">char</span><span class="opt">*)</span><span class="kwd">malloc</span><span class="opt">(</span><span class="num">40</span><span class="opt">);</span>
-        <span class="kwd">sprintf</span><span class="opt">(</span>results<span class="opt">[</span>i<span class="opt">],</span> <span class="str">&quot;%s %d</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span> variants<span class="opt">[</span>i<span class="opt">],</span> <span class="kwd">fb_countmatches</span><span class="opt">(&amp;</span>seq<span class="opt">[</span><span class="num">1</span><span class="opt">],</span> variants<span class="opt">[</span>i<span class="opt">]));</span>
-    <span class="opt">}</span>
-    <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> <span class="num">9</span><span class="opt">;</span> i<span class="opt">++) {</span>
-        <span class="kwd">printf</span><span class="opt">(</span><span class="str">&quot;%s&quot;</span><span class="opt">,</span> results<span class="opt">[</span>i<span class="opt">]);</span>
-        <span class="kwd">free</span><span class="opt">(</span>results<span class="opt">[</span>i<span class="opt">]);</span>
-    <span class="opt">}</span>
+    <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">0</span>; i &lt; <span class="num">9</span>; i++) {
+        results[i] = (<span class="kwb">char</span>*)<span class="kwd">malloc</span>(<span class="num">40</span>);
+        <span class="kwd">sprintf</span>(results[i], <span class="str">&quot;%s %d</span><span class="esc">\n</span><span class="str">&quot;</span>, variants[i], <span class="kwd">fb_countmatches</span>(&amp;seq[<span class="num">1</span>], variants[i]));
+    }
+    <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">0</span>; i &lt; <span class="num">9</span>; i++) {
+        <span class="kwd">printf</span>(<span class="str">&quot;%s&quot;</span>, results[i]);
+        <span class="kwd">free</span>(results[i]);
+    }
 
-    <span class="kwa">for</span> <span class="opt">(</span>slen <span class="opt">=</span> <span class="num">0</span><span class="opt">,</span> flip <span class="opt">=</span> <span class="num">1</span><span class="opt">,</span> pp <span class="opt">=</span> subst<span class="opt">; *</span>pp<span class="opt">;</span> pp <span class="opt">+=</span> <span class="num">2</span><span class="opt">,</span> flip <span class="opt">=</span> <span class="num">1</span> <span class="opt">-</span> flip<span class="opt">)</span>
-        slen <span class="opt">=</span> <span class="kwd">fb_subst</span><span class="opt">(&amp;</span>seq<span class="opt">[</span><span class="num">1</span> <span class="opt">-</span> flip<span class="opt">], &amp;</span>seq<span class="opt">[</span>flip<span class="opt">], *</span>pp<span class="opt">,</span> pp<span class="opt">[</span><span class="num">1</span><span class="opt">]);</span>
+    <span class="kwa">for</span> (slen = <span class="num">0</span>, flip = <span class="num">1</span>, pp = subst; *pp; pp += <span class="num">2</span>, flip = <span class="num">1</span> - flip)
+        slen = <span class="kwd">fb_subst</span>(&amp;seq[<span class="num">1</span> - flip], &amp;seq[flip], *pp, pp[<span class="num">1</span>]);
 
-    <span class="kwd">printf</span><span class="opt">(</span><span class="str">&quot;</span><span class="esc">\n</span><span class="str">%zu</span><span class="esc">\n</span><span class="str">%zu</span><span class="esc">\n</span><span class="str">%zu</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span> ilen<span class="opt">,</span> clen<span class="opt">,</span> slen<span class="opt">);</span>
-    <span class="kwa">return</span> <span class="num">0</span><span class="opt">;</span>
-<span class="opt">}</span>
+    <span class="kwd">printf</span>(<span class="str">&quot;</span><span class="esc">\n</span><span class="str">%zu</span><span class="esc">\n</span><span class="str">%zu</span><span class="esc">\n</span><span class="str">%zu</span><span class="esc">\n</span><span class="str">&quot;</span>, ilen, clen, slen);
+    <span class="kwa">return</span> <span class="num">0</span>;
+}
     </pre>
   </section>
   <section>
@@ -177,20 +177,19 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
     <pre>
 NOTES:
 64-bit Ubuntu quad core
-Intel(R) C Intel(R) 64 Compiler
+Intel(R) C Intel(R) 64 Compiler Classic
 for applications running on Intel(R) 64,
-Version 19.1.3.304 Build 20200925_000000
-Copyright (C) 1985-2020 Intel Corporation.  All rights reserved.
-FOR NON-COMMERCIAL USE ONLY
+Version 2021.5.0 Build 20211109_000000
+Copyright (C) 1985-2021 Intel Corporation.  All rights reserved.
 
 
-Mon, 02 Nov 2020 19:36:23 GMT
+Sat, 15 Jan 2022 06:04:01 GMT
 
 MAKE:
-/opt/src/intel/bin/icc -pipe -Wall -O3 -fomit-frame-pointer -march=ivybridge -fopenmp regexredux.icc-3.c -o regexredux.icc-3.icc_run -lpcre
+~/intel/oneapi/compiler/2022.0.1/linux/bin/intel64/icc -pipe -Wall -O3 -fomit-frame-pointer -march=ivybridge -fopenmp regexredux.icc-3.c -o regexredux.icc-3.icc_run -lpcre
 rm regexredux.icc-3.c
 
-2.38s to complete and log all make actions
+2.48s to complete and log all make actions
 
 COMMAND LINE:
 ./regexredux.icc-3.icc_run 0 &lt; regexredux-input5000000.txt

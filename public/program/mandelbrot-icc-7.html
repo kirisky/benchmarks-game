@@ -47,108 +47,108 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="ppc">#define ALIGN         __attribute__ ((aligned(L2_CACHE_LINE)))</span>
 
 
-<span class="kwc">typedef</span> <span class="kwb">unsigned char</span>   byte<span class="opt">;</span>
-<span class="kwc">typedef</span> <span class="kwb">double</span>         v2d   <span class="kwd">__attribute__</span> <span class="opt">((</span><span class="kwd">vector_size</span><span class="opt">(</span><span class="num">16</span><span class="opt">)));</span>
-<span class="kwc">typedef</span> <span class="kwb">int32_t</span>       v4i   <span class="kwd">__attribute__</span> <span class="opt">((</span><span class="kwd">vector_size</span><span class="opt">(</span><span class="num">16</span><span class="opt">)));</span>
+<span class="kwc">typedef</span> <span class="kwb">unsigned char</span>   byte;
+<span class="kwc">typedef</span> <span class="kwb">double</span>         v2d   <span class="kwd">__attribute__</span> ((<span class="kwd">vector_size</span>(<span class="num">16</span>)));
+<span class="kwc">typedef</span> <span class="kwb">int32_t</span>       v4i   <span class="kwd">__attribute__</span> ((<span class="kwd">vector_size</span>(<span class="num">16</span>)));
 
-<span class="kwb">const</span> v2d v10      <span class="opt">= {</span> <span class="num">1.0</span><span class="opt">,</span> <span class="num">1.0</span> <span class="opt">};</span>
-<span class="kwb">const</span> v2d v15      <span class="opt">= {</span> <span class="num">1.5</span><span class="opt">,</span> <span class="num">1.5</span> <span class="opt">};</span>
-<span class="kwb">const</span> v2d v40      <span class="opt">= {</span> <span class="num">4.0</span><span class="opt">,</span> <span class="num">4.0</span> <span class="opt">};</span>
+<span class="kwb">const</span> v2d v10      = { <span class="num">1.0</span>, <span class="num">1.0</span> };
+<span class="kwb">const</span> v2d v15      = { <span class="num">1.5</span>, <span class="num">1.5</span> };
+<span class="kwb">const</span> v2d v40      = { <span class="num">4.0</span>, <span class="num">4.0</span> };
 
-v2d inv_2n<span class="opt">;</span>   <span class="slc">// {2.0/N, 2.0/N}</span>
+v2d inv_2n;   <span class="slc">// {2.0/N, 2.0/N}</span>
 
 
 <span class="kwb">int</span>
-<span class="kwd">GetThreadCount</span><span class="opt">()</span>
-<span class="opt">{</span>
-   cpu_set_t cs<span class="opt">;</span>
-   <span class="kwd">CPU_ZERO</span><span class="opt">(&amp;</span>cs<span class="opt">);</span>
-   <span class="kwd">sched_getaffinity</span><span class="opt">(</span><span class="num">0</span><span class="opt">,</span> <span class="kwa">sizeof</span><span class="opt">(</span>cs<span class="opt">), &amp;</span>cs<span class="opt">);</span>
+<span class="kwd">GetThreadCount</span>()
+{
+   cpu_set_t cs;
+   <span class="kwd">CPU_ZERO</span>(&amp;cs);
+   <span class="kwd">sched_getaffinity</span>(<span class="num">0</span>, <span class="kwa">sizeof</span>(cs), &amp;cs);
 
-   <span class="kwb">int</span> count <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
-   <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> CPU_SETSIZE<span class="opt">; ++</span>i<span class="opt">)</span>
-      count <span class="opt">+=</span> <span class="kwd">CPU_ISSET</span><span class="opt">(</span>i<span class="opt">, &amp;</span>cs<span class="opt">);</span>
+   <span class="kwb">int</span> count = <span class="num">0</span>;
+   <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">0</span>; i &lt; CPU_SETSIZE; ++i)
+      count += <span class="kwd">CPU_ISSET</span>(i, &amp;cs);
 
-   <span class="kwa">return</span> count<span class="opt">;</span>
-<span class="opt">}</span>
+   <span class="kwa">return</span> count;
+}
 
 
 <span class="kwb">void</span>
-<span class="kwd">mandelbrot</span><span class="opt">(</span><span class="kwb">int</span> N<span class="opt">,</span> byte<span class="opt">*</span> data<span class="opt">)</span>
-<span class="opt">{</span>
-   ALIGN <span class="kwb">int</span> row_processed <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+<span class="kwd">mandelbrot</span>(<span class="kwb">int</span> N, byte* data)
+{
+   ALIGN <span class="kwb">int</span> row_processed = <span class="num">0</span>;
 
    <span class="ppc">#pragma omp parallel default(shared) num_threads(GetThreadCount())</span>
-   <span class="opt">{</span>
-      <span class="kwb">int</span> y <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
-      <span class="kwa">while</span> <span class="opt">((</span>y <span class="opt">=</span> <span class="kwd">__sync_fetch_and_add</span><span class="opt">(&amp;</span>row_processed<span class="opt">,</span> <span class="num">1</span><span class="opt">)) &lt;</span> N<span class="opt">)</span>
-      <span class="opt">{</span>
-         byte<span class="opt">*</span> row_output <span class="opt">=</span> data <span class="opt">+</span> y <span class="opt">* (</span>N <span class="opt">&gt;&gt;</span> <span class="num">3</span><span class="opt">);</span>
+   {
+      <span class="kwb">int</span> y = <span class="num">0</span>;
+      <span class="kwa">while</span> ((y = <span class="kwd">__sync_fetch_and_add</span>(&amp;row_processed, <span class="num">1</span>)) &lt; N)
+      {
+         byte* row_output = data + y * (N &gt;&gt; <span class="num">3</span>);
          
-         v2d Civ <span class="opt">= {</span>y<span class="opt">,</span> y<span class="opt">};</span>
-         Civ <span class="opt">=</span> Civ <span class="opt">*</span> inv_2n <span class="opt">-</span> v10<span class="opt">;</span>
+         v2d Civ = {y, y};
+         Civ = Civ * inv_2n - v10;
 
-            <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> x <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> x <span class="opt">&lt;</span> N<span class="opt">;</span> x <span class="opt">+=</span> <span class="num">2</span><span class="opt">)</span>
-            <span class="opt">{</span>
-            v2d   Crv <span class="opt">= {</span>x<span class="opt">+</span><span class="num">1</span><span class="opt">,</span> x<span class="opt">};</span>
-            Crv <span class="opt">=</span> Crv <span class="opt">*</span> inv_2n <span class="opt">-</span> v15<span class="opt">;</span>
-            v2d Zrv <span class="opt">=</span> Crv<span class="opt">;</span>
-            v2d Ziv <span class="opt">=</span> Civ<span class="opt">;</span>
-            v2d Trv <span class="opt">=</span> Crv <span class="opt">*</span> Crv<span class="opt">;</span>
-            v2d Tiv <span class="opt">=</span> Civ <span class="opt">*</span> Civ<span class="opt">;</span>
+            <span class="kwa">for</span> (<span class="kwb">int</span> x = <span class="num">0</span>; x &lt; N; x += <span class="num">2</span>)
+            {
+            v2d   Crv = {x+<span class="num">1</span>, x};
+            Crv = Crv * inv_2n - v15;
+            v2d Zrv = Crv;
+            v2d Ziv = Civ;
+            v2d Trv = Crv * Crv;
+            v2d Tiv = Civ * Civ;
 
-            <span class="kwb">int</span> result <span class="opt">=</span> <span class="num">3</span><span class="opt">;</span> <span class="slc">// assume that 2 elements belong to MB set</span>
-            <span class="kwb">int</span> i <span class="opt">=</span> <span class="num">1</span><span class="opt">;</span>
+            <span class="kwb">int</span> result = <span class="num">3</span>; <span class="slc">// assume that 2 elements belong to MB set</span>
+            <span class="kwb">int</span> i = <span class="num">1</span>;
 
-            <span class="kwa">while</span> <span class="opt">(</span> result <span class="opt">&amp;&amp; (</span>i<span class="opt">++ &lt;</span> <span class="num">50</span><span class="opt">) )</span>
-            <span class="opt">{</span>
-               v2d ZZ <span class="opt">=</span> Zrv <span class="opt">*</span> Ziv<span class="opt">;</span>
-               Zrv <span class="opt">=</span> Trv <span class="opt">-</span> Tiv <span class="opt">+</span> Crv<span class="opt">;</span>
-               Ziv <span class="opt">=</span> ZZ <span class="opt">+</span> ZZ <span class="opt">+</span> Civ<span class="opt">;</span>
-               Trv <span class="opt">=</span> Zrv <span class="opt">*</span> Zrv<span class="opt">;</span>
-               Tiv <span class="opt">=</span> Ziv <span class="opt">*</span> Ziv<span class="opt">;</span>
+            <span class="kwa">while</span> ( result &amp;&amp; (i++ &lt; <span class="num">50</span>) )
+            {
+               v2d ZZ = Zrv * Ziv;
+               Zrv = Trv - Tiv + Crv;
+               Ziv = ZZ + ZZ + Civ;
+               Trv = Zrv * Zrv;
+               Tiv = Ziv * Ziv;
            
                <span class="slc">// trv + tiv &lt;= 4.0</span>
-               v2d delta <span class="opt">= (</span>v2d<span class="opt">)</span><span class="kwd">__builtin_ia32_cmplepd</span><span class="opt">( (</span>Trv <span class="opt">+</span> Tiv<span class="opt">),</span> v40 <span class="opt">);</span>
-               result <span class="opt">=</span> <span class="kwd">__builtin_ia32_movmskpd</span><span class="opt">(</span>delta<span class="opt">);</span>              
-            <span class="opt">}</span>
+               v2d delta = (v2d)<span class="kwd">__builtin_ia32_cmplepd</span>( (Trv + Tiv), v40 );
+               result = <span class="kwd">__builtin_ia32_movmskpd</span>(delta);              
+            }
 
-            <span class="opt">{</span>
-               <span class="kwb">int</span> bit_shift <span class="opt">=</span> <span class="num">6</span> <span class="opt">- (</span>x <span class="opt">&amp;</span> <span class="num">7</span><span class="opt">);</span>
-               row_output<span class="opt">[</span>x <span class="opt">&gt;&gt;</span> <span class="num">3</span><span class="opt">] |= (</span>byte<span class="opt">)(</span>result <span class="opt">&lt;&lt;</span> bit_shift<span class="opt">);</span>
-            <span class="opt">}</span>
-         <span class="opt">}</span>
-      <span class="opt">}</span>
-   <span class="opt">}</span>
-<span class="opt">}</span>
+            {
+               <span class="kwb">int</span> bit_shift = <span class="num">6</span> - (x &amp; <span class="num">7</span>);
+               row_output[x &gt;&gt; <span class="num">3</span>] |= (byte)(result &lt;&lt; bit_shift);
+            }
+         }
+      }
+   }
+}
 
 
 <span class="kwb">int</span>
-<span class="kwd">main</span> <span class="opt">(</span><span class="kwb">int</span> argc<span class="opt">,</span> <span class="kwb">char</span> <span class="opt">**</span>argv<span class="opt">)</span>
-<span class="opt">{</span>
-   <span class="kwb">const int</span> N <span class="opt">= (</span>argc <span class="opt">==</span> <span class="num">2</span><span class="opt">) ? (</span><span class="kwb">int</span><span class="opt">)</span><span class="kwd">strtol</span><span class="opt">(</span>argv<span class="opt">[</span><span class="num">1</span><span class="opt">],</span> NULL<span class="opt">,</span> <span class="num">10</span><span class="opt">) :</span> <span class="num">200</span><span class="opt">;</span>
-   <span class="kwa">assert</span><span class="opt">((</span>N <span class="opt">%</span> <span class="num">8</span><span class="opt">) ==</span> <span class="num">0</span><span class="opt">);</span>
-   <span class="kwd">printf</span><span class="opt">(</span><span class="str">&quot;P4</span><span class="esc">\n</span><span class="str">%d %d</span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span> N<span class="opt">,</span> N<span class="opt">);</span>
+<span class="kwd">main</span> (<span class="kwb">int</span> argc, <span class="kwb">char</span> **argv)
+{
+   <span class="kwb">const int</span> N = (argc == <span class="num">2</span>) ? (<span class="kwb">int</span>)<span class="kwd">strtol</span>(argv[<span class="num">1</span>], NULL, <span class="num">10</span>) : <span class="num">200</span>;
+   <span class="kwa">assert</span>((N % <span class="num">8</span>) == <span class="num">0</span>);
+   <span class="kwd">printf</span>(<span class="str">&quot;P4</span><span class="esc">\n</span><span class="str">%d %d</span><span class="esc">\n</span><span class="str">&quot;</span>, N, N);
 
-   <span class="opt">{</span>
-      <span class="kwb">double</span><span class="opt">*</span> p_iv <span class="opt">= (</span><span class="kwb">double</span><span class="opt">*)(&amp;</span>inv_2n<span class="opt">);</span>
-      p_iv<span class="opt">[</span><span class="num">0</span><span class="opt">] =</span> p_iv<span class="opt">[</span><span class="num">1</span><span class="opt">] =</span> <span class="num">2.0</span> <span class="opt">/</span> N<span class="opt">;</span>
-   <span class="opt">}</span>
+   {
+      <span class="kwb">double</span>* p_iv = (<span class="kwb">double</span>*)(&amp;inv_2n);
+      p_iv[<span class="num">0</span>] = p_iv[<span class="num">1</span>] = <span class="num">2.0</span> / N;
+   }
 
-   <span class="kwb">const int</span> bytes_count <span class="opt">= (</span>N <span class="opt">&gt;&gt;</span> <span class="num">3</span><span class="opt">) *</span> N<span class="opt">;</span>
-   byte<span class="opt">*</span> data <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
-   <span class="kwa">assert</span><span class="opt">(</span>   <span class="kwd">posix_memalign</span><span class="opt">((</span><span class="kwb">void</span><span class="opt">**)(&amp;</span>data<span class="opt">),</span> L2_CACHE_LINE<span class="opt">,</span> bytes_count<span class="opt">)</span>
-         <span class="opt">==</span> <span class="num">0</span><span class="opt">);</span>
-   <span class="kwd">memset</span><span class="opt">(</span>data<span class="opt">,</span> <span class="num">0</span><span class="opt">,</span> bytes_count<span class="opt">);</span>
+   <span class="kwb">const int</span> bytes_count = (N &gt;&gt; <span class="num">3</span>) * N;
+   byte* data = <span class="num">0</span>;
+   <span class="kwa">assert</span>(   <span class="kwd">posix_memalign</span>((<span class="kwb">void</span>**)(&amp;data), L2_CACHE_LINE, bytes_count)
+         == <span class="num">0</span>);
+   <span class="kwd">memset</span>(data, <span class="num">0</span>, bytes_count);
 
-   <span class="kwd">mandelbrot</span><span class="opt">(</span>N<span class="opt">,</span> data<span class="opt">);</span>
+   <span class="kwd">mandelbrot</span>(N, data);
 
-   <span class="kwd">fwrite</span><span class="opt">(</span> data<span class="opt">,</span> bytes_count<span class="opt">,</span> <span class="num">1</span><span class="opt">,</span> stdout<span class="opt">);</span>
-   <span class="kwd">fflush</span><span class="opt">(</span>stdout<span class="opt">);</span>
-   <span class="kwd">free</span><span class="opt">(</span>data<span class="opt">);</span>
+   <span class="kwd">fwrite</span>( data, bytes_count, <span class="num">1</span>, stdout);
+   <span class="kwd">fflush</span>(stdout);
+   <span class="kwd">free</span>(data);
 
-   <span class="kwa">return</span> <span class="num">0</span><span class="opt">;</span>
-<span class="opt">}</span>
+   <span class="kwa">return</span> <span class="num">0</span>;
+}
     </pre>
   </section>
   <section>
@@ -158,27 +158,26 @@ v2d inv_2n<span class="opt">;</span>   <span class="slc">// {2.0/N, 2.0/N}</span
     <pre>
 NOTES:
 64-bit Ubuntu quad core
-Intel(R) C Intel(R) 64 Compiler
+Intel(R) C Intel(R) 64 Compiler Classic
 for applications running on Intel(R) 64,
-Version 19.1.3.304 Build 20200925_000000
-Copyright (C) 1985-2020 Intel Corporation.  All rights reserved.
-FOR NON-COMMERCIAL USE ONLY
+Version 2021.5.0 Build 20211109_000000
+Copyright (C) 1985-2021 Intel Corporation.  All rights reserved.
 
 
-Mon, 02 Nov 2020 18:53:48 GMT
+Sat, 15 Jan 2022 05:54:46 GMT
 
 MAKE:
-/opt/src/intel/bin/icc -pipe -Wall -O3 -fomit-frame-pointer -march=ivybridge -D_GNU_SOURCE -fopenmp mandelbrot.icc-7.c -o mandelbrot.icc-7.icc_run 
-ld: /tmp/iccP3Qabx.o: in function `main':
+~/intel/oneapi/compiler/2022.0.1/linux/bin/intel64/icc -pipe -Wall -O3 -fomit-frame-pointer -march=ivybridge -D_GNU_SOURCE -fopenmp mandelbrot.icc-7.c -o mandelbrot.icc-7.icc_run 
+ld: /tmp/iccbkJiWM.o: in function `main':
 mandelbrot.icc-7.c:(.text+0x42d): undefined reference to `__builtin_ia32_cmplepd'
 ld: mandelbrot.icc-7.c:(.text+0x432): undefined reference to `__builtin_ia32_movmskpd'
-ld: /tmp/iccP3Qabx.o: in function `mandelbrot':
+ld: /tmp/iccbkJiWM.o: in function `mandelbrot':
 mandelbrot.icc-7.c:(.text+0x8cb): undefined reference to `__builtin_ia32_cmplepd'
 ld: mandelbrot.icc-7.c:(.text+0x8d0): undefined reference to `__builtin_ia32_movmskpd'
 make: [/home/dunham/all-benchmarksgame/2000-benchmarksgame/nanobench/makefiles/u64q.programs.Makefile:79: mandelbrot.icc-7.icc_run] Error 1 (ignored)
 rm mandelbrot.icc-7.c
 
-2.25s to complete and log all make actions
+2.58s to complete and log all make actions
 
 COMMAND LINE:
 ./mandelbrot.icc-7.icc_run 1000
