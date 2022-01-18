@@ -36,6 +36,8 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="slc">-- - Processed 64 pixels at a time if width was a multiple of 64,</span>
 <span class="slc">--    thereby reducing writes to the bitmap.</span>
 
+<span class="slc">-- GHC 9.2 fix contributed by Artem Pelenitsyn</span>
+
 <span class="kwd">import</span> GHC.<span class="kwb">IO</span>
 <span class="kwd">import</span> GHC.Exts
 <span class="kwd">import</span> System.Environment
@@ -219,7 +221,7 @@ main = <span class="kwd">do</span>
                               go2 x s
                                 | isTrue# (x &lt;# widHt#) =
                                   <span class="slc">-- case (\(IO x) y -&gt; x y) (putStrLn (show (D# (indexDoubleArray# r0 x)))) s of { (# s, () #) -&gt;</span>
-                                  <span class="kwd">case</span> writeWordArray# pixels (rowstart +# (x `uncheckedIShiftRA#` <span class="num">6</span>#)) (mand64 r0 (x `uncheckedIShiftRA#` <span class="num">1</span>#) init_i) s <span class="kwd">of</span> { s -&gt;
+                                  <span class="kwd">case</span> writeWord8Array# pixels (rowstart +# (x `uncheckedIShiftRA#` <span class="num">6</span>#)) (wordToWord8# (mand64 r0 (x `uncheckedIShiftRA#` <span class="num">1</span>#) init_i)) s <span class="kwd">of</span> { s -&gt;
                                   go2 (x +# <span class="num">64</span>#) s } <span class="slc">-- }</span>
                                 | <span class="kwc">otherwise</span> = s
                             <span class="kwd">in</span> go1 (y +# <span class="num">1</span>#) (go2 <span class="num">0</span># s) <span class="slc">-- }</span>
@@ -251,7 +253,7 @@ main = <span class="kwd">do</span>
                               go2 x s
                                 | isTrue# (x &lt;# widHt#) =
                                   <span class="slc">-- case (\(IO x) y -&gt; x y) (putStrLn (show (D# (indexDoubleArray# r0 x)))) s of { (# s, () #) -&gt;</span>
-                                  <span class="kwd">case</span> writeWord8Array# pixels (rowstart +# (x `uncheckedIShiftRA#` <span class="num">3</span>#)) (mand8 r0 (x `uncheckedIShiftRA#` <span class="num">1</span>#) init_i) s <span class="kwd">of</span> { s -&gt;
+                                  <span class="kwd">case</span> writeWord8Array# pixels (rowstart +# (x `uncheckedIShiftRA#` <span class="num">3</span>#)) (wordToWord8# (mand8 r0 (x `uncheckedIShiftRA#` <span class="num">1</span>#) init_i)) s <span class="kwd">of</span> { s -&gt;
                                   go2 (x +# <span class="num">8</span>#) s } <span class="slc">-- }</span>
                                 | <span class="kwc">otherwise</span> = s
                             <span class="kwd">in</span> go1 (y +# <span class="num">1</span>#) (go2 <span class="num">0</span># s) <span class="slc">-- }</span>
@@ -273,6 +275,7 @@ main = <span class="kwd">do</span>
       (# s, B.unsafePackAddressLen (I# pixelLength#) (byteArrayContents# pixels) #) }
       }}}}}}}}}}}}}}}
   B.<span class="kwc">putStr</span> pixels
+
     </pre>
   </section>
   <section>
@@ -286,41 +289,24 @@ The Glorious Glasgow Haskell Compilation System,
 version 9.2.1
 
 
-Wed, 12 Jan 2022 23:51:53 GMT
+Tue, 18 Jan 2022 17:52:39 GMT
 
 MAKE:
 mv mandelbrot.ghc-3.ghc mandelbrot.ghc-3.hs
 ~/.ghcup/ghc/9.2.1/bin/ghc --make -fllvm -O2 -XBangPatterns -threaded -rtsopts -XMagicHash -XUnboxedTuples mandelbrot.ghc-3.hs -o mandelbrot.ghc-3.ghc_run
 [1 of 1] Compiling Main             ( mandelbrot.ghc-3.hs, mandelbrot.ghc-3.o )
-
-mandelbrot.ghc-3.hs:230:107: error:
-    • Couldn't match expected type ‘Word8#’ with actual type ‘Word#’
-    • In the third argument of ‘writeWord8Array#’, namely
-        ‘(mand8 r0 (x `uncheckedIShiftRA#` 1#) init_i)’
-      In the expression:
-        writeWord8Array#
-          pixels (rowstart +# (x `uncheckedIShiftRA#` 3#))
-          (mand8 r0 (x `uncheckedIShiftRA#` 1#) init_i) s
-      In the expression:
-        case
-            writeWord8Array#
-              pixels (rowstart +# (x `uncheckedIShiftRA#` 3#))
-              (mand8 r0 (x `uncheckedIShiftRA#` 1#) init_i) s
-        of
-          s -&gt; go2 (x +# 8#) s
-    |
-230 |                                   case writeWord8Array# pixels (rowstart +# (x `uncheckedIShiftRA#` 3#)) (mand8 r0 (x `uncheckedIShiftRA#` 1#) init_i) s of { s -&gt;
-    |                                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-make: [/home/dunham/all-benchmarksgame/2000-benchmarksgame/nanobench/makefiles/u64q.programs.Makefile:243: mandelbrot.ghc-3.ghc_run] Error 1 (ignored)
+You are using an unsupported version of LLVM!
+Currently only 9 to 13 is supported. System LLVM version: 13.0.0
+We will try though...
+Linking mandelbrot.ghc-3.ghc_run ...
 rm mandelbrot.ghc-3.hs
 
-4.90s to complete and log all make actions
+10.02s to complete and log all make actions
 
 COMMAND LINE:
-./mandelbrot.ghc-3.ghc_run +RTS -N4 -RTS 1000
+./mandelbrot.ghc-3.ghc_run +RTS -N4 -RTS 16000
 
-MAKE ERROR 
-
+(BINARY) PROGRAM OUTPUT NOT SHOWN
     </pre>
   </section>
 </article>
