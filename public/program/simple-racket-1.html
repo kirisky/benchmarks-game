@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,follow,noarchive">
+
+<title>simple Racket program | Computer Language Benchmarks Game </title>
+<style><!--
+a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,header{margin:auto;width:92%}body{font:100% Droid Sans, Ubuntu, Verdana, sans-serif;margin:0;-webkit-text-size-adjust:100%}h3, h1, h2, li a{font-family:Ubuntu Mono,Consolas,Menlo,monospace}div,footer,header{max-width:31em}footer{padding:2.6em 0 0}h3{font-size:1.4em;font-weight:bold;margin:0;padding: .4em}h3, h3 a{color:white;background-color:#77216f}h3 small{font-size:0.64em}h1,h2{margin:1.5em 0 0}h1{font-size:1.4em;font-weight:normal}h2{font-size:1.2em}li{list-style-type:none;vertical-align:top}li a{display:block;font-size:1.2em;margin: .5em .5em 0;padding: .5em .5em .3em}ul{clear:left;margin:-0.3em 0 1.5em;padding-left:0;text-align:center}p{color:#333;line-height:1.4;margin: .3em 0 0}p a, a span{border-bottom: .1em solid #333;padding-bottom: .1em}.com,.slc{color:#888}.kwa{color:#066}.kwb{color:#900}.kwc{color:#050}.kwa,.kwb,.kwc{font-weight:bold}.dstr,.str,.sym,.num{color:#930}pre{color:#222;font-size:1em;overflow-wrap:break-word;white-space:pre-wrap;word-wrap:break-word}@media only screen and (min-width: 60em){article,footer,header{font-size:1.25em}}
+--></style>
+<link rel="shortcut icon" href="../favicon.ico">
+<header>
+  <h3><a href="https://benchmarksgame-team.pages.debian.net/benchmarksgame/index.html">The&nbsp;<small>Computer&nbsp;Language</small><br>22.01 Benchmarks&nbsp;Game</a></h3>
+</header>
+<article>
+  <div>
+    <h1>simple Racket program</h1>
+    <aside>
+      <p><a href="../description/simple.html#simple">description</a>
+    </aside>
+  </div>
+  <section>
+    <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc">;;; The Computer Language Benchmarks Game</span>
+<span class="slc">;;; https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+
+<span class="slc">;;; contributed by Greg Buchholz</span>
+
+(<span class="kwa">define</span> (<span class="kwa">main</span> args)
+  (<span class="kwa">let</span> ((<span class="kwa">n</span> (<span class="kwa">string-</span>&gt;number (<span class="kwa">car</span> args))))
+    (<span class="kwa">display</span> <span class="str">&quot;P4&quot;</span>) (<span class="kwa">newline</span>) (<span class="kwa">display</span> n) (<span class="kwa">display</span> <span class="str">&quot; &quot;</span>) (<span class="kwa">display</span> n) (<span class="kwa">newline</span>) 
+    (<span class="kwa">printPBM</span> <span class="num">0 0</span> n (<span class="kwa">points</span> <span class="num">0 0</span> n))))
+
+(<span class="kwa">define</span> (<span class="kwa">points</span> x y n)
+  (<span class="kwa">if</span> (= y n)
+    &apos;()
+    (<span class="kwa">if</span> (= x n)
+        (<span class="kwa">points</span> <span class="num">0</span> (+ y <span class="num">1</span>) n)
+        (<span class="kwa">cons</span> (<span class="kwa">mandel</span> (<span class="kwa">cons</span> (<span class="kwa">-</span> (* <span class="num">2</span> (/ x n)) <span class="num">1.5</span>) 
+                            (<span class="kwa">-</span> (* <span class="num">2</span> (/ y n)) <span class="num">1.0</span>)) 
+                      (<span class="kwa">cons</span> <span class="num">0.0 0.0</span>) <span class="num">50</span>)
+              (<span class="kwa">delay</span> (<span class="kwa">points</span> (+ x <span class="num">1</span>) y n))))))
+
+(<span class="kwa">define</span> (<span class="kwa">mandel</span> c z iter)
+    (<span class="kwa">if</span> (= iter <span class="num">0</span>)
+        <span class="num">1</span>
+        (<span class="kwa">let</span> ((<span class="kwa">n</span> (<span class="kwa">cadd</span> (<span class="kwa">cmult</span> z z) c)))
+             (<span class="kwa">if</span> (&gt; (<span class="kwa">magnitude</span> n) <span class="num">2.0</span>)
+                  <span class="num">0</span>
+                  (<span class="kwa">mandel</span> c n (<span class="kwa">-</span> iter <span class="num">1</span>))))))
+
+(<span class="kwa">define</span> (<span class="kwa">printPBM</span> acc i n stream)
+  (<span class="kwa">cond</span> ((<span class="kwa">null</span>? stream) (<span class="kwa">display</span> (<span class="kwa">acc-</span>&gt;char acc i)))
+        ((<span class="kwa">and</span> (= (<span class="kwa">remainder</span> i <span class="num">8</span>) <span class="num">0</span>) (<span class="kwa">not</span> (= i <span class="num">0</span>)))
+                 (<span class="kwa">begin</span> (<span class="kwa">display</span> (<span class="kwa">integer-</span>&gt;char acc)) 
+                        (<span class="kwa">printPBM</span> (<span class="kwa">car</span> stream) (+ <span class="num">1</span> i) n (<span class="kwa">force</span> (<span class="kwa">cdr</span> stream)))))
+        ((= i n) (<span class="kwa">begin</span> (<span class="kwa">display</span> (<span class="kwa">acc-</span>&gt;char acc n))
+                        (<span class="kwa">printPBM</span> <span class="num">0 0</span> n stream)))
+        (<span class="kwa">else</span> (<span class="kwa">printPBM</span> (+ (* <span class="num">2</span> acc) (<span class="kwa">car</span> stream)) (+ <span class="num">1</span> i) n (<span class="kwa">force</span> (<span class="kwa">cdr</span> stream))))))
+
+(<span class="kwa">define</span> (<span class="kwa">acc-</span>&gt;char acc x)
+    (<span class="kwa">integer-</span>&gt;char (* acc (<span class="kwa">expt</span> (<span class="kwa">remainder</span> x <span class="num">8</span>) <span class="num">2</span>))))
+
+(<span class="kwa">define</span> (<span class="kwa">magnitude</span> n) 
+    (<span class="kwa">sqrt</span> (+ (* (<span class="kwa">car</span> n) (<span class="kwa">car</span> n))(* (<span class="kwa">cdr</span> n) (<span class="kwa">cdr</span> n)))))
+
+(<span class="kwa">define</span> (<span class="kwa">cadd</span> a b)
+    (<span class="kwa">cons</span> (+ (<span class="kwa">car</span> a) (<span class="kwa">car</span> b))(+ (<span class="kwa">cdr</span> a) (<span class="kwa">cdr</span> b))))
+
+(<span class="kwa">define</span> (<span class="kwa">cmult</span> a b)
+    (<span class="kwa">cons</span> (<span class="kwa">-</span> (* (<span class="kwa">car</span> a) (<span class="kwa">car</span> b)) (* (<span class="kwa">cdr</span> a) (<span class="kwa">cdr</span> b)))
+          (+ (* (<span class="kwa">car</span> a) (<span class="kwa">cdr</span> b)) (* (<span class="kwa">cdr</span> a) (<span class="kwa">car</span> b)))))
+
+(<span class="kwa">main</span> (<span class="kwa">command-line-arguments</span>))
+    </pre>
+  </section>
+  <section>
+    <div>
+      <h2 id="log">notes, command-line, and program output</h2>
+    </div>
+    <pre>
+NOTES:
+64-bit Ubuntu quad core
+Welcome to Racket v8.3 [cs].
+
+
+Wed, 19 Jan 2022 00:49:56 GMT
+
+MAKE:
+/opt/src/racket-8.3/bin/raco make simple.racket
+load-handler: expected a `module` declaration in #&lt;path:/home/dunham/all-benchmarksgame/benchmarksgame_i53330/simple/tmp/simple.racket&gt;, but found something else
+  compilation context...:
+   /home/dunham/all-benchmarksgame/benchmarksgame_i53330/simple/tmp/simple.racket
+  context...:
+   /opt/src/racket-8.3/collects/syntax/private/modcode-noctc.rkt:36:2: reader
+   /opt/src/racket-8.3/collects/syntax/private/modcode-noctc.rkt:259:5: compile-one
+   /opt/src/racket-8.3/collects/compiler/private/cm-minimal.rkt:685:0: compile-zo*
+   /opt/src/racket-8.3/collects/compiler/private/cm-minimal.rkt:451:15
+   /opt/src/racket-8.3/collects/compiler/private/cm-minimal.rkt:440:12: build
+   /opt/src/racket-8.3/collects/compiler/private/cm-minimal.rkt:411:0: maybe-compile-zo
+   /opt/src/racket-8.3/collects/compiler/private/cm-minimal.rkt:209:0: compile-root
+   /opt/src/racket-8.3/collects/compiler/private/cm-minimal.rkt:105:4
+   /opt/src/racket-8.3/share/pkgs/compiler-lib/compiler/commands/make.rkt:69:0
+   body of &quot;/opt/src/racket-8.3/share/pkgs/compiler-lib/compiler/commands/make.rkt&quot;
+   /opt/src/racket-8.3/collects/raco/raco.rkt:41:0
+   body of &quot;/opt/src/racket-8.3/collects/raco/raco.rkt&quot;
+   body of &quot;/opt/src/racket-8.3/collects/raco/main.rkt&quot;
+make: [/home/dunham/all-benchmarksgame/2000-benchmarksgame/nanobench/makefiles/u64q.programs.Makefile:456: simple.racket_run] Error 1 (ignored)
+
+2.74s to complete and log all make actions
+
+COMMAND LINE:
+/opt/src/racket-8.3/bin/racket simple.racket 1000
+
+PROGRAM FAILED 
+
+
+(BINARY) PROGRAM OUTPUT NOT SHOWN
+
+default-load-handler: expected a `module' declaration, but found something else
+  file: /home/dunham/all-benchmarksgame/benchmarksgame_i53330/simple/tmp/simple.racket
+    </pre>
+  </section>
+</article>
+<footer>
+  <nav>
+    <ul>
+      <li><a href="../license.html"><span>3-Clause BSD License</span></a>
+    </ul>
+  </nav>
+</footer>
+

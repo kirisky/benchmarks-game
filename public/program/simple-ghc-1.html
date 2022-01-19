@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,follow,noarchive">
+
+<title>simple Haskell GHC program | Computer Language Benchmarks Game </title>
+<style><!--
+a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,header{margin:auto;width:92%}body{font:100% Droid Sans, Ubuntu, Verdana, sans-serif;margin:0;-webkit-text-size-adjust:100%}h3, h1, h2, li a{font-family:Ubuntu Mono,Consolas,Menlo,monospace}div,footer,header{max-width:31em}footer{padding:2.6em 0 0}h3{font-size:1.4em;font-weight:bold;margin:0;padding: .4em}h3, h3 a{color:white;background-color:#77216f}h3 small{font-size:0.64em}h1,h2{margin:1.5em 0 0}h1{font-size:1.4em;font-weight:normal}h2{font-size:1.2em}li{list-style-type:none;vertical-align:top}li a{display:block;font-size:1.2em;margin: .5em .5em 0;padding: .5em .5em .3em}ul{clear:left;margin:-0.3em 0 1.5em;padding-left:0;text-align:center}p{color:#333;line-height:1.4;margin: .3em 0 0}p a, a span{border-bottom: .1em solid #333;padding-bottom: .1em}.com,.slc{color:#888}.kwa{color:#066}.kwb{color:#900}.kwc{color:#050}.kwa,.kwb,.kwc{font-weight:bold}.dstr,.str,.sym,.num{color:#930}pre{color:#222;font-size:1em;overflow-wrap:break-word;white-space:pre-wrap;word-wrap:break-word}@media only screen and (min-width: 60em){article,footer,header{font-size:1.25em}}
+--></style>
+<link rel="shortcut icon" href="../favicon.ico">
+<header>
+  <h3><a href="https://benchmarksgame-team.pages.debian.net/benchmarksgame/index.html">The&nbsp;<small>Computer&nbsp;Language</small><br>22.01 Benchmarks&nbsp;Game</a></h3>
+</header>
+<article>
+  <div>
+    <h1>simple Haskell GHC program</h1>
+    <aside>
+      <p><a href="../description/simple.html#simple">description</a>
+    </aside>
+  </div>
+  <section>
+    <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc">-- The Computer Language Benchmarks Game</span>
+<span class="slc">-- https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+
+<span class="slc">-- contributed by Greg Buchholz</span>
+<span class="slc">-- import bitrot fixed by Isaac Gouy</span>
+
+
+<span class="kwd">import</span> Data.<span class="kwb">Complex</span> 
+<span class="kwd">import</span> System.Environment
+<span class="kwd">import</span> Data.<span class="kwb">Char</span>
+
+main = <span class="kwd">do</span>   [arg] &lt;- <span class="kwc">getArgs</span>
+            <span class="kwd">let</span> width = <span class="kwc">read</span> arg
+            <span class="kwd">let</span> pts = points width width        
+            <span class="kwc">putStr</span> $ <span class="str">&quot;P4</span><span class="esc">\n</span><span class="str">&quot;</span> ++ arg ++ <span class="str">&quot; &quot;</span> ++ arg ++ <span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span>
+            <span class="kwc">putStr</span> $ <span class="kwc">concatMap</span> (makePBM <span class="num">0 0</span>) (chunk width (fractal pts))
+            
+limit  = <span class="num">2</span>
+iter   = <span class="num">50</span>+<span class="num">1</span> <span class="slc">-- add one to compensate for the &apos;iterate&apos; function</span>
+
+points width height = [(<span class="num">2</span>*x/w - <span class="num">1.5</span>) :+ (<span class="num">2</span>*y/h - <span class="num">1</span>) | y&lt;-[<span class="num">0</span>..h-<span class="num">1</span>], x&lt;-[<span class="num">0</span>..w-<span class="num">1</span>]]
+                    <span class="kwd">where</span> w = <span class="kwc">fromIntegral</span> width
+                          h = <span class="kwc">fromIntegral</span> height
+
+mandel c z = z * z + c
+
+fractal pts = <span class="kwc">map</span> (<span class="esc">\f</span>-&gt; <span class="kwa">length</span> (takeIter (<span class="kwc">iterate</span> f (<span class="num">0</span>:+<span class="num">0</span>)))) (<span class="kwc">map</span> mandel pts)
+        <span class="kwd">where</span> takeIter a = <span class="kwc">take</span> iter (<span class="kwc">takeWhile</span> (\x-&gt; <span class="kwc">magnitude</span>(x)&lt;limit) a)
+       
+makePBM i acc []     = (<span class="kwc">chr</span> (acc * <span class="num">2</span>^(<span class="num">8</span>-i))) : []
+makePBM i acc (x:xs) | i==<span class="num">8</span>      = (<span class="kwc">chr</span> acc) : makePBM <span class="num">0 0</span> (x:xs)
+                     | <span class="kwc">otherwise</span> = makePBM (i+<span class="num">1</span>) n xs
+                                    <span class="kwd">where</span>
+                                      n = <span class="kwd">if</span> x==iter <span class="kwd">then</span> (acc*<span class="num">2</span>+<span class="num">1</span>) <span class="kwd">else</span> (acc*<span class="num">2</span>)
+
+chunk width [] = []
+chunk width c  = (<span class="kwc">fst</span> <span class="kwa">split</span>) : chunk width (<span class="kwc">snd</span> <span class="kwa">split</span>)
+                 <span class="kwd">where</span> <span class="kwa">split</span> = <span class="kwc">splitAt</span> width c
+                    
+    </pre>
+  </section>
+  <section>
+    <div>
+      <h2 id="log">notes, command-line, and program output</h2>
+    </div>
+    <pre>
+NOTES:
+64-bit Ubuntu quad core
+The Glorious Glasgow Haskell Compilation System,
+version 9.2.1
+
+
+Wed, 19 Jan 2022 06:34:38 GMT
+
+MAKE:
+mv simple.ghc simple.hs
+~/.ghcup/ghc/9.2.1/bin/ghc --make -fllvm -O2 -XBangPatterns -threaded -rtsopts  simple.hs -o simple.ghc_run
+[1 of 1] Compiling Main             ( simple.hs, simple.o )
+You are using an unsupported version of LLVM!
+Currently only 9 to 13 is supported. System LLVM version: 13.0.0
+We will try though...
+Linking simple.ghc_run ...
+rm simple.hs
+
+9.57s to complete and log all make actions
+
+COMMAND LINE:
+./simple.ghc_run +RTS -N4 -RTS 1000
+
+UNEXPECTED OUTPUT 
+
+_out 1000_out differ: byte 855, line 3
+
+(BINARY) PROGRAM OUTPUT NOT SHOWN
+    </pre>
+  </section>
+</article>
+<footer>
+  <nav>
+    <ul>
+      <li><a href="../license.html"><span>3-Clause BSD License</span></a>
+    </ul>
+  </nav>
+</footer>
+
