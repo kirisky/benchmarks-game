@@ -26,6 +26,7 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="slc">-- https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
 <span class="slc">--</span>
 <span class="slc">-- Contributed by Branimir Maksimovic</span>
+<span class="slc">-- Fix for GHC 9.2 by Artem Pelenitsyn</span>
 
 <span class="kwd">import</span> Foreign.Ptr
 <span class="kwd">import</span> Foreign.Storable
@@ -57,11 +58,11 @@ offsetMomentum p (px,py,pz) = p {
 
 nbodyInit pPlanets = <span class="kwd">do</span>
     <span class="kwd">let</span> <span class="kwc">init</span> (px,py,pz) i = <span class="kwd">do</span>
-        <span class="kwd">if</span> i &lt; <span class="kwa">length</span> planets
-            <span class="kwd">then do</span>
-                p &lt;- peekElemOff pPlanets i
-                <span class="kwc">init</span> (px + vx p * mass p,py + vy p * mass p, pz + vz p * mass p) (i+<span class="num">1</span>)
-            <span class="kwd">else</span> <span class="kwc">return</span> (px,py,pz)
+          <span class="kwd">if</span> i &lt; <span class="kwa">length</span> planets
+              <span class="kwd">then do</span>
+                  p &lt;- peekElemOff pPlanets i
+                  <span class="kwc">init</span> (px + vx p * mass p,py + vy p * mass p, pz + vz p * mass p) (i+<span class="num">1</span>)
+              <span class="kwd">else</span> <span class="kwc">return</span> (px,py,pz)
     s &lt;- <span class="kwc">init</span> (<span class="num">0</span>,<span class="num">0</span>,<span class="num">0</span>) <span class="num">0</span>
     p &lt;- peek pPlanets
     poke pPlanets $ offsetMomentum p s
@@ -213,6 +214,7 @@ fromList l = <span class="kwd">do</span>
                             loop xs (i+<span class="num">1</span>)
     loop l <span class="num">0</span>
     <span class="kwc">return</span> pa
+
     </pre>
   </section>
   <section>
@@ -226,28 +228,26 @@ The Glorious Glasgow Haskell Compilation System,
 version 9.2.1
 
 
-Wed, 12 Jan 2022 23:53:53 GMT
+Thu, 20 Jan 2022 14:36:43 GMT
 
 MAKE:
 mv nbody.ghc-2.ghc nbody.ghc-2.hs
 ~/.ghcup/ghc/9.2.1/bin/ghc --make -fllvm -O2 -XBangPatterns -threaded -rtsopts  nbody.ghc-2.hs -o nbody.ghc-2.ghc_run
 [1 of 1] Compiling Main             ( nbody.ghc-2.hs, nbody.ghc-2.o )
-
-nbody.ghc-2.hs:41:5: error:
-    parse error (possibly incorrect indentation or mismatched brackets)
-   |
-41 |     s &lt;- init (0,0,0) 0
-   |     ^
-make: [/home/dunham/all-benchmarksgame/2000-benchmarksgame/nanobench/makefiles/u64q.programs.Makefile:243: nbody.ghc-2.ghc_run] Error 1 (ignored)
+You are using an unsupported version of LLVM!
+Currently only 9 to 13 is supported. System LLVM version: 13.0.0
+We will try though...
+Linking nbody.ghc-2.ghc_run ...
 rm nbody.ghc-2.hs
 
-4.50s to complete and log all make actions
+10.22s to complete and log all make actions
 
 COMMAND LINE:
-./nbody.ghc-2.ghc_run +RTS -N4 -RTS 500000
+./nbody.ghc-2.ghc_run +RTS -N4 -RTS 50000000
 
-MAKE ERROR 
-
+PROGRAM OUTPUT:
+-0.169075164
+-0.169059907
     </pre>
   </section>
 </article>
