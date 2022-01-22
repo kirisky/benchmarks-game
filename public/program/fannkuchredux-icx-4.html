@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,follow,noarchive">
+
+<title>fannkuch-redux Intel C&nbsp;#4 program | Computer Language Benchmarks Game </title>
+<style><!--
+a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,header{margin:auto;width:92%}body{font:100% Droid Sans, Ubuntu, Verdana, sans-serif;margin:0;-webkit-text-size-adjust:100%}h3, h1, h2, li a{font-family:Ubuntu Mono,Consolas,Menlo,monospace}div,footer,header{max-width:31em}footer{padding:2.6em 0 0}h3{font-size:1.4em;font-weight:bold;margin:0;padding: .4em}h3, h3 a{color:white;background-color:#77216f}h3 small{font-size:0.64em}h1,h2{margin:1.5em 0 0}h1{font-size:1.4em;font-weight:normal}h2{font-size:1.2em}li{list-style-type:none;vertical-align:top}li a{display:block;font-size:1.2em;margin: .5em .5em 0;padding: .5em .5em .3em}ul{clear:left;margin:-0.3em 0 1.5em;padding-left:0;text-align:center}p{color:#333;line-height:1.4;margin: .3em 0 0}p a, a span{border-bottom: .1em solid #333;padding-bottom: .1em}.com,.slc{color:#888}.kwa{color:#066}.kwb{color:#900}.kwc{color:#050}.kwa,.kwb,.kwc{font-weight:bold}.dstr,.str,.sym,.num{color:#930}pre{color:#222;font-size:1em;overflow-wrap:break-word;white-space:pre-wrap;word-wrap:break-word}@media only screen and (min-width: 60em){article,footer,header{font-size:1.25em}}
+--></style>
+<link rel="shortcut icon" href="../favicon.ico">
+<header>
+  <h3><a href="https://benchmarksgame-team.pages.debian.net/benchmarksgame/index.html">The&nbsp;<small>Computer&nbsp;Language</small><br>22.01 Benchmarks&nbsp;Game</a></h3>
+</header>
+<article>
+  <div>
+    <h1>fannkuch-redux Intel C&nbsp;#4 program</h1>
+    <aside>
+      <p><a href="../description/fannkuchredux.html#fannkuchredux">description</a>
+    </aside>
+  </div>
+  <section>
+    <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="com">/* The Computer Language Benchmarks Game</span>
+<span class="com"> * https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="com"> *</span>
+<span class="com"> * contributed by Matthew McMullan</span>
+<span class="com"> * based on C source by Ledrug Katz</span>
+<span class="com"> *</span>
+<span class="com"> */</span>
+
+<span class="ppc">#include &lt;stdio.h&gt;</span>
+<span class="ppc">#include &lt;xmmintrin.h&gt;</span>
+<span class="ppc">#include &lt;tmmintrin.h&gt;</span>
+
+<span class="com">/* this depends highly on the platform.  It might be faster to use</span>
+<span class="com">    char type on 32-bit systems; it might be faster to use unsigned. */</span>
+
+<span class="kwc">typedef</span> <span class="kwb">char</span> elem;
+
+elem s[<span class="num">16</span>] <span class="kwd">__attribute__</span> ((<span class="kwd">aligned</span> (<span class="num">16</span>)));
+
+<span class="kwb">int</span> maxflips = <span class="num">0</span>;
+<span class="kwb">int</span> max_n;
+<span class="kwb">int</span> odd = <span class="num">0</span>;
+<span class="kwb">int</span> checksum = <span class="num">0</span>;
+<span class="slc">// naieve method of rotation using basic sisd instructions for sanity&apos;s sake</span>
+<span class="kwc">inline</span> <span class="kwb">void</span> <span class="kwd">rotate_sisd</span>(<span class="kwb">int</span> n) {
+   elem c;
+   <span class="kwc">register</span> <span class="kwb">int</span> i;
+   c = s[<span class="num">0</span>];
+   <span class="kwa">for</span> (i = <span class="num">1</span>; i &lt;= n; i++) s[i-<span class="num">1</span>] = s[i];
+   s[n] = c;
+}
+<span class="slc">// flip and rotation masks needed to use SSE for rotations and flipping</span>
+<span class="slc">// the number of these remains constant for all sizes</span>
+__m128i flip_masks[<span class="num">16</span>];
+__m128i rotate_masks[<span class="num">16</span>];
+__m128i MM_ITRUE;
+<span class="slc">// populate the data in the masks. could be hard coded. will never change.</span>
+<span class="kwb">void</span> <span class="kwd">popmasks</span>() {
+   <span class="kwb">char</span> mask[<span class="num">16</span>];
+   elem *x, *y, c;
+   <span class="kwb">unsigned</span> i, j;
+   <span class="kwb">char</span> truth[<span class="num">16</span>] = {<span class="num">0</span>,<span class="num">0</span>,<span class="num">0</span>,<span class="num">0</span>,<span class="num">0</span>,<span class="num">0</span>,<span class="num">0</span>,<span class="num">0</span>,<span class="num">0</span>,<span class="num">0</span>,<span class="num">0</span>,<span class="num">0</span>,<span class="num">0</span>,<span class="num">0</span>,<span class="num">0</span>,<span class="num">0</span>};
+   
+   <span class="kwa">for</span> (i = <span class="num">0</span>; i&lt;<span class="num">16</span>; ++i) {
+      <span class="kwa">for</span> (j = <span class="num">0</span>; j&lt;<span class="num">16</span>; ++j) mask[j] = j;
+      <span class="slc">// this is actually slower than a for loop for small arrays</span>
+      <span class="kwa">for</span> (x = mask, y = mask + i; x &lt; y; ) {
+         c = *x;
+         *x++ = *y;
+         *y-- = c;
+      }
+      flip_masks[i] = <span class="kwd">_mm_loadu_si128</span>((__m128i*)mask);
+      
+      <span class="kwa">for</span> (j = <span class="num">0</span>; j&lt;<span class="num">16</span>; ++j) s[j] = j;
+      <span class="kwd">rotate_sisd</span>(i);
+      rotate_masks[i] = <span class="kwd">_mm_load_si128</span>((__m128i*)s);
+   }
+   MM_ITRUE = <span class="kwd">_mm_loadu_si128</span>((__m128i*)truth);
+}
+<span class="kwc">inline</span> <span class="kwb">void</span> <span class="kwd">rotate</span>(<span class="kwb">int</span> n) {
+   <span class="slc">// use SSE to rotate the values</span>
+   <span class="slc">// n could get as high as the max for the range,</span>
+   <span class="slc">//   but only 16 constants will ever be needed</span>
+   <span class="kwd">_mm_store_si128</span>((__m128i*)s,
+      <span class="kwd">_mm_shuffle_epi8</span>(<span class="kwd">_mm_load_si128</span>((__m128i*)s),rotate_masks[n]));
+}
+<span class="ppc">#define permcount 60</span>
+<span class="kwb">void</span> <span class="kwd">tk</span>(<span class="kwb">int</span> n) {
+   <span class="slc">// for flipping</span>
+   <span class="kwb">char</span> tmp[<span class="num">16</span>] <span class="kwd">__attribute__</span> ((<span class="kwd">aligned</span> (<span class="num">16</span>)));
+   <span class="kwb">char</span> tmp2[<span class="num">16</span>] <span class="kwd">__attribute__</span> ((<span class="kwd">aligned</span> (<span class="num">16</span>)));
+   <span class="slc">// a place to put the backlog of permutations</span>
+   <span class="kwb">struct</span> Perm {
+      __m128i perm;
+      elem start;
+      <span class="kwb">short</span> odd;
+   } perms[permcount];
+
+   <span class="kwb">int</span> i = <span class="num">0</span>;
+   elem c[<span class="num">16</span>] = {<span class="num">0</span>};
+   <span class="kwb">int</span> perm_max = <span class="num">0</span>;
+   <span class="kwa">while</span> (i &lt; n) {
+      <span class="com">/* Tompkin-Paige iterative perm generation */</span>
+      <span class="slc">// fill the queue up to 60</span>
+      <span class="kwa">while</span> (i&lt;n &amp;&amp; perm_max&lt;permcount) {
+         <span class="kwd">rotate</span>(i);
+         <span class="kwa">if</span> (c[i] &gt;= i) {
+            c[i++] = <span class="num">0</span>;
+            <span class="kwa">continue</span>;
+         }
+
+         c[i]++;
+         i = <span class="num">1</span>;
+         odd = ~odd;
+         <span class="kwa">if</span> (*s) {
+            <span class="kwa">if</span> (s[(<span class="kwb">int</span>)s[<span class="num">0</span>]]) {
+               perms[perm_max].perm = <span class="kwd">_mm_load_si128</span>((__m128i*)s);
+               perms[perm_max].start = *s;
+               perms[perm_max].odd = odd;
+               perm_max++;
+            } <span class="kwa">else</span> {
+               <span class="kwa">if</span> (maxflips==<span class="num">0</span>) maxflips = <span class="num">1</span>;
+               checksum += odd ? -<span class="num">1</span> : <span class="num">1</span>;
+            }
+         }
+      }
+      <span class="slc">// process the queue</span>
+      <span class="kwb">int</span> k;
+      <span class="slc">// do 2 at a time when possible to take advantage of pipelining</span>
+      <span class="slc">// see the next loop for implementation logic</span>
+      <span class="kwa">for</span> (k=<span class="num">0</span>; k&lt;perm_max-<span class="num">1</span>; k+=<span class="num">2</span>) {
+         __m128i perm1 = perms[k].perm;
+         __m128i perm2 = perms[k+<span class="num">1</span>].perm;
+         
+         
+         <span class="kwb">int</span> f1 = <span class="num">0</span>, f2 = <span class="num">0</span>;
+         <span class="kwb">int</span> toterm1 = perms[k].start, toterm2 = perms[k+<span class="num">1</span>].start;
+         <span class="kwa">while</span> (toterm1 &amp;&amp; toterm2) {
+            perm1 = <span class="kwd">_mm_shuffle_epi8</span>(perm1,flip_masks[toterm1]);
+            perm2 = <span class="kwd">_mm_shuffle_epi8</span>(perm2,flip_masks[toterm2]);
+            <span class="kwd">_mm_storel_epi64</span>((__m128i*)tmp,perm1);
+            <span class="kwd">_mm_storel_epi64</span>((__m128i*)tmp2,perm2);
+            toterm1 = tmp[<span class="num">0</span>];
+            toterm2 = tmp2[<span class="num">0</span>];
+            ++f1; ++f2;
+         }
+         <span class="kwa">while</span> (toterm1) {
+            perm1 = <span class="kwd">_mm_shuffle_epi8</span>(perm1,flip_masks[toterm1]);
+            <span class="kwd">_mm_storel_epi64</span>((__m128i*)tmp,perm1);
+            toterm1 = tmp[<span class="num">0</span>];
+            ++f1;
+         }
+         <span class="kwa">while</span> (toterm2) {
+            perm2 = <span class="kwd">_mm_shuffle_epi8</span>(perm2,flip_masks[toterm2]);
+            <span class="kwd">_mm_storel_epi64</span>((__m128i*)tmp2,perm2);
+            toterm2 = tmp2[<span class="num">0</span>];
+            ++f2;
+         }
+         
+         <span class="kwa">if</span> (f1 &gt; maxflips) maxflips = f1;
+         <span class="kwa">if</span> (f2 &gt; maxflips) maxflips = f2;
+         checksum += perms[k].odd ? -f1 : f1;
+         checksum += perms[k+<span class="num">1</span>].odd ? -f2 : f2;
+      }
+      <span class="slc">// finish up one at a time</span>
+      <span class="kwa">for</span> (;k&lt;perm_max;++k) {
+         <span class="slc">// get the data out of the structure</span>
+         <span class="slc">// the whole array is packed into an sse integer type</span>
+         <span class="slc">// we could use more fairly easily if we wanted to</span>
+         __m128i perm = perms[k].perm;
+         <span class="kwb">int</span> f = <span class="num">0</span>, toterm = perms[k].start;
+         <span class="kwa">while</span> (toterm) {
+            <span class="slc">// hardware support for reversing arbitrary subsequences</span>
+            perm = <span class="kwd">_mm_shuffle_epi8</span>(perm,flip_masks[toterm]);
+            <span class="slc">// check the first number. this is ~1/3 of the execution time</span>
+            <span class="kwd">_mm_storel_epi64</span>((__m128i*)tmp,perm);
+            toterm = tmp[<span class="num">0</span>];
+            ++f;
+         }
+         
+         <span class="kwa">if</span> (f &gt; maxflips) maxflips = f;
+         checksum += perms[k].odd ? -f : f;
+      }
+      perm_max = <span class="num">0</span>;
+   }
+}
+
+<span class="kwb">int</span> <span class="kwd">main</span>(<span class="kwb">int</span> argc, <span class="kwb">char</span> **v) {
+   <span class="kwb">int</span> i;
+   <span class="kwd">popmasks</span>();
+   <span class="kwa">if</span> (argc &lt; <span class="num">2</span>) {
+      <span class="kwd">fprintf</span>(stderr, <span class="str">&quot;usage: %s number</span><span class="esc">\n</span><span class="str">&quot;</span>, v[<span class="num">0</span>]);
+      <span class="kwd">exit</span>(<span class="num">1</span>);
+   }
+
+   max_n = <span class="kwd">atoi</span>(v[<span class="num">1</span>]);
+   <span class="kwa">if</span> (max_n &lt; <span class="num">3</span> || max_n &gt; <span class="num">15</span>) {
+      <span class="kwd">fprintf</span>(stderr, <span class="str">&quot;range: must be 3 &lt;= n &lt;= 12</span><span class="esc">\n</span><span class="str">&quot;</span>);
+      <span class="kwd">exit</span>(<span class="num">1</span>);
+   }
+
+   <span class="kwa">for</span> (i = <span class="num">0</span>; i &lt; max_n; i++) s[i] = i;
+   <span class="kwd">tk</span>(max_n);
+   <span class="kwd">printf</span>(<span class="str">&quot;%d</span><span class="esc">\n</span><span class="str">Pfannkuchen(%d) = %d</span><span class="esc">\n</span><span class="str">&quot;</span>, checksum, max_n, maxflips);
+
+   <span class="kwa">return</span> <span class="num">0</span>;
+}
+    </pre>
+  </section>
+  <section>
+    <div>
+      <h2 id="log">notes, command-line, and program output</h2>
+    </div>
+    <pre>
+NOTES:
+64-bit Ubuntu quad core
+Intel(R) oneAPI DPC++/C++ Compiler
+for applications running on Intel(R) 64,
+Version 2022.0.0 Build 20211123
+Copyright (C) 1985-2021 Intel Corporation. All rights reserved.
+
+
+Sat, 22 Jan 2022 04:43:01 GMT
+
+MAKE:
+~/intel/oneapi/compiler/2022.0.1/linux/bin/icx -pipe -Wall -O3 -fomit-frame-pointer -march=ivybridge  fannkuchredux.icx-4.c -o fannkuchredux.icx-4.icx_run 
+rm fannkuchredux.icx-4.c
+
+3.81s to complete and log all make actions
+
+COMMAND LINE:
+./fannkuchredux.icx-4.icx_run 12
+
+PROGRAM OUTPUT:
+3968050
+Pfannkuchen(12) = 65
+    </pre>
+  </section>
+</article>
+<footer>
+  <nav>
+    <ul>
+      <li><a href="../license.html"><span>3-Clause BSD License</span></a>
+    </ul>
+  </nav>
+</footer>
+

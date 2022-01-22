@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,follow,noarchive">
+
+<title>mandelbrot Intel C&nbsp;#6 program | Computer Language Benchmarks Game </title>
+<style><!--
+a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,header{margin:auto;width:92%}body{font:100% Droid Sans, Ubuntu, Verdana, sans-serif;margin:0;-webkit-text-size-adjust:100%}h3, h1, h2, li a{font-family:Ubuntu Mono,Consolas,Menlo,monospace}div,footer,header{max-width:31em}footer{padding:2.6em 0 0}h3{font-size:1.4em;font-weight:bold;margin:0;padding: .4em}h3, h3 a{color:white;background-color:#77216f}h3 small{font-size:0.64em}h1,h2{margin:1.5em 0 0}h1{font-size:1.4em;font-weight:normal}h2{font-size:1.2em}li{list-style-type:none;vertical-align:top}li a{display:block;font-size:1.2em;margin: .5em .5em 0;padding: .5em .5em .3em}ul{clear:left;margin:-0.3em 0 1.5em;padding-left:0;text-align:center}p{color:#333;line-height:1.4;margin: .3em 0 0}p a, a span{border-bottom: .1em solid #333;padding-bottom: .1em}.com,.slc{color:#888}.kwa{color:#066}.kwb{color:#900}.kwc{color:#050}.kwa,.kwb,.kwc{font-weight:bold}.dstr,.str,.sym,.num{color:#930}pre{color:#222;font-size:1em;overflow-wrap:break-word;white-space:pre-wrap;word-wrap:break-word}@media only screen and (min-width: 60em){article,footer,header{font-size:1.25em}}
+--></style>
+<link rel="shortcut icon" href="../favicon.ico">
+<header>
+  <h3><a href="https://benchmarksgame-team.pages.debian.net/benchmarksgame/index.html">The&nbsp;<small>Computer&nbsp;Language</small><br>22.01 Benchmarks&nbsp;Game</a></h3>
+</header>
+<article>
+  <div>
+    <h1>mandelbrot Intel C&nbsp;#6 program</h1>
+    <aside>
+      <p><a href="../description/mandelbrot.html#mandelbrot">description</a>
+    </aside>
+  </div>
+  <section>
+    <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+﻿<span class="slc">// The Computer Language Benchmarks Game</span>
+<span class="slc">// https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">//</span>
+<span class="slc">// Contributed by Kevin Miller</span>
+<span class="slc">//</span>
+<span class="slc">// ver 2: added a couple of optimizations</span>
+<span class="slc">// - Reduced number of times a vector of 8 was checked to see if</span>
+<span class="slc">//    they had all escaped, similar to Dominic Letz&apos;s C #5 entry.</span>
+<span class="slc">// - Processed 64 pixels at a time if width was a multiple of 64,</span>
+<span class="slc">//    thereby reducing writes to the bitmap.</span>
+<span class="slc">//</span>
+<span class="slc">// compile with following gcc flags</span>
+<span class="slc">//  -pipe -Wall -O3 -ffast-math -fno-finite-math-only -march=native -mfpmath=sse -msse3 -fopenmp</span>
+
+
+<span class="ppc">#include &lt;stdlib.h&gt;</span>
+<span class="ppc">#include &lt;stdio.h&gt;</span>
+<span class="ppc">#include &lt;unistd.h&gt;</span>
+<span class="ppc">#include &lt;emmintrin.h&gt;</span>
+
+
+<span class="kwb">long</span> <span class="kwd">numDigits</span>(<span class="kwb">long</span> n)
+{
+    <span class="kwb">long</span> len = <span class="num">0</span>;
+    <span class="kwa">while</span>(n)
+    {
+        n=n/<span class="num">10</span>;
+        len++;
+    }
+    <span class="kwa">return</span> len;
+}
+
+<span class="kwc">inline</span> <span class="kwb">long</span> <span class="kwd">vec_nle</span>(__m128d *v, <span class="kwb">double</span> f)
+{
+    <span class="kwa">return</span> (v[<span class="num">0</span>][<span class="num">0</span>] &lt;= f ||
+        v[<span class="num">0</span>][<span class="num">1</span>] &lt;= f ||
+        v[<span class="num">1</span>][<span class="num">0</span>] &lt;= f ||
+        v[<span class="num">1</span>][<span class="num">1</span>] &lt;= f ||
+        v[<span class="num">2</span>][<span class="num">0</span>] &lt;= f ||
+        v[<span class="num">2</span>][<span class="num">1</span>] &lt;= f ||
+        v[<span class="num">3</span>][<span class="num">0</span>] &lt;= f ||
+        v[<span class="num">3</span>][<span class="num">1</span>] &lt;= f) ? <span class="num">0</span> : -<span class="num">1</span>;
+}
+
+<span class="kwc">inline</span> <span class="kwb">void</span> <span class="kwd">clrPixels_nle</span>(__m128d *v, <span class="kwb">double</span> f, <span class="kwb">unsigned long</span> * pix8)
+{
+    <span class="kwa">if</span>(!(v[<span class="num">0</span>][<span class="num">0</span>] &lt;= f)) *pix8 &amp;= <span class="num">0x7f</span>;
+    <span class="kwa">if</span>(!(v[<span class="num">0</span>][<span class="num">1</span>] &lt;= f)) *pix8 &amp;= <span class="num">0xbf</span>;
+    <span class="kwa">if</span>(!(v[<span class="num">1</span>][<span class="num">0</span>] &lt;= f)) *pix8 &amp;= <span class="num">0xdf</span>;
+    <span class="kwa">if</span>(!(v[<span class="num">1</span>][<span class="num">1</span>] &lt;= f)) *pix8 &amp;= <span class="num">0xef</span>;
+    <span class="kwa">if</span>(!(v[<span class="num">2</span>][<span class="num">0</span>] &lt;= f)) *pix8 &amp;= <span class="num">0xf7</span>;
+    <span class="kwa">if</span>(!(v[<span class="num">2</span>][<span class="num">1</span>] &lt;= f)) *pix8 &amp;= <span class="num">0xfb</span>;
+    <span class="kwa">if</span>(!(v[<span class="num">3</span>][<span class="num">0</span>] &lt;= f)) *pix8 &amp;= <span class="num">0xfd</span>;
+    <span class="kwa">if</span>(!(v[<span class="num">3</span>][<span class="num">1</span>] &lt;= f)) *pix8 &amp;= <span class="num">0xfe</span>;
+}
+
+<span class="kwc">inline</span> <span class="kwb">void</span> <span class="kwd">calcSum</span>(__m128d *r, __m128d *i, __m128d *sum, __m128d *init_r, __m128d init_i)
+{
+    <span class="kwa">for</span>(<span class="kwb">long</span> pair=<span class="num">0</span>; pair&lt;<span class="num">4</span>; pair++)
+    {
+        __m128d r2 = r[pair] * r[pair];
+        __m128d i2 = i[pair] * i[pair];
+        __m128d ri = r[pair] * i[pair];
+
+        sum[pair] = r2 + i2;
+
+        r[pair]=r2 - i2 + init_r[pair];
+        i[pair]=ri + ri + init_i;
+    }
+}
+
+<span class="kwc">inline</span> <span class="kwb">unsigned long</span> <span class="kwd">mand8</span>(__m128d *init_r, __m128d init_i)
+{
+    __m128d r[<span class="num">4</span>], i[<span class="num">4</span>], sum[<span class="num">4</span>];
+    <span class="kwa">for</span>(<span class="kwb">long</span> pair=<span class="num">0</span>; pair&lt;<span class="num">4</span>; pair++)
+    {
+        r[pair]=init_r[pair];
+        i[pair]=init_i;
+    }
+
+    <span class="kwb">unsigned long</span> pix8 = <span class="num">0xff</span>;
+
+    <span class="kwa">for</span> (<span class="kwb">long</span> j = <span class="num">0</span>; j &lt; <span class="num">6</span>; j++)
+    {
+        <span class="kwa">for</span>(<span class="kwb">long</span> k=<span class="num">0</span>; k&lt;<span class="num">8</span>; k++)
+            <span class="kwd">calcSum</span>(r, i, sum, init_r, init_i);
+
+        <span class="kwa">if</span> (<span class="kwd">vec_nle</span>(sum, <span class="num">4.0</span>))
+        {
+            pix8 = <span class="num">0x00</span>;
+            <span class="kwa">break</span>;
+        }
+    }
+    <span class="kwa">if</span> (pix8)
+    {
+        <span class="kwd">calcSum</span>(r, i, sum, init_r, init_i);
+        <span class="kwd">calcSum</span>(r, i, sum, init_r, init_i);
+        <span class="kwd">clrPixels_nle</span>(sum, <span class="num">4.0</span>, &amp;pix8);
+    }
+
+    <span class="kwa">return</span> pix8;
+}
+
+<span class="kwb">unsigned long</span> <span class="kwd">mand64</span>(__m128d *init_r, __m128d init_i)
+{
+    <span class="kwb">unsigned long</span> pix64 = <span class="num">0</span>;
+
+    <span class="kwa">for</span>(<span class="kwb">long</span> byte=<span class="num">0</span>; byte&lt;<span class="num">8</span>; byte++)
+    {
+        <span class="kwb">unsigned long</span> pix8 = <span class="kwd">mand8</span>(init_r, init_i);
+
+        pix64 = (pix64 &gt;&gt; <span class="num">8</span>) | (pix8 &lt;&lt; <span class="num">56</span>);
+        init_r += <span class="num">4</span>;
+    }
+
+    <span class="kwa">return</span> pix64;
+}
+
+
+
+<span class="kwb">int</span> <span class="kwd">main</span>(<span class="kwb">int</span> argc, <span class="kwb">char</span> ** argv)
+{
+    <span class="slc">// get width/height from arguments</span>
+
+    <span class="kwb">long</span> wid_ht = <span class="num">16000</span>;
+    <span class="kwa">if</span> (argc &gt;= <span class="num">2</span>)
+    {
+        wid_ht = <span class="kwd">atoi</span>(argv[<span class="num">1</span>]);
+    }
+    wid_ht = (wid_ht+<span class="num">7</span>) &amp; ~<span class="num">7</span>;
+
+
+    <span class="slc">// allocate memory for header and pixels</span>
+
+    <span class="kwb">long</span> headerLength = <span class="kwd">numDigits</span>(wid_ht)*<span class="num">2</span>+<span class="num">5</span>;
+    <span class="kwb">long</span> pad = ((headerLength + <span class="num">7</span>) &amp; ~<span class="num">7</span>) - headerLength; <span class="slc">// pad aligns pixels on 8</span>
+    <span class="kwb">long</span> dataLength = headerLength + wid_ht*(wid_ht&gt;&gt;<span class="num">3</span>);
+    <span class="kwb">unsigned char</span> * <span class="kwb">const</span> buffer = <span class="kwd">malloc</span>(pad + dataLength);
+    <span class="kwb">unsigned char</span> * <span class="kwb">const</span> header = buffer + pad;
+    <span class="kwb">unsigned char</span> * <span class="kwb">const</span> pixels = header + headerLength;
+
+
+    <span class="slc">// generate the bitmap header</span>
+
+    <span class="kwd">sprintf</span>((<span class="kwb">char</span> *)header, <span class="str">&quot;P4</span><span class="esc">\n</span><span class="str">%ld %ld</span><span class="esc">\n</span><span class="str">&quot;</span>, wid_ht, wid_ht);
+
+
+    <span class="slc">// calculate initial values, store in r0, i0</span>
+
+    __m128d r0[wid_ht/<span class="num">2</span>];
+    <span class="kwb">double</span> i0[wid_ht];
+
+    <span class="kwa">for</span>(<span class="kwb">long</span> xy=<span class="num">0</span>; xy&lt;wid_ht; xy+=<span class="num">2</span>)
+    {
+        r0[xy&gt;&gt;<span class="num">1</span>] = <span class="num">2.0</span> / wid_ht * (__m128d){xy,  xy+<span class="num">1</span>} - <span class="num">1.5</span>;
+        i0[xy]    = <span class="num">2.0</span> / wid_ht *  xy    - <span class="num">1.0</span>;
+        i0[xy+<span class="num">1</span>]  = <span class="num">2.0</span> / wid_ht * (xy+<span class="num">1</span>) - <span class="num">1.0</span>;
+    }
+
+
+    <span class="slc">// generate the bitmap</span>
+
+    <span class="kwb">long</span> use8 = wid_ht%<span class="num">64</span>;
+    <span class="kwa">if</span> (use8)
+    {
+        <span class="slc">// process 8 pixels (one byte) at a time    </span>
+        <span class="ppc">#pragma omp parallel for schedule(guided)</span>
+        <span class="kwa">for</span>(<span class="kwb">long</span> y=<span class="num">0</span>; y&lt;wid_ht; y++)
+        {
+            __m128d init_i = (__m128d){i0[y], i0[y]};
+            <span class="kwb">long</span> rowstart = y*wid_ht/<span class="num">8</span>;
+            <span class="kwa">for</span>(<span class="kwb">long</span> x=<span class="num">0</span>; x&lt;wid_ht; x+=<span class="num">8</span>)
+            {
+                pixels[rowstart + x/<span class="num">8</span>] = <span class="kwd">mand8</span>(r0+x/<span class="num">2</span>, init_i);
+            }
+        }
+    }
+    <span class="kwa">else</span>
+    {
+        <span class="slc">// process 64 pixels (8 bytes) at a time</span>
+        <span class="ppc">#pragma omp parallel for schedule(guided)</span>
+        <span class="kwa">for</span>(<span class="kwb">long</span> y=<span class="num">0</span>; y&lt;wid_ht; y++)
+        {
+            __m128d init_i = (__m128d){i0[y], i0[y]};
+            <span class="kwb">long</span> rowstart = y*wid_ht/<span class="num">64</span>;
+            <span class="kwa">for</span>(<span class="kwb">long</span> x=<span class="num">0</span>; x&lt;wid_ht; x+=<span class="num">64</span>)
+            {
+                ((<span class="kwb">unsigned long</span> *)pixels)[rowstart + x/<span class="num">64</span>] = <span class="kwd">mand64</span>(r0+x/<span class="num">2</span>, init_i);
+            }
+        }
+    }
+
+    <span class="slc">// write the data</span>
+
+    <span class="kwb">long</span> ret = ret = <span class="kwd">write</span>(STDOUT_FILENO, header, dataLength);
+
+
+    <span class="kwd">free</span>(buffer);
+
+    <span class="kwa">return</span> <span class="num">0</span>;
+}
+
+    </pre>
+  </section>
+  <section>
+    <div>
+      <h2 id="log">notes, command-line, and program output</h2>
+    </div>
+    <pre>
+NOTES:
+64-bit Ubuntu quad core
+Intel(R) oneAPI DPC++/C++ Compiler
+for applications running on Intel(R) 64,
+Version 2022.0.0 Build 20211123
+Copyright (C) 1985-2021 Intel Corporation. All rights reserved.
+
+
+Sat, 22 Jan 2022 05:04:37 GMT
+
+MAKE:
+~/intel/oneapi/compiler/2022.0.1/linux/bin/icx -pipe -Wall -O3 -fomit-frame-pointer -march=ivybridge -mno-fma -fno-finite-math-only -fopenmp mandelbrot.icx-6.c -o mandelbrot.icx-6.icx_run 
+/usr/bin/ld: /tmp/mandelbrot-1b48cf.o: in function `mand64':
+mandelbrot.icx-6.c:(.text+0x66): undefined reference to `mand8'
+/usr/bin/ld: mandelbrot.icx-6.c:(.text+0x77): undefined reference to `mand8'
+/usr/bin/ld: mandelbrot.icx-6.c:(.text+0x9a): undefined reference to `mand8'
+/usr/bin/ld: mandelbrot.icx-6.c:(.text+0xae): undefined reference to `mand8'
+/usr/bin/ld: mandelbrot.icx-6.c:(.text+0xe8): undefined reference to `mand8'
+/usr/bin/ld: /tmp/mandelbrot-1b48cf.o:mandelbrot.icx-6.c:(.text+0xfc): more undefined references to `mand8' follow
+clang: error: linker command failed with exit code 1 (use -v to see invocation)
+make: [/home/dunham/all-benchmarksgame/2000-benchmarksgame/nanobench/makefiles/u64q.programs.Makefile:90: mandelbrot.icx-6.icx_run] Error 1 (ignored)
+rm mandelbrot.icx-6.c
+
+3.97s to complete and log all make actions
+
+COMMAND LINE:
+./mandelbrot.icx-6.icx_run 1000
+
+MAKE ERROR 
+
+    </pre>
+  </section>
+</article>
+<footer>
+  <nav>
+    <ul>
+      <li><a href="../license.html"><span>3-Clause BSD License</span></a>
+    </ul>
+  </nav>
+</footer>
+

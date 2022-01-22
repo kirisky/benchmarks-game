@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,follow,noarchive">
+
+<title>spectral-norm Intel C&nbsp;#6 program | Computer Language Benchmarks Game </title>
+<style><!--
+a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,header{margin:auto;width:92%}body{font:100% Droid Sans, Ubuntu, Verdana, sans-serif;margin:0;-webkit-text-size-adjust:100%}h3, h1, h2, li a{font-family:Ubuntu Mono,Consolas,Menlo,monospace}div,footer,header{max-width:31em}footer{padding:2.6em 0 0}h3{font-size:1.4em;font-weight:bold;margin:0;padding: .4em}h3, h3 a{color:white;background-color:#77216f}h3 small{font-size:0.64em}h1,h2{margin:1.5em 0 0}h1{font-size:1.4em;font-weight:normal}h2{font-size:1.2em}li{list-style-type:none;vertical-align:top}li a{display:block;font-size:1.2em;margin: .5em .5em 0;padding: .5em .5em .3em}ul{clear:left;margin:-0.3em 0 1.5em;padding-left:0;text-align:center}p{color:#333;line-height:1.4;margin: .3em 0 0}p a, a span{border-bottom: .1em solid #333;padding-bottom: .1em}.com,.slc{color:#888}.kwa{color:#066}.kwb{color:#900}.kwc{color:#050}.kwa,.kwb,.kwc{font-weight:bold}.dstr,.str,.sym,.num{color:#930}pre{color:#222;font-size:1em;overflow-wrap:break-word;white-space:pre-wrap;word-wrap:break-word}@media only screen and (min-width: 60em){article,footer,header{font-size:1.25em}}
+--></style>
+<link rel="shortcut icon" href="../favicon.ico">
+<header>
+  <h3><a href="https://benchmarksgame-team.pages.debian.net/benchmarksgame/index.html">The&nbsp;<small>Computer&nbsp;Language</small><br>22.01 Benchmarks&nbsp;Game</a></h3>
+</header>
+<article>
+  <div>
+    <h1>spectral-norm Intel C&nbsp;#6 program</h1>
+    <aside>
+      <p><a href="../description/spectralnorm.html#spectralnorm">description</a>
+    </aside>
+  </div>
+  <section>
+    <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="com">/* The Computer Language Benchmarks Game</span>
+<span class="com"> * https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="com"> *</span>
+<span class="com"> * contributed by Miles</span>
+<span class="com"> * optimization with 4x4 kernel + intrinsics</span>
+<span class="com"> */</span>
+
+<span class="ppc">#include &lt;stdio.h&gt;</span>
+<span class="ppc">#include &lt;stdlib.h&gt;</span>
+<span class="ppc">#include &lt;math.h&gt;</span>
+<span class="ppc">#include &lt;x86intrin.h&gt;</span>
+
+<span class="slc">// compute values of A 4 at a time instead of 1</span>
+<span class="kwb">static</span> <span class="kwc">inline</span> __m256d <span class="kwd">eval_A</span>(__m128i i, __m128i j) {
+    __m128i ONE = <span class="kwd">_mm_set1_epi32</span>(<span class="num">1</span>);
+    __m128i ip1 = <span class="kwd">_mm_add_epi32</span>(i, ONE);
+    __m128i ipj = <span class="kwd">_mm_add_epi32</span>(i, j);
+    __m128i ipjp1 = <span class="kwd">_mm_add_epi32</span>(ip1, j);
+    __m128i a = <span class="kwd">_mm_mullo_epi32</span>(ipj, ipjp1);
+    a = <span class="kwd">_mm_srli_epi32</span>(a, <span class="num">1</span>);
+    a = <span class="kwd">_mm_add_epi32</span>(a, ip1);
+    <span class="kwa">return</span> <span class="kwd">_mm256_cvtepi32_pd</span>(a);
+}
+
+<span class="slc">// compute results over a 4x4 submatrix of A</span>
+<span class="kwb">static</span> <span class="kwc">inline</span> <span class="kwb">void</span> <span class="kwd">kernel</span>(__m256d u, __m256d s[<span class="num">4</span>], __m256d r[<span class="num">4</span>]) {
+    __m256d f[<span class="num">4</span>], p[<span class="num">4</span>];
+
+    <span class="slc">// f[i] is each outfix of size 1 for r[i], scaled by u</span>
+    <span class="slc">// p[i] is the product of r[i]</span>
+    <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">0</span>; i &lt; <span class="num">4</span>; i++) {
+        f[i] = <span class="kwd">_mm256_permute_pd</span>(r[i], <span class="num">0</span>b0101);
+        p[i] = <span class="kwd">_mm256_mul_pd</span>(r[i], f[i]);
+        __m256d t = <span class="kwd">_mm256_permute2f128_pd</span>(p[i], p[i], <span class="num">0x01</span>);
+        f[i] = <span class="kwd">_mm256_mul_pd</span>(t, f[i]);
+        p[i] = <span class="kwd">_mm256_mul_pd</span>(t, p[i]);
+        f[i] = <span class="kwd">_mm256_mul_pd</span>(f[i], u);
+    }
+
+    __m256d w, x, y, z;
+
+    <span class="slc">// collect p[i] into z, and get reciprocal</span>
+    x = <span class="kwd">_mm256_blend_pd</span>(p[<span class="num">0</span>], p[<span class="num">1</span>], <span class="num">0</span>b1010);
+    y = <span class="kwd">_mm256_blend_pd</span>(p[<span class="num">2</span>], p[<span class="num">3</span>], <span class="num">0</span>b1010);
+    z = <span class="kwd">_mm256_blend_pd</span>(x, y, <span class="num">0</span>b1100);
+    __m128 q = <span class="kwd">_mm256_cvtpd_ps</span>(z);
+    <span class="slc">// approximate reciprocal</span>
+    q = <span class="kwd">_mm_rcp_ps</span>(q);
+    x = <span class="kwd">_mm256_cvtps_pd</span>(q);
+    <span class="slc">// refine with variation of Goldschmidt’s algorithm</span>
+    w = <span class="kwd">_mm256_mul_pd</span>(x, z);
+    y = <span class="kwd">_mm256_set1_pd</span>(<span class="num">3.0</span>);
+    z = <span class="kwd">_mm256_mul_pd</span>(w, x);
+    w = <span class="kwd">_mm256_sub_pd</span>(w, y);
+    x = <span class="kwd">_mm256_mul_pd</span>(x, y);
+    z = <span class="kwd">_mm256_mul_pd</span>(z, w);
+    z = <span class="kwd">_mm256_add_pd</span>(z, x);
+
+    <span class="slc">// broadcast each 1/z over p[i]</span>
+    x = <span class="kwd">_mm256_unpacklo_pd</span>(z, z);
+    y = <span class="kwd">_mm256_unpackhi_pd</span>(z, z);
+    w = <span class="kwd">_mm256_permute2f128_pd</span>(x, x, <span class="num">1</span>);
+    z = <span class="kwd">_mm256_permute2f128_pd</span>(y, y, <span class="num">1</span>);
+    p[<span class="num">0</span>] = <span class="kwd">_mm256_blend_pd</span>(x, w, <span class="num">0</span>b1100);
+    p[<span class="num">1</span>] = <span class="kwd">_mm256_blend_pd</span>(y, z, <span class="num">0</span>b1100);
+    p[<span class="num">2</span>] = <span class="kwd">_mm256_blend_pd</span>(x, w, <span class="num">0</span>b0011);
+    p[<span class="num">3</span>] = <span class="kwd">_mm256_blend_pd</span>(y, z, <span class="num">0</span>b0011);
+
+    <span class="slc">// increment each row-sum by the product u / A[i, j..j+3]</span>
+    <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">0</span>; i &lt; <span class="num">4</span>; i++) {
+        __m256d t = <span class="kwd">_mm256_mul_pd</span>(f[i], p[i]);
+        s[i] = <span class="kwd">_mm256_add_pd</span>(s[i], t);
+    }
+}
+
+<span class="kwb">static void</span> <span class="kwd">eval_A_times_u</span>(<span class="kwb">int</span> n, <span class="kwb">double</span> *u, <span class="kwb">double</span> *Au) {
+    <span class="slc">// force static schedule since each chunk performs equal amounts of work</span>
+    <span class="ppc">#pragma omp parallel for schedule(static)</span>
+    <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">0</span>; i &lt; n; i += <span class="num">4</span>) {
+        __m256d s[<span class="num">4</span>];
+        <span class="kwa">for</span> (<span class="kwb">int</span> k = <span class="num">0</span>; k &lt; <span class="num">4</span>; k++)
+            s[k] = <span class="kwd">_mm256_set1_pd</span>(<span class="num">0.0</span>);
+
+        <span class="kwa">for</span> (<span class="kwb">int</span> j = <span class="num">0</span>; j &lt; n; j += <span class="num">4</span>) {
+            __m256d r[<span class="num">4</span>];
+            <span class="slc">// generate the values of A for the 4x4 submatrix with</span>
+            <span class="slc">// upper-left at (i, j)</span>
+            <span class="kwa">for</span> (<span class="kwb">int</span> k = <span class="num">0</span>; k &lt; <span class="num">4</span>; k++) {
+                __m128i x = <span class="kwd">_mm_set1_epi32</span>(i+k);
+                __m128i y = <span class="kwd">_mm_setr_epi32</span>(j, j+<span class="num">1</span>, j+<span class="num">2</span>, j+<span class="num">3</span>);
+                r[k] = <span class="kwd">eval_A</span>(x, y);
+            }
+
+            <span class="kwd">kernel</span>(<span class="kwd">_mm256_load_pd</span>(u+j), s, r);
+        }
+
+        <span class="slc">// sum the values in each s[i] and store in z</span>
+        __m256d t0 = <span class="kwd">_mm256_hadd_pd</span>(s[<span class="num">0</span>], s[<span class="num">1</span>]);
+        __m256d t1 = <span class="kwd">_mm256_hadd_pd</span>(s[<span class="num">2</span>], s[<span class="num">3</span>]);
+        __m256d x = <span class="kwd">_mm256_permute2f128_pd</span>(t0, t1, <span class="num">0x21</span>);
+        __m256d y = <span class="kwd">_mm256_blend_pd</span>(t0, t1, <span class="num">0</span>b1100);
+        __m256d z = <span class="kwd">_mm256_add_pd</span>(x, y);
+
+        <span class="kwd">_mm256_store_pd</span>(Au+i, z);
+    }
+
+    <span class="slc">// clear overhang values</span>
+    Au[n] = <span class="num">0.0</span>;
+    Au[n+<span class="num">1</span>] = <span class="num">0.0</span>;
+    Au[n+<span class="num">2</span>] = <span class="num">0.0</span>;
+}
+
+<span class="slc">// same as above except indices of A flipped (transposed)</span>
+<span class="kwb">static void</span> <span class="kwd">eval_At_times_u</span>(<span class="kwb">int</span> n, <span class="kwb">double</span> *u, <span class="kwb">double</span> *Au) {
+    <span class="ppc">#pragma omp parallel for schedule(static)</span>
+    <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">0</span>; i &lt; n; i += <span class="num">4</span>) {
+        __m256d s[<span class="num">4</span>];
+        <span class="kwa">for</span> (<span class="kwb">int</span> k = <span class="num">0</span>; k &lt; <span class="num">4</span>; k++)
+            s[k] = <span class="kwd">_mm256_set1_pd</span>(<span class="num">0.0</span>);
+
+        <span class="kwa">for</span> (<span class="kwb">int</span> j = <span class="num">0</span>; j &lt; n; j += <span class="num">4</span>) {
+            __m256d r[<span class="num">4</span>];
+            <span class="kwa">for</span> (<span class="kwb">int</span> k = <span class="num">0</span>; k &lt; <span class="num">4</span>; k++) {
+                __m128i x = <span class="kwd">_mm_set1_epi32</span>(i+k);
+                __m128i y = <span class="kwd">_mm_setr_epi32</span>(j, j+<span class="num">1</span>, j+<span class="num">2</span>, j+<span class="num">3</span>);
+                r[k] = <span class="kwd">eval_A</span>(y, x);
+            }
+
+            <span class="kwd">kernel</span>(<span class="kwd">_mm256_load_pd</span>(u+j), s, r);
+        }
+
+        __m256d t0 = <span class="kwd">_mm256_hadd_pd</span>(s[<span class="num">0</span>], s[<span class="num">1</span>]);
+        __m256d t1 = <span class="kwd">_mm256_hadd_pd</span>(s[<span class="num">2</span>], s[<span class="num">3</span>]);
+        __m256d x = <span class="kwd">_mm256_permute2f128_pd</span>(t0, t1, <span class="num">0x21</span>);
+        __m256d y = <span class="kwd">_mm256_blend_pd</span>(t0, t1, <span class="num">0</span>b1100);
+        __m256d z = <span class="kwd">_mm256_add_pd</span>(x, y);
+
+        <span class="kwd">_mm256_store_pd</span>(Au+i, z);
+    }
+
+    Au[n] = <span class="num">0.0</span>;
+    Au[n+<span class="num">1</span>] = <span class="num">0.0</span>;
+    Au[n+<span class="num">2</span>] = <span class="num">0.0</span>;
+}
+
+<span class="kwb">static void</span> <span class="kwd">eval_AtA_times_u</span>(<span class="kwb">int</span> n, <span class="kwb">double</span> *u, <span class="kwb">double</span> *AtAu) {
+    <span class="kwb">double</span> v[n+<span class="num">3</span>] <span class="kwd">__attribute__</span>((<span class="kwd">aligned</span>(<span class="kwa">sizeof</span>(__m256d))));
+
+    <span class="kwd">eval_A_times_u</span>(n, u, v);
+    <span class="kwd">eval_At_times_u</span>(n, v, AtAu);
+}
+
+<span class="kwb">int</span> <span class="kwd">main</span>(<span class="kwb">int</span> argc, <span class="kwb">char</span> *argv[]) {
+    <span class="kwb">int</span> n = <span class="kwd">atoi</span>(argv[<span class="num">1</span>]);
+
+    <span class="slc">// overhang of 3 values for computing in strides of 4 incase n % 4 != 0</span>
+    <span class="slc">// aligned to __m256d to use aligned loads/stores</span>
+    <span class="kwb">double</span> u[n+<span class="num">3</span>] <span class="kwd">__attribute__</span>((<span class="kwd">aligned</span>(<span class="kwa">sizeof</span>(__m256d))));
+    <span class="kwb">double</span> v[n+<span class="num">3</span>] <span class="kwd">__attribute__</span>((<span class="kwd">aligned</span>(<span class="kwa">sizeof</span>(__m256d))));
+
+    <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">0</span>; i &lt; n; i++)
+        u[i] = <span class="num">1.0</span>;
+    <span class="slc">// initiate overhang values to zero</span>
+    u[n] = <span class="num">0.0</span>;
+    u[n+<span class="num">1</span>] = <span class="num">0.0</span>;
+    u[n+<span class="num">2</span>] = <span class="num">0.0</span>;
+
+    <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">0</span>; i &lt; <span class="num">10</span>; i++) {
+        <span class="kwd">eval_AtA_times_u</span>(n, u, v);
+        <span class="kwd">eval_AtA_times_u</span>(n, v, u);
+    }
+
+    __m256d uv = <span class="kwd">_mm256_set1_pd</span>(<span class="num">0.0</span>);
+    __m256d v2 = <span class="kwd">_mm256_set1_pd</span>(<span class="num">0.0</span>);
+
+    <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">0</span>; i &lt; n; i += <span class="num">4</span>) {
+        __m256d x = <span class="kwd">_mm256_load_pd</span>(u+i);
+        __m256d y = <span class="kwd">_mm256_load_pd</span>(v+i);
+        x = <span class="kwd">_mm256_mul_pd</span>(x, y);
+        y = <span class="kwd">_mm256_mul_pd</span>(y, y);
+        uv = <span class="kwd">_mm256_add_pd</span>(uv, x);
+        v2 = <span class="kwd">_mm256_add_pd</span>(v2, y);
+    }
+
+    __m256d z = <span class="kwd">_mm256_hadd_pd</span>(uv, v2);
+    __m128d x = <span class="kwd">_mm256_extractf128_pd</span>(z, <span class="num">0</span>);
+    __m128d y = <span class="kwd">_mm256_extractf128_pd</span>(z, <span class="num">1</span>);
+    x = <span class="kwd">_mm_add_pd</span>(x, y);
+    x = <span class="kwd">_mm_sqrt_pd</span>(x);
+    <span class="kwb">double</span> r[<span class="num">2</span>] <span class="kwd">__attribute__</span>((<span class="kwd">aligned</span>(<span class="kwa">sizeof</span>(__m128d))));
+    <span class="kwd">_mm_store_pd</span>(r, x);
+
+    <span class="kwd">printf</span>(<span class="str">&quot;%0.9f</span><span class="esc">\n</span><span class="str">&quot;</span>, r[<span class="num">0</span>] / r[<span class="num">1</span>]);
+
+    <span class="kwa">return</span> <span class="num">0</span>;
+}
+    </pre>
+  </section>
+  <section>
+    <div>
+      <h2 id="log">notes, command-line, and program output</h2>
+    </div>
+    <pre>
+NOTES:
+64-bit Ubuntu quad core
+Intel(R) oneAPI DPC++/C++ Compiler
+for applications running on Intel(R) 64,
+Version 2022.0.0 Build 20211123
+Copyright (C) 1985-2021 Intel Corporation. All rights reserved.
+
+
+Sat, 22 Jan 2022 05:20:04 GMT
+
+MAKE:
+~/intel/oneapi/compiler/2022.0.1/linux/bin/icx -pipe -Wall -O3 -fomit-frame-pointer -march=ivybridge -fopenmp spectralnorm.icx-6.c -o spectralnorm.icx-6.icx_run 
+rm spectralnorm.icx-6.c
+
+4.70s to complete and log all make actions
+
+COMMAND LINE:
+./spectralnorm.icx-6.icx_run 5500
+
+PROGRAM OUTPUT:
+1.274224153
+    </pre>
+  </section>
+</article>
+<footer>
+  <nav>
+    <ul>
+      <li><a href="../license.html"><span>3-Clause BSD License</span></a>
+    </ul>
+  </nav>
+</footer>
+

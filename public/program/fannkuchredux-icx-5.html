@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,follow,noarchive">
+
+<title>fannkuch-redux Intel C&nbsp;#5 program | Computer Language Benchmarks Game </title>
+<style><!--
+a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,header{margin:auto;width:92%}body{font:100% Droid Sans, Ubuntu, Verdana, sans-serif;margin:0;-webkit-text-size-adjust:100%}h3, h1, h2, li a{font-family:Ubuntu Mono,Consolas,Menlo,monospace}div,footer,header{max-width:31em}footer{padding:2.6em 0 0}h3{font-size:1.4em;font-weight:bold;margin:0;padding: .4em}h3, h3 a{color:white;background-color:#77216f}h3 small{font-size:0.64em}h1,h2{margin:1.5em 0 0}h1{font-size:1.4em;font-weight:normal}h2{font-size:1.2em}li{list-style-type:none;vertical-align:top}li a{display:block;font-size:1.2em;margin: .5em .5em 0;padding: .5em .5em .3em}ul{clear:left;margin:-0.3em 0 1.5em;padding-left:0;text-align:center}p{color:#333;line-height:1.4;margin: .3em 0 0}p a, a span{border-bottom: .1em solid #333;padding-bottom: .1em}.com,.slc{color:#888}.kwa{color:#066}.kwb{color:#900}.kwc{color:#050}.kwa,.kwb,.kwc{font-weight:bold}.dstr,.str,.sym,.num{color:#930}pre{color:#222;font-size:1em;overflow-wrap:break-word;white-space:pre-wrap;word-wrap:break-word}@media only screen and (min-width: 60em){article,footer,header{font-size:1.25em}}
+--></style>
+<link rel="shortcut icon" href="../favicon.ico">
+<header>
+  <h3><a href="https://benchmarksgame-team.pages.debian.net/benchmarksgame/index.html">The&nbsp;<small>Computer&nbsp;Language</small><br>22.01 Benchmarks&nbsp;Game</a></h3>
+</header>
+<article>
+  <div>
+    <h1>fannkuch-redux Intel C&nbsp;#5 program</h1>
+    <aside>
+      <p><a href="../description/fannkuchredux.html#fannkuchredux">description</a>
+    </aside>
+  </div>
+  <section>
+    <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc">// The Computer Language Benchmarks Game</span>
+<span class="slc">// https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">//</span>
+<span class="slc">// Contributed by Jeremy Zerfas</span>
+<span class="slc">// Based on the Ada program by Jonathan Parker and Georg Bauhaus which in turn</span>
+<span class="slc">// was based on code by Dave Fladebo, Eckehard Berns, Heiner Marxen, Hongwei Xi,</span>
+<span class="slc">// and The Anh Tran and also the Java program by Oleg Mazurov.</span>
+
+<span class="slc">// This value controls how many blocks the workload is broken up into (as long</span>
+<span class="slc">// as the value is less than or equal to the factorial of the argument to this</span>
+<span class="slc">// program) in order to allow the blocks to be processed in parallel if</span>
+<span class="slc">// possible. PREFERRED_NUMBER_OF_BLOCKS_TO_USE should be some number which</span>
+<span class="slc">// divides evenly into all factorials larger than it. It should also be around</span>
+<span class="slc">// 2-8 times the amount of threads you want to use in order to create enough</span>
+<span class="slc">// blocks to more evenly distribute the workload amongst the threads.</span>
+<span class="ppc">#define PREFERRED_NUMBER_OF_BLOCKS_TO_USE 12</span>
+
+<span class="ppc">#include &lt;stdint.h&gt;</span>
+<span class="ppc">#include &lt;stdlib.h&gt;</span>
+<span class="ppc">#include &lt;stdio.h&gt;</span>
+
+<span class="slc">// intptr_t should be the native integer type on most sane systems.</span>
+<span class="kwc">typedef</span> <span class="kwb">intptr_t</span> intnative_t;
+
+
+<span class="kwb">int</span> <span class="kwd">main</span>(<span class="kwb">int</span> argc, <span class="kwb">char</span> ** argv){
+   <span class="kwb">const</span> intnative_t n=<span class="kwd">atoi</span>(argv[<span class="num">1</span>]);
+
+   <span class="slc">// Create and initialize factorial_Lookup_Table.</span>
+   intnative_t factorial_Lookup_Table[n+<span class="num">1</span>];
+   factorial_Lookup_Table[<span class="num">0</span>]=<span class="num">1</span>;
+   <span class="kwa">for</span>(intnative_t i=<span class="num">0</span>; ++i&lt;=n;)
+      factorial_Lookup_Table[i]=i*factorial_Lookup_Table[i-<span class="num">1</span>];
+
+   <span class="slc">// Determine the block_Size to use. If n! is less than</span>
+   <span class="slc">// PREFERRED_NUMBER_OF_BLOCKS_TO_USE then just use a single block to prevent</span>
+   <span class="slc">// block_Size from being set to 0. This also causes smaller values of n to</span>
+   <span class="slc">// be computed serially which is faster and uses less resources for small</span>
+   <span class="slc">// values of n.</span>
+   <span class="kwb">const</span> intnative_t block_Size=factorial_Lookup_Table[n]/
+     (factorial_Lookup_Table[n]&lt;PREFERRED_NUMBER_OF_BLOCKS_TO_USE ?
+     <span class="num">1</span> : PREFERRED_NUMBER_OF_BLOCKS_TO_USE);
+
+   intnative_t maximum_Flip_Count=<span class="num">0</span>, checksum=<span class="num">0</span>;
+
+   <span class="slc">// Iterate over each block.</span>
+   <span class="ppc">#pragma omp parallel for \</span>
+<span class="ppc">     reduction(max:maximum_Flip_Count) reduction(+:checksum)</span>
+   <span class="kwa">for</span>(intnative_t initial_Permutation_Index_For_Block=<span class="num">0</span>;
+     initial_Permutation_Index_For_Block&lt;factorial_Lookup_Table[n];
+     initial_Permutation_Index_For_Block+=block_Size){
+
+      intnative_t count[n];
+      <span class="kwb">int8_t</span> temp_Permutation[n], current_Permutation[n];
+
+
+      <span class="slc">// Initialize count and current_Permutation.</span>
+      count[<span class="num">0</span>]=<span class="num">0</span>;
+      <span class="kwa">for</span>(intnative_t i=<span class="num">0</span>; i&lt;n; ++i)
+         current_Permutation[i]=i;
+      <span class="kwa">for</span>(intnative_t i=n-<span class="num">1</span>,
+        permutation_Index=initial_Permutation_Index_For_Block; i&gt;<span class="num">0</span>; --i){
+         <span class="kwb">const</span> intnative_t d=permutation_Index/factorial_Lookup_Table[i];
+         permutation_Index=permutation_Index%factorial_Lookup_Table[i];
+         count[i]=d;
+
+         <span class="kwa">for</span>(intnative_t j=<span class="num">0</span>; j&lt;n; ++j)
+            temp_Permutation[j]=current_Permutation[j];
+         <span class="kwa">for</span>(intnative_t j=<span class="num">0</span>; j&lt;=i; ++j)
+            current_Permutation[j]= j+d&lt;=i ?
+              temp_Permutation[j+d] : temp_Permutation[j+d-i-<span class="num">1</span>];
+      }
+
+
+      <span class="slc">// Iterate over each permutation in the block.</span>
+      <span class="kwb">const</span> intnative_t last_Permutation_Index_In_Block=
+        initial_Permutation_Index_For_Block+block_Size-<span class="num">1</span>;
+      <span class="kwa">for</span>(intnative_t permutation_Index=initial_Permutation_Index_For_Block; ;
+        ++permutation_Index){
+
+         <span class="slc">// If the first value in the current_Permutation is not 1 (0) then</span>
+         <span class="slc">// we will need to do at least one flip for the current_Permutation.</span>
+         <span class="kwa">if</span>(current_Permutation[<span class="num">0</span>]&gt;<span class="num">0</span>){
+
+            <span class="slc">// Make a copy of current_Permutation[] to work on. Note that we</span>
+            <span class="slc">// don&apos;t need to copy the first value since that will be stored</span>
+            <span class="slc">// in a separate variable since it gets used a lot.</span>
+            <span class="kwa">for</span>(intnative_t i=<span class="num">0</span>; ++i&lt;n;)
+               temp_Permutation[i]=current_Permutation[i];
+
+            intnative_t flip_Count=<span class="num">1</span>;
+
+            <span class="slc">// Flip temp_Permutation until the element at the first_Value</span>
+            <span class="slc">// index is 1 (0).</span>
+            <span class="kwa">for</span>(intnative_t first_Value=current_Permutation[<span class="num">0</span>];
+              temp_Permutation[first_Value]&gt;<span class="num">0</span>; ++flip_Count){
+
+               <span class="slc">// Record the new_First_Value and restore the old</span>
+               <span class="slc">// first_Value at its new flipped position.</span>
+               <span class="kwb">const int8_t</span> new_First_Value=temp_Permutation[first_Value];
+               temp_Permutation[first_Value]=first_Value;
+
+               <span class="slc">// If first_Value is greater than 3 (2) then we are flipping</span>
+               <span class="slc">// a series of four or more values so we will also need to</span>
+               <span class="slc">// flip additional elements in the middle of the</span>
+               <span class="slc">// temp_Permutation.</span>
+               <span class="kwa">if</span>(first_Value&gt;<span class="num">2</span>){
+                  intnative_t low_Index=<span class="num">1</span>, high_Index=first_Value-<span class="num">1</span>;
+                  <span class="slc">// Note that this loop is written so that it will run at</span>
+                  <span class="slc">// most 16 times so that compilers will be more willing</span>
+                  <span class="slc">// to unroll it. Consequently this won&apos;t work right when</span>
+                  <span class="slc">// n is greater than 35. This would probably be the</span>
+                  <span class="slc">// least of your concerns since 21! won&apos;t fit into 64</span>
+                  <span class="slc">// bit integers and even if it did you probably wouldn&apos;t</span>
+                  <span class="slc">// want to run this program with a value that large</span>
+                  <span class="slc">// since it would take thousands of years to do on a</span>
+                  <span class="slc">// modern desktop computer. ;-)</span>
+                  <span class="kwa">do</span>{
+                     <span class="kwb">const int8_t</span> temp=temp_Permutation[high_Index];
+                     temp_Permutation[high_Index]=
+                       temp_Permutation[low_Index];
+                     temp_Permutation[low_Index]=temp;
+                  }<span class="kwa">while</span>(low_Index+++<span class="num">3</span>&lt;=high_Index-- &amp;&amp; low_Index&lt;<span class="num">16</span>);
+               }
+
+               <span class="slc">// Update first_Value to new_First_Value that we recorded</span>
+               <span class="slc">// earlier.</span>
+               first_Value=new_First_Value;
+            }
+
+
+            <span class="slc">// Update the checksum.</span>
+            <span class="kwa">if</span>(permutation_Index%<span class="num">2</span>==<span class="num">0</span>)
+               checksum+=flip_Count;
+            <span class="kwa">else</span>
+               checksum-=flip_Count;
+
+            <span class="slc">// Update maximum_Flip_Count if necessary.</span>
+            <span class="kwa">if</span>(flip_Count&gt;maximum_Flip_Count)
+               maximum_Flip_Count=flip_Count;
+         }
+
+
+         <span class="slc">// Break out of the loop when we get to the</span>
+         <span class="slc">// last_Permutation_Index_In_Block.</span>
+         <span class="kwa">if</span>(permutation_Index&gt;=last_Permutation_Index_In_Block)
+            <span class="kwa">break</span>;
+
+         <span class="slc">// Generate the next permutation.</span>
+         <span class="kwb">int8_t</span> first_Value=current_Permutation[<span class="num">1</span>];
+         current_Permutation[<span class="num">1</span>]=current_Permutation[<span class="num">0</span>];
+         current_Permutation[<span class="num">0</span>]=first_Value;
+         <span class="kwa">for</span>(intnative_t i=<span class="num">1</span>; ++count[i]&gt;i;){
+            count[i++]=<span class="num">0</span>;
+            <span class="kwb">const int8_t</span> new_First_Value=current_Permutation[<span class="num">0</span>]=
+              current_Permutation[<span class="num">1</span>];
+
+            <span class="kwa">for</span>(intnative_t j=<span class="num">0</span>; ++j&lt;i;)
+               current_Permutation[j]=current_Permutation[j+<span class="num">1</span>];
+
+            current_Permutation[i]=first_Value;
+            first_Value=new_First_Value;
+         }
+      }
+   }
+
+
+   <span class="slc">// Output the results to stdout.</span>
+   <span class="kwd">printf</span>(<span class="str">&quot;%jd</span><span class="esc">\n</span><span class="str">Pfannkuchen(%jd) = %jd</span><span class="esc">\n</span><span class="str">&quot;</span>, (<span class="kwb">intmax_t</span>)checksum, (<span class="kwb">intmax_t</span>)n,
+     (<span class="kwb">intmax_t</span>)maximum_Flip_Count);
+
+   <span class="kwa">return</span> <span class="num">0</span>;
+}
+    </pre>
+  </section>
+  <section>
+    <div>
+      <h2 id="log">notes, command-line, and program output</h2>
+    </div>
+    <pre>
+NOTES:
+64-bit Ubuntu quad core
+Intel(R) oneAPI DPC++/C++ Compiler
+for applications running on Intel(R) 64,
+Version 2022.0.0 Build 20211123
+Copyright (C) 1985-2021 Intel Corporation. All rights reserved.
+
+
+Sat, 22 Jan 2022 04:56:16 GMT
+
+MAKE:
+~/intel/oneapi/compiler/2022.0.1/linux/bin/icx -pipe -Wall -O3 -fomit-frame-pointer -march=ivybridge -fopenmp fannkuchredux.icx-5.c -o fannkuchredux.icx-5.icx_run 
+rm fannkuchredux.icx-5.c
+
+3.95s to complete and log all make actions
+
+COMMAND LINE:
+./fannkuchredux.icx-5.icx_run 12
+
+PROGRAM OUTPUT:
+3968050
+Pfannkuchen(12) = 65
+    </pre>
+  </section>
+</article>
+<footer>
+  <nav>
+    <ul>
+      <li><a href="../license.html"><span>3-Clause BSD License</span></a>
+    </ul>
+  </nav>
+</footer>
+

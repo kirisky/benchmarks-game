@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,follow,noarchive">
+
+<title>n-body Intel C&nbsp;#9 program | Computer Language Benchmarks Game </title>
+<style><!--
+a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,header{margin:auto;width:92%}body{font:100% Droid Sans, Ubuntu, Verdana, sans-serif;margin:0;-webkit-text-size-adjust:100%}h3, h1, h2, li a{font-family:Ubuntu Mono,Consolas,Menlo,monospace}div,footer,header{max-width:31em}footer{padding:2.6em 0 0}h3{font-size:1.4em;font-weight:bold;margin:0;padding: .4em}h3, h3 a{color:white;background-color:#77216f}h3 small{font-size:0.64em}h1,h2{margin:1.5em 0 0}h1{font-size:1.4em;font-weight:normal}h2{font-size:1.2em}li{list-style-type:none;vertical-align:top}li a{display:block;font-size:1.2em;margin: .5em .5em 0;padding: .5em .5em .3em}ul{clear:left;margin:-0.3em 0 1.5em;padding-left:0;text-align:center}p{color:#333;line-height:1.4;margin: .3em 0 0}p a, a span{border-bottom: .1em solid #333;padding-bottom: .1em}.com,.slc{color:#888}.kwa{color:#066}.kwb{color:#900}.kwc{color:#050}.kwa,.kwb,.kwc{font-weight:bold}.dstr,.str,.sym,.num{color:#930}pre{color:#222;font-size:1em;overflow-wrap:break-word;white-space:pre-wrap;word-wrap:break-word}@media only screen and (min-width: 60em){article,footer,header{font-size:1.25em}}
+--></style>
+<link rel="shortcut icon" href="../favicon.ico">
+<header>
+  <h3><a href="https://benchmarksgame-team.pages.debian.net/benchmarksgame/index.html">The&nbsp;<small>Computer&nbsp;Language</small><br>22.01 Benchmarks&nbsp;Game</a></h3>
+</header>
+<article>
+  <div>
+    <h1>n-body Intel C&nbsp;#9 program</h1>
+    <aside>
+      <p><a href="../description/nbody.html#nbody">description</a>
+    </aside>
+  </div>
+  <section>
+    <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="com">/* The Computer Language Benchmarks Game</span>
+<span class="com"> * https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="com"> *</span>
+<span class="com"> * contributed by Miles</span>
+<span class="com"> */</span>
+
+<span class="ppc">#include &lt;stdio.h&gt;</span>
+<span class="ppc">#include &lt;stdlib.h&gt;</span>
+<span class="ppc">#include &lt;math.h&gt;</span>
+<span class="ppc">#include &lt;x86intrin.h&gt;</span>
+
+<span class="ppc">#define N 5</span>
+<span class="ppc">#define PI 3.141592653589793</span>
+<span class="ppc">#define SOLAR_MASS (4 * PI * PI)</span>
+<span class="ppc">#define DAYS_PER_YEAR 365.24</span>
+<span class="ppc">#define PAIRS (N*(N-1)/2)</span>
+
+<span class="slc">// utilize vrsqrtps to compute an approximation of 1/sqrt(x) with float,</span>
+<span class="slc">// cast back to double and refine using a variation of</span>
+<span class="slc">// Goldschmidt’s algorithm to get &lt; 1e-9 error</span>
+<span class="kwb">static</span> <span class="kwc">inline</span> __m256d <span class="kwd">_mm256_rsqrt_pd</span>(__m256d s) {
+    __m128 q = <span class="kwd">_mm256_cvtpd_ps</span>(s);
+    q = <span class="kwd">_mm_rsqrt_ps</span>(q);
+    __m256d x = <span class="kwd">_mm256_cvtps_pd</span>(q);
+    __m256d y = s * x * x;
+    __m256d a = <span class="kwd">_mm256_mul_pd</span>(y, <span class="kwd">_mm256_set1_pd</span>(<span class="num">0.375</span>));
+    a = <span class="kwd">_mm256_mul_pd</span>(a, y);
+    __m256d b = <span class="kwd">_mm256_mul_pd</span>(y, <span class="kwd">_mm256_set1_pd</span>(<span class="num">1.25</span>));
+    b = <span class="kwd">_mm256_sub_pd</span>(b, <span class="kwd">_mm256_set1_pd</span>(<span class="num">1.875</span>));
+    y = <span class="kwd">_mm256_sub_pd</span>(a, b);
+    x = <span class="kwd">_mm256_mul_pd</span>(x, y);
+    <span class="kwa">return</span> x;
+}
+
+<span class="slc">// compute rsqrt of distance between each pair of bodies</span>
+<span class="kwb">static</span> <span class="kwc">inline</span> <span class="kwb">void</span> <span class="kwd">kernel</span>(__m256d *r, <span class="kwb">double</span> *w, __m256d *p) {
+    <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">1</span>, k = <span class="num">0</span>; i &lt; N; i++)
+        <span class="kwa">for</span> (<span class="kwb">int</span> j = <span class="num">0</span>; j &lt; i; j++, k++)
+            r[k] = <span class="kwd">_mm256_sub_pd</span>(p[i], p[j]);
+    
+    <span class="kwa">for</span> (<span class="kwb">int</span> k = <span class="num">0</span>; k &lt; PAIRS; k += <span class="num">4</span>) {
+        __m256d x0 = <span class="kwd">_mm256_mul_pd</span>(r[k  ], r[k  ]);
+        __m256d x1 = <span class="kwd">_mm256_mul_pd</span>(r[k+<span class="num">1</span>], r[k+<span class="num">1</span>]);
+        __m256d x2 = <span class="kwd">_mm256_mul_pd</span>(r[k+<span class="num">2</span>], r[k+<span class="num">2</span>]);
+        __m256d x3 = <span class="kwd">_mm256_mul_pd</span>(r[k+<span class="num">3</span>], r[k+<span class="num">3</span>]);
+
+        __m256d t0 = <span class="kwd">_mm256_hadd_pd</span>(x0, x1);
+        __m256d t1 = <span class="kwd">_mm256_hadd_pd</span>(x2, x3);
+        __m256d y0 = <span class="kwd">_mm256_permute2f128_pd</span>(t0, t1, <span class="num">0x21</span>);
+        __m256d y1 = <span class="kwd">_mm256_blend_pd</span>(t0, t1, <span class="num">0</span>b1100);
+
+        __m256d z = <span class="kwd">_mm256_add_pd</span>(y0, y1);
+        z = <span class="kwd">_mm256_rsqrt_pd</span>(z);
+        <span class="kwd">_mm256_store_pd</span>(w+k, z);
+    }
+}
+
+<span class="kwb">static double</span> <span class="kwd">energy</span>(<span class="kwb">double</span> *m, __m256d *p, __m256d *v) {
+    <span class="kwb">double</span> e = <span class="num">0.0</span>;
+
+    __m256d r[PAIRS+<span class="num">3</span>];
+    <span class="kwb">double</span> w[PAIRS+<span class="num">3</span>] <span class="kwd">__attribute__</span>((<span class="kwd">aligned</span>(<span class="kwa">sizeof</span>(__m256d))));
+
+    r[N] = <span class="kwd">_mm256_set1_pd</span>(<span class="num">0.0</span>);
+    r[N+<span class="num">1</span>] = <span class="kwd">_mm256_set1_pd</span>(<span class="num">0.0</span>);
+    r[N+<span class="num">2</span>] = <span class="kwd">_mm256_set1_pd</span>(<span class="num">0.0</span>);
+
+    <span class="kwa">for</span> (<span class="kwb">int</span> k = <span class="num">0</span>; k &lt; N; k++)
+        r[k] = <span class="kwd">_mm256_mul_pd</span>(v[k], v[k]);
+
+    <span class="kwa">for</span> (<span class="kwb">int</span> k = <span class="num">0</span>; k &lt; N; k += <span class="num">4</span>) {
+        __m256d t0 = <span class="kwd">_mm256_hadd_pd</span>(r[k  ], r[k+<span class="num">1</span>]);
+        __m256d t1 = <span class="kwd">_mm256_hadd_pd</span>(r[k+<span class="num">2</span>], r[k+<span class="num">3</span>]);
+        __m256d y0 = <span class="kwd">_mm256_permute2f128_pd</span>(t0, t1, <span class="num">0x21</span>);
+        __m256d y1 = <span class="kwd">_mm256_blend_pd</span>(t0, t1, <span class="num">0</span>b1100);
+
+        __m256d z = <span class="kwd">_mm256_add_pd</span>(y0, y1);
+        <span class="kwd">_mm256_store_pd</span>(w+k, z);
+    }
+
+    <span class="kwa">for</span> (<span class="kwb">int</span> k = <span class="num">0</span>; k &lt; N; k++)
+        e += <span class="num">0.5</span> * m[k] * w[k];
+
+    r[PAIRS] = <span class="kwd">_mm256_set1_pd</span>(<span class="num">1.0</span>);
+    r[PAIRS+<span class="num">1</span>] = <span class="kwd">_mm256_set1_pd</span>(<span class="num">1.0</span>);
+    r[PAIRS+<span class="num">2</span>] = <span class="kwd">_mm256_set1_pd</span>(<span class="num">1.0</span>);
+
+    <span class="kwd">kernel</span>(r, w, p);
+
+    <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">1</span>, k = <span class="num">0</span>; i &lt; N; i++)
+        <span class="kwa">for</span> (<span class="kwb">int</span> j = <span class="num">0</span>; j &lt; i; j++, k++)
+            e -= m[i] * m[j] * w[k];
+
+    <span class="kwa">return</span> e;
+}
+
+<span class="kwb">static void</span> <span class="kwd">advance</span>(<span class="kwb">int</span> n, <span class="kwb">double</span> dt, <span class="kwb">double</span> *m, __m256d *p, __m256d *v) {
+    __m256d r[PAIRS+<span class="num">3</span>];
+    <span class="kwb">double</span> w[PAIRS+<span class="num">3</span>] <span class="kwd">__attribute__</span>((<span class="kwd">aligned</span>(<span class="kwa">sizeof</span>(__m256d))));
+
+    r[PAIRS] = <span class="kwd">_mm256_set1_pd</span>(<span class="num">1.0</span>);
+    r[PAIRS+<span class="num">1</span>] = <span class="kwd">_mm256_set1_pd</span>(<span class="num">1.0</span>);
+    r[PAIRS+<span class="num">2</span>] = <span class="kwd">_mm256_set1_pd</span>(<span class="num">1.0</span>);
+
+    __m256d rt = <span class="kwd">_mm256_set1_pd</span>(dt);
+
+    __m256d rm[N];
+    <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">0</span>; i &lt; N; i++)
+        rm[i] = <span class="kwd">_mm256_set1_pd</span>(m[i]);
+
+    <span class="kwa">for</span> (<span class="kwb">int</span> s = <span class="num">0</span>; s &lt; n; s++) {
+        <span class="kwd">kernel</span>(r, w, p);
+
+        <span class="kwa">for</span> (<span class="kwb">int</span> k = <span class="num">0</span>; k &lt; PAIRS; k += <span class="num">4</span>) {
+            __m256d x = <span class="kwd">_mm256_load_pd</span>(w+k);
+            __m256d y = <span class="kwd">_mm256_mul_pd</span>(x, x);
+            __m256d z = <span class="kwd">_mm256_mul_pd</span>(x, rt);
+            x = <span class="kwd">_mm256_mul_pd</span>(y, z);
+            <span class="kwd">_mm256_store_pd</span>(w+k, x);
+        }
+
+        <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">1</span>, k = <span class="num">0</span>; i &lt; N; i++)
+            <span class="kwa">for</span> (<span class="kwb">int</span> j = <span class="num">0</span>; j &lt; i; j++, k++) {
+                __m256d t = <span class="kwd">_mm256_set1_pd</span>(w[k]);
+                t = <span class="kwd">_mm256_mul_pd</span>(r[k], t);
+                __m256d x = <span class="kwd">_mm256_mul_pd</span>(t, rm[j]);
+                __m256d y = <span class="kwd">_mm256_mul_pd</span>(t, rm[i]);
+
+                v[i] = <span class="kwd">_mm256_sub_pd</span>(v[i], x);
+                v[j] = <span class="kwd">_mm256_add_pd</span>(v[j], y);
+            }
+
+        <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">0</span>; i &lt; N; i++) {
+            __m256d t = <span class="kwd">_mm256_mul_pd</span>(v[i], rt);
+            p[i] = <span class="kwd">_mm256_add_pd</span>(p[i], t);
+        }
+    }
+}
+
+<span class="kwb">int</span> <span class="kwd">main</span>(<span class="kwb">int</span> argc, <span class="kwb">char</span> *argv[]) {
+    <span class="kwb">int</span> n = <span class="kwd">atoi</span>(argv[<span class="num">1</span>]);
+
+    <span class="kwb">double</span> m[N];
+    __m256d p[N], v[N];
+
+    <span class="slc">// sun</span>
+    m[<span class="num">0</span>] = SOLAR_MASS;
+    p[<span class="num">0</span>] = <span class="kwd">_mm256_set1_pd</span>(<span class="num">0.0</span>);
+    v[<span class="num">0</span>] = <span class="kwd">_mm256_set1_pd</span>(<span class="num">0.0</span>);
+
+    <span class="slc">// jupiter</span>
+    m[<span class="num">1</span>] = <span class="num">9.54791938424326609e-04</span> * SOLAR_MASS;
+    p[<span class="num">1</span>] = <span class="kwd">_mm256_setr_pd</span>(<span class="num">0.0</span>,
+         <span class="num">4.84143144246472090e+00</span>,
+        -<span class="num">1.16032004402742839e+00</span>,
+        -<span class="num">1.03622044471123109e-01</span>);
+    v[<span class="num">1</span>] = <span class="kwd">_mm256_setr_pd</span>(<span class="num">0.0</span>,
+         <span class="num">1.66007664274403694e-03</span> * DAYS_PER_YEAR,
+         <span class="num">7.69901118419740425e-03</span> * DAYS_PER_YEAR,
+        -<span class="num">6.90460016972063023e-05</span> * DAYS_PER_YEAR);
+
+    <span class="slc">// saturn</span>
+    m[<span class="num">2</span>] = <span class="num">2.85885980666130812e-04</span> * SOLAR_MASS;
+    p[<span class="num">2</span>] = <span class="kwd">_mm256_setr_pd</span>(<span class="num">0.0</span>,
+         <span class="num">8.34336671824457987e+00</span>,
+         <span class="num">4.12479856412430479e+00</span>,
+        -<span class="num">4.03523417114321381e-01</span>);
+    v[<span class="num">2</span>] = <span class="kwd">_mm256_setr_pd</span>(<span class="num">0.0</span>,
+        -<span class="num">2.76742510726862411e-03</span> * DAYS_PER_YEAR,
+         <span class="num">4.99852801234917238e-03</span> * DAYS_PER_YEAR,
+         <span class="num">2.30417297573763929e-05</span> * DAYS_PER_YEAR);
+
+    <span class="slc">// uranus</span>
+    m[<span class="num">3</span>] = <span class="num">4.36624404335156298e-05</span> * SOLAR_MASS;
+    p[<span class="num">3</span>] = <span class="kwd">_mm256_setr_pd</span>(<span class="num">0.0</span>,
+         <span class="num">1.28943695621391310e+01</span>,
+        -<span class="num">1.51111514016986312e+01</span>,
+        -<span class="num">2.23307578892655734e-01</span>);
+    v[<span class="num">3</span>] = <span class="kwd">_mm256_setr_pd</span>(<span class="num">0.0</span>,
+         <span class="num">2.96460137564761618e-03</span> * DAYS_PER_YEAR,
+         <span class="num">2.37847173959480950e-03</span> * DAYS_PER_YEAR,
+        -<span class="num">2.96589568540237556e-05</span> * DAYS_PER_YEAR);
+
+    <span class="slc">// neptune</span>
+    m[<span class="num">4</span>] = <span class="num">5.15138902046611451e-05</span> * SOLAR_MASS;
+    p[<span class="num">4</span>] = <span class="kwd">_mm256_setr_pd</span>(<span class="num">0.0</span>,
+         <span class="num">1.53796971148509165e+01</span>,
+        -<span class="num">2.59193146099879641e+01</span>,
+         <span class="num">1.79258772950371181e-01</span>);
+    v[<span class="num">4</span>] = <span class="kwd">_mm256_setr_pd</span>(<span class="num">0.0</span>,
+         <span class="num">2.68067772490389322e-03</span> * DAYS_PER_YEAR,
+         <span class="num">1.62824170038242295e-03</span> * DAYS_PER_YEAR,
+        -<span class="num">9.51592254519715870e-05</span> * DAYS_PER_YEAR);
+
+    <span class="slc">// offset momentum</span>
+    __m256d o = <span class="kwd">_mm256_set1_pd</span>(<span class="num">0.0</span>);
+    <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">0</span>; i &lt; N; i++) {
+        __m256d t = <span class="kwd">_mm256_mul_pd</span>(<span class="kwd">_mm256_set1_pd</span>(m[i]), v[i]);
+        o = <span class="kwd">_mm256_add_pd</span>(o, t);
+    }
+    v[<span class="num">0</span>] = <span class="kwd">_mm256_mul_pd</span>(o, <span class="kwd">_mm256_set1_pd</span>(-<span class="num">1.0</span> / SOLAR_MASS));
+
+    <span class="kwd">printf</span>(<span class="str">&quot;%.9f</span><span class="esc">\n</span><span class="str">&quot;</span>, <span class="kwd">energy</span>(m, p, v));
+    <span class="kwd">advance</span>(n, <span class="num">0.01</span>, m, p, v);
+    <span class="kwd">printf</span>(<span class="str">&quot;%.9f</span><span class="esc">\n</span><span class="str">&quot;</span>, <span class="kwd">energy</span>(m, p, v));
+
+    <span class="kwa">return</span> <span class="num">0</span>;
+}
+    </pre>
+  </section>
+  <section>
+    <div>
+      <h2 id="log">notes, command-line, and program output</h2>
+    </div>
+    <pre>
+NOTES:
+64-bit Ubuntu quad core
+Intel(R) oneAPI DPC++/C++ Compiler
+for applications running on Intel(R) 64,
+Version 2022.0.0 Build 20211123
+Copyright (C) 1985-2021 Intel Corporation. All rights reserved.
+
+
+Sat, 22 Jan 2022 05:11:10 GMT
+
+MAKE:
+~/intel/oneapi/compiler/2022.0.1/linux/bin/icx -pipe -Wall -O3 -fomit-frame-pointer -march=ivybridge  nbody.icx-9.c -o nbody.icx-9.icx_run 
+rm nbody.icx-9.c
+
+4.39s to complete and log all make actions
+
+COMMAND LINE:
+./nbody.icx-9.icx_run 50000000
+
+PROGRAM OUTPUT:
+-0.169075164
+-0.169059907
+    </pre>
+  </section>
+</article>
+<footer>
+  <nav>
+    <ul>
+      <li><a href="../license.html"><span>3-Clause BSD License</span></a>
+    </ul>
+  </nav>
+</footer>
+

@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,follow,noarchive">
+
+<title>fannkuch-redux Intel C&nbsp;#3 program | Computer Language Benchmarks Game </title>
+<style><!--
+a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,header{margin:auto;width:92%}body{font:100% Droid Sans, Ubuntu, Verdana, sans-serif;margin:0;-webkit-text-size-adjust:100%}h3, h1, h2, li a{font-family:Ubuntu Mono,Consolas,Menlo,monospace}div,footer,header{max-width:31em}footer{padding:2.6em 0 0}h3{font-size:1.4em;font-weight:bold;margin:0;padding: .4em}h3, h3 a{color:white;background-color:#77216f}h3 small{font-size:0.64em}h1,h2{margin:1.5em 0 0}h1{font-size:1.4em;font-weight:normal}h2{font-size:1.2em}li{list-style-type:none;vertical-align:top}li a{display:block;font-size:1.2em;margin: .5em .5em 0;padding: .5em .5em .3em}ul{clear:left;margin:-0.3em 0 1.5em;padding-left:0;text-align:center}p{color:#333;line-height:1.4;margin: .3em 0 0}p a, a span{border-bottom: .1em solid #333;padding-bottom: .1em}.com,.slc{color:#888}.kwa{color:#066}.kwb{color:#900}.kwc{color:#050}.kwa,.kwb,.kwc{font-weight:bold}.dstr,.str,.sym,.num{color:#930}pre{color:#222;font-size:1em;overflow-wrap:break-word;white-space:pre-wrap;word-wrap:break-word}@media only screen and (min-width: 60em){article,footer,header{font-size:1.25em}}
+--></style>
+<link rel="shortcut icon" href="../favicon.ico">
+<header>
+  <h3><a href="https://benchmarksgame-team.pages.debian.net/benchmarksgame/index.html">The&nbsp;<small>Computer&nbsp;Language</small><br>22.01 Benchmarks&nbsp;Game</a></h3>
+</header>
+<article>
+  <div>
+    <h1>fannkuch-redux Intel C&nbsp;#3 program</h1>
+    <aside>
+      <p><a href="../description/fannkuchredux.html#fannkuchredux">description</a>
+    </aside>
+  </div>
+  <section>
+    <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="com">/* The Computer Language Benchmarks Game</span>
+<span class="com"> * https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="com"> *</span>
+<span class="com"> * contributed by Ledrug Katz</span>
+<span class="com"> *</span>
+<span class="com"> */</span>
+
+<span class="ppc">#include &lt;stdio.h&gt;</span>
+<span class="ppc">#include &lt;stdlib.h&gt;</span>
+<span class="ppc">#include &lt;stdint.h&gt;</span>
+
+<span class="com">/* this depends highly on the platform.  It might be faster to use</span>
+<span class="com">   char type on 32-bit systems; it might be faster to use unsigned. */</span>
+
+<span class="kwc">typedef</span> <span class="kwb">int</span> elem;
+
+elem s[<span class="num">16</span>], t[<span class="num">16</span>];
+
+<span class="kwb">int</span> maxflips = <span class="num">0</span>;
+<span class="kwb">int</span> max_n;
+<span class="kwb">int</span> odd = <span class="num">0</span>;
+<span class="kwb">int</span> checksum = <span class="num">0</span>;
+
+<span class="kwb">int</span> <span class="kwd">flip</span>()
+{
+   <span class="kwc">register</span> <span class="kwb">int</span> i;
+   <span class="kwc">register</span> elem *x, *y, c;
+
+   <span class="kwa">for</span> (x = t, y = s, i = max_n; i--; )
+      *x++ = *y++;
+   i = <span class="num">1</span>;
+   <span class="kwa">do</span> {
+      <span class="kwa">for</span> (x = t, y = t + t[<span class="num">0</span>]; x &lt; y; )
+         c = *x, *x++ = *y, *y-- = c;
+      i++;
+   } <span class="kwa">while</span> (t[t[<span class="num">0</span>]]);
+   <span class="kwa">return</span> i;
+}
+
+<span class="kwc">inline</span> <span class="kwb">void</span> <span class="kwd">rotate</span>(<span class="kwb">int</span> n)
+{
+   elem c;
+   <span class="kwc">register</span> <span class="kwb">int</span> i;
+   c = s[<span class="num">0</span>];
+   <span class="kwa">for</span> (i = <span class="num">1</span>; i &lt;= n; i++) s[i-<span class="num">1</span>] = s[i];
+   s[n] = c;
+}
+
+<span class="com">/* Tompkin-Paige iterative perm generation */</span>
+<span class="kwb">void</span> <span class="kwd">tk</span>(<span class="kwb">int</span> n)
+{
+   <span class="kwb">int</span> i = <span class="num">0</span>, f;
+   elem c[<span class="num">16</span>] = {<span class="num">0</span>};
+
+   <span class="kwa">while</span> (i &lt; n) {
+      <span class="kwd">rotate</span>(i);
+      <span class="kwa">if</span> (c[i] &gt;= i) {
+         c[i++] = <span class="num">0</span>;
+         <span class="kwa">continue</span>;
+      }
+
+      c[i]++;
+      i = <span class="num">1</span>;
+      odd = ~odd;
+      <span class="kwa">if</span> (*s) {
+         f = s[s[<span class="num">0</span>]] ? <span class="kwd">flip</span>() : <span class="num">1</span>;
+         <span class="kwa">if</span> (f &gt; maxflips) maxflips = f;
+         checksum += odd ? -f : f;
+      }
+   }
+}
+
+<span class="kwb">int</span> <span class="kwd">main</span>(<span class="kwb">int</span> argc, <span class="kwb">char</span> **v)
+{
+   <span class="kwb">int</span> i;
+
+   <span class="kwa">if</span> (argc &lt; <span class="num">2</span>) {
+      <span class="kwd">fprintf</span>(stderr, <span class="str">&quot;usage: %s number</span><span class="esc">\n</span><span class="str">&quot;</span>, v[<span class="num">0</span>]);
+      <span class="kwd">exit</span>(<span class="num">1</span>);
+   }
+
+   max_n = <span class="kwd">atoi</span>(v[<span class="num">1</span>]);
+   <span class="kwa">if</span> (max_n &lt; <span class="num">3</span> || max_n &gt; <span class="num">15</span>) {
+      <span class="kwd">fprintf</span>(stderr, <span class="str">&quot;range: must be 3 &lt;= n &lt;= 12</span><span class="esc">\n</span><span class="str">&quot;</span>);
+      <span class="kwd">exit</span>(<span class="num">1</span>);
+   }
+
+   <span class="kwa">for</span> (i = <span class="num">0</span>; i &lt; max_n; i++) s[i] = i;
+   <span class="kwd">tk</span>(max_n);
+
+   <span class="kwd">printf</span>(<span class="str">&quot;%d</span><span class="esc">\n</span><span class="str">Pfannkuchen(%d) = %d</span><span class="esc">\n</span><span class="str">&quot;</span>, checksum, max_n, maxflips);
+
+   <span class="kwa">return</span> <span class="num">0</span>;
+}
+    </pre>
+  </section>
+  <section>
+    <div>
+      <h2 id="log">notes, command-line, and program output</h2>
+    </div>
+    <pre>
+NOTES:
+64-bit Ubuntu quad core
+Intel(R) oneAPI DPC++/C++ Compiler
+for applications running on Intel(R) 64,
+Version 2022.0.0 Build 20211123
+Copyright (C) 1985-2021 Intel Corporation. All rights reserved.
+
+
+Sat, 22 Jan 2022 04:48:51 GMT
+
+MAKE:
+~/intel/oneapi/compiler/2022.0.1/linux/bin/icx -pipe -Wall -O3 -fomit-frame-pointer -march=ivybridge  fannkuchredux.icx-3.c -o fannkuchredux.icx-3.icx_run 
+rm fannkuchredux.icx-3.c
+
+3.48s to complete and log all make actions
+
+COMMAND LINE:
+./fannkuchredux.icx-3.icx_run 12
+
+PROGRAM OUTPUT:
+3968050
+Pfannkuchen(12) = 65
+    </pre>
+  </section>
+</article>
+<footer>
+  <nav>
+    <ul>
+      <li><a href="../license.html"><span>3-Clause BSD License</span></a>
+    </ul>
+  </nav>
+</footer>
+
