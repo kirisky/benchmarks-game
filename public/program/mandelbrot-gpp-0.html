@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,follow,noarchive">
+
+<title>mandelbrot C++ g++ program | Computer Language Benchmarks Game </title>
+<style><!--
+a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,header{margin:auto;width:92%}body{font:100% Droid Sans, Ubuntu, Verdana, sans-serif;margin:0;-webkit-text-size-adjust:100%}h3, h1, h2, li a{font-family:Ubuntu Mono,Consolas,Menlo,monospace}div,footer,header{max-width:31em}footer{padding:2.6em 0 0}h3{font-size:1.4em;font-weight:bold;margin:0;padding: .4em}h3, h3 a{color:white;background-color:#77216f}h3 small{font-size:0.64em}h1,h2{margin:1.5em 0 0}h1{font-size:1.4em;font-weight:normal}h2{font-size:1.2em}li{list-style-type:none;vertical-align:top}li a{display:block;font-size:1.2em;margin: .5em .5em 0;padding: .5em .5em .3em}ul{clear:left;margin:-0.3em 0 1.5em;padding-left:0;text-align:center}p{color:#333;line-height:1.4;margin: .3em 0 0}p a, a span{border-bottom: .1em solid #333;padding-bottom: .1em}.com,.slc{color:#888}.kwa{color:#066}.kwb{color:#900}.kwc{color:#050}.kwa,.kwb,.kwc{font-weight:bold}.dstr,.str,.sym,.num{color:#930}pre{color:#222;font-size:1em;overflow-wrap:break-word;white-space:pre-wrap;word-wrap:break-word}@media only screen and (min-width: 60em){article,footer,header{font-size:1.25em}}
+--></style>
+<link rel="shortcut icon" href="../favicon.ico">
+<header>
+  <h3><a href="https://benchmarksgame-team.pages.debian.net/benchmarksgame/index.html">The&nbsp;<small>Computer&nbsp;Language</small><br>22.01 Benchmarks&nbsp;Game</a></h3>
+</header>
+<article>
+  <div>
+    <h1>mandelbrot C++ g++ program</h1>
+    <aside>
+      <p><a href="../description/mandelbrot.html#mandelbrot">description</a>
+    </aside>
+  </div>
+  <section>
+    <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="com">/* The Computer Language Benchmarks Game</span>
+<span class="com">   https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="com">   </span>
+<span class="com">   contributed by Sebastien Ponce</span>
+<span class="com">*/</span>
+
+<span class="ppc">#include &lt;iostream&gt;</span>
+<span class="ppc">#include &lt;vectorclass.h&gt;</span>
+<span class="ppc">#include &lt;array&gt;</span>
+<span class="ppc">#include &lt;vector&gt;</span>
+<span class="ppc">#include &lt;thread&gt;</span>
+
+<span class="slc">// Number of vectors concurrently computed in the inner loop</span>
+<span class="ppc">#define N 3</span>
+<span class="slc">// Nb of threads</span>
+<span class="ppc">#define NBTHREADS 4</span>
+
+<span class="com">/**</span>
+<span class="com"> * This defines an array of items of a given VCL vector type</span>
+<span class="com"> * and implements a number of operators and useful method to</span>
+<span class="com"> * handle it as if we were using a single vector element</span>
+<span class="com"> */</span>
+<span class="kwc">template</span>&lt;typename VectorType, <span class="kwb">int</span> NbElem = N&gt;
+  <span class="kwb">struct</span> Array : std::array&lt;VectorType, NbElem&gt; {
+  <span class="kwa">using</span> BaseType = <span class="kwc">decltype</span>(std::declval&lt;VectorType&gt;().<span class="kwd">extract</span>(<span class="num">0</span>));
+  <span class="kwa">using</span> BoolType = <span class="kwc">decltype</span>(std::declval&lt;VectorType&gt;() &gt; std::declval&lt;BaseType&gt;());
+  <span class="kwa">using</span> BoolArrayType = Array&lt;BoolType, NbElem&gt;;
+  <span class="kwd">Array</span>() = <span class="kwa">default</span>;
+  <span class="kwd">Array</span>(BaseType v) {
+    <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">0</span>; i &lt; NbElem; i++) (*<span class="kwa">this</span>)[i] = v;
+  }
+  <span class="kwd">Array</span>(BaseType minx, BaseType dx) {
+    <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">0</span>; i &lt; NbElem; i++) {
+      (*<span class="kwa">this</span>)[i] = {minx+(<span class="num">7</span>+i*<span class="num">8</span>)*dx, minx+(<span class="num">6</span>+i*<span class="num">8</span>)*dx, minx+(<span class="num">5</span>+i*<span class="num">8</span>)*dx, minx+(<span class="num">4</span>+i*<span class="num">8</span>)*dx, minx+(<span class="num">3</span>+i*<span class="num">8</span>)*dx, minx+(<span class="num">2</span>+i*<span class="num">8</span>)*dx, minx+(<span class="num">1</span>+i*<span class="num">8</span>)*dx, minx+i*<span class="num">8</span>*dx};
+    }
+  }
+  <span class="kwb">void</span> <span class="kwd">store</span>(BaseType* buffer) {
+    <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">0</span>; i &lt; NbElem; i++) {  
+      (*<span class="kwa">this</span>)[i].<span class="kwd">store</span>(buffer+<span class="num">8</span>*i);
+    }
+  }
+  Array <span class="kwc">operator</span>+=(Array&amp; arg) {
+    <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">0</span>; i &lt; NbElem; i++) (*<span class="kwa">this</span>)[i] += arg;
+  }
+  Array <span class="kwc">operator</span>+=(BaseType arg) {
+    <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">0</span>; i &lt; NbElem; i++) (*<span class="kwa">this</span>)[i] += arg;
+    <span class="kwa">return</span> *<span class="kwa">this</span>;
+  }
+  Array <span class="kwc">operator</span>+(Array <span class="kwb">const</span> &amp; arg) {
+    Array res;
+    <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">0</span>; i &lt; NbElem; i++) res[i] = (*<span class="kwa">this</span>)[i] + arg[i];
+    <span class="kwa">return</span> res;
+  }
+  Array <span class="kwc">operator</span>+(VectorType arg) {
+    Array res;
+    <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">0</span>; i &lt; NbElem; i++) res[i] = (*<span class="kwa">this</span>)[i] + arg;
+    <span class="kwa">return</span> res;
+  }
+  Array <span class="kwc">operator</span>-(Array <span class="kwb">const</span>&amp; arg) {
+    Array res;
+    <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">0</span>; i &lt; NbElem; i++) res[i] = (*<span class="kwa">this</span>)[i] - arg[i];
+    <span class="kwa">return</span> res;
+  }
+  Array <span class="kwc">operator</span>*(Array <span class="kwb">const</span> &amp; arg) {
+    Array res;
+    <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">0</span>; i &lt; NbElem; i++) res[i] = (*<span class="kwa">this</span>)[i] * arg[i];
+    <span class="kwa">return</span> res;
+  }
+  Array <span class="kwc">operator</span>*(BaseType arg) {
+    Array res;
+    <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">0</span>; i &lt; NbElem; i++) res[i] = (*<span class="kwa">this</span>)[i] * arg;
+    <span class="kwa">return</span> res;
+  }
+  BoolArrayType <span class="kwc">operator</span>&lt;(BaseType arg) {
+    BoolArrayType res;
+    <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">0</span>; i &lt; NbElem; i++) res[i] = (*<span class="kwa">this</span>)[i] &lt; arg;
+    <span class="kwa">return</span> res;
+  }
+};
+
+<span class="com">/**</span>
+<span class="com"> * SPecialization of Array for boolean types where arithmetic</span>
+<span class="com"> * operation do not make sense but horizontal_or is useful</span>
+<span class="com"> */</span>
+<span class="kwc">template</span>&lt;<span class="kwb">int</span> NbElem&gt;
+  <span class="kwb">struct</span> Array&lt;Vec8fb, NbElem&gt; : std::array&lt;Vec8fb, NbElem&gt; {
+  <span class="kwa">using</span> BaseType = <span class="kwc">decltype</span>(std::declval&lt;Vec8fb&gt;().<span class="kwd">extract</span>(<span class="num">0</span>));
+  <span class="kwd">Array</span>() = <span class="kwa">default</span>;
+  <span class="kwd">Array</span>(BaseType v) {
+    <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">0</span>; i &lt; NbElem; i++) (*<span class="kwa">this</span>)[i] = v;
+  }
+  Array&amp; <span class="kwc">operator</span>|=(Array arg) {
+    <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">0</span>; i &lt; NbElem; i++) (*<span class="kwa">this</span>)[i] |= arg[i];
+    <span class="kwa">return</span> *<span class="kwa">this</span>;
+  }
+  <span class="kwb">bool</span> <span class="kwd">horizontal_or</span>() {
+    <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">0</span>; i &lt; N; i++) <span class="kwa">if</span> (::<span class="kwd">horizontal_or</span>((*<span class="kwa">this</span>)[i])) <span class="kwa">return true</span>;
+    <span class="kwa">return false</span>;
+  }
+
+};
+
+<span class="com">/**</span>
+<span class="com"> * kernel of mandelbrot compilation compiling number</span>
+<span class="com"> * of iterations for a given set of pixels</span>
+<span class="com"> */</span>
+<span class="kwb">void</span> <span class="kwd">kernel</span>(<span class="kwb">char</span>* buf, Array&lt;Vec8f&gt; ax, Vec8f ay) {
+  <span class="slc">// future results, all to -1 initially</span>
+  Array&lt;Vec8ib&gt; res{<span class="kwa">false</span>};
+  <span class="slc">// remember which pixels are already diverging</span>
+  Array&lt;Vec8fb&gt; cmp{<span class="kwa">false</span>};
+
+  Array&lt;Vec8f&gt; x{<span class="num">0</span>};
+  Array&lt;Vec8f&gt; y{<span class="num">0</span>};
+  <span class="kwa">for</span> (<span class="kwb">int</span> n = <span class="num">1</span>; n &lt;= <span class="num">50</span>; n++) {
+    <span class="kwc">auto</span> newx = x*x - y*y + ax;
+    <span class="kwc">auto</span> newy = x*y*<span class="num">2</span> + ay;
+    cmp = (newx*newx + newy*newy &lt; <span class="num">4</span>);
+    <span class="slc">// no need to continue if all pixels are over</span>
+    <span class="kwa">if</span> (!cmp.<span class="kwd">horizontal_or</span>()) {
+      <span class="kwa">break</span>;
+    }
+    x = newx;
+    y = newy;
+  }
+  <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">0</span>; i &lt; N; i++) buf[i] = <span class="kwd">to_bits</span>(cmp[i]);
+}
+
+<span class="com">/**</span>
+<span class="com"> * fills a char buffer with mandelbrot values for each</span>
+<span class="com"> * pixel of an image</span>
+<span class="com"> */</span>
+<span class="kwb">void</span> <span class="kwd">mandel</span>(<span class="kwb">char</span>* buffer,
+            <span class="kwb">const float</span> minx,
+            <span class="kwb">const float</span> dx,
+            <span class="kwb">const unsigned int</span> nx,
+            <span class="kwb">const float</span> miny,
+            <span class="kwb">const float</span> dy,
+            <span class="kwb">const unsigned int</span> ny) {
+  Vec8f ay{miny}; <span class="slc">// vector of 8 x miny value</span>
+  <span class="slc">// loop one pixel at a time in y</span>
+  <span class="kwa">for</span> (<span class="kwb">unsigned int</span> any = <span class="num">0</span>; any &lt; ny; ay += dy, any++) {
+    <span class="slc">// first N vectors of 8 pixels in x</span>
+    Array&lt;Vec8f&gt; ax{minx, dx};
+    <span class="slc">// loop 8*N by 8*N pixels in x</span>
+    <span class="kwa">for</span> (<span class="kwb">unsigned int</span> anx = <span class="num">0</span>; anx &lt; nx; anx += N*<span class="num">8</span>) {
+      <span class="slc">// compute and store back 8 pixels in one go</span>
+      <span class="slc">//std::cout &lt;&lt; &quot;offset &quot; &lt;&lt; anx &lt;&lt; &quot; &quot; &lt;&lt; (any*nx+anx)/8 &lt;&lt; std::endl;</span>
+      <span class="kwd">kernel</span>(buffer+(any*nx+anx)/<span class="num">8</span>, ax, ay);
+      ax += N*<span class="num">8</span>*dx;
+    }
+  }
+}
+
+<span class="com">/**</span>
+<span class="com"> * main method :</span>
+<span class="com"> *  - parses input for size of the picture</span>
+<span class="com"> *  - start threads to compute values in parallel</span>
+<span class="com"> *  - write output file to stdout</span>
+<span class="com"> */</span>
+<span class="kwb">int</span> <span class="kwd">main</span>(<span class="kwb">int</span> argc, <span class="kwb">char</span>** argv) { 
+  std::ios::<span class="kwd">sync_with_stdio</span>(<span class="kwa">false</span>);
+  <span class="kwb">unsigned int</span> n = <span class="num">16000</span>;
+  <span class="kwa">if</span> (argc&gt;=<span class="num">2</span>) {
+    n = <span class="kwd">atoi</span>(argv[<span class="num">1</span>]);
+  }
+  <span class="kwc">constexpr</span> <span class="kwb">float</span> minx = -<span class="num">1.5</span>;
+  <span class="kwc">constexpr</span> <span class="kwb">float</span> maxx = <span class="num">0.5</span>;
+  <span class="kwc">constexpr</span> <span class="kwb">float</span> miny = -<span class="num">1.0</span>;
+  <span class="kwc">constexpr</span> <span class="kwb">float</span> maxy = <span class="num">1.0</span>;
+  <span class="kwc">auto</span> dx = (maxx - minx) / n;
+  <span class="kwc">auto</span> dy = (maxy - miny) / n;
+  <span class="kwc">auto</span> nyThreads = (n+NBTHREADS-<span class="num">1</span>)/NBTHREADS;
+  <span class="kwc">auto</span> dyThreads = nyThreads*dy;
+  <span class="kwc">auto</span> dData = n*nyThreads/<span class="num">8</span>;
+  <span class="slc">// make sure we have space for full vectors of vectors</span>
+  <span class="slc">// as last one may compute and write extra data after the end</span>
+  <span class="kwc">auto</span> nrounded = (n+<span class="num">8</span>*N-<span class="num">1</span>)/<span class="num">8</span>/N*<span class="num">8</span>*N;
+  <span class="kwc">auto</span> dDatarounded = nrounded*nyThreads/<span class="num">8</span>;
+  std::vector&lt;<span class="kwb">char</span>&gt; buf;
+  buf.<span class="kwd">resize</span>(dDatarounded*NBTHREADS);
+  <span class="slc">//std::cout &lt;&lt; nyThreads &lt;&lt; &quot; &quot; &lt;&lt; dData &lt;&lt; &quot; &quot; &lt;&lt; buf.size() &lt;&lt; &quot;\n&quot;;</span>
+  std::vector&lt;std::thread&gt; threads;
+  <span class="kwa">for</span> (<span class="kwb">unsigned int</span> t = <span class="num">0</span>; t &lt; NBTHREADS; t++) {
+    threads.<span class="kwd">emplace_back</span>(mandel, buf.<span class="kwd">data</span>()+t*dDatarounded,
+                         minx, dx, n,
+                         miny+t*dyThreads, dy, nyThreads);
+  }
+  <span class="kwa">for</span> (<span class="kwc">auto</span>&amp; t : threads) {
+    t.<span class="kwd">join</span>();
+  }
+  std::cout &lt;&lt; <span class="str">&quot;P4</span><span class="esc">\n</span><span class="str">&quot;</span> &lt;&lt; n &lt;&lt; <span class="str">&quot; &quot;</span> &lt;&lt; n &lt;&lt; <span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span>;
+  <span class="kwa">for</span> (<span class="kwb">unsigned int</span> t = <span class="num">0</span>; t &lt; NBTHREADS; t++) {
+    <span class="kwc">auto</span> bufn = buf.<span class="kwd">data</span>()+t*dDatarounded;
+    std::cout.<span class="kwd">write</span>(bufn, dData);
+  }
+}
+    </pre>
+  </section>
+  <section>
+    <div>
+      <h2 id="log">notes, command-line, and program output</h2>
+    </div>
+    <pre>
+NOTES:
+64-bit Ubuntu quad core
+g++ (Ubuntu 11.2.0-7ubuntu2) 11.2.0
+
+
+Sun, 23 Jan 2022 23:31:35 GMT
+
+MAKE:
+/usr/bin/g++ -c -pipe -O3 -fomit-frame-pointer -march=ivybridge  --std=c++17 -I ./Include/gpp/vcl mandelbrot.gpp-0.c++ -o mandelbrot.gpp-0.c++.o &amp;&amp;  \
+        /usr/bin/g++ mandelbrot.gpp-0.c++.o -o mandelbrot.gpp-0.gpp_run -pthread 
+rm mandelbrot.gpp-0.c++
+
+4.24s to complete and log all make actions
+
+COMMAND LINE:
+./mandelbrot.gpp-0.gpp_run 1000
+
+UNEXPECTED OUTPUT 
+
+_out 1000_out differ: byte 107, line 3
+
+(BINARY) PROGRAM OUTPUT NOT SHOWN
+    </pre>
+  </section>
+</article>
+<footer>
+  <nav>
+    <ul>
+      <li><a href="../license.html"><span>3-Clause BSD License</span></a>
+    </ul>
+  </nav>
+</footer>
+
