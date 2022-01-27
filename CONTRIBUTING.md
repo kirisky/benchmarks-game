@@ -1,3 +1,5 @@
+PAUSED 22.01
+
 Once-upon-a-time new source-code was measured and shown on the website within a few days. Not any more.
 
 Now the benchmarks game might be updated after 6 or 12 months. Now it might not be updated.
