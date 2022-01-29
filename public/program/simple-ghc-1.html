@@ -2,7 +2,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,follow,noarchive">
 
-<title>simple Haskell GHC program | Computer Language Benchmarks Game </title>
+<title>simple Haskell GHC program (Benchmarks Game) </title>
 <style><!--
 a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,header{margin:auto;width:92%}body{font:100% Droid Sans, Ubuntu, Verdana, sans-serif;margin:0;-webkit-text-size-adjust:100%}h3, h1, h2, li a{font-family:Ubuntu Mono,Consolas,Menlo,monospace}div,footer,header{max-width:31em}footer{padding:2.6em 0 0}h3{font-size:1.4em;font-weight:bold;margin:0;padding: .4em}h3, h3 a{color:white;background-color:#77216f}h3 small{font-size:0.64em}h1,h2{margin:1.5em 0 0}h1{font-size:1.4em;font-weight:normal}h2{font-size:1.2em}li{list-style-type:none;vertical-align:top}li a{display:block;font-size:1.2em;margin: .5em .5em 0;padding: .5em .5em .3em}ul{clear:left;margin:-0.3em 0 1.5em;padding-left:0;text-align:center}p{color:#333;line-height:1.4;margin: .3em 0 0}p a, a span{border-bottom: .1em solid #333;padding-bottom: .1em}.com,.slc{color:#888}.kwa{color:#066}.kwb{color:#900}.kwc{color:#050}.kwa,.kwb,.kwc{font-weight:bold}.dstr,.str,.sym,.num{color:#930}pre{color:#222;font-size:1em;overflow-wrap:break-word;white-space:pre-wrap;word-wrap:break-word}@media only screen and (min-width: 60em){article,footer,header{font-size:1.25em}}
 --></style>
@@ -27,18 +27,20 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 
 <span class="slc">-- contributed by Greg Buchholz</span>
 <span class="slc">-- import bitrot fixed by Isaac Gouy</span>
+<span class="slc">-- overflowing Chars fixed by Artem Pelenitsyn</span>
+<span class="slc">-- memory exhaustion fixed by Noughtmare</span>
 
-
-<span class="kwd">import</span> Data.<span class="kwb">Complex</span> 
+<span class="kwd">import qualified</span> Data.ByteString.Lazy <span class="kwd">as</span> B
+<span class="kwd">import</span> Data.<span class="kwb">Complex</span>
+<span class="kwd">import</span> Data.Word
 <span class="kwd">import</span> System.Environment
-<span class="kwd">import</span> Data.<span class="kwb">Char</span>
 
 main = <span class="kwd">do</span>   [arg] &lt;- <span class="kwc">getArgs</span>
             <span class="kwd">let</span> width = <span class="kwc">read</span> arg
-            <span class="kwd">let</span> pts = points width width        
+            <span class="kwd">let</span> pts = points width width
             <span class="kwc">putStr</span> $ <span class="str">&quot;P4</span><span class="esc">\n</span><span class="str">&quot;</span> ++ arg ++ <span class="str">&quot; &quot;</span> ++ arg ++ <span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span>
-            <span class="kwc">putStr</span> $ <span class="kwc">concatMap</span> (makePBM <span class="num">0 0</span>) (chunk width (fractal pts))
-            
+            B.<span class="kwc">putStr</span> . B.pack . makePBM <span class="num">0 0</span> $ fractal pts
+
 limit  = <span class="num">2</span>
 iter   = <span class="num">50</span>+<span class="num">1</span> <span class="slc">-- add one to compensate for the &apos;iterate&apos; function</span>
 
@@ -48,19 +50,14 @@ points width height = [(<span class="num">2</span>*x/w - <span class="num">1.5</
 
 mandel c z = z * z + c
 
-fractal pts = <span class="kwc">map</span> (<span class="esc">\f</span>-&gt; <span class="kwa">length</span> (takeIter (<span class="kwc">iterate</span> f (<span class="num">0</span>:+<span class="num">0</span>)))) (<span class="kwc">map</span> mandel pts)
-        <span class="kwd">where</span> takeIter a = <span class="kwc">take</span> iter (<span class="kwc">takeWhile</span> (\x-&gt; <span class="kwc">magnitude</span>(x)&lt;limit) a)
-       
-makePBM i acc []     = (<span class="kwc">chr</span> (acc * <span class="num">2</span>^(<span class="num">8</span>-i))) : []
-makePBM i acc (x:xs) | i==<span class="num">8</span>      = (<span class="kwc">chr</span> acc) : makePBM <span class="num">0 0</span> (x:xs)
+fractal = <span class="kwc">map</span> ((<span class="esc">\f</span>-&gt; <span class="kwa">length</span> (takeIter (<span class="kwc">iterate</span> f (<span class="num">0</span>:+<span class="num">0</span>)))) . mandel)
+        <span class="kwd">where</span> takeIter a = <span class="kwc">take</span> iter (<span class="kwc">takeWhile</span> (\x-&gt; <span class="kwc">magnitude</span> x &lt; limit) a)
+
+makePBM i acc []     = [acc * <span class="num">2</span>^(<span class="num">8</span>-i)]
+makePBM i acc (x:xs) | i==<span class="num">8</span>      = acc : makePBM <span class="num">0 0</span> (x:xs)
                      | <span class="kwc">otherwise</span> = makePBM (i+<span class="num">1</span>) n xs
                                     <span class="kwd">where</span>
-                                      n = <span class="kwd">if</span> x==iter <span class="kwd">then</span> (acc*<span class="num">2</span>+<span class="num">1</span>) <span class="kwd">else</span> (acc*<span class="num">2</span>)
-
-chunk width [] = []
-chunk width c  = (<span class="kwc">fst</span> <span class="kwa">split</span>) : chunk width (<span class="kwc">snd</span> <span class="kwa">split</span>)
-                 <span class="kwd">where</span> <span class="kwa">split</span> = <span class="kwc">splitAt</span> width c
-                    
+                                      n = <span class="kwd">if</span> x==iter <span class="kwd">then</span> acc*<span class="num">2</span>+<span class="num">1</span> <span class="kwd">else</span> acc*<span class="num">2</span>
     </pre>
   </section>
   <section>
@@ -74,26 +71,19 @@ The Glorious Glasgow Haskell Compilation System,
 version 9.2.1
 
 
-Wed, 19 Jan 2022 06:34:38 GMT
+Sat, 29 Jan 2022 22:37:33 GMT
 
 MAKE:
 mv simple.ghc simple.hs
 ~/.ghcup/ghc/9.2.1/bin/ghc --make -fllvm -O2 -XBangPatterns -threaded -rtsopts  simple.hs -o simple.ghc_run
 [1 of 1] Compiling Main             ( simple.hs, simple.o )
-You are using an unsupported version of LLVM!
-Currently only 9 to 13 is supported. System LLVM version: 13.0.0
-We will try though...
 Linking simple.ghc_run ...
 rm simple.hs
 
-9.57s to complete and log all make actions
+1.13s to complete and log all make actions
 
 COMMAND LINE:
-./simple.ghc_run +RTS -N4 -RTS 1000
-
-UNEXPECTED OUTPUT 
-
-_out 1000_out differ: byte 855, line 3
+./simple.ghc_run +RTS -N4 -RTS 16000
 
 (BINARY) PROGRAM OUTPUT NOT SHOWN
     </pre>
