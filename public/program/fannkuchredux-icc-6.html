@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,follow,noarchive">
+
+<title>fannkuch-redux Classic C&nbsp;#6 program (Benchmarks Game) </title>
+<style><!--
+a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,header{margin:auto;width:92%}body{font:100% Droid Sans, Ubuntu, Verdana, sans-serif;margin:0;-webkit-text-size-adjust:100%}h3, h1, h2, li a{font-family:Ubuntu Mono,Consolas,Menlo,monospace}div,footer,header{max-width:31em}footer{padding:2.6em 0 0}h3{font-size:1.4em;font-weight:bold;margin:0;padding: .4em}h3, h3 a{color:white;background-color:#77216f}h3 small{font-size:0.64em}h1,h2{margin:1.5em 0 0}h1{font-size:1.4em;font-weight:normal}h2{font-size:1.2em}li{list-style-type:none;vertical-align:top}li a{display:block;font-size:1.2em;margin: .5em .5em 0;padding: .5em .5em .3em}ul{clear:left;margin:-0.3em 0 1.5em;padding-left:0;text-align:center}p{color:#333;line-height:1.4;margin: .3em 0 0}p a, a span{border-bottom: .1em solid #333;padding-bottom: .1em}.com,.slc{color:#888}.kwa{color:#066}.kwb{color:#900}.kwc{color:#050}.kwa,.kwb,.kwc{font-weight:bold}.dstr,.str,.sym,.num{color:#930}pre{color:#222;font-size:1em;overflow-wrap:break-word;white-space:pre-wrap;word-wrap:break-word}@media only screen and (min-width: 60em){article,footer,header{font-size:1.25em}}
+--></style>
+<link rel="shortcut icon" href="../favicon.ico">
+<header>
+  <h3><a href="https://benchmarksgame-team.pages.debian.net/benchmarksgame/index.html">The&nbsp;<small>Computer&nbsp;Language</small><br>22.02 Benchmarks&nbsp;Game</a></h3>
+</header>
+<article>
+  <div>
+    <h1>fannkuch-redux Classic C&nbsp;#6 program</h1>
+    <aside>
+      <p><a href="../description/fannkuchredux.html#fannkuchredux">description</a>
+    </aside>
+  </div>
+  <section>
+    <div>
+      <h2>source code</h2>
+    </div>
+    <pre>
+<span class="slc">// The Computer Language Benchmarks Game</span>
+<span class="slc">// https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">//</span>
+<span class="slc">// Contributed by Ilya Kurdyukov</span>
+<span class="slc">// Based on &quot;fannkuch-redux C++ g++ #6&quot;,</span>
+<span class="slc">// contributed by Andrei Simion (with patch from Vincent Yu)</span>
+<span class="slc">// which in turn was based on the C++ program by Dave Compton,</span>
+<span class="slc">// which in turn was based on the C program by Jeremy Zerfasm</span>
+<span class="slc">// which in turn was based on the Ada program by Jonathan Parker and </span>
+<span class="slc">// Georg Bauhaus which in turn was based on code by Dave Fladebo, </span>
+<span class="slc">// Eckehard Berns, Heiner Marxen, Hongwei Xi, and The Anh Tran and </span>
+<span class="slc">// also the Java program by Oleg Mazurov.</span>
+
+<span class="ppc">#include &lt;stdio.h&gt;</span>
+<span class="ppc">#include &lt;stdint.h&gt;</span>
+<span class="ppc">#include &lt;string.h&gt;</span>
+<span class="ppc">#include &lt;pthread.h&gt;</span>
+<span class="ppc">#include &lt;smmintrin.h&gt;</span>  <span class="com">/* SSE 4.1 */</span><span class="ppc"></span>
+
+<span class="ppc">#define MAX_N 16</span>
+<span class="ppc">#define MAX_BLOCKS 24</span>
+<span class="ppc">#define ALIGN(n) __attribute__((aligned(n)))</span>
+<span class="ppc">#define LIKELY(x) __builtin_expect(!!(x), 1)</span>
+<span class="ppc">#define UNLIKELY(x) __builtin_expect(!!(x), 0)</span>
+<span class="ppc">#define RAMP16 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15</span>
+
+<span class="kwb">static</span> __m128i masks_shift[<span class="num">16</span>] <span class="kwd">ALIGN</span>(<span class="num">16</span>);
+<span class="kwb">static uint64_t</span> factorials[MAX_N + <span class="num">1</span>];
+
+<span class="kwb">struct</span> fannkuch_data {
+  <span class="kwb">uint64_t</span> block_start, block_size, block_end;
+  <span class="kwb">long long</span> checksum;
+  <span class="kwb">unsigned</span> max_flips, n, mutex;
+};
+
+<span class="kwb">static void</span>* <span class="kwd">fannkuch_func</span>(<span class="kwb">void</span>* param) {
+  <span class="kwb">struct</span> fannkuch_data *data = (<span class="kwb">struct</span> fannkuch_data*)param;
+  <span class="kwb">long long</span> checksum = <span class="num">0</span>;
+  <span class="kwb">unsigned</span> max_flips = <span class="num">0</span>;
+
+  <span class="kwb">int</span> n = data-&gt;n;
+  <span class="kwb">uint64_t</span> block_size = data-&gt;block_size;
+  <span class="kwb">uint64_t</span> block_end = data-&gt;block_end;
+
+  <span class="kwa">if</span> (n &lt; <span class="num">1</span> || n &gt; MAX_N) <span class="kwd">__builtin_unreachable</span>();
+
+  <span class="slc">// iterate over each block.</span>
+  <span class="kwa">for</span> (;;) {
+    <span class="kwb">uint64_t</span> block_start = <span class="kwd">__sync_fetch_and_add</span>(&amp;data-&gt;block_start, block_size);
+    <span class="kwa">if</span> (block_start &gt;= block_end) <span class="kwa">break</span>;
+
+    __m128i ramp = <span class="kwd">_mm_setr_epi8</span>(RAMP16), current = ramp;
+	  __m128i c0 = <span class="kwd">_mm_setzero_si128</span>();
+		__m128i count_vec = c0;
+    <span class="kwb">unsigned</span> i = n;
+    {  
+	    <span class="kwb">uint64_t</span> j = block_start;
+      __m128i v0, v1, v2, mask, c1 = <span class="kwd">_mm_set1_epi8</span>(<span class="num">1</span>);
+      mask = <span class="kwd">_mm_sub_epi8</span>(ramp, <span class="kwd">_mm_set1_epi8</span>(i));
+      <span class="kwa">while</span> (i--) {
+        <span class="kwb">uint64_t</span> d = j / factorials[i];
+        j -= d * factorials[i];
+        v2 = <span class="kwd">_mm_set1_epi8</span>(d);
+				count_vec = <span class="kwd">_mm_alignr_epi8</span>(count_vec, v2, <span class="num">15</span>);
+        v1 = <span class="kwd">_mm_add_epi8</span>(ramp, v2);
+        v0 = <span class="kwd">_mm_add_epi8</span>(mask, v2);  <span class="slc">// ramp - i + d</span>
+        v0 = <span class="kwd">_mm_blendv_epi8</span>(v0, v1, v0);
+        v2 = <span class="kwd">_mm_shuffle_epi8</span>(current, v0);
+        current = <span class="kwd">_mm_blendv_epi8</span>(current, v2, mask);
+        mask = <span class="kwd">_mm_add_epi8</span>(mask, c1);
+      }
+    }
+
+    <span class="slc">// iterate over each permutation in the block.</span>
+    <span class="kwb">uint64_t</span> block_left = block_size;
+
+    <span class="kwa">do</span> {
+			__m128i v0, v1, v2, v3;	<span class="kwb">unsigned</span> i, first;
+<span class="ppc">#define X(op) \</span>
+<span class="ppc">			v2 = current; \</span>
+<span class="ppc">			first = _mm_cvtsi128_si32(current); \</span>
+<span class="ppc">			v0 = _mm_sub_epi8(count_vec, ramp); \</span>
+<span class="ppc">			i = __builtin_ctz(_mm_movemask_epi8(v0)); \</span>
+<span class="ppc">			v0 = _mm_set1_epi8(i); \</span>
+<span class="ppc">			v1 = _mm_andnot_si128(_mm_cmpgt_epi8(v0, ramp), count_vec); \</span>
+<span class="ppc">			count_vec = _mm_sub_epi8(v1, _mm_cmpeq_epi8(v0, ramp)); \</span>
+<span class="ppc">      current = _mm_shuffle_epi8(current, masks_shift[i]); \</span>
+<span class="ppc">      if (LIKELY(first &amp; 0xff)) { \</span>
+<span class="ppc">        unsigned flips = 0; \</span>
+<span class="ppc">				v3 = _mm_shuffle_epi8(v2, c0); \</span>
+<span class="ppc">        do { \</span>
+<span class="ppc">   				v0 = _mm_sub_epi8(v3, ramp); \</span>
+<span class="ppc">					v3 = _mm_shuffle_epi8(v2, v3); \</span>
+<span class="ppc">   				v0 = _mm_blendv_epi8(v0, ramp, v0); \</span>
+<span class="ppc">          v2 = _mm_shuffle_epi8(v2, v0); \</span>
+<span class="ppc">          first = _mm_cvtsi128_si32(v3); \</span>
+<span class="ppc">          flips++; \</span>
+<span class="ppc">        } while (UNLIKELY(first &amp; 0xff)); \</span>
+<span class="ppc">        checksum op flips; \</span>
+<span class="ppc">        if (flips &gt; max_flips) max_flips = flips; \</span>
+<span class="ppc">      }</span>
+			<span class="kwd">X</span>(+=) <span class="kwa">if</span> (<span class="kwd">UNLIKELY</span>(block_left == <span class="num">1</span>)) <span class="kwa">break</span>; <span class="kwd">X</span>(-=)
+    } <span class="kwa">while</span> (<span class="kwd">LIKELY</span>(block_left -= <span class="num">2</span>));
+  }
+
+  <span class="kwd">__sync_add_and_fetch</span>(&amp;data-&gt;checksum, checksum);
+  <span class="kwa">while</span> (<span class="kwd">__sync_lock_test_and_set</span>(&amp;data-&gt;mutex, <span class="num">1</span>));
+  <span class="kwa">if</span> (data-&gt;max_flips &lt; max_flips) data-&gt;max_flips = max_flips;
+  <span class="kwd">__sync_lock_release</span>(&amp;data-&gt;mutex);
+  <span class="kwa">return</span> NULL;
+}
+
+<span class="ppc">#define MAX_THREADS 64</span>
+
+<span class="kwb">int</span> <span class="kwd">main</span>(<span class="kwb">int</span> argc, <span class="kwb">char</span> **argv) {   
+  <span class="kwb">int</span> i, n, nthreads = <span class="num">4</span>; <span class="kwb">uint64_t</span> tmp = <span class="num">1</span>;
+  __m128i ramp = <span class="kwd">_mm_setr_epi8</span>(RAMP16);
+  __m128i c1 = <span class="kwd">_mm_set1_epi8</span>(<span class="num">1</span>), v0, v1, v2;
+  __m128i ramp1 = <span class="kwd">_mm_bsrli_si128</span>(ramp, <span class="num">1</span>), old = ramp;
+  factorials[<span class="num">0</span>] = <span class="num">1</span>;
+  v0 = <span class="kwd">_mm_sub_epi8</span>(<span class="kwd">_mm_setzero_si128</span>(), ramp);
+  <span class="kwa">for</span> (i = <span class="num">0</span>; i &lt; MAX_N; v0 = <span class="kwd">_mm_add_epi8</span>(v0, c1)) {
+    v2 = <span class="kwd">_mm_blendv_epi8</span>(v0, ramp, v0);
+		v1 = <span class="kwd">_mm_blendv_epi8</span>(ramp1, v2, <span class="kwd">_mm_sub_epi8</span>(v0, c1));
+		old = <span class="kwd">_mm_shuffle_epi8</span>(old, v1);
+    masks_shift[i] = old;
+		tmp *= ++i;
+		factorials[i] = tmp;
+  }
+
+  <span class="kwa">if</span> (argc &gt; <span class="num">2</span> &amp;&amp; !<span class="kwd">strcmp</span>(argv[<span class="num">1</span>], <span class="str">&quot;-t&quot;</span>))
+    argc -= <span class="num">2</span>, argv += <span class="num">2</span>, nthreads = <span class="kwd">atoi</span>(*argv);
+  <span class="kwa">if</span> (nthreads &lt; <span class="num">1</span>) nthreads = <span class="num">1</span>;
+  <span class="kwa">if</span> (nthreads &gt; MAX_THREADS) nthreads = MAX_THREADS;
+
+  <span class="kwa">while</span> (argc-- &gt; <span class="num">1</span>) {
+    <span class="kwb">struct</span> fannkuch_data data = { <span class="num">0</span> };
+    <span class="kwb">uint64_t</span> block_end;
+    pthread_t buf[MAX_THREADS];
+
+    data.n = n = <span class="kwd">atoi</span>(*++argv);
+    <span class="kwa">if</span> (n &lt; <span class="num">1</span> || n &gt; MAX_N) <span class="kwa">return</span> <span class="num">1</span>;
+
+    block_end = factorials[n];
+    data.block_size = block_end / (block_end &gt; MAX_BLOCKS ? MAX_BLOCKS : <span class="num">1</span>);
+    data.block_end = block_end;
+
+    <span class="kwa">for</span> (i = <span class="num">1</span>; i &lt; nthreads; i++)
+      <span class="kwd">pthread_create</span>(buf + i, NULL, fannkuch_func, &amp;data);
+    <span class="kwd">fannkuch_func</span>(&amp;data);
+    <span class="kwa">for</span> (i = <span class="num">1</span>; i &lt; nthreads; i++) <span class="kwd">pthread_join</span>(buf[i], NULL);
+    <span class="kwd">printf</span>(<span class="str">&quot;%lld</span><span class="esc">\n</span><span class="str">Pfannkuchen(%u) = %u</span><span class="esc">\n</span><span class="str">&quot;</span>, data.checksum, n, data.max_flips);
+  }
+}
+
+    </pre>
+  </section>
+  <section>
+    <div>
+      <h2 id="log">notes, command-line, and program output</h2>
+    </div>
+    <pre>
+NOTES:
+64-bit Ubuntu quad core
+C Intel(R) 64 Classic
+Version 2021.5.0
+Build 20211109_000000
+
+
+Fri, 18 Feb 2022 19:36:24 GMT
+
+MAKE:
+~/intel/oneapi/compiler/2022.0.1/linux/bin/intel64/icc -pipe -Wall -O3 -fomit-frame-pointer -march=ivybridge -pthread fannkuchredux.icc-6.c -o fannkuchredux.icc-6.icc_run 
+fannkuchredux.icc-6.c(132): warning #266: function &quot;atoi&quot; declared implicitly
+      argc -= 2, argv += 2, nthreads = atoi(*argv);
+                                       ^
+
+fannkuchredux.icc-6.c(141): warning #266: function &quot;atoi&quot; declared implicitly
+      data.n = n = atoi(*++argv);
+                   ^
+
+rm fannkuchredux.icc-6.c
+
+2.28s to complete and log all make actions
+
+COMMAND LINE:
+./fannkuchredux.icc-6.icc_run 12
+
+PROGRAM OUTPUT:
+3968050
+Pfannkuchen(12) = 65
+    </pre>
+  </section>
+</article>
+<footer>
+  <nav>
+    <ul>
+      <li><a href="../license.html"><span>3-Clause BSD License</span></a>
+    </ul>
+  </nav>
+</footer>
+
