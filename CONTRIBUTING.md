@@ -1,13 +1,9 @@
-PAUSED 22.01
+We already have enough exhaustively optimized Rust and C programs.
+We already have enough hand-written vector SIMD and "unsafe" programs. 
 
-Once-upon-a-time new source-code was measured and shown on the website within a few days. Not any more.
+Thank you.
 
-Now the benchmarks game might be updated after 6 or 12 months. Now it might not be updated.
-
-
-(On 2012 i5-3330 UEFI / Secure Boot hardware, it has proved very difficult to keep Ubuntu working as a dual-boot with MS Windows 10. The current measurements were made by first re-installing Ubuntu from DVD and re-installing the development tools and development libraries and … and that's way too much aggravation.)
-
-If in-spite of that warning you are intent on adding something to the issue tracker, please follow these guidelines.
+We still need transliterations of existing straightforward programs. For example, transliterations of multicore JavaScript into type-annotated TypeScript. 
 
 
 Contribute source-code for measurement
