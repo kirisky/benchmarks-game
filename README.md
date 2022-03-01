@@ -9,8 +9,12 @@ Toy-program performance measurements for ~24 language implementations.
 The Benchmarks Game
 ===================
 
-We already have enough exhaustively optimized Rust and C programs.
-We already have enough hand-written vector SIMD and "unsafe" programs. 
+STOPPED. No updates for at-least 6 or 12 months.
+
+Please —
+
+* we already have enough exhaustively optimized Rust and C programs.
+* we already have enough hand-written vector SIMD and "unsafe" programs. 
 
 Thank you.
 

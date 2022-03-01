@@ -1,13 +1,17 @@
-We already have enough exhaustively optimized Rust and C programs.
-We already have enough hand-written vector SIMD and "unsafe" programs. 
-
-Thank you.
-
-We still need transliterations of existing straightforward programs. For example, transliterations of multicore JavaScript into type-annotated TypeScript. 
+STOPPED. No updates for at-least 6 or 12 months.
 
 
 Contribute source-code for measurement
 --------------------------------------
+
+Please —
+
+* we already have enough exhaustively optimized Rust and C programs.
+* we already have enough hand-written vector SIMD and "unsafe" programs. 
+
+Thank you.
+
+We still need transliterations of existing straightforward programs. For example, transliterations of multicore JavaScript into type-annotated TypeScript. 
 
 What to contribute
 ------------------
@@ -49,6 +53,5 @@ Open a new [Contribute Source Code](https://salsa.debian.org/benchmarksgame-team
 
 Attach your complete tested source-code file.
 
-Try to have a little patience.
 
-
+STOPPED. No updates for at-least 6 or 12 months.
