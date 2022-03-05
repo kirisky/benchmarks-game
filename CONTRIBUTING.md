@@ -1,4 +1,4 @@
-STOPPED. No updates for at-least 6 or 12 months.
+STOPPED. Updates will be infrequent. Once or twice a year.
 
 
 Contribute source-code for measurement
@@ -54,4 +54,4 @@ Open a new [Contribute Source Code](https://salsa.debian.org/benchmarksgame-team
 Attach your complete tested source-code file.
 
 
-STOPPED. No updates for at-least 6 or 12 months.
+STOPPED. Updates will be infrequent. Once or twice a year.

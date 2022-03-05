@@ -9,7 +9,7 @@ Toy-program performance measurements for ~24 language implementations.
 The Benchmarks Game
 ===================
 
-STOPPED. No updates for at-least 6 or 12 months.
+STOPPED. Updates will be infrequent. Once or twice a year.
 
 Please —
 
