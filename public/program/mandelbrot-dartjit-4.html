@@ -25,44 +25,50 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="com">/* The Computer Language Benchmarks Game</span>
 <span class="com">   https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
 <span class="com"></span>
-<span class="com">   Contributed by Isaac Gouy. Make time on each Isolate similar.</span>
-<span class="com">   re-written for Isolate.exit() added in Dart 2.15</span>
-<span class="com">   calculateLine borrowed from Alexander Fyodorov&apos;s program. </span>
+<span class="com">   contributed Alexander Fyodorov</span>
+<span class="com">   + null safety </span>
 <span class="com">*/</span>
 
+<span class="kwa">import</span> <span class="str">&apos;dart:async&apos;</span><span class="opt">;</span>
 <span class="kwa">import</span> <span class="str">&apos;dart:io&apos;</span><span class="opt">;</span>
 <span class="kwa">import</span> <span class="str">&apos;dart:isolate&apos;</span><span class="opt">;</span>
 <span class="kwa">import</span> <span class="str">&apos;dart:typed_data&apos;</span><span class="opt">;</span>
 
-<span class="kwa">void</span> <span class="kwd">main</span><span class="opt">(</span><span class="kwb">List</span><span class="opt">&lt;</span><span class="kwb">String</span><span class="opt">&gt;</span> args<span class="opt">)</span> <span class="kwa">async</span> <span class="opt">{</span>
-  <span class="kwa">final</span> n <span class="opt">= (</span>args<span class="opt">.</span>length <span class="opt">&gt;</span> <span class="num">0</span><span class="opt">)</span> ? <span class="kwb">int</span><span class="opt">.</span><span class="kwd">parse</span><span class="opt">(</span>args<span class="opt">[</span><span class="num">0</span><span class="opt">]) :</span> <span class="num">200</span><span class="opt">;</span>
+<span class="kwa">void</span> <span class="kwd">main</span><span class="opt">(</span>args<span class="opt">) {</span>
+  <span class="kwb">int</span> n <span class="opt">=</span> args<span class="opt">.</span>length <span class="opt">&gt;</span> <span class="num">0</span> ? <span class="kwb">int</span><span class="opt">.</span><span class="kwd">parse</span><span class="opt">(</span>args<span class="opt">[</span><span class="num">0</span><span class="opt">]) :</span> <span class="num">2000</span><span class="opt">;</span>
+
+  <span class="kwa">var</span> threads <span class="opt">=</span> <span class="kwb">Platform</span><span class="opt">.</span>numberOfProcessors<span class="opt">;</span>
+
+  <span class="kwb">List</span><span class="opt">&lt;</span><span class="kwb">Future</span><span class="opt">&gt;</span> segmentFutures <span class="opt">= [];</span>
+  <span class="kwa">var</span> segmentSize <span class="opt">=</span> <span class="kwa">new</span> <span class="kwb">List</span><span class="opt">.</span><span class="kwd">filled</span><span class="opt">(</span>threads<span class="opt">,</span> n <span class="opt">~/</span> threads<span class="opt">);</span>
+  segmentSize<span class="opt">[</span><span class="num">0</span><span class="opt">] +=</span> n <span class="opt">%</span> threads<span class="opt">;</span>
+
+  <span class="kwb">int</span> from <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+  <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> threads<span class="opt">;</span> i<span class="opt">++) {</span>
+    <span class="kwa">var</span> len <span class="opt">=</span> segmentSize<span class="opt">[</span>i<span class="opt">];</span>
+    <span class="kwa">var</span> response <span class="opt">=</span> <span class="kwa">new</span> <span class="kwb">ReceivePort</span><span class="opt">();</span>
+    <span class="kwb">int</span> localFrom <span class="opt">=</span> from<span class="opt">;</span>
+    <span class="kwa">var</span> newFuture <span class="opt">=</span> <span class="kwb">Isolate</span><span class="opt">.</span><span class="kwd">spawn</span><span class="opt">(</span>calculateSegment<span class="opt">,</span> response<span class="opt">.</span>sendPort<span class="opt">)</span>
+        <span class="opt">.</span><span class="kwd">then</span><span class="opt">((</span>_<span class="opt">) =&gt;</span> response<span class="opt">.</span>first<span class="opt">)</span>
+        <span class="opt">.</span><span class="kwd">then</span><span class="opt">((</span>sendPort<span class="opt">) {</span>
+      <span class="kwb">ReceivePort</span> response <span class="opt">=</span> <span class="kwa">new</span> <span class="kwb">ReceivePort</span><span class="opt">();</span>
+      sendPort<span class="opt">.</span><span class="kwd">send</span><span class="opt">(</span>
+          <span class="opt">{</span><span class="str">&apos;n&apos;</span><span class="opt">:</span> n<span class="opt">,</span> <span class="str">&apos;from&apos;</span><span class="opt">:</span> localFrom<span class="opt">,</span> <span class="str">&apos;len&apos;</span><span class="opt">:</span> len<span class="opt">,</span> <span class="str">&apos;port&apos;</span><span class="opt">:</span> response<span class="opt">.</span>sendPort<span class="opt">});</span>
+      <span class="kwa">return</span> response<span class="opt">.</span>first<span class="opt">;</span>
+    <span class="opt">});</span>
+    segmentFutures<span class="opt">.</span><span class="kwd">add</span><span class="opt">(</span>newFuture<span class="opt">);</span>
+    from <span class="opt">+=</span> len<span class="opt">;</span>
+  <span class="opt">}</span>
+
   stdout<span class="opt">.</span><span class="kwd">write</span><span class="opt">(</span><span class="str">&apos;P4</span><span class="esc">\n</span><span class="str">$n $n</span><span class="esc">\n</span><span class="str">&apos;</span><span class="opt">);</span>
 
-  <span class="kwa">final</span> assignments <span class="opt">=</span> <span class="kwd">segments</span><span class="opt">(</span>n<span class="opt">).</span><span class="kwd">map</span><span class="opt">((</span>each<span class="opt">) =&gt;</span> <span class="kwd">assign</span><span class="opt">(</span>each<span class="opt">));</span>
-
-  <span class="kwb">Future</span><span class="opt">.</span><span class="kwd">wait</span><span class="opt">(</span>assignments<span class="opt">).</span><span class="kwd">then</span><span class="opt">((</span>segments<span class="opt">) {</span>
-    <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">var</span> each <span class="kwa">in</span> segments<span class="opt">) {</span>
-      <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">var</span> line <span class="kwa">in</span> each<span class="opt">) {</span>
+  <span class="kwb">Future</span><span class="opt">.</span><span class="kwd">wait</span><span class="opt">(</span>segmentFutures<span class="opt">).</span><span class="kwd">then</span><span class="opt">((</span>segments<span class="opt">) {</span>
+    <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">var</span> segment <span class="kwa">in</span> segments<span class="opt">) {</span>
+      <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">var</span> line <span class="kwa">in</span> segment<span class="opt">) {</span>
         stdout<span class="opt">.</span><span class="kwd">add</span><span class="opt">(</span>line<span class="opt">);</span>
       <span class="opt">}</span>
     <span class="opt">}</span>
   <span class="opt">});</span>
-<span class="opt">}</span>
-
-<span class="kwb">Future</span><span class="opt">&lt;</span><span class="kwb">List</span><span class="opt">&lt;</span><span class="kwb">Uint</span><span class="num">8L</span>ist<span class="opt">&gt;&gt;</span> <span class="kwd">assign</span><span class="opt">(</span><span class="kwb">List</span><span class="opt">&lt;</span><span class="kwb">int</span><span class="opt">&gt;</span> assignment<span class="opt">)</span> <span class="kwa">async</span> <span class="opt">{</span>
-  <span class="kwa">final</span> p <span class="opt">=</span> <span class="kwb">ReceivePort</span><span class="opt">();</span>
-  <span class="kwa">await</span> <span class="kwb">Isolate</span><span class="opt">.</span><span class="kwd">spawn</span><span class="opt">(</span>calculateSegment<span class="opt">, [</span>p<span class="opt">.</span>sendPort<span class="opt">,</span> assignment<span class="opt">]);</span>
-  <span class="kwa">return await</span> p<span class="opt">.</span>first<span class="opt">;</span>
-<span class="opt">}</span>
-
-<span class="kwb">Future</span> <span class="kwd">calculateSegment</span><span class="opt">(</span><span class="kwb">List</span><span class="opt">&lt;</span><span class="kwa">dynamic</span><span class="opt">&gt;</span> args<span class="opt">)</span> <span class="kwa">async</span> <span class="opt">{</span>
-  <span class="kwb">SendPort</span> p <span class="opt">=</span> args<span class="opt">[</span><span class="num">0</span><span class="opt">];</span>
-  <span class="kwb">List</span><span class="opt">&lt;</span><span class="kwb">int</span><span class="opt">&gt;</span> a <span class="opt">=</span> args<span class="opt">[</span><span class="num">1</span><span class="opt">];</span>
-  <span class="kwa">final</span> lines <span class="opt">= &lt;</span><span class="kwb">Uint</span><span class="num">8L</span>ist<span class="opt">&gt;[];</span>
-  <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">var</span> y <span class="opt">=</span> a<span class="opt">[</span><span class="num">0</span><span class="opt">];</span> y <span class="opt">&lt;</span> a<span class="opt">[</span><span class="num">1</span><span class="opt">];</span> y<span class="opt">++) {</span>
-    lines<span class="opt">.</span><span class="kwd">add</span><span class="opt">(</span><span class="kwd">calculateLine</span><span class="opt">(</span>a<span class="opt">[</span><span class="num">2</span><span class="opt">],</span> y<span class="opt">));</span>
-  <span class="opt">}</span>
-  <span class="kwb">Isolate</span><span class="opt">.</span><span class="kwd">exit</span><span class="opt">(</span>p<span class="opt">,</span> lines<span class="opt">);</span>
 <span class="opt">}</span>
 
 <span class="kwb">Uint</span><span class="num">8L</span>ist <span class="kwd">calculateLine</span><span class="opt">(</span><span class="kwb">int</span> n<span class="opt">,</span> <span class="kwb">int</span> y<span class="opt">) {</span>
@@ -91,20 +97,24 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
   <span class="opt">}</span>
   <span class="kwa">while</span> <span class="opt">(</span>bits <span class="opt">&lt;</span> <span class="num">0x100</span><span class="opt">)</span> bits <span class="opt">= (</span>bits <span class="opt">&lt;&lt;</span> <span class="num">1</span><span class="opt">);</span>
   line<span class="opt">[</span>xbyte<span class="opt">] =</span> bits<span class="opt">;</span>
+
   <span class="kwa">return</span> line<span class="opt">;</span>
 <span class="opt">}</span>
 
-<span class="kwb">List</span><span class="opt">&lt;</span><span class="kwb">List</span><span class="opt">&lt;</span><span class="kwb">int</span><span class="opt">&gt;&gt;</span> <span class="kwd">segments</span><span class="opt">(</span><span class="kwb">int</span> n<span class="opt">) {</span>
-  <span class="kwa">const</span> weights <span class="opt">= [</span><span class="num">0.35</span><span class="opt">,</span> <span class="num">0.5</span><span class="opt">,</span> <span class="num">0.65</span><span class="opt">];</span>
-  <span class="kwa">var</span> lo <span class="opt">=</span> <span class="num">0</span><span class="opt">,</span> w <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
-  <span class="kwa">var</span> s <span class="opt">= &lt;</span><span class="kwb">List</span><span class="opt">&lt;</span><span class="kwb">int</span><span class="opt">&gt;&gt;[];</span>
-  <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">var</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> weights<span class="opt">.</span>length<span class="opt">;</span> i<span class="opt">++) {</span>
-    w <span class="opt">= (</span>weights<span class="opt">[</span>i<span class="opt">] *</span> n<span class="opt">).</span><span class="kwd">floor</span><span class="opt">();</span>
-    s<span class="opt">.</span><span class="kwd">add</span><span class="opt">([</span>lo<span class="opt">,</span> w<span class="opt">,</span> n<span class="opt">]);</span>
-    lo <span class="opt">=</span> w<span class="opt">;</span>
-  <span class="opt">}</span>
-  s<span class="opt">.</span><span class="kwd">add</span><span class="opt">([</span>w<span class="opt">,</span> n<span class="opt">,</span> n<span class="opt">]);</span>
-  <span class="kwa">return</span> s<span class="opt">;</span>
+<span class="kwa">void</span> <span class="kwd">calculateSegment</span><span class="opt">(</span><span class="kwb">SendPort</span> initialReplyTo<span class="opt">) {</span>
+  <span class="kwa">var</span> port <span class="opt">=</span> <span class="kwa">new</span> <span class="kwb">ReceivePort</span><span class="opt">();</span>
+  initialReplyTo<span class="opt">.</span><span class="kwd">send</span><span class="opt">(</span>port<span class="opt">.</span>sendPort<span class="opt">);</span>
+  port<span class="opt">.</span><span class="kwd">listen</span><span class="opt">((</span>msg<span class="opt">) {</span>
+    <span class="kwb">int</span> n <span class="opt">=</span> msg<span class="opt">[</span><span class="str">&apos;n&apos;</span><span class="opt">];</span>
+    <span class="kwb">int</span> from <span class="opt">=</span> msg<span class="opt">[</span><span class="str">&apos;from&apos;</span><span class="opt">];</span>
+    <span class="kwb">int</span> len <span class="opt">=</span> msg<span class="opt">[</span><span class="str">&apos;len&apos;</span><span class="opt">];</span>
+    <span class="kwb">SendPort</span> replyTo <span class="opt">=</span> msg<span class="opt">[</span><span class="str">&apos;port&apos;</span><span class="opt">];</span>
+
+    <span class="kwa">var</span> lines <span class="opt">=</span>
+        <span class="kwa">new</span> <span class="kwb">List</span><span class="opt">&lt;</span><span class="kwb">Uint</span><span class="num">8L</span>ist<span class="opt">&gt;.</span><span class="kwd">generate</span><span class="opt">(</span>len<span class="opt">, (</span>i<span class="opt">) =&gt;</span> <span class="kwd">calculateLine</span><span class="opt">(</span>n<span class="opt">,</span> from <span class="opt">+</span> i<span class="opt">));</span>
+    replyTo<span class="opt">.</span><span class="kwd">send</span><span class="opt">(</span>lines<span class="opt">);</span>
+    port<span class="opt">.</span><span class="kwd">close</span><span class="opt">();</span>
+  <span class="opt">});</span>
 <span class="opt">}</span>
     </pre>
   </section>
@@ -119,14 +129,14 @@ Dart SDK version: 2.15.1 (stable)
 Tue Dec 14 13:32:21 2021
 
 
-Thu, 10 Mar 2022 18:41:30 GMT
+Fri, 18 Mar 2022 02:02:49 GMT
 
 MAKE:
 /opt/src/dart-sdk/bin/dart analyze 
 Analyzing tmp...
 No issues found!
 
-1.24s to complete and log all make actions
+2.14s to complete and log all make actions
 
 COMMAND LINE:
 /opt/src/dart-sdk/bin/dart run  mandelbrot.dartjit-4.dartjit 16000
