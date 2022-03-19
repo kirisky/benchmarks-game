@@ -25,44 +25,17 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="com">/* The Computer Language Benchmarks Game</span>
 <span class="com">   https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
 <span class="com"></span>
-<span class="com">   Use Isolate.exit() added in Dart 2.15 </span>
-<span class="com">   Contributed by Isaac Gouy. Make time on each Isolate similar.</span>
-<span class="com">   renderRow from Andrey Filatkin&apos;s node #3 program. </span>
+<span class="com">   Andrey Filatkin&apos;s node #3 program made sequential by Isaac Gouy. </span>
 <span class="com">*/</span>
 
 <span class="kwa">import</span> <span class="str">&apos;dart:io&apos;</span><span class="opt">;</span>
-<span class="kwa">import</span> <span class="str">&apos;dart:isolate&apos;</span><span class="opt">;</span>
 <span class="kwa">import</span> <span class="str">&apos;dart:typed_data&apos;</span><span class="opt">;</span>
 
-<span class="kwa">const</span> iter <span class="opt">=</span> <span class="num">50</span><span class="opt">,</span> limit <span class="opt">=</span> <span class="num">4.0</span><span class="opt">;</span>
+  <span class="kwa">const</span> iter <span class="opt">=</span> <span class="num">50</span><span class="opt">,</span> limit <span class="opt">=</span> <span class="num">4.0</span><span class="opt">;</span>
 
 <span class="kwa">void</span> <span class="kwd">main</span><span class="opt">(</span><span class="kwb">List</span><span class="opt">&lt;</span><span class="kwb">String</span><span class="opt">&gt;</span> args<span class="opt">) {</span>
   <span class="kwa">final</span> h <span class="opt">= (</span>args<span class="opt">.</span>length <span class="opt">&gt;</span> <span class="num">0</span><span class="opt">)</span> ? <span class="kwb">int</span><span class="opt">.</span><span class="kwd">parse</span><span class="opt">(</span>args<span class="opt">[</span><span class="num">0</span><span class="opt">]) :</span> <span class="num">200</span><span class="opt">,</span> w <span class="opt">=</span> h<span class="opt">;</span>
-
-  <span class="kwa">final</span> assignments <span class="opt">=</span> <span class="kwd">segments</span><span class="opt">(</span>h<span class="opt">).</span><span class="kwd">map</span><span class="opt">((</span>each<span class="opt">) =&gt;</span> <span class="kwd">assign</span><span class="opt">(</span>each<span class="opt">));</span>
-
-  stdout<span class="opt">.</span><span class="kwd">write</span><span class="opt">(</span><span class="str">&apos;P4</span><span class="esc">\n</span><span class="str">$w $h</span><span class="esc">\n</span><span class="str">&apos;</span><span class="opt">);</span>
-  <span class="kwb">Future</span><span class="opt">.</span><span class="kwd">wait</span><span class="opt">(</span>assignments<span class="opt">).</span><span class="kwd">then</span><span class="opt">((</span>segments<span class="opt">) {</span>
-    <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">var</span> each <span class="kwa">in</span> segments<span class="opt">) {</span>
-      <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">var</span> row <span class="kwa">in</span> each<span class="opt">) {</span>
-        stdout<span class="opt">.</span><span class="kwd">add</span><span class="opt">(</span>row<span class="opt">);</span>
-      <span class="opt">}</span>
-    <span class="opt">}</span>
-  <span class="opt">});</span>
-<span class="opt">}</span>
-
-<span class="kwb">Future</span><span class="opt">&lt;</span><span class="kwb">List</span><span class="opt">&lt;</span><span class="kwb">Uint</span><span class="num">8L</span>ist<span class="opt">&gt;&gt;</span> <span class="kwd">assign</span><span class="opt">(</span><span class="kwb">Index</span> assignment<span class="opt">)</span> <span class="kwa">async</span> <span class="opt">{</span>
-  <span class="kwa">final</span> p <span class="opt">=</span> <span class="kwb">ReceivePort</span><span class="opt">();</span>
-  <span class="kwa">await</span> <span class="kwb">Isolate</span><span class="opt">.</span><span class="kwd">spawn</span><span class="opt">(</span>renderRows<span class="opt">, [</span>p<span class="opt">.</span>sendPort<span class="opt">,</span> assignment<span class="opt">]);</span>
-  <span class="kwa">return await</span> p<span class="opt">.</span>first<span class="opt">;</span>
-<span class="opt">}</span>
-
-<span class="kwb">Future</span> <span class="kwd">renderRows</span><span class="opt">(</span><span class="kwb">List</span><span class="opt">&lt;</span><span class="kwa">dynamic</span><span class="opt">&gt;</span> args<span class="opt">)</span> <span class="kwa">async</span> <span class="opt">{</span>
-  <span class="kwa">final</span> <span class="kwb">SendPort</span> p <span class="opt">=</span> args<span class="opt">[</span><span class="num">0</span><span class="opt">];</span>
-  <span class="kwa">final</span> <span class="kwb">Index</span> index <span class="opt">=</span> args<span class="opt">[</span><span class="num">1</span><span class="opt">];</span>
-  <span class="kwa">final</span> <span class="kwb">int</span> w <span class="opt">=</span> index<span class="opt">.</span>n<span class="opt">;</span>
   <span class="kwa">final</span> bytesPerRow <span class="opt">=</span> w <span class="opt">&gt;&gt;</span> <span class="num">3</span><span class="opt">;</span>
-
   <span class="kwa">final</span> initialR <span class="opt">=</span> <span class="kwa">new</span> <span class="kwb">Float</span><span class="num">64L</span>ist<span class="opt">(</span>w<span class="opt">);</span>
   <span class="kwa">final</span> initialI <span class="opt">=</span> <span class="kwa">new</span> <span class="kwb">Float</span><span class="num">64L</span>ist<span class="opt">(</span>w<span class="opt">);</span>
   <span class="kwa">final</span> inv <span class="opt">=</span> <span class="num">2</span> <span class="opt">/</span> w<span class="opt">;</span>
@@ -120,32 +93,15 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
       <span class="opt">}</span>
       row<span class="opt">[</span>xByte<span class="opt">] = ~</span>res<span class="opt">;</span>
     <span class="opt">}</span>
+
     <span class="kwa">return</span> row<span class="opt">;</span>
   <span class="opt">}</span>
 
-  <span class="kwa">final</span> rows <span class="opt">= &lt;</span><span class="kwb">Uint</span><span class="num">8L</span>ist<span class="opt">&gt;[];</span>
-  <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">var</span> y <span class="opt">=</span> index<span class="opt">.</span>lo<span class="opt">;</span> y <span class="opt">&lt;</span> index<span class="opt">.</span>hi<span class="opt">;</span> y<span class="opt">++) {</span>
-    rows<span class="opt">.</span><span class="kwd">add</span><span class="opt">(</span><span class="kwd">renderRow</span><span class="opt">(</span>y<span class="opt">));</span>
-  <span class="opt">}</span>
-  <span class="kwb">Isolate</span><span class="opt">.</span><span class="kwd">exit</span><span class="opt">(</span>p<span class="opt">,</span> rows<span class="opt">);</span>
-<span class="opt">}</span>
+  stdout<span class="opt">.</span><span class="kwd">write</span><span class="opt">(</span><span class="str">&apos;P4</span><span class="esc">\n</span><span class="str">$w $h</span><span class="esc">\n</span><span class="str">&apos;</span><span class="opt">);</span>
 
-<span class="kwb">List</span><span class="opt">&lt;</span><span class="kwb">Index</span><span class="opt">&gt;</span> <span class="kwd">segments</span><span class="opt">(</span><span class="kwb">int</span> n<span class="opt">) {</span>
-  <span class="kwa">const</span> weights <span class="opt">= [</span><span class="num">0.35</span><span class="opt">,</span> <span class="num">0.5</span><span class="opt">,</span> <span class="num">0.65</span><span class="opt">];</span>
-  <span class="kwa">var</span> lo <span class="opt">=</span> <span class="num">0</span><span class="opt">,</span> weighted <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
-  <span class="kwa">final</span> s <span class="opt">= &lt;</span><span class="kwb">Index</span><span class="opt">&gt;[];</span>
-  <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">var</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> weights<span class="opt">.</span>length<span class="opt">;</span> i<span class="opt">++) {</span>
-    weighted <span class="opt">= (</span>weights<span class="opt">[</span>i<span class="opt">] *</span> n<span class="opt">).</span><span class="kwd">floor</span><span class="opt">();</span>
-    s<span class="opt">.</span><span class="kwd">add</span><span class="opt">(</span><span class="kwb">Index</span><span class="opt">(</span>lo<span class="opt">,</span> weighted<span class="opt">,</span> n<span class="opt">));</span>
-    lo <span class="opt">=</span> weighted<span class="opt">;</span>
+  <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> y <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> y <span class="opt">&lt;</span> h<span class="opt">; ++</span>y<span class="opt">) {</span>
+    stdout<span class="opt">.</span><span class="kwd">add</span><span class="opt">(</span><span class="kwd">renderRow</span><span class="opt">(</span>y<span class="opt">));</span>
   <span class="opt">}</span>
-  s<span class="opt">.</span><span class="kwd">add</span><span class="opt">(</span><span class="kwb">Index</span><span class="opt">(</span>lo<span class="opt">,</span> n<span class="opt">,</span> n<span class="opt">));</span>
-  <span class="kwa">return</span> s<span class="opt">;</span>
-<span class="opt">}</span>
-
-<span class="kwa">class</span> <span class="kwb">Index</span> <span class="opt">{</span>
-  <span class="kwa">var</span> lo <span class="opt">=</span> <span class="num">0</span><span class="opt">,</span> hi <span class="opt">=</span> <span class="num">0</span><span class="opt">,</span> n <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
-  <span class="kwb">Index</span><span class="opt">(</span><span class="kwa">this</span><span class="opt">.</span>lo<span class="opt">,</span> <span class="kwa">this</span><span class="opt">.</span>hi<span class="opt">,</span> <span class="kwa">this</span><span class="opt">.</span>n<span class="opt">);</span>
 <span class="opt">}</span>
     </pre>
   </section>
@@ -160,14 +116,14 @@ Dart SDK version: 2.15.1 (stable)
 Tue Dec 14 13:32:21 2021
 
 
-Fri, 18 Mar 2022 01:59:20 GMT
+Fri, 18 Mar 2022 21:27:44 GMT
 
 MAKE:
 /opt/src/dart-sdk/bin/dart analyze 
 Analyzing tmp...
 No issues found!
 
-1.28s to complete and log all make actions
+1.22s to complete and log all make actions
 
 COMMAND LINE:
 /opt/src/dart-sdk/bin/dart run  mandelbrot.dartjit-3.dartjit 16000

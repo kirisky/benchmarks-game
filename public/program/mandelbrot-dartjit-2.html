@@ -25,82 +25,53 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
 <span class="com">/* The Computer Language Benchmarks Game</span>
 <span class="com">   https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
 <span class="com"></span>
-<span class="com">   Andrey Filatkin&apos;s node #3 program made sequential by Isaac Gouy. </span>
+<span class="com">   Greg Buchholz&apos;s simple C #2 program buffered, by Isaac Gouy. </span>
 <span class="com">*/</span>
 
 <span class="kwa">import</span> <span class="str">&apos;dart:io&apos;</span><span class="opt">;</span>
 <span class="kwa">import</span> <span class="str">&apos;dart:typed_data&apos;</span><span class="opt">;</span>
 
-  <span class="kwa">const</span> iter <span class="opt">=</span> <span class="num">50</span><span class="opt">,</span> limit <span class="opt">=</span> <span class="num">4.0</span><span class="opt">;</span>
-
 <span class="kwa">void</span> <span class="kwd">main</span><span class="opt">(</span><span class="kwb">List</span><span class="opt">&lt;</span><span class="kwb">String</span><span class="opt">&gt;</span> args<span class="opt">) {</span>
+  <span class="kwb">int</span> bit_num <span class="opt">=</span> <span class="num">0</span><span class="opt">,</span> byte_acc <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+  <span class="kwa">const</span> iter <span class="opt">=</span> <span class="num">50</span><span class="opt">,</span> limit <span class="opt">=</span> <span class="num">2.0</span><span class="opt">;</span>
+  <span class="kwb">double</span> zr<span class="opt">,</span> zi<span class="opt">,</span> cr<span class="opt">,</span> ci<span class="opt">,</span> tr<span class="opt">,</span> ti<span class="opt">;</span>
+
   <span class="kwa">final</span> h <span class="opt">= (</span>args<span class="opt">.</span>length <span class="opt">&gt;</span> <span class="num">0</span><span class="opt">)</span> ? <span class="kwb">int</span><span class="opt">.</span><span class="kwd">parse</span><span class="opt">(</span>args<span class="opt">[</span><span class="num">0</span><span class="opt">]) :</span> <span class="num">200</span><span class="opt">,</span> w <span class="opt">=</span> h<span class="opt">;</span>
   <span class="kwa">final</span> bytesPerRow <span class="opt">=</span> w <span class="opt">&gt;&gt;</span> <span class="num">3</span><span class="opt">;</span>
-  <span class="kwa">final</span> initialR <span class="opt">=</span> <span class="kwa">new</span> <span class="kwb">Float</span><span class="num">64L</span>ist<span class="opt">(</span>w<span class="opt">);</span>
-  <span class="kwa">final</span> initialI <span class="opt">=</span> <span class="kwa">new</span> <span class="kwb">Float</span><span class="num">64L</span>ist<span class="opt">(</span>w<span class="opt">);</span>
-  <span class="kwa">final</span> inv <span class="opt">=</span> <span class="num">2</span> <span class="opt">/</span> w<span class="opt">;</span>
-  <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">var</span> xy <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> xy <span class="opt">&lt;</span> w<span class="opt">;</span> xy<span class="opt">++) {</span>
-    <span class="kwa">final</span> i <span class="opt">=</span> inv <span class="opt">*</span> xy<span class="opt">;</span>
-    initialR<span class="opt">[</span>xy<span class="opt">] =</span> i <span class="opt">-</span> <span class="num">1.5</span><span class="opt">;</span>
-    initialI<span class="opt">[</span>xy<span class="opt">] =</span> i <span class="opt">-</span> <span class="num">1.0</span><span class="opt">;</span>
-  <span class="opt">}</span>
-
-  <span class="kwb">Uint</span><span class="num">8L</span>ist <span class="kwd">renderRow</span><span class="opt">(</span><span class="kwb">int</span> y<span class="opt">) {</span>
-    <span class="kwa">final</span> row <span class="opt">=</span> <span class="kwb">Uint</span><span class="num">8L</span>ist<span class="opt">(</span>bytesPerRow<span class="opt">);</span>
-
-    <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">var</span> xByte <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> xByte <span class="opt">&lt;</span> bytesPerRow<span class="opt">;</span> xByte<span class="opt">++) {</span>
-      <span class="kwa">final</span> ci <span class="opt">=</span> initialI<span class="opt">[</span>y<span class="opt">];</span>
-      <span class="kwa">var</span> res <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
-      <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">var</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> <span class="num">8</span><span class="opt">;</span> i <span class="opt">+=</span> <span class="num">2</span><span class="opt">) {</span>
-        <span class="kwa">final</span> x <span class="opt">=</span> xByte <span class="opt">&lt;&lt;</span> <span class="num">3</span><span class="opt">;</span>
-        <span class="kwa">final</span> cr1 <span class="opt">=</span> initialR<span class="opt">[</span>x <span class="opt">+</span> i<span class="opt">];</span>
-        <span class="kwa">final</span> cr2 <span class="opt">=</span> initialR<span class="opt">[</span>x <span class="opt">+</span> i <span class="opt">+</span> <span class="num">1</span><span class="opt">];</span>
-
-        <span class="kwa">var</span> zr1 <span class="opt">=</span> cr1<span class="opt">;</span>
-        <span class="kwa">var</span> zi1 <span class="opt">=</span> ci<span class="opt">;</span>
-
-        <span class="kwa">var</span> zr2 <span class="opt">=</span> cr2<span class="opt">;</span>
-        <span class="kwa">var</span> zi2 <span class="opt">=</span> ci<span class="opt">;</span>
-
-        <span class="kwa">var</span> b <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
-
-        <span class="kwa">for</span> <span class="opt">(</span><span class="kwa">var</span> j <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> j <span class="opt">&lt;</span> iter<span class="opt">;</span> j<span class="opt">++) {</span>
-          <span class="kwa">final</span> tr1 <span class="opt">=</span> zr1 <span class="opt">*</span> zr1<span class="opt">;</span>
-          <span class="kwa">final</span> ti1 <span class="opt">=</span> zi1 <span class="opt">*</span> zi1<span class="opt">;</span>
-          zi1 <span class="opt">=</span> <span class="num">2</span> <span class="opt">*</span> zr1 <span class="opt">*</span> zi1 <span class="opt">+</span> ci<span class="opt">;</span>
-          zr1 <span class="opt">=</span> tr1 <span class="opt">-</span> ti1 <span class="opt">+</span> cr1<span class="opt">;</span>
-
-          <span class="kwa">if</span> <span class="opt">(</span>tr1 <span class="opt">+</span> ti1 <span class="opt">&gt;</span> limit<span class="opt">) {</span>
-            b <span class="opt">|=</span> <span class="num">2</span><span class="opt">;</span>
-            <span class="kwa">if</span> <span class="opt">(</span>b <span class="opt">==</span> <span class="num">3</span><span class="opt">) {</span>
-              <span class="kwa">break</span><span class="opt">;</span>
-            <span class="opt">}</span>
-          <span class="opt">}</span>
-
-          <span class="kwa">final</span> tr2 <span class="opt">=</span> zr2 <span class="opt">*</span> zr2<span class="opt">;</span>
-          <span class="kwa">final</span> ti2 <span class="opt">=</span> zi2 <span class="opt">*</span> zi2<span class="opt">;</span>
-          zi2 <span class="opt">=</span> <span class="num">2</span> <span class="opt">*</span> zr2 <span class="opt">*</span> zi2 <span class="opt">+</span> ci<span class="opt">;</span>
-          zr2 <span class="opt">=</span> tr2 <span class="opt">-</span> ti2 <span class="opt">+</span> cr2<span class="opt">;</span>
-
-          <span class="kwa">if</span> <span class="opt">(</span>tr2 <span class="opt">+</span> ti2 <span class="opt">&gt;</span> limit<span class="opt">) {</span>
-            b <span class="opt">|=</span> <span class="num">1</span><span class="opt">;</span>
-            <span class="kwa">if</span> <span class="opt">(</span>b <span class="opt">==</span> <span class="num">3</span><span class="opt">) {</span>
-              <span class="kwa">break</span><span class="opt">;</span>
-            <span class="opt">}</span>
-          <span class="opt">}</span>
-        <span class="opt">}</span>
-        res <span class="opt">= (</span>res <span class="opt">&lt;&lt;</span> <span class="num">2</span><span class="opt">) |</span> b<span class="opt">;</span>
-      <span class="opt">}</span>
-      row<span class="opt">[</span>xByte<span class="opt">] = ~</span>res<span class="opt">;</span>
-    <span class="opt">}</span>
-
-    <span class="kwa">return</span> row<span class="opt">;</span>
-  <span class="opt">}</span>
 
   stdout<span class="opt">.</span><span class="kwd">write</span><span class="opt">(</span><span class="str">&apos;P4</span><span class="esc">\n</span><span class="str">$w $h</span><span class="esc">\n</span><span class="str">&apos;</span><span class="opt">);</span>
 
   <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> y <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> y <span class="opt">&lt;</span> h<span class="opt">; ++</span>y<span class="opt">) {</span>
-    stdout<span class="opt">.</span><span class="kwd">add</span><span class="opt">(</span><span class="kwd">renderRow</span><span class="opt">(</span>y<span class="opt">));</span>
+    <span class="kwa">var</span> row <span class="opt">=</span> <span class="kwb">Uint</span><span class="num">8L</span>ist<span class="opt">(</span>bytesPerRow<span class="opt">);</span>
+    <span class="kwa">var</span> xbyte <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+
+    <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> x <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> x <span class="opt">&lt;</span> w<span class="opt">; ++</span>x<span class="opt">) {</span>
+      zr <span class="opt">=</span> zi <span class="opt">=</span> tr <span class="opt">=</span> ti <span class="opt">=</span> <span class="num">0.0</span><span class="opt">;</span>
+      cr <span class="opt">=</span> <span class="num">2.0</span> <span class="opt">*</span> x <span class="opt">/</span> w <span class="opt">-</span> <span class="num">1.5</span><span class="opt">;</span>
+      ci <span class="opt">=</span> <span class="num">2.0</span> <span class="opt">*</span> y <span class="opt">/</span> h <span class="opt">-</span> <span class="num">1.0</span><span class="opt">;</span>
+      <span class="kwa">for</span> <span class="opt">(</span><span class="kwb">int</span> i <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> iter <span class="opt">&amp;&amp; (</span>tr <span class="opt">+</span> ti <span class="opt">&lt;=</span> limit <span class="opt">*</span> limit<span class="opt">); ++</span>i<span class="opt">) {</span>
+        zi <span class="opt">=</span> <span class="num">2.0</span> <span class="opt">*</span> zr <span class="opt">*</span> zi <span class="opt">+</span> ci<span class="opt">;</span>
+        zr <span class="opt">=</span> tr <span class="opt">-</span> ti <span class="opt">+</span> cr<span class="opt">;</span>
+        tr <span class="opt">=</span> zr <span class="opt">*</span> zr<span class="opt">;</span>
+        ti <span class="opt">=</span> zi <span class="opt">*</span> zi<span class="opt">;</span>
+      <span class="opt">}</span>
+
+      byte_acc <span class="opt">&lt;&lt;=</span> <span class="num">1</span><span class="opt">;</span>
+      <span class="kwa">if</span> <span class="opt">(</span>tr <span class="opt">+</span> ti <span class="opt">&lt;=</span> limit <span class="opt">*</span> limit<span class="opt">)</span> byte_acc <span class="opt">|=</span> <span class="num">0x01</span><span class="opt">;</span>
+      <span class="opt">++</span>bit_num<span class="opt">;</span>
+
+      <span class="kwa">if</span> <span class="opt">(</span>bit_num <span class="opt">==</span> <span class="num">8</span><span class="opt">) {</span>
+        row<span class="opt">[</span>xbyte<span class="opt">++] =</span> byte_acc<span class="opt">;</span>
+        byte_acc <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+        bit_num <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+      <span class="opt">}</span> <span class="kwa">else if</span> <span class="opt">(</span>x <span class="opt">==</span> w <span class="opt">-</span> <span class="num">1</span><span class="opt">) {</span>
+        byte_acc <span class="opt">&lt;&lt;= (</span><span class="num">8</span> <span class="opt">-</span> w <span class="opt">%</span> <span class="num">8</span><span class="opt">);</span>
+        row<span class="opt">[</span>xbyte<span class="opt">++] =</span> byte_acc<span class="opt">;</span>
+        byte_acc <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+        bit_num <span class="opt">=</span> <span class="num">0</span><span class="opt">;</span>
+      <span class="opt">}</span>
+    <span class="opt">}</span>
+    stdout<span class="opt">.</span><span class="kwd">add</span><span class="opt">(</span>row<span class="opt">);</span>
   <span class="opt">}</span>
 <span class="opt">}</span>
     </pre>
@@ -116,14 +87,14 @@ Dart SDK version: 2.15.1 (stable)
 Tue Dec 14 13:32:21 2021
 
 
-Fri, 18 Mar 2022 01:57:35 GMT
+Fri, 18 Mar 2022 18:46:08 GMT
 
 MAKE:
 /opt/src/dart-sdk/bin/dart analyze 
 Analyzing tmp...
 No issues found!
 
-1.69s to complete and log all make actions
+2.12s to complete and log all make actions
 
 COMMAND LINE:
 /opt/src/dart-sdk/bin/dart run  mandelbrot.dartjit-2.dartjit 16000
