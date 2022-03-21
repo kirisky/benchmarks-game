@@ -4,7 +4,7 @@ STOPPED. Updates will be infrequent. Once or twice a year.
 Contribute source-code for measurement
 --------------------------------------
 
-Please —
+Please, people ask to see more "idiomatic" programs —
 
 * we already have enough exhaustively optimized Rust and C programs.
 * we already have enough hand-written vector SIMD and "unsafe" programs. 
