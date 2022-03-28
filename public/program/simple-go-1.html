@@ -24,72 +24,65 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
     <pre>
 <span class="com">/* The Computer Language Benchmarks Game</span>
 <span class="com">   https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
-<span class="com"> *</span>
-<span class="com"> * contributed by The Go Authors.</span>
-<span class="com"> * Based on mandelbrot.c contributed by Greg Buchholz</span>
+<span class="com"></span>
+<span class="com">   line-by-line from Greg Buchholz&apos;s C program</span>
 <span class="com">*/</span>
 
 <span class="kwa">package</span> main
+<span class="kwa">import</span> <span class="opt">(</span><span class="str">&quot;bufio&quot;</span><span class="opt">;</span> <span class="str">&quot;fmt&quot;</span><span class="opt">;</span> <span class="str">&quot;os&quot;</span><span class="opt">;</span> <span class="str">&quot;strconv&quot;</span><span class="opt">)</span>
 
-<span class="kwa">import</span> <span class="opt">(</span>
-   <span class="str">&quot;bufio&quot;</span>
-   <span class="str">&quot;flag&quot;</span>
-   <span class="str">&quot;fmt&quot;</span>
-   <span class="str">&quot;os&quot;</span>
-   <span class="str">&quot;strconv&quot;</span>
-<span class="opt">)</span>
+<span class="kwa">func</span> <span class="kwd">main</span> <span class="opt">() {</span>
+    bufout <span class="opt">:=</span> bufio<span class="opt">.</span><span class="kwd">NewWriter</span><span class="opt">(</span>os<span class="opt">.</span>Stdout<span class="opt">);</span> <span class="kwa">defer</span> bufout<span class="opt">.</span><span class="kwd">Flush</span><span class="opt">()</span>
+    <span class="kwa">var</span> w<span class="opt">,</span> h<span class="opt">,</span> x<span class="opt">,</span> y<span class="opt">,</span> i<span class="opt">,</span> bit_num <span class="kwb">int</span>
+    <span class="kwa">var</span> byte_acc <span class="kwb">byte</span>
+    iter <span class="opt">:=</span> <span class="num">50</span>
+    limit <span class="opt">:=</span> <span class="num">2.0</span>
+    <span class="kwa">var</span> Zr<span class="opt">,</span> Zi<span class="opt">,</span> Cr<span class="opt">,</span> Ci<span class="opt">,</span> Tr<span class="opt">,</span> Ti <span class="kwb">float64</span>
 
-<span class="kwa">var</span> n <span class="opt">=</span> <span class="num">0</span>
+    w<span class="opt">,</span>_ <span class="opt">=</span> strconv<span class="opt">.</span><span class="kwd">Atoi</span><span class="opt">(</span>os<span class="opt">.</span>Args<span class="opt">[</span><span class="num">1</span><span class="opt">])</span>
+    h <span class="opt">=</span> w<span class="opt">;</span>
 
-<span class="kwa">func</span> <span class="kwd">main</span><span class="opt">() {</span>
-   flag<span class="opt">.</span><span class="kwd">Parse</span><span class="opt">()</span>
-   <span class="kwa">if</span> flag<span class="opt">.</span><span class="kwd">NArg</span><span class="opt">() &gt;</span> <span class="num">0</span> <span class="opt">{</span> n<span class="opt">,</span>_ <span class="opt">=</span> strconv<span class="opt">.</span><span class="kwd">Atoi</span><span class="opt">(</span> flag<span class="opt">.</span><span class="kwd">Arg</span><span class="opt">(</span><span class="num">0</span><span class="opt">) ) }</span>
+    fmt<span class="opt">.</span><span class="kwd">Printf</span><span class="opt">(</span><span class="str">&quot;P4</span><span class="esc">\n</span><span class="str"></span><span class="ipl">%d %d</span><span class="str"></span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span>w<span class="opt">,</span> h<span class="opt">)</span>
 
-   out <span class="opt">:=</span> bufio<span class="opt">.</span><span class="kwd">NewWriter</span><span class="opt">(</span>os<span class="opt">.</span>Stdout<span class="opt">)</span>
-   <span class="kwa">defer</span> out<span class="opt">.</span><span class="kwd">Flush</span><span class="opt">()</span>
+    <span class="kwa">for</span> y<span class="opt">=</span><span class="num">0</span><span class="opt">;</span> y<span class="opt">&lt;</span>h<span class="opt">;</span> y<span class="opt">++ {</span>
 
-   w <span class="opt">:=</span> n
-   h <span class="opt">:=</span> n
-   bit_num <span class="opt">:=</span> <span class="num">0</span>
-   byte_acc <span class="opt">:=</span> <span class="kwb">byte</span><span class="opt">(</span><span class="num">0</span><span class="opt">)</span>
-   <span class="kwa">const</span> Iter <span class="opt">=</span> <span class="num">50</span>
-   <span class="kwa">const</span> Zero <span class="kwb">float64</span> <span class="opt">=</span> <span class="num">0</span>
-   <span class="kwa">const</span> Limit <span class="opt">=</span> <span class="num">2.0</span>
+        <span class="kwa">for</span> x<span class="opt">=</span><span class="num">0</span><span class="opt">;</span> x<span class="opt">&lt;</span>w<span class="opt">;</span> x<span class="opt">++ {</span>
 
-   fmt<span class="opt">.</span><span class="kwd">Fprintf</span><span class="opt">(</span>out<span class="opt">,</span> <span class="str">&quot;P4</span><span class="esc">\n</span><span class="str"></span><span class="ipl">%d %d</span><span class="str"></span><span class="esc">\n</span><span class="str">&quot;</span><span class="opt">,</span> w<span class="opt">,</span> h<span class="opt">)</span>
+            Zr <span class="opt">=</span> <span class="num">0.0</span><span class="opt">;</span> Zi <span class="opt">=</span> <span class="num">0.0</span>
+            Cr <span class="opt">=</span> <span class="num">2</span><span class="opt">*</span><span class="kwb">float64</span><span class="opt">(</span>x<span class="opt">)/</span><span class="kwb">float64</span><span class="opt">(</span>w<span class="opt">) -</span> <span class="num">1.5</span><span class="opt">;</span> Ci <span class="opt">=</span> <span class="num">2</span><span class="opt">*</span><span class="kwb">float64</span><span class="opt">(</span>y<span class="opt">)/</span><span class="kwb">float64</span><span class="opt">(</span>h<span class="opt">) -</span> <span class="num">1</span>
+        
+            <span class="kwa">for</span> i<span class="opt">=</span><span class="num">0</span><span class="opt">;</span> i<span class="opt">&lt;</span>iter<span class="opt">;</span> i<span class="opt">++ {</span>
 
-   <span class="kwa">for</span> y <span class="opt">:=</span> <span class="num">0</span><span class="opt">;</span> y <span class="opt">&lt;</span> h<span class="opt">;</span> y<span class="opt">++ {</span>
-      <span class="kwa">for</span> x <span class="opt">:=</span> <span class="num">0</span><span class="opt">;</span> x<span class="opt">&lt;</span>w<span class="opt">;</span> x<span class="opt">++ {</span>
-         Zr<span class="opt">,</span> Zi<span class="opt">,</span> Tr<span class="opt">,</span> Ti <span class="opt">:=</span> Zero<span class="opt">,</span> Zero<span class="opt">,</span> Zero<span class="opt">,</span> Zero
-         Cr <span class="opt">:= (</span><span class="num">2</span><span class="opt">*</span><span class="kwb">float64</span><span class="opt">(</span>x<span class="opt">)/</span><span class="kwb">float64</span><span class="opt">(</span>w<span class="opt">) -</span> <span class="num">1.5</span><span class="opt">)</span>
-         Ci <span class="opt">:= (</span><span class="num">2</span><span class="opt">*</span><span class="kwb">float64</span><span class="opt">(</span>y<span class="opt">)/</span><span class="kwb">float64</span><span class="opt">(</span>h<span class="opt">) -</span> <span class="num">1.0</span><span class="opt">)</span>
+                Tr <span class="opt">=</span> Zr<span class="opt">*</span>Zr <span class="opt">-</span> Zi<span class="opt">*</span>Zi <span class="opt">+</span> Cr
+                Ti <span class="opt">=</span> <span class="num">2</span><span class="opt">*</span>Zr<span class="opt">*</span>Zi <span class="opt">+</span> Ci
+                Zr <span class="opt">=</span> Tr<span class="opt">;</span> Zi <span class="opt">=</span> Ti
+                <span class="kwa">if</span> Zr<span class="opt">*</span>Zr<span class="opt">+</span>Zi<span class="opt">*</span>Zi <span class="opt">&gt;</span> limit<span class="opt">*</span>limit <span class="opt">{</span>
+                    <span class="kwa">break</span>
+                <span class="opt">}</span>
+            <span class="opt">}</span>
+            <span class="kwa">if</span> Zr<span class="opt">*</span>Zr<span class="opt">+</span>Zi<span class="opt">*</span>Zi <span class="opt">&gt;</span> limit<span class="opt">*</span>limit <span class="opt">{</span>
+                byte_acc <span class="opt">= (</span>byte_acc <span class="opt">&lt;&lt;</span> <span class="num">1</span><span class="opt">)</span> | <span class="num">0x00</span>
+            <span class="opt">}</span> <span class="kwa">else</span> <span class="opt">{</span>
+                byte_acc <span class="opt">= (</span>byte_acc <span class="opt">&lt;&lt;</span> <span class="num">1</span><span class="opt">)</span> | <span class="num">0x01</span>
+            <span class="opt">}</span>    
+            bit_num<span class="opt">++</span> 
 
-         <span class="kwa">for</span> i <span class="opt">:=</span> <span class="num">0</span><span class="opt">;</span> i <span class="opt">&lt;</span> Iter <span class="opt">&amp;&amp; (</span>Tr<span class="opt">+</span>Ti <span class="opt">&lt;=</span> Limit<span class="opt">*</span>Limit<span class="opt">);</span> i<span class="opt">++ {</span>
-            Zi <span class="opt">=</span> <span class="num">2</span><span class="opt">*</span>Zr<span class="opt">*</span>Zi <span class="opt">+</span> Ci
-            Zr <span class="opt">=</span> Tr <span class="opt">-</span> Ti <span class="opt">+</span> Cr
-            Tr <span class="opt">=</span> Zr <span class="opt">*</span> Zr
-            Ti <span class="opt">=</span> Zi <span class="opt">*</span> Zi
-         <span class="opt">}</span>
+            <span class="kwa">if</span> bit_num <span class="opt">==</span> <span class="num">8</span> <span class="opt">{</span>
 
-         byte_acc <span class="opt">&lt;&lt;=</span> <span class="num">1</span>
-         <span class="kwa">if</span> Tr<span class="opt">+</span>Ti <span class="opt">&lt;=</span> Limit<span class="opt">*</span>Limit <span class="opt">{</span>
-            byte_acc |<span class="opt">=</span> <span class="num">0x01</span>
-         <span class="opt">}</span>
+                bufout<span class="opt">.</span><span class="kwd">WriteByte</span><span class="opt">(</span>byte_acc<span class="opt">)</span>            
+                byte_acc <span class="opt">=</span> <span class="num">0</span>
+                bit_num <span class="opt">=</span> <span class="num">0</span>
 
-         bit_num<span class="opt">++</span>
+            <span class="opt">}</span> <span class="kwa">else if</span> x <span class="opt">==</span> w<span class="opt">-</span><span class="num">1</span> <span class="opt">{</span>
 
-         <span class="kwa">if</span> bit_num <span class="opt">==</span> <span class="num">8</span> <span class="opt">{</span>
-            out<span class="opt">.</span><span class="kwd">WriteByte</span><span class="opt">(</span>byte_acc<span class="opt">)</span>
-            byte_acc <span class="opt">=</span> <span class="num">0</span>
-            bit_num <span class="opt">=</span> <span class="num">0</span>
-         <span class="opt">}</span> <span class="kwa">else if</span> x <span class="opt">==</span> w<span class="opt">-</span><span class="num">1</span> <span class="opt">{</span>
-            byte_acc <span class="opt">&lt;&lt;=</span> <span class="kwb">uint</span><span class="opt">(</span><span class="num">8</span><span class="opt">-</span>w%8<span class="opt">)</span>
-            out<span class="opt">.</span><span class="kwd">WriteByte</span><span class="opt">(</span>byte_acc<span class="opt">)</span>
-            byte_acc <span class="opt">=</span> <span class="num">0</span>
-            bit_num <span class="opt">=</span> <span class="num">0</span>
-         <span class="opt">}</span>
-      <span class="opt">}</span>
-   <span class="opt">}</span>
+                byte_acc <span class="opt">=</span> byte_acc <span class="opt">&lt;&lt; (</span><span class="num">8</span><span class="opt">-</span>w%8<span class="opt">)</span>
+                bufout<span class="opt">.</span><span class="kwd">WriteByte</span><span class="opt">(</span>byte_acc<span class="opt">)</span>
+                byte_acc <span class="opt">=</span> <span class="num">0</span>
+                bit_num <span class="opt">=</span> <span class="num">0</span>
+            <span class="opt">}</span>
+
+        <span class="opt">}</span>
+    <span class="opt">}</span>	
 <span class="opt">}</span>
     </pre>
   </section>
@@ -103,12 +96,12 @@ NOTES:
 go version go1.18 linux/amd64
 
 
-Tue, 15 Mar 2022 20:04:57 GMT
+Mon, 28 Mar 2022 21:30:28 GMT
 
 MAKE:
 /opt/src/go1.18/go/bin/go build -o simple.go_run simple.go
 
-3.32s to complete and log all make actions
+3.37s to complete and log all make actions
 
 COMMAND LINE:
 ./simple.go_run 16000
