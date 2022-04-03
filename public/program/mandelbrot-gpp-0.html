@@ -22,202 +22,356 @@ a{color:black;text-decoration:none}article{padding:0 0 2.9em}article,div,footer,
       <h2>source code</h2>
     </div>
     <pre>
-<span class="com">/* The Computer Language Benchmarks Game</span>
-<span class="com">   https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
-<span class="com">   </span>
-<span class="com">   contributed by Sebastien Ponce</span>
-<span class="com">*/</span>
+﻿<span class="slc">// The Computer Language Benchmarks Game</span>
+<span class="slc">// https://salsa.debian.org/benchmarksgame-team/benchmarksgame/</span>
+<span class="slc">//</span>
+<span class="slc">// Contributed by Markus Flad.</span>
+<span class="slc">// Unlike the original version, this version uses std::array to make the</span>
+<span class="slc">// compiler vectorize. So no more intrinsics from the header file immintrin.h</span>
+<span class="slc">// are needed.</span>
+<span class="slc">//</span>
+<span class="slc">// Compile with following g++ flags</span>
+<span class="slc">//  -std=c++17 -O3 -Wall -march=native -mno-fma</span>
 
+<span class="ppc">#include &lt;string&gt;</span>
 <span class="ppc">#include &lt;iostream&gt;</span>
-<span class="ppc">#include &lt;vectorclass.h&gt;</span>
-<span class="ppc">#include &lt;array&gt;</span>
 <span class="ppc">#include &lt;vector&gt;</span>
+<span class="ppc">#include &lt;complex&gt;</span>
+<span class="ppc">#include &lt;algorithm&gt;</span>
 <span class="ppc">#include &lt;thread&gt;</span>
+<span class="ppc">#include &lt;climits&gt;</span>
+<span class="ppc">#include &lt;version&gt;</span>
+<span class="ppc">#include &lt;array&gt;</span>
 
-<span class="slc">// Number of vectors concurrently computed in the inner loop</span>
-<span class="ppc">#define N 3</span>
-<span class="slc">// Nb of threads</span>
-<span class="ppc">#define NBTHREADS 4</span>
+<span class="kwb">const</span> <span class="kwc">auto</span> numberOfCpuCores = std::thread::<span class="kwd">hardware_concurrency</span>();
 
-<span class="com">/**</span>
-<span class="com"> * This defines an array of items of a given VCL vector type</span>
-<span class="com"> * and implements a number of operators and useful method to</span>
-<span class="com"> * handle it as if we were using a single vector element</span>
-<span class="com"> */</span>
-<span class="kwc">template</span>&lt;typename VectorType, <span class="kwb">int</span> NbElem = N&gt;
-  <span class="kwb">struct</span> Array : std::array&lt;VectorType, NbElem&gt; {
-  <span class="kwa">using</span> BaseType = <span class="kwc">decltype</span>(std::declval&lt;VectorType&gt;().<span class="kwd">extract</span>(<span class="num">0</span>));
-  <span class="kwa">using</span> BoolType = <span class="kwc">decltype</span>(std::declval&lt;VectorType&gt;() &gt; std::declval&lt;BaseType&gt;());
-  <span class="kwa">using</span> BoolArrayType = Array&lt;BoolType, NbElem&gt;;
-  <span class="kwd">Array</span>() = <span class="kwa">default</span>;
-  <span class="kwd">Array</span>(BaseType v) {
-    <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">0</span>; i &lt; NbElem; i++) (*<span class="kwa">this</span>)[i] = v;
-  }
-  <span class="kwd">Array</span>(BaseType minx, BaseType dx) {
-    <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">0</span>; i &lt; NbElem; i++) {
-      (*<span class="kwa">this</span>)[i] = {minx+(<span class="num">7</span>+i*<span class="num">8</span>)*dx, minx+(<span class="num">6</span>+i*<span class="num">8</span>)*dx, minx+(<span class="num">5</span>+i*<span class="num">8</span>)*dx, minx+(<span class="num">4</span>+i*<span class="num">8</span>)*dx, minx+(<span class="num">3</span>+i*<span class="num">8</span>)*dx, minx+(<span class="num">2</span>+i*<span class="num">8</span>)*dx, minx+(<span class="num">1</span>+i*<span class="num">8</span>)*dx, minx+i*<span class="num">8</span>*dx};
+<span class="slc">// The PortableBinaryBitmap manages access to the pbm output file and provides</span>
+<span class="slc">// interlaced canvases that allow threads to write to the bitmap in parallel.</span>
+<span class="kwc">class</span> PortableBinaryBitmap {
+<span class="kwc">public</span>:
+    <span class="kwa">using</span> Size=std::<span class="kwb">size_t</span>;
+    <span class="kwd">PortableBinaryBitmap</span>(std::ostream&amp; ostr, Size width, Size height)
+    : <span class="kwd">_ostr</span> (ostr)
+    , <span class="kwd">_width</span> (<span class="kwd">roundToMultiple</span>(width, CHAR_BIT))
+    , <span class="kwd">_height</span> (<span class="kwd">roundToMultiple</span>(height, numberOfCpuCores))
+    , <span class="kwd">_data</span> ((_width * _height) / CHAR_BIT) {
+        _ostr &lt;&lt; <span class="str">&quot;P4&quot;</span> &lt;&lt; <span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span>;
+        _ostr &lt;&lt; _width &lt;&lt; <span class="str">&apos; &apos;</span> &lt;&lt; _height &lt;&lt; <span class="str">&apos;</span><span class="esc">\n</span><span class="str">&apos;</span>;
     }
-  }
-  <span class="kwb">void</span> <span class="kwd">store</span>(BaseType* buffer) {
-    <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">0</span>; i &lt; NbElem; i++) {  
-      (*<span class="kwa">this</span>)[i].<span class="kwd">store</span>(buffer+<span class="num">8</span>*i);
+    ~<span class="kwd">PortableBinaryBitmap</span>() {
+        _ostr.<span class="kwd">write</span>(_data.<span class="kwd">data</span>(), _data.<span class="kwd">size</span>());
     }
-  }
-  Array <span class="kwc">operator</span>+=(Array&amp; arg) {
-    <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">0</span>; i &lt; NbElem; i++) (*<span class="kwa">this</span>)[i] += arg;
-  }
-  Array <span class="kwc">operator</span>+=(BaseType arg) {
-    <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">0</span>; i &lt; NbElem; i++) (*<span class="kwa">this</span>)[i] += arg;
-    <span class="kwa">return</span> *<span class="kwa">this</span>;
-  }
-  Array <span class="kwc">operator</span>+(Array <span class="kwb">const</span> &amp; arg) {
-    Array res;
-    <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">0</span>; i &lt; NbElem; i++) res[i] = (*<span class="kwa">this</span>)[i] + arg[i];
-    <span class="kwa">return</span> res;
-  }
-  Array <span class="kwc">operator</span>+(VectorType arg) {
-    Array res;
-    <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">0</span>; i &lt; NbElem; i++) res[i] = (*<span class="kwa">this</span>)[i] + arg;
-    <span class="kwa">return</span> res;
-  }
-  Array <span class="kwc">operator</span>-(Array <span class="kwb">const</span>&amp; arg) {
-    Array res;
-    <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">0</span>; i &lt; NbElem; i++) res[i] = (*<span class="kwa">this</span>)[i] - arg[i];
-    <span class="kwa">return</span> res;
-  }
-  Array <span class="kwc">operator</span>*(Array <span class="kwb">const</span> &amp; arg) {
-    Array res;
-    <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">0</span>; i &lt; NbElem; i++) res[i] = (*<span class="kwa">this</span>)[i] * arg[i];
-    <span class="kwa">return</span> res;
-  }
-  Array <span class="kwc">operator</span>*(BaseType arg) {
-    Array res;
-    <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">0</span>; i &lt; NbElem; i++) res[i] = (*<span class="kwa">this</span>)[i] * arg;
-    <span class="kwa">return</span> res;
-  }
-  BoolArrayType <span class="kwc">operator</span>&lt;(BaseType arg) {
-    BoolArrayType res;
-    <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">0</span>; i &lt; NbElem; i++) res[i] = (*<span class="kwa">this</span>)[i] &lt; arg;
-    <span class="kwa">return</span> res;
-  }
+    Size <span class="kwd">width</span>() <span class="kwb">const</span> noexcept {
+        <span class="kwa">return</span> _width;
+    }
+    Size <span class="kwd">height</span>() <span class="kwb">const</span> noexcept {
+        <span class="kwa">return</span> _height;
+    }
+    Size <span class="kwd">widthInBytes</span>() <span class="kwb">const</span> noexcept {
+        <span class="kwa">return</span> _width / CHAR_BIT;
+    }
+    <span class="kwb">struct</span> Line {
+        <span class="kwc">constexpr</span> <span class="kwb">static</span> Size <span class="kwd">pixelsPerWrite</span>() noexcept {
+            <span class="kwa">return</span> CHAR_BIT;
+        }
+        Size y;
+        Size width;
+        <span class="kwb">char</span>* data;
+    };
+    <span class="slc">// The InterlacedCanvas provides interlaced access to the bitmap data. Each</span>
+    <span class="slc">// thread must use its own InterlacedCanvas to write to the bitmap.</span>
+    <span class="kwc">class</span> InterlacedCanvas {
+    <span class="kwc">public</span>:
+        <span class="kwc">class</span> Iterator {
+        <span class="kwc">public</span>:
+            <span class="kwd">Iterator</span>(Size y, Size _width, <span class="kwb">char</span>* data,
+                    Size interlaceIncrement, Size dataPointerIncrement) noexcept
+            : _il {y, _width, data}
+            , <span class="kwd">_interlaceIncrement</span> (interlaceIncrement)
+            , <span class="kwd">_dataPointerIncrement</span> (dataPointerIncrement) {
+            }
+            Line&amp; <span class="kwc">operator</span>*() noexcept {
+                <span class="kwa">return</span> _il;
+            }
+            <span class="kwb">bool</span> <span class="kwc">operator</span>!=(<span class="kwb">const</span> Iterator&amp; other) <span class="kwb">const</span> noexcept {
+                <span class="kwa">return</span> _il.data != other._il.data;
+            }
+            Iterator&amp; <span class="kwc">operator</span>++() noexcept {
+                _il.y += _interlaceIncrement;
+                _il.data += _dataPointerIncrement;
+                <span class="kwa">return</span> *<span class="kwa">this</span>;
+            }
+        <span class="kwc">private</span>:
+            Line _il;
+            Size _interlaceIncrement;
+            Size _dataPointerIncrement;
+        };
+        <span class="kwd">InterlacedCanvas</span>(PortableBinaryBitmap&amp; pbm, Size yStart, Size increment)
+                noexcept
+        : <span class="kwd">_pbm</span> (pbm)
+        , <span class="kwd">_yStart</span> (yStart)
+        , <span class="kwd">_increment</span> (increment)
+        , <span class="kwd">_dataStart</span> (yStart * pbm.<span class="kwd">widthInBytes</span>())
+        , <span class="kwd">_dataPointerIncrement</span> (increment * pbm.<span class="kwd">widthInBytes</span>()) {
+        }
+        Size <span class="kwd">width</span>() <span class="kwb">const</span> noexcept {
+            <span class="kwa">return</span> _pbm.<span class="kwd">width</span>();
+        }
+        Size <span class="kwd">height</span>() <span class="kwb">const</span> noexcept {
+            <span class="kwa">return</span> _pbm.<span class="kwd">height</span>();
+        }
+        Iterator <span class="kwd">begin</span>() noexcept {
+            <span class="kwa">return</span> <span class="kwd">Iterator</span>(_yStart, _pbm.<span class="kwd">width</span>(),
+                    _pbm._data.<span class="kwd">data</span>() + _dataStart,
+                    _increment, _dataPointerIncrement);
+        }
+        Iterator <span class="kwd">end</span>() noexcept {
+            <span class="kwa">return</span> <span class="kwd">Iterator</span>(_yStart + _pbm.<span class="kwd">height</span>(), _pbm.<span class="kwd">width</span>(),
+                    _pbm._data.<span class="kwd">data</span>() + _pbm._data.<span class="kwd">size</span>() + _dataStart,
+                    _increment, _dataPointerIncrement);
+        }
+    <span class="kwc">private</span>:
+        PortableBinaryBitmap&amp; _pbm;
+        Size _yStart;
+        Size _increment;
+        Size _dataStart;
+        Size _dataPointerIncrement;
+    };
+    std::vector&lt;InterlacedCanvas&gt; <span class="kwd">provideInterlacedCanvas</span>(Size increment)
+            noexcept {
+        std::vector&lt;InterlacedCanvas&gt; interlacedCanvasVector;
+        <span class="kwa">for</span> (Size yStart=<span class="num">0</span>; yStart&lt;increment; ++yStart) {
+            interlacedCanvasVector.<span class="kwd">emplace_back</span>(*<span class="kwa">this</span>, yStart, increment);
+        }
+        <span class="kwa">return</span> interlacedCanvasVector;
+    }
+    <span class="kwb">static</span> Size <span class="kwd">roundToMultiple</span> (Size number, Size base) noexcept {
+        <span class="kwa">return</span> number + ((number % base) ? (base - number % base) : <span class="num">0</span>);
+    }
+<span class="kwc">private</span>:
+    std::ostream&amp; _ostr;
+    Size _width;
+    Size _height;
+    std::vector&lt;<span class="kwb">char</span>&gt; _data;
 };
 
-<span class="com">/**</span>
-<span class="com"> * SPecialization of Array for boolean types where arithmetic</span>
-<span class="com"> * operation do not make sense but horizontal_or is useful</span>
-<span class="com"> */</span>
-<span class="kwc">template</span>&lt;<span class="kwb">int</span> NbElem&gt;
-  <span class="kwb">struct</span> Array&lt;Vec8fb, NbElem&gt; : std::array&lt;Vec8fb, NbElem&gt; {
-  <span class="kwa">using</span> BaseType = <span class="kwc">decltype</span>(std::declval&lt;Vec8fb&gt;().<span class="kwd">extract</span>(<span class="num">0</span>));
-  <span class="kwd">Array</span>() = <span class="kwa">default</span>;
-  <span class="kwd">Array</span>(BaseType v) {
-    <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">0</span>; i &lt; NbElem; i++) (*<span class="kwa">this</span>)[i] = v;
-  }
-  Array&amp; <span class="kwc">operator</span>|=(Array arg) {
-    <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">0</span>; i &lt; NbElem; i++) (*<span class="kwa">this</span>)[i] |= arg[i];
-    <span class="kwa">return</span> *<span class="kwa">this</span>;
-  }
-  <span class="kwb">bool</span> <span class="kwd">horizontal_or</span>() {
-    <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">0</span>; i &lt; N; i++) <span class="kwa">if</span> (::<span class="kwd">horizontal_or</span>((*<span class="kwa">this</span>)[i])) <span class="kwa">return true</span>;
-    <span class="kwa">return false</span>;
-  }
+<span class="kwc">template</span>&lt;typename NUMBER_TYPE&gt;
+<span class="kwc">class</span> VectorizedNumber
+{
+<span class="kwc">public</span>:
+    <span class="kwc">constexpr</span> <span class="kwb">static</span> std::<span class="kwb">size_t</span> SIZE = <span class="num">8</span>;
+    <span class="kwa">using</span> NumericArray = std::array&lt;NUMBER_TYPE, SIZE&gt;;
 
+    <span class="kwd">VectorizedNumber</span>() noexcept
+    : <span class="kwd">_x</span>(_values.<span class="kwd">data</span>()) {
+    }
+    <span class="kwc">explicit</span> <span class="kwd">VectorizedNumber</span>(NUMBER_TYPE value) noexcept
+    : <span class="kwd">_x</span>(_values.<span class="kwd">data</span>()) {
+        std::<span class="kwd">fill</span>(_values.<span class="kwd">begin</span>(), _values.<span class="kwd">end</span>(), value);
+    }
+    <span class="kwd">VectorizedNumber</span>(<span class="kwb">const</span> VectorizedNumber&amp; other) noexcept
+    : <span class="kwd">_x</span>(_values.<span class="kwd">data</span>()) {
+        *<span class="kwa">this</span> = other;
+    }
+    VectorizedNumber&amp; <span class="kwc">operator</span>=(<span class="kwb">const</span> VectorizedNumber&amp; other) noexcept {
+        <span class="slc">// In GCC (unlike Clang), using the std::array assignment operator and</span>
+        <span class="slc">// also its copy constructor slows down SIMD performance. Therefore we</span>
+        <span class="slc">// use a raw loop here.</span>
+        <span class="kwa">for</span> (<span class="kwb">size_t</span> i=<span class="num">0</span>; i&lt;SIZE; ++i) {
+            _values[i] = other._values[i];
+        }
+        <span class="kwa">return</span> *<span class="kwa">this</span>;
+    }
+    NUMBER_TYPE <span class="kwc">operator</span>[](std::<span class="kwb">size_t</span> i) <span class="kwb">const</span> noexcept{
+        <span class="kwa">return</span> _values[i];
+    }
+    NUMBER_TYPE&amp; <span class="kwc">operator</span>[](std::<span class="kwb">size_t</span> i) noexcept {
+        <span class="kwa">return</span> _values[i];
+    }
+    typename NumericArray::const_iterator <span class="kwd">begin</span>() <span class="kwb">const</span> noexcept {
+        <span class="kwa">return</span> _values.<span class="kwd">begin</span>();
+    }
+    typename NumericArray::const_iterator <span class="kwd">end</span>() <span class="kwb">const</span> noexcept {
+        <span class="kwa">return</span> _values.<span class="kwd">end</span>();
+    }
+    <span class="kwb">bool</span> <span class="kwc">operator</span>&gt;(NUMBER_TYPE value) <span class="kwb">const</span> noexcept {
+        <span class="kwa">return</span> (std::<span class="kwd">all_of</span>(_values.<span class="kwd">begin</span>(), _values.<span class="kwd">end</span>(),
+                [&amp;value](NUMBER_TYPE v) {<span class="kwa">return</span> v &gt; value;}));
+    }
+    <span class="kwb">char</span> <span class="kwd">lteToPixels</span>(NUMBER_TYPE threshold) <span class="kwb">const</span> noexcept {
+        <span class="kwb">char</span> result = <span class="num">0</span>;
+        <span class="kwa">if</span> (_values[<span class="num">0</span>] &lt;= threshold) result |= <span class="num">0</span>b10000000;
+        <span class="kwa">if</span> (_values[<span class="num">1</span>] &lt;= threshold) result |= <span class="num">0</span>b01000000;
+        <span class="kwa">if</span> (_values[<span class="num">2</span>] &lt;= threshold) result |= <span class="num">0</span>b00100000;
+        <span class="kwa">if</span> (_values[<span class="num">3</span>] &lt;= threshold) result |= <span class="num">0</span>b00010000;
+        <span class="kwa">if</span> (_values[<span class="num">4</span>] &lt;= threshold) result |= <span class="num">0</span>b00001000;
+        <span class="kwa">if</span> (_values[<span class="num">5</span>] &lt;= threshold) result |= <span class="num">0</span>b00000100;
+        <span class="kwa">if</span> (_values[<span class="num">6</span>] &lt;= threshold) result |= <span class="num">0</span>b00000010;
+        <span class="kwa">if</span> (_values[<span class="num">7</span>] &lt;= threshold) result |= <span class="num">0</span>b00000001;
+        <span class="kwa">return</span> result;
+    }
+<span class="kwc">private</span>:
+    NumericArray _values;
+    <span class="slc">// A pointer to the data, which is not used outside, but helps the compiler</span>
+    <span class="slc">// with the SIMD optimization (especially GCC 11).</span>
+    NUMBER_TYPE* _x;
 };
 
-<span class="com">/**</span>
-<span class="com"> * kernel of mandelbrot compilation compiling number</span>
-<span class="com"> * of iterations for a given set of pixels</span>
-<span class="com"> */</span>
-<span class="kwb">void</span> <span class="kwd">kernel</span>(<span class="kwb">char</span>* buf, Array&lt;Vec8f&gt; ax, Vec8f ay) {
-  <span class="slc">// future results, all to -1 initially</span>
-  Array&lt;Vec8ib&gt; res{<span class="kwa">false</span>};
-  <span class="slc">// remember which pixels are already diverging</span>
-  Array&lt;Vec8fb&gt; cmp{<span class="kwa">false</span>};
+<span class="slc">// VectorizedComplex provides a convenient interface to deal with complex</span>
+<span class="slc">// numbers and uses the power of SIMD for high execution speed.</span>
+<span class="kwc">template</span> &lt;typename NUMBER_TYPE&gt;
+<span class="kwc">class</span> VectorizedComplex {
+<span class="kwc">public</span>:
+    <span class="kwa">using</span> Size = std::<span class="kwb">size_t</span>;
 
-  Array&lt;Vec8f&gt; x{<span class="num">0</span>};
-  Array&lt;Vec8f&gt; y{<span class="num">0</span>};
-  <span class="kwa">for</span> (<span class="kwb">int</span> n = <span class="num">1</span>; n &lt;= <span class="num">50</span>; n++) {
-    <span class="kwc">auto</span> newx = x*x - y*y + ax;
-    <span class="kwc">auto</span> newy = x*y*<span class="num">2</span> + ay;
-    cmp = (newx*newx + newy*newy &lt; <span class="num">4</span>);
-    <span class="slc">// no need to continue if all pixels are over</span>
-    <span class="kwa">if</span> (!cmp.<span class="kwd">horizontal_or</span>()) {
-      <span class="kwa">break</span>;
+    <span class="kwd">VectorizedComplex</span>() = <span class="kwa">default</span>;
+    <span class="kwd">VectorizedComplex</span>(<span class="kwb">const</span> VectorizedComplex&amp;) = <span class="kwa">default</span>;
+    VectorizedComplex&amp; <span class="kwc">operator</span>=(<span class="kwb">const</span> VectorizedComplex&amp;) = <span class="kwa">default</span>;
+    <span class="kwd">VectorizedComplex</span>(<span class="kwb">const</span> VectorizedNumber&lt;NUMBER_TYPE&gt;&amp; reals,
+            NUMBER_TYPE commonImagValue) noexcept
+    : <span class="kwd">_reals</span>(reals)
+    , <span class="kwd">_imags</span>(commonImagValue){
     }
-    x = newx;
-    y = newy;
-  }
-  <span class="kwa">for</span> (<span class="kwb">int</span> i = <span class="num">0</span>; i &lt; N; i++) buf[i] = <span class="kwd">to_bits</span>(cmp[i]);
-}
-
-<span class="com">/**</span>
-<span class="com"> * fills a char buffer with mandelbrot values for each</span>
-<span class="com"> * pixel of an image</span>
-<span class="com"> */</span>
-<span class="kwb">void</span> <span class="kwd">mandel</span>(<span class="kwb">char</span>* buffer,
-            <span class="kwb">const float</span> minx,
-            <span class="kwb">const float</span> dx,
-            <span class="kwb">const unsigned int</span> nx,
-            <span class="kwb">const float</span> miny,
-            <span class="kwb">const float</span> dy,
-            <span class="kwb">const unsigned int</span> ny) {
-  Vec8f ay{miny}; <span class="slc">// vector of 8 x miny value</span>
-  <span class="slc">// loop one pixel at a time in y</span>
-  <span class="kwa">for</span> (<span class="kwb">unsigned int</span> any = <span class="num">0</span>; any &lt; ny; ay += dy, any++) {
-    <span class="slc">// first N vectors of 8 pixels in x</span>
-    Array&lt;Vec8f&gt; ax{minx, dx};
-    <span class="slc">// loop 8*N by 8*N pixels in x</span>
-    <span class="kwa">for</span> (<span class="kwb">unsigned int</span> anx = <span class="num">0</span>; anx &lt; nx; anx += N*<span class="num">8</span>) {
-      <span class="slc">// compute and store back 8 pixels in one go</span>
-      <span class="slc">//std::cout &lt;&lt; &quot;offset &quot; &lt;&lt; anx &lt;&lt; &quot; &quot; &lt;&lt; (any*nx+anx)/8 &lt;&lt; std::endl;</span>
-      <span class="kwd">kernel</span>(buffer+(any*nx+anx)/<span class="num">8</span>, ax, ay);
-      ax += N*<span class="num">8</span>*dx;
+    VectorizedComplex&amp; <span class="kwd">squareAndAdd</span>(<span class="kwb">const</span> VectorizedComplex&amp; c,
+            VectorizedNumber&lt;NUMBER_TYPE&gt;&amp; squaredAbs) noexcept {
+        <span class="kwa">for</span> (Size i=<span class="num">0</span>; i&lt;VectorizedNumber&lt;NUMBER_TYPE&gt;::SIZE; ++i) {
+            <span class="kwc">auto</span> realSquared = _reals[i] * _reals[i];
+            <span class="kwc">auto</span> imagSquared = _imags[i] * _imags[i];
+            <span class="kwc">auto</span> realTimesImag = _reals[i] * _imags[i];
+            _reals[i] = realSquared - imagSquared + c._reals[i];
+            _imags[i] = realTimesImag + realTimesImag + c._imags[i];
+            squaredAbs[i] = realSquared + imagSquared;
+        }
+        <span class="kwa">return</span> *<span class="kwa">this</span>;
     }
-  }
-}
+<span class="kwc">private</span>:
+    VectorizedNumber&lt;NUMBER_TYPE&gt; _reals;
+    VectorizedNumber&lt;NUMBER_TYPE&gt; _imags;
+};
 
-<span class="com">/**</span>
-<span class="com"> * main method :</span>
-<span class="com"> *  - parses input for size of the picture</span>
-<span class="com"> *  - start threads to compute values in parallel</span>
-<span class="com"> *  - write output file to stdout</span>
-<span class="com"> */</span>
-<span class="kwb">int</span> <span class="kwd">main</span>(<span class="kwb">int</span> argc, <span class="kwb">char</span>** argv) { 
-  std::ios::<span class="kwd">sync_with_stdio</span>(<span class="kwa">false</span>);
-  <span class="kwb">unsigned int</span> n = <span class="num">16000</span>;
-  <span class="kwa">if</span> (argc&gt;=<span class="num">2</span>) {
-    n = <span class="kwd">atoi</span>(argv[<span class="num">1</span>]);
-  }
-  <span class="kwc">constexpr</span> <span class="kwb">float</span> minx = -<span class="num">1.5</span>;
-  <span class="kwc">constexpr</span> <span class="kwb">float</span> maxx = <span class="num">0.5</span>;
-  <span class="kwc">constexpr</span> <span class="kwb">float</span> miny = -<span class="num">1.0</span>;
-  <span class="kwc">constexpr</span> <span class="kwb">float</span> maxy = <span class="num">1.0</span>;
-  <span class="kwc">auto</span> dx = (maxx - minx) / n;
-  <span class="kwc">auto</span> dy = (maxy - miny) / n;
-  <span class="kwc">auto</span> nyThreads = (n+NBTHREADS-<span class="num">1</span>)/NBTHREADS;
-  <span class="kwc">auto</span> dyThreads = nyThreads*dy;
-  <span class="kwc">auto</span> dData = n*nyThreads/<span class="num">8</span>;
-  <span class="slc">// make sure we have space for full vectors of vectors</span>
-  <span class="slc">// as last one may compute and write extra data after the end</span>
-  <span class="kwc">auto</span> nrounded = (n+<span class="num">8</span>*N-<span class="num">1</span>)/<span class="num">8</span>/N*<span class="num">8</span>*N;
-  <span class="kwc">auto</span> dDatarounded = nrounded*nyThreads/<span class="num">8</span>;
-  std::vector&lt;<span class="kwb">char</span>&gt; buf;
-  buf.<span class="kwd">resize</span>(dDatarounded*NBTHREADS);
-  <span class="slc">//std::cout &lt;&lt; nyThreads &lt;&lt; &quot; &quot; &lt;&lt; dData &lt;&lt; &quot; &quot; &lt;&lt; buf.size() &lt;&lt; &quot;\n&quot;;</span>
-  std::vector&lt;std::thread&gt; threads;
-  <span class="kwa">for</span> (<span class="kwb">unsigned int</span> t = <span class="num">0</span>; t &lt; NBTHREADS; t++) {
-    threads.<span class="kwd">emplace_back</span>(mandel, buf.<span class="kwd">data</span>()+t*dDatarounded,
-                         minx, dx, n,
-                         miny+t*dyThreads, dy, nyThreads);
-  }
-  <span class="kwa">for</span> (<span class="kwc">auto</span>&amp; t : threads) {
-    t.<span class="kwd">join</span>();
-  }
-  std::cout &lt;&lt; <span class="str">&quot;P4</span><span class="esc">\n</span><span class="str">&quot;</span> &lt;&lt; n &lt;&lt; <span class="str">&quot; &quot;</span> &lt;&lt; n &lt;&lt; <span class="str">&quot;</span><span class="esc">\n</span><span class="str">&quot;</span>;
-  <span class="kwa">for</span> (<span class="kwb">unsigned int</span> t = <span class="num">0</span>; t &lt; NBTHREADS; t++) {
-    <span class="kwc">auto</span> bufn = buf.<span class="kwd">data</span>()+t*dDatarounded;
-    std::cout.<span class="kwd">write</span>(bufn, dData);
-  }
+<span class="slc">// The ComplexPlaneCalculator performs function f(c), with c as a</span>
+<span class="slc">// VectorizedComplex and a byte as the return value. Due to its eightfold</span>
+<span class="slc">// vectorization, each returned bit can return a Boolean value from the</span>
+<span class="slc">// calculation f(c). The full byte is then written to the canvas. This is done</span>
+<span class="slc">// until the whole bitmap is filled.</span>
+<span class="kwc">template</span> &lt;typename NUMBER_TYPE, <span class="kwc">class</span> Functor&gt;
+<span class="kwc">class</span> ComplexPlaneCalculator {
+<span class="kwc">public</span>:
+    <span class="kwa">using</span> VComplex = VectorizedComplex&lt;NUMBER_TYPE&gt;;
+    <span class="kwa">using</span> Line = typename PortableBinaryBitmap::Line;
+    <span class="kwa">using</span> Size = std::<span class="kwb">size_t</span>;
+
+    <span class="kwd">ComplexPlaneCalculator</span>(<span class="kwb">const</span> std::<span class="kwb">complex</span>&lt;NUMBER_TYPE&gt;&amp; cFirst,
+            <span class="kwb">const</span> std::<span class="kwb">complex</span>&lt;NUMBER_TYPE&gt;&amp; cLast,
+            PortableBinaryBitmap::InterlacedCanvas&amp; canvas, Functor f) noexcept
+    : <span class="kwd">_cFirst</span>(cFirst)
+    , <span class="kwd">_cLast</span>(cLast)
+    , <span class="kwd">_canvas</span>(canvas)
+    , <span class="kwd">_f</span>(f) {
+    }
+    <span class="kwb">void</span> <span class="kwc">operator</span>()() noexcept {
+        <span class="kwb">const</span> NUMBER_TYPE realRange = _cLast.<span class="kwd">real</span>() - _cFirst.<span class="kwd">real</span>();
+        <span class="kwb">const</span> NUMBER_TYPE imagRange = _cLast.<span class="kwd">imag</span>() - _cFirst.<span class="kwd">imag</span>();
+        <span class="kwb">const</span> NUMBER_TYPE rasterReal = realRange / _canvas.<span class="kwd">width</span>();
+        <span class="kwb">const</span> NUMBER_TYPE rasterImag = imagRange / _canvas.<span class="kwd">height</span>();
+        std::vector&lt;VectorizedNumber&lt;NUMBER_TYPE&gt;&gt; cRealValues;
+        cRealValues.<span class="kwd">reserve</span>(_canvas.<span class="kwd">width</span>() / Line::<span class="kwd">pixelsPerWrite</span>());
+        <span class="kwa">for</span> (Size x=<span class="num">0</span>; x&lt;_canvas.<span class="kwd">width</span>(); x+=Line::<span class="kwd">pixelsPerWrite</span>()) {
+            VectorizedNumber&lt;NUMBER_TYPE&gt; cReals;
+            <span class="kwa">for</span> (Size i=<span class="num">0</span>; i&lt;Line::<span class="kwd">pixelsPerWrite</span>(); ++i) {
+                cReals[i] = _cFirst.<span class="kwd">real</span>() + (x+i)*rasterReal;
+            }
+            cRealValues.<span class="kwd">push_back</span>(cReals);
+        }
+        <span class="kwa">for</span> (Line&amp; line : _canvas) {
+            <span class="kwb">char</span>* nextPixels = line.data;
+            <span class="kwb">char</span> lastPixels = <span class="num">0x00</span>;
+            <span class="kwb">const</span> NUMBER_TYPE cImagValue = _cFirst.<span class="kwd">imag</span>() + line.y*rasterImag;
+            <span class="kwa">for</span> (<span class="kwb">const</span> VectorizedNumber&lt;NUMBER_TYPE&gt;&amp; cReals : cRealValues) {
+                <span class="kwb">const</span> VComplex <span class="kwd">c</span>(cReals, cImagValue);
+                *nextPixels = <span class="kwd">_f</span>(c, lastPixels);
+                lastPixels = *nextPixels;
+                nextPixels++;
+            }
+        }
+    }
+<span class="kwc">private</span>:
+    std::<span class="kwb">complex</span>&lt;NUMBER_TYPE&gt; _cFirst;
+    std::<span class="kwb">complex</span>&lt;NUMBER_TYPE&gt; _cLast;
+    PortableBinaryBitmap::InterlacedCanvas _canvas;
+    Functor _f;
+};
+
+<span class="slc">// Functor calculating a Mandelbrot iteration for a VectorizedComplex. This</span>
+<span class="slc">// means that for eight complex numbers the Mandelbrot calculation is</span>
+<span class="slc">// (potentially) executed in parallel. The result is a byte that contains a 1</span>
+<span class="slc">// for each bit if the corresponding complex number is in the Mandelbrot set,</span>
+<span class="slc">// and a 0 if it is not.</span>
+<span class="kwc">template</span> &lt;typename NUMBER_TYPE&gt;
+<span class="kwc">class</span> MandelbrotFunction {
+<span class="kwc">public</span>:
+    <span class="kwa">using</span> VComplex = VectorizedComplex&lt;NUMBER_TYPE&gt;;
+    <span class="kwa">using</span> Size = std::<span class="kwb">size_t</span>;
+    <span class="kwc">constexpr</span> <span class="kwb">static</span> Size ITERATIONS_WITHOUT_CHECK = <span class="num">5</span>;
+    <span class="kwc">constexpr</span> <span class="kwb">static char</span> NONE_IN_MANDELBROT_SET = <span class="num">0x00</span>;
+
+    <span class="kwd">MandelbrotFunction</span>(Size maxIterations, NUMBER_TYPE pointOfNoReturn = <span class="num">2.0</span>)
+            noexcept
+    : <span class="kwd">_maxOuterIterations</span>(maxIterations / ITERATIONS_WITHOUT_CHECK - <span class="num">2</span>)
+    , <span class="kwd">_squaredPointOfNoReturn</span>(pointOfNoReturn * pointOfNoReturn) {
+    }
+    <span class="kwb">static void</span> <span class="kwd">doMandelbrotIterations</span>(VComplex&amp; z, <span class="kwb">const</span> VComplex&amp; c,
+            VectorizedNumber&lt;NUMBER_TYPE&gt;&amp; squaredAbs) noexcept {
+        <span class="kwa">for</span> (Size j=<span class="num">0</span>; j&lt;ITERATIONS_WITHOUT_CHECK; ++j) {
+            z.<span class="kwd">squareAndAdd</span>(c, squaredAbs);
+        }
+    }
+    <span class="kwb">char</span> <span class="kwc">operator</span>()(<span class="kwb">const</span> VComplex&amp; c, <span class="kwb">char</span> lastPixels) <span class="kwb">const</span> noexcept {
+        VComplex z = c;
+        VectorizedNumber&lt;NUMBER_TYPE&gt; squaredAbs;
+        <span class="kwa">if</span> (lastPixels == NONE_IN_MANDELBROT_SET) {
+            <span class="kwa">for</span> (Size i=<span class="num">0</span>; i&lt;_maxOuterIterations; ++i) {
+                <span class="kwd">doMandelbrotIterations</span>(z, c, squaredAbs);
+                <span class="kwa">if</span> (squaredAbs &gt; _squaredPointOfNoReturn) {
+                    <span class="kwa">return</span> NONE_IN_MANDELBROT_SET;
+                }
+            }
+        } <span class="kwa">else</span> {
+            <span class="kwa">for</span> (Size i=<span class="num">0</span>; i&lt;_maxOuterIterations; ++i) {
+                <span class="kwd">doMandelbrotIterations</span>(z, c, squaredAbs);
+            }
+        }
+        <span class="kwd">doMandelbrotIterations</span>(z, c, squaredAbs);
+        <span class="kwd">doMandelbrotIterations</span>(z, c, squaredAbs);
+        <span class="kwa">return</span> squaredAbs.<span class="kwd">lteToPixels</span>(_squaredPointOfNoReturn);
+    }
+<span class="kwc">private</span>:
+    Size _maxOuterIterations;
+    NUMBER_TYPE _squaredPointOfNoReturn;
+};
+
+<span class="kwb">int</span> <span class="kwd">main</span>(<span class="kwb">int</span> argc, <span class="kwb">char</span>** argv) {
+    <span class="kwa">using</span> NumberType = <span class="kwb">double</span>;
+    <span class="kwa">using</span> ComplexNumber = std::<span class="kwb">complex</span>&lt;NumberType&gt;;
+    <span class="kwa">using</span> MandelbrotCalculator = ComplexPlaneCalculator&lt;NumberType,
+            MandelbrotFunction&lt;NumberType&gt;&gt;;
+    std::<span class="kwb">size_t</span> n = <span class="num">16000</span>;
+    <span class="kwa">if</span> (argc&gt;=<span class="num">2</span>) {
+        n = <span class="kwd">atoi</span>(argv[<span class="num">1</span>]);
+    }
+    <span class="kwb">const</span> std::<span class="kwb">size_t</span> maxIterations = <span class="num">50</span>;
+    PortableBinaryBitmap <span class="kwd">pbm</span>(std::cout, n, n);
+    <span class="kwc">auto</span> canvasVector = pbm.<span class="kwd">provideInterlacedCanvas</span>(numberOfCpuCores);
+    std::vector&lt;std::thread&gt; threads;
+    <span class="kwa">for</span> (<span class="kwc">auto</span>&amp; canvas : canvasVector) {
+        threads.<span class="kwd">emplace_back</span>(<span class="kwd">MandelbrotCalculator</span> (<span class="kwd">ComplexNumber</span>(-<span class="num">1.5</span>, -<span class="num">1.0</span>),
+                <span class="kwd">ComplexNumber</span>(<span class="num">0.5</span>, <span class="num">1.0</span>), canvas,
+                MandelbrotFunction&lt;NumberType&gt; (maxIterations)));
+    }
+    <span class="kwa">for</span> (<span class="kwc">auto</span>&amp; t : threads) {
+        t.<span class="kwd">join</span>();
+    }
+    <span class="kwa">return</span> <span class="num">0</span>;
 }
     </pre>
   </section>
@@ -231,21 +385,17 @@ NOTES:
 11.2.0-7ubuntu2
 
 
-Thu, 24 Feb 2022 21:43:42 GMT
+Sun, 03 Apr 2022 22:57:37 GMT
 
 MAKE:
 /usr/bin/g++ -c -pipe -O3 -fomit-frame-pointer -march=ivybridge  --std=c++17 -I ./Include/gpp/vcl mandelbrot.gpp-0.c++ -o mandelbrot.gpp-0.c++.o &amp;&amp;  \
         /usr/bin/g++ mandelbrot.gpp-0.c++.o -o mandelbrot.gpp-0.gpp_run -pthread 
 rm mandelbrot.gpp-0.c++
 
-4.13s to complete and log all make actions
+3.35s to complete and log all make actions
 
 COMMAND LINE:
-./mandelbrot.gpp-0.gpp_run 1000
-
-UNEXPECTED OUTPUT 
-
-_out 1000_out differ: byte 107, line 3
+./mandelbrot.gpp-0.gpp_run 16000
 
 (BINARY) PROGRAM OUTPUT NOT SHOWN
     </pre>
