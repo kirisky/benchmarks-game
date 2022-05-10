@@ -11,7 +11,7 @@ Please, people ask to see more "idiomatic" programs —
 
 Thank you.
 
-We still need transliterations of existing straightforward programs. For example, transliterations of multicore JavaScript into type-annotated TypeScript. For example, Ruby programs that use Ractors. For example, Go programs that use generics.
+We still need transliterations of existing straightforward programs. For example, Ruby programs that use Ractors. For example, Go programs that use generics.
 
 What to contribute
 ------------------
